@@ -354,6 +354,19 @@ async def process_api_requests_from_list(
         )
     return results
 
+def instructions_to_message_lists(prompts: list[str], system_prompt: str = None):
+    """
+    Convert a list of instructions into a list of lists of messages.
+    """
+    result = []
+    for p in prompts:
+        messages = []
+        if system_prompt is not None:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": p})
+        result.append(messages)
+    return result
+
 async def run_chat_queries_async(
     prompts: list[list[dict]],  # each prompt is just a list of messages
     max_tokens_per_minute: int,
@@ -413,43 +426,100 @@ async def run_chat_queries_async(
 
     return replies, usage
 
-
-def instructions_to_message_lists(prompts: list[str], system_prompt: str = None):
-    """
-    Convert a list of instructions into a list of lists of messages.
-    """
-    result = []
-    for p in prompts:
-        messages = []
-        if system_prompt is not None:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": p})
-        result.append(messages)
-    return result
-
-
-async def get_completion_simple_async(
-    prompt: str,
-    model_name: Literal[
-        "gpt-3.5-turbo", "gpt-4-turbo", "gpt4", "mistral"
-    ] = "gpt-3.5-turbo",
+async def run_instruct_queries_async(
+    prompts: list[str],
+    max_tokens_per_minute: int,
+    max_requests_per_minute: int,
+    system_prompt: Optional[str] = None,
     temperature: float = 0.0,
     json_mode: bool = False,
+    model: Literal[
+        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
+    ] = "auto",
+    callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
+    max_attempts: int = 5,
+    cache_file: str = None,
+    show_progress: bool = False,
 ):
     """
     Get a single completion from a prompt.
     """
-    result, usage = await run_chat_queries_async(
-        prompts=instructions_to_message_lists([prompt]),
-        max_tokens_per_minute=25000,
-        max_requests_per_minute=100,
+    return await run_chat_queries_async(
+        prompts=instructions_to_message_lists(prompts, system_prompt),
+        max_tokens_per_minute=max_tokens_per_minute,
+        max_requests_per_minute=max_requests_per_minute,
         temperature=temperature,
         json_mode=json_mode,
-        model_name=model_name,
-        cache_file=None,
+        model=model,
         max_new_tokens=max_new_tokens,
-        max_attempts=5,
-        show_progress=False,
+        callback=callback,
+        max_attempts=max_attempts,
+        cache_file=cache_file,
+        show_progress=show_progress,
     )
-    return result[0]
+
+# sync wrapper, don't use in async code or you'll be sad
+def run_chat_queries(
+    prompts: list[list[dict]],  # each prompt is just a list of messages
+    max_tokens_per_minute: int,
+    max_requests_per_minute: int,
+    temperature: float = 0.0,
+    json_mode: bool = False,
+    model: Literal[
+        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
+    ] = "auto",
+    callback: Optional[Callable] = None,
+    max_new_tokens: Optional[int] = None,
+    max_attempts: int = 5,
+    cache_file: str = None,
+    show_progress: bool = False,
+):
+    return asyncio.run(
+        run_chat_queries_async(
+            prompts=prompts,
+            max_tokens_per_minute=max_tokens_per_minute,
+            max_requests_per_minute=max_requests_per_minute,
+            temperature=temperature,
+            json_mode=json_mode,
+            model=model,
+            callback=callback,
+            max_new_tokens=max_new_tokens,
+            max_attempts=max_attempts,
+            cache_file=cache_file,
+            show_progress=show_progress,
+        )
+    )
+
+def run_instruct_queries(
+    prompts: list[str],
+    max_tokens_per_minute: int,
+    max_requests_per_minute: int,
+    system_prompt: Optional[str] = None,
+    temperature: float = 0.0,
+    json_mode: bool = False,
+    model: Literal[
+        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
+    ] = "auto",
+    callback: Optional[Callable] = None,
+    max_new_tokens: Optional[int] = None,
+    max_attempts: int = 5,
+    cache_file: str = None,
+    show_progress: bool = False,
+):
+    return asyncio.run(
+        run_instruct_queries_async(
+            prompts=prompts,
+            max_tokens_per_minute=max_tokens_per_minute,
+            max_requests_per_minute=max_requests_per_minute,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            json_mode=json_mode,
+            model=model,
+            callback=callback,
+            max_new_tokens=max_new_tokens,
+            max_attempts=max_attempts,
+            cache_file=cache_file,
+            show_progress=show_progress,
+        )
+    )
