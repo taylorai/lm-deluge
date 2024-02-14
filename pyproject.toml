@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "llm_utils"
+version="0.0.1"
+authors = [
+    {name = "Benjamin Anderson", email = "ben@trytaylor.ai"},
+]
+description = "Python utility for using LLM API models."
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = []
+license = {text = ""}
+classifiers = []
+dependencies = [
+    "aiohttp",
+    "tiktoken",
+    "xxhash",
+    "tqdm"
+]

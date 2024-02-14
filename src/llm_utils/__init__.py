@@ -3,7 +3,6 @@ import json
 
 ### Code here adapted from openai cookbook: https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
 import os
-import dotenv
 import sqlite3
 import time
 import warnings
@@ -29,7 +28,6 @@ logger = SimpleNamespace(
 
 tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
-dotenv.load_dotenv()
 ## TODO: Make a Queue where we can append API requests as-needed in other parts of the application, and they can be
 ## processed in the background in parallel.
 
