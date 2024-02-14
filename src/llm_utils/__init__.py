@@ -206,7 +206,8 @@ class APIRequest:
                     json=self.request_json,
                 ) as response:
                     data, is_error = await self.handle_response(response)
-                        
+
+            self.result.append(data)      
             if is_error:
                 self.handle_error()     
             else:
