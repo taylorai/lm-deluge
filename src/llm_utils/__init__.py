@@ -52,6 +52,7 @@ class APIRequest:
     attempts_left: int
     status_tracker: StatusTracker
     retry_queue: asyncio.Queue
+    request_timeout: int = 30
     temperature: float = 0.0
     json_mode: bool = False
     model: Union[APIModel, str] = "auto"
@@ -196,7 +197,7 @@ class APIRequest:
         # if not in cache, call the API
         try:
             self.status_tracker.total_requests += 1
-            timeout = aiohttp.ClientTimeout(total=self.model.request_timeout)
+            timeout = aiohttp.ClientTimeout(total=self.request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     url=self.model.api_base + "/chat/completions",
@@ -223,6 +224,7 @@ async def process_api_requests_from_list(
     max_attempts: int,
     max_tokens_per_minute: int,  # you're gonna need to specify these, don't break everything lol
     max_requests_per_minute: int,
+    request_timeout: int = 30,
     model: Optional[APIModel] = None,
     cache: Optional[SqliteCache] = None,
     callback: Optional[Callable] = None,  # should take in (id, messages, response)
@@ -271,6 +273,7 @@ async def process_api_requests_from_list(
                     next_request = APIRequest(
                         task_id=idx,
                         messages=messages,
+                        request_timeout=request_timeout,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
@@ -377,6 +380,7 @@ async def run_chat_queries_async(
     callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
     max_attempts: int = 5,
+    request_timeout: int = 30,
     cache_file: str = None,
     show_progress: bool = False,
 ):
@@ -388,6 +392,7 @@ async def run_chat_queries_async(
         prompts=prompts,
         max_attempts=max_attempts,
         max_tokens_per_minute=max_tokens_per_minute,
+        request_timeout=request_timeout,
         max_requests_per_minute=max_requests_per_minute,
         temperature=temperature,
         json_mode=json_mode,
@@ -428,6 +433,7 @@ async def run_instruct_queries_async(
     prompts: list[str],
     max_tokens_per_minute: int,
     max_requests_per_minute: int,
+    request_timeout: int = 30,
     system_prompt: Optional[str] = None,
     temperature: float = 0.0,
     json_mode: bool = False,
@@ -447,6 +453,7 @@ async def run_instruct_queries_async(
         prompts=instructions_to_message_lists(prompts, system_prompt),
         max_tokens_per_minute=max_tokens_per_minute,
         max_requests_per_minute=max_requests_per_minute,
+        request_timeout=request_timeout,
         temperature=temperature,
         json_mode=json_mode,
         model=model,
@@ -462,6 +469,7 @@ def run_chat_queries(
     prompts: list[list[dict]],  # each prompt is just a list of messages
     max_tokens_per_minute: int,
     max_requests_per_minute: int,
+    request_timeout: int = 30,
     temperature: float = 0.0,
     json_mode: bool = False,
     model: Literal[
@@ -478,6 +486,7 @@ def run_chat_queries(
             prompts=prompts,
             max_tokens_per_minute=max_tokens_per_minute,
             max_requests_per_minute=max_requests_per_minute,
+            request_timeout=request_timeout,
             temperature=temperature,
             json_mode=json_mode,
             model=model,
@@ -493,6 +502,7 @@ def run_instruct_queries(
     prompts: list[str],
     max_tokens_per_minute: int,
     max_requests_per_minute: int,
+    request_timeout: int = 30,
     system_prompt: Optional[str] = None,
     temperature: float = 0.0,
     json_mode: bool = False,
@@ -510,6 +520,7 @@ def run_instruct_queries(
             prompts=prompts,
             max_tokens_per_minute=max_tokens_per_minute,
             max_requests_per_minute=max_requests_per_minute,
+            request_timeout=request_timeout,
             system_prompt=system_prompt,
             temperature=temperature,
             json_mode=json_mode,
