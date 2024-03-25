@@ -54,6 +54,7 @@ class APIRequest:
     retry_queue: asyncio.Queue
     request_timeout: int = 30
     temperature: float = 0.0
+    top_p: float = 1.0
     json_mode: bool = False
     model: Union[APIModel, str] = "auto"
     max_new_tokens: Optional[int] = None
@@ -65,7 +66,8 @@ class APIRequest:
     def __post_init__(self):
         # automatically select model if not specified
         tokens = tokenizer.encode(json.dumps(self.messages))
-        self.num_tokens = len(tokens)
+        # this is VERY approximate, but should be good enough for now
+        self.num_tokens = len(tokens) * 1.2
         if isinstance(self.model, APIModel):
             self.model = self.model
         elif isinstance(self.model, str):
@@ -76,20 +78,41 @@ class APIRequest:
                     self.model = APIModel.from_registry("gpt-4-turbo")
             else:
                 self.model = APIModel.from_registry(self.model)
-
-        self.request_header = {
-            "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}",
-        }
-        self.request_json = {
-            "model": self.model.name,
-            "messages": self.messages,
-            "temperature": self.temperature,
-        }
-        if self.max_new_tokens is not None:
-            self.request_json["max_tokens"] = self.max_new_tokens
-        if self.json_mode and self.model.supports_json:
-            self.request_json["response_format"] = {"type": "json_object"}
-
+        if self.model.api_spec == "openai":
+            self.request_header = {
+                "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}",
+            }
+            self.request_json = {
+                "model": self.model.name,
+                "messages": self.messages,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+            }
+            if self.max_new_tokens is not None:
+                self.request_json["max_tokens"] = self.max_new_tokens
+            if self.json_mode and self.model.supports_json:
+                self.request_json["response_format"] = {"type": "json_object"}
+        elif self.model.api_spec == "anthropic":
+            # extract system message if present
+            system_message = None
+            if len(self.messages) > 0 and self.messages[0]["role"] == "system":
+                system_message = self.messages.pop(0)
+            self.request_header = {
+                "x-api-key": os.getenv(self.model.api_key_env_var),
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            }
+            self.request_json = {
+                "model": self.model.name,
+                "messages": self.messages,
+                "temperature": self.temperature,
+                "top_p": self.top_p,
+            }
+            if system_message is not None:
+                self.request_json["system"] = system_message
+            if self.max_new_tokens is not None:
+                self.request_json["max_tokens"] = self.max_new_tokens
+        
     def increment_pbar(self):
         if self.pbar is not None:
             self.pbar.update(1)
@@ -197,10 +220,13 @@ class APIRequest:
         # if not in cache, call the API
         try:
             self.status_tracker.total_requests += 1
+            url = self.model.api_base + (
+                "/messages" if self.model.api_spec == "anthropic" else "/chat/completions"
+            )
             timeout = aiohttp.ClientTimeout(total=self.request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
-                    url=self.model.api_base + "/chat/completions",
+                    url=url,
                     headers=self.request_header,
                     json=self.request_json,
                 ) as response:
@@ -211,9 +237,14 @@ class APIRequest:
                 self.handle_error()     
             else:
                 self.handle_success(data)
-                
+
+        except asyncio.TimeoutError:
+            print("Request timed out.")
+            self.result.append({"error": "Request timed out."})
+            self.handle_error()
+               
         except Exception as e:
-            print(f"Unexpeced error {type(e).__name__}: {str(e)}")
+            print(f"Unexpected error {type(e).__name__}: {str(e)}")
             self.result.append({"error": str(e)})
             self.handle_error()
 
@@ -375,8 +406,15 @@ async def run_chat_queries_async(
     temperature: float = 0.0,
     json_mode: bool = False,
     model: Literal[
-        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
-    ] = "auto",
+        "gpt-3.5-turbo", 
+        "gpt-4-turbo", 
+        "gpt-4", 
+        "anyscale-mistral", 
+        "anyscale-mixtral", 
+        "claude-haiku-anthropic",
+        "claude-sonnet-anthropic",
+        "claude-opus-anthropic",
+    ] = "gpt-3.5-turbo",
     callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
     max_attempts: int = 5,
@@ -406,6 +444,8 @@ async def run_chat_queries_async(
     replies = [None for _ in range(len(prompts))]
     usage = [None for _ in range(len(prompts))]
     for result in results:
+        input_tokens = None
+        output_tokens = None
         if len(result.result) == 0:
             print(f"Result is empty: {result}")
             raise Exception("Result is empty")
@@ -415,15 +455,23 @@ async def run_chat_queries_async(
         if "error" in result.result[-1].keys():
             replies[result.task_id] = None
         else:
-            replies[result.task_id] = result.result[-1]["choices"][0]["message"][
-                "content"
-            ]
+            # if anthropic model, extract completion differently
+            if model in ["claude-haiku-anthropic", "claude-sonnet-anthropic", "claude-opus-anthropic"]:
+                content =  result.result[-1]["content"]["text"]
+                input_tokens = result.result[-1]["usage"]["input_tokens"]
+                output_tokens = result.result[-1]["usage"]["output_tokens"]
+            else:
+                content = result.result[-1]["choices"][0]["message"][
+                    "content"
+                ]
+                input_tokens = result.result[-1]["usage"]["prompt_tokens"]
+                output_tokens = result.result[-1]["usage"]["completion_tokens"]
+
+        replies[result.task_id] = content
         usage[result.task_id] = {
             "model": result.model.name,
-            "input_tokens": result.num_tokens,
-            "completion_tokens": len(tokenizer.encode(replies[result.task_id]))
-            if replies[result.task_id] is not None
-            else None,
+            "input_tokens": input_tokens,
+            "completion_tokens": output_tokens,
             "attempts": max_attempts - result.attempts_left,
         }
 
