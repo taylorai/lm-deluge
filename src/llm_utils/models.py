@@ -38,21 +38,21 @@ registry = {
     },
     "claude-haiku-anthropic": {
         "name": "claude-3-haiku-20240307",
-        "api_base": "https://api.anthropic.com/v1/",
+        "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
         "api_spec": "anthropic"
     },
     "claude-sonnet-anthropic": {
         "name": "claude-3-sonnet-20240307",
-        "api_base": "https://api.anthropic.com/v1/",
+        "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
         "api_spec": "anthropic"
     },
     "claude-opus-anthropic": {
         "name": "claude-3-opus-20240307",
-        "api_base": "https://api.anthropic.com/v1/",
+        "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
         "api_spec": "anthropic"

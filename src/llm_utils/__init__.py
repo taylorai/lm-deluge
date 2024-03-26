@@ -57,7 +57,7 @@ class APIRequest:
     top_p: float = 1.0
     json_mode: bool = False
     model: Union[APIModel, str] = "auto"
-    max_new_tokens: Optional[int] = None
+    max_new_tokens: Optional[int] = 512
     cache: Optional[SqliteCache] = None
     pbar: Optional[tqdm] = None
     callback: Optional[Callable] = None
@@ -110,8 +110,9 @@ class APIRequest:
             }
             if system_message is not None:
                 self.request_json["system"] = system_message
-            if self.max_new_tokens is not None:
-                self.request_json["max_tokens"] = self.max_new_tokens
+            if self.max_new_tokens is None:
+                raise ValueError("max_new_tokens must be specified for Anthropic models")
+            self.request_json["max_tokens"] = self.max_new_tokens
         
     def increment_pbar(self):
         if self.pbar is not None:
@@ -223,6 +224,7 @@ class APIRequest:
             url = self.model.api_base + (
                 "/messages" if self.model.api_spec == "anthropic" else "/chat/completions"
             )
+            print("sending request to", url)
             timeout = aiohttp.ClientTimeout(total=self.request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
@@ -457,7 +459,7 @@ async def run_chat_queries_async(
         else:
             # if anthropic model, extract completion differently
             if model in ["claude-haiku-anthropic", "claude-sonnet-anthropic", "claude-opus-anthropic"]:
-                content =  result.result[-1]["content"]["text"]
+                content =  result.result[-1]["content"][0]["text"]
                 input_tokens = result.result[-1]["usage"]["input_tokens"]
                 output_tokens = result.result[-1]["usage"]["output_tokens"]
             else:
@@ -555,8 +557,15 @@ def run_instruct_queries(
     temperature: float = 0.0,
     json_mode: bool = False,
     model: Literal[
-        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
-    ] = "auto",
+        "gpt-3.5-turbo", 
+        "gpt-4-turbo", 
+        "gpt-4", 
+        "anyscale-mistral", 
+        "anyscale-mixtral",
+        "claude-haiku-anthropic",
+        "claude-sonnet-anthropic",
+        "claude-opus-anthropic",
+    ] = "gpt-3.5-turbo",
     callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
     max_attempts: int = 5,
