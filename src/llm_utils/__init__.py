@@ -224,7 +224,7 @@ class APIRequest:
             url = self.model.api_base + (
                 "/messages" if self.model.api_spec == "anthropic" else "/chat/completions"
             )
-            print("sending request to", url)
+            # print("sending request to", url)
             timeout = aiohttp.ClientTimeout(total=self.request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
