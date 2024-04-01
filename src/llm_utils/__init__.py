@@ -455,7 +455,7 @@ async def run_chat_queries_async(
             print(f"Result is a string instead of the expected dict: {result}")
             raise Exception("Result is a string")
         if "error" in result.result[-1].keys():
-            replies[result.task_id] = None
+            content = None
         else:
             # if anthropic model, extract completion differently
             if model in ["claude-haiku-anthropic", "claude-sonnet-anthropic", "claude-opus-anthropic"]:
