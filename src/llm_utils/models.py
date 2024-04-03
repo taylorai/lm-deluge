@@ -57,6 +57,13 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic"
     },
+    "mistral-instruct-modal": {
+        "name": "mistral-completions-h100",
+        "api_base": None,
+        "api_key_env_var": None,
+        "supports_json": True,
+        "api_spec": "modal"
+    }
 }
 
 @dataclass

@@ -1,6 +1,6 @@
 import asyncio
 import json
-
+import modal
 ### Code here adapted from openai cookbook: https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
 import os
 import sqlite3
@@ -401,6 +401,35 @@ def instructions_to_message_lists(prompts: list[str], system_prompt: str = None)
         result.append(messages)
     return result
 
+def run_instruct_queries_modal(
+    prompts: list[str],
+    temperature: float = 0.0,
+    json_mode: bool = False,
+    model: Literal["mistral-instruct-modal"] = "mistral-instruct-modal",
+    max_new_tokens: Optional[int] = 512,
+    show_progress: bool = False,
+):
+    # split into batches if len(prompts) > 2000
+    if len(prompts) > 3000:
+        batch_size = 2000
+        batches = [
+            prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)
+        ]
+    else:
+        batches = [prompts]
+
+    results = []
+    get_completion = modal.Function.lookup(
+        "mistral-completions-h100", "Model.generate"
+    )
+    outputs = get_completion.map(
+        batches, kwargs={"temperature": temperature, "max_tokens": max_new_tokens}
+    )
+    for output in tqdm.tqdm(outputs, total=len(batches), disable=not show_progress):
+        results.extend(output)
+    
+    return results
+
 async def run_chat_queries_async(
     prompts: list[list[dict]],  # each prompt is just a list of messages
     max_tokens_per_minute: int,
@@ -550,8 +579,8 @@ def run_chat_queries(
 
 def run_instruct_queries(
     prompts: list[str],
-    max_tokens_per_minute: int,
-    max_requests_per_minute: int,
+    max_tokens_per_minute: int = 100_000,
+    max_requests_per_minute: int = 1_000,
     request_timeout: int = 30,
     system_prompt: Optional[str] = None,
     temperature: float = 0.0,
@@ -565,6 +594,7 @@ def run_instruct_queries(
         "claude-haiku-anthropic",
         "claude-sonnet-anthropic",
         "claude-opus-anthropic",
+        "mistral-instruct-modal",
     ] = "gpt-3.5-turbo",
     callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
@@ -572,6 +602,16 @@ def run_instruct_queries(
     cache_file: str = None,
     show_progress: bool = False,
 ):
+    if model == "mistral-instruct-modal":
+        result = run_instruct_queries_modal(
+            prompts=prompts,
+            temperature=temperature,
+            json_mode=json_mode,
+            model=model,
+            max_new_tokens=max_new_tokens,
+            show_progress=show_progress,
+        )
+        return result, None
     return asyncio.run(
         run_instruct_queries_async(
             prompts=prompts,
