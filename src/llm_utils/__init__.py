@@ -1,9 +1,10 @@
 import asyncio
 import json
+import random
 import modal
 ### Code here adapted from openai cookbook: https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
 import os
-import sqlite3
+import numpy as np
 import time
 import warnings
 from dataclasses import dataclass, field
@@ -423,12 +424,43 @@ def run_instruct_queries_modal(
         "mistral-completions-h100", "Model.generate"
     )
     outputs = get_completion.map(
-        batches, kwargs={"temperature": temperature, "max_tokens": max_new_tokens}
+        batches, kwargs={"temperature": temperature, "max_tokens": max_new_tokens, "json_mode": json_mode}
     )
     for output in tqdm.tqdm(outputs, total=len(batches), disable=not show_progress):
         results.extend(output)
     
-    return results
+    return results, None
+
+async def run_instruct_queries_modal_async(
+    prompts: list[str],
+    temperature: float = 0.0,
+    json_mode: bool = False,
+    model: Literal["mistral-instruct-modal"] = "mistral-instruct-modal",
+    max_new_tokens: Optional[int] = 512,
+    show_progress: bool = False,
+):
+    # split into batches if len(prompts) > 2000
+    if len(prompts) > 3000:
+        batch_size = 2000
+        batches = [
+            prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)
+        ]
+    else:
+        batches = [prompts]
+    get_completion = modal.Function.lookup(
+        "mistral-completions-h100", "Model.generate"
+    )
+
+    result = await asyncio.gather(*[
+        get_completion.remote.aio(
+            batch,
+            temperature=temperature,
+            max_tokens=max_new_tokens,
+            json_mode=json_mode,
+        ) for batch in batches]
+    )
+
+    return result, None
 
 async def run_chat_queries_async(
     prompts: list[list[dict]],  # each prompt is just a list of messages
@@ -516,9 +548,7 @@ async def run_instruct_queries_async(
     system_prompt: Optional[str] = None,
     temperature: float = 0.0,
     json_mode: bool = False,
-    model: Literal[
-        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
-    ] = "auto",
+    model: str = "gpt-3.5-turbo",
     callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
     max_attempts: int = 5,
@@ -526,7 +556,7 @@ async def run_instruct_queries_async(
     show_progress: bool = False,
 ):
     """
-    Get a single completion from a prompt.
+    Get a single completion from a list of prompts.
     """
     return await run_chat_queries_async(
         prompts=instructions_to_message_lists(prompts, system_prompt),
@@ -542,6 +572,79 @@ async def run_instruct_queries_async(
         cache_file=cache_file,
         show_progress=show_progress,
     )
+
+async def run_instruct_queries_async_multi_model(
+    prompts: list[str],
+    max_tokens_per_minute: int,
+    max_requests_per_minute: int,
+    request_timeout: int = 30,
+    system_prompt: Optional[str] = None,
+    temperature: float = 0.0,
+    json_mode: bool = False,
+    models: list[str] = ["gpt-3.5-turbo"],
+    callback: Optional[Callable] = None,
+    max_new_tokens: Optional[int] = None,
+    max_attempts: int = 5,
+    cache_file: str = None,
+    show_progress: bool = False,
+    model_weights: Optional[list] = None,
+):
+    if not isinstance(models, list):
+        raise ValueError("model must be a list of models")
+    if model_weights is None:
+        model_weights = [1 / len(models) for _ in models]
+
+    # shuffle the prompts, keep track of the original order (numpy ok here)
+    prompt_order = np.arange(len(prompts))
+    np.random.shuffle(prompt_order)
+    prompts = [prompts[i] for i in prompt_order]
+    
+    # partition the prompts into groups by model weights
+    split_idxs = np.cumsum([int(w * len(prompts)) for w in model_weights])
+    split_prompts = np.split(prompts, split_idxs[:-1])
+
+    # create an async task for each model, run them all in parallel
+    tasks = []
+    for i, model in enumerate(models):
+        if len(split_prompts[i]) < 1:
+            continue
+        if model == "mistral-instruct-modal":
+            tasks.append(run_instruct_queries_modal_async(
+                prompts=split_prompts[i],
+                temperature=temperature,
+                json_mode=json_mode,
+                model=model,
+                max_new_tokens=max_new_tokens,
+                show_progress=show_progress,
+            ))
+        else:
+            tasks.append(run_instruct_queries_async(
+                prompts=split_prompts[i],
+                max_tokens_per_minute=max_tokens_per_minute,
+                max_requests_per_minute=max_requests_per_minute,
+                request_timeout=request_timeout,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                json_mode=json_mode,
+                model=model,
+                callback=callback,
+                max_new_tokens=max_new_tokens,
+                max_attempts=max_attempts,
+                cache_file=cache_file,
+                show_progress=show_progress,
+            ))
+
+    results = await asyncio.gather(*tasks)
+    shuffled_completions = []
+    for block in results:
+        completions, usage = block
+        shuffled_completions.extend(completions)
+    
+    # unshuffle the completions with numpy
+    unshuffle_idxs = np.argsort(prompt_order)
+    completions = [shuffled_completions[i] for i in unshuffle_idxs]
+
+    return completions, None
 
 # sync wrapper, don't use in async code or you'll be sad
 def run_chat_queries(
@@ -585,24 +688,35 @@ def run_instruct_queries(
     system_prompt: Optional[str] = None,
     temperature: float = 0.0,
     json_mode: bool = False,
-    model: Literal[
-        "gpt-3.5-turbo", 
-        "gpt-4-turbo", 
-        "gpt-4", 
-        "anyscale-mistral", 
-        "anyscale-mixtral",
-        "claude-haiku-anthropic",
-        "claude-sonnet-anthropic",
-        "claude-opus-anthropic",
-        "mistral-instruct-modal",
-    ] = "gpt-3.5-turbo",
+    model: Union[list, str] = "gpt-3.5-turbo",
     callback: Optional[Callable] = None,
     max_new_tokens: Optional[int] = None,
     max_attempts: int = 5,
     cache_file: str = None,
     show_progress: bool = False,
+    model_weights: Optional[list] = None,
 ):
-    if model == "mistral-instruct-modal":
+    if isinstance(model, list):
+        return asyncio.run(
+            run_instruct_queries_async_multi_model(
+                prompts=prompts,
+                max_tokens_per_minute=max_tokens_per_minute,
+                max_requests_per_minute=max_requests_per_minute,
+                request_timeout=request_timeout,
+                system_prompt=system_prompt,
+                temperature=temperature,
+                json_mode=json_mode,
+                models=model,
+                callback=callback,
+                max_new_tokens=max_new_tokens,
+                max_attempts=max_attempts,
+                cache_file=cache_file,
+                show_progress=show_progress,
+                model_weights=model_weights,
+            )
+        )
+
+    elif model == "mistral-instruct-modal":
         result = run_instruct_queries_modal(
             prompts=prompts,
             temperature=temperature,
