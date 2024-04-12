@@ -17,5 +17,6 @@ dependencies = [
     "aiohttp",
     "tiktoken",
     "xxhash",
-    "tqdm"
+    "tqdm",
+    "google-auth"
 ]
