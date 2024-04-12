@@ -93,14 +93,30 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic"
     },
-    "claude-haiku-vertex": {
+    "claude-haiku-vertex-us": {
         "name": "claude-3-haiku@20240307",
+        "region": "us-central1",
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "api_spec": "vertex_anthropic"
     },
-    "claude-sonnet-vertex": {
+    "claude-haiku-vertex-eu": {
+        "name": "claude-3-haiku@20240307",
+        "region": "europe-west4",
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "api_spec": "vertex_anthropic"
+    },
+    "claude-sonnet-vertex-us": {
         "name": "claude-3-sonnet@20240229",
+        "region": "us-central1",
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "api_spec": "vertex_anthropic"
+    },
+    "claude-sonnet-vertex-asia": {
+        "name": "claude-3-sonnet@20240229",
+        "region": "asia-southeast1",
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "api_spec": "vertex_anthropic"
@@ -117,6 +133,18 @@ registry = {
     "claude-sonnet-bedrock": {
                 
     },
+    "command-r": {
+        "name": "command-r",
+        "api-base": "https://api.cohere.ai/v1",
+        "api_key_env_var": "COHERE_API_KEY",
+        "api_spec": "cohere"
+    },
+    "command-r-plus": {
+        "name": "command-r-plus",
+        "api-base": "https://api.cohere.ai/v1",
+        "api_key_env_var": "COHERE_API_KEY",
+        "api_spec": "cohere"
+    },
     "mistral-instruct-modal": {
         "name": "mistral-completions-h100",
         "api_base": None,
@@ -132,6 +160,7 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     supports_json: bool
+    region: str = None
     api_spec: str
 
     @classmethod
