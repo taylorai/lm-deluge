@@ -1,21 +1,17 @@
 import asyncio
 import json
-import random
 import modal
-### Code here adapted from openai cookbook: https://github.com/openai/openai-cookbook/blob/main/examples/api_request_parallel_processor.py
 import os
 import numpy as np
 import time
-import warnings
 from dataclasses import dataclass, field
 from typing import Callable, Literal, Optional, Union
-
-
 import aiohttp
-import tiktoken
-import xxhash
 from tqdm.auto import tqdm
 from types import SimpleNamespace
+from .tracker import StatusTracker
+from .sampling_params import SamplingParams
+from .api_requests.base import APIResponse
 
 logger = SimpleNamespace(
     log_to_file=print,
@@ -27,256 +23,58 @@ logger = SimpleNamespace(
     log=print,
 )
 
-tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
-
 ## TODO: Make a Queue where we can append API requests as-needed in other parts of the application, and they can be
 ## processed in the background in parallel.
 
 from .cache import SqliteCache
 from .models import APIModel
+from .api_requests import create_api_request
 
-
-@dataclass
-class StatusTracker:
-    num_tasks_started: int = 0
-    num_tasks_in_progress: int = 0
-    num_tasks_succeeded: int = 0
-    num_tasks_failed: int = 0
-    num_rate_limit_errors: int = 0
-    time_of_last_rate_limit_error: int = 0
-    total_requests = 0
-
-@dataclass
-class APIRequest:
-    task_id: int
-    messages: list[dict]
-    attempts_left: int
-    status_tracker: StatusTracker
-    retry_queue: asyncio.Queue
-    request_timeout: int = 30
-    temperature: float = 0.0
-    top_p: float = 1.0
-    json_mode: bool = False
-    model: Union[APIModel, str] = "auto"
-    max_new_tokens: Optional[int] = 512
-    cache: Optional[SqliteCache] = None
-    pbar: Optional[tqdm] = None
-    callback: Optional[Callable] = None
-    result: list = field(default_factory=list)
-
-    def __post_init__(self):
-        # automatically select model if not specified
-        tokens = tokenizer.encode(json.dumps(self.messages))
-        # this is VERY approximate, but should be good enough for now
-        self.num_tokens = len(tokens) * 1.2
-        if isinstance(self.model, APIModel):
-            self.model = self.model
-        elif isinstance(self.model, str):
-            if self.model == "auto":
-                if self.num_tokens < 12000:
-                    self.model = APIModel.from_registry("gpt-3.5-turbo")
-                else:
-                    self.model = APIModel.from_registry("gpt-4-turbo")
-            else:
-                self.model = APIModel.from_registry(self.model)
-        if self.model.api_spec == "openai":
-            self.request_header = {
-                "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}",
-            }
-            self.request_json = {
-                "model": self.model.name,
-                "messages": self.messages,
-                "temperature": self.temperature,
-                "top_p": self.top_p,
-            }
-            if self.max_new_tokens is not None:
-                self.request_json["max_tokens"] = self.max_new_tokens
-            if self.json_mode and self.model.supports_json:
-                self.request_json["response_format"] = {"type": "json_object"}
-        elif self.model.api_spec == "anthropic":
-            # extract system message if present
-            system_message = None
-            if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-                system_message = self.messages.pop(0)
-            self.request_header = {
-                "x-api-key": os.getenv(self.model.api_key_env_var),
-                "anthropic-version": "2023-06-01",
-                "content-type": "application/json",
-            }
-            self.request_json = {
-                "model": self.model.name,
-                "messages": self.messages,
-                "temperature": self.temperature,
-                "top_p": self.top_p,
-            }
-            if system_message is not None:
-                self.request_json["system"] = system_message
-            if self.max_new_tokens is None:
-                raise ValueError("max_new_tokens must be specified for Anthropic models")
-            self.request_json["max_tokens"] = self.max_new_tokens
-        
-    def increment_pbar(self):
-        if self.pbar is not None:
-            self.pbar.update(1)
-
-    def set_cache(self, data):
-        # cache key should be specific to model & messages (for now)
-        if self.cache is None:
-            return
-        metadata = {
-            "model": self.model.name,
-            "messages": self.messages,
-        }
-        key = json.dumps(metadata)
-        if self.json_mode and self.model.supports_json:
-            try:
-                message_content = data["choices"][0]["message"]["content"]
-                json.loads(message_content)
-            except Exception:
-                print("JSON didn't parse, not caching response.")
-                return
-        cache.set_to_cache(key, json.dumps(data))
-                    
-
-    def check_cache(self):
-        if self.cache is not None:
-            cached_result = self.cache.get_from_cache(self.messages)
-            if cached_result:
-                self.result.append(json.loads(cached_result[0]))
-                return True
-        return False
-    
-    def call_callback(self):
-        if self.callback is not None:
-            self.callback(
-                self.task_id,
-                self.messages,
-                self.result[-1]["choices"][0]["message"]["content"],
-                self.status_tracker,
-            )
-
-    async def handle_response(self, response):
-        is_error = False
-        error_message = None
-        status_code = response.status
-        mimetype = response.headers.get("Content-Type", None)
-        if status_code >= 200 and status_code < 300:
-            try:
-                data = await response.json()
-            except Exception as e:
-                print(f"Error calling .json() on response w/ status {response.status}")
-                raise e
-        elif "json" in mimetype:
-            is_error = True # expected status is 200, otherwise it's an error
-            data = await response.json()
-            error_message = data.get("error", {}).get("message", None)
-            print(f"Error response: {json.dumps(data)}")
-        else:
-            is_error = True
-            text = await response.text()
-            error_message = text
-            data = {
-                "error": {
-                    "message": text,
-                    "status_code": status_code,
-                }
-            }
-            print(f"Error response: {text}")
-
-        # handle special kinds of errors
-        if is_error and error_message is not None:
-            if "rate limit" in error_message.lower():
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
-            if "context length" in error_message:
-                print("context length exceeded, retrying won't help")
-                self.attempts_left = 0
-
-        return data, is_error
-    
-    def handle_success(self, data):
-        self.call_callback()
-        self.increment_pbar()    
-        self.status_tracker.num_tasks_in_progress -= 1
-        self.status_tracker.num_tasks_succeeded += 1
-        self.set_cache(data)
-
-    def handle_error(self):
-        if self.attempts_left > 0:
-            self.attempts_left -= 1
-            self.retry_queue.put_nowait(self)
-        else:
-            print("out of tries")
-            self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_failed += 1 
-
-
-    async def call_api(self):
-        if self.check_cache():
-            self.increment_pbar()
-            self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_succeeded += 1
-            self.call_callback()
-            return
-        
-        # if not in cache, call the API
-        try:
-            self.status_tracker.total_requests += 1
-            url = self.model.api_base + (
-                "/messages" if self.model.api_spec == "anthropic" else "/chat/completions"
-            )
-            # print("sending request to", url)
-            timeout = aiohttp.ClientTimeout(total=self.request_timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(
-                    url=url,
-                    headers=self.request_header,
-                    json=self.request_json,
-                ) as response:
-                    data, is_error = await self.handle_response(response)
-
-            self.result.append(data)      
-            if is_error:
-                self.handle_error()     
-            else:
-                self.handle_success(data)
-
-        except asyncio.TimeoutError:
-            print("Request timed out.")
-            self.result.append({"error": "Request timed out."})
-            self.handle_error()
-               
-        except Exception as e:
-            print(f"Unexpected error {type(e).__name__}: {str(e)}")
-            self.result.append({"error": str(e)})
-            self.handle_error()
-
+def instructions_to_message_lists(prompts: list[str], system_prompt: str = None):
+    """
+    Convert a list of instructions into a list of lists of messages.
+    """
+    result = []
+    for p in prompts:
+        messages = []
+        if system_prompt is not None:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": p})
+        result.append(messages)
+    return result
 
 # assumes the API keys are already stored in env variables
-async def process_api_requests_from_list(
+async def process_prompts_async(
     prompts: list[list[dict]],  # each prompt is just a list of messages
-    max_attempts: int,
-    max_tokens_per_minute: int,  # you're gonna need to specify these, don't break everything lol
-    max_requests_per_minute: int,
+    models: Union[str, list[str]] = "gpt-3.5-turbo",
+    model_weights: Optional[list] = None,
+    sampling_params: SamplingParams = SamplingParams(),
+    max_attempts: int = 5,
+    max_tokens_per_minute: int = 500_000,
+    max_requests_per_minute: int = 1_000,
     request_timeout: int = 30,
-    model: Optional[APIModel] = None,
-    cache: Optional[SqliteCache] = None,
+    cache_file: Optional[str] = None,
     callback: Optional[Callable] = None,  # should take in (id, messages, response)
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    max_new_tokens: Optional[int] = None,
+    return_completions_only: bool = False,
     show_progress: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
+    if cache_file is not None:
+        cache = SqliteCache(cache_file)
+    else:
+        cache = None
+
+    # if prompts are strings, convert them to message lists
+    if isinstance(prompts[0], str):
+        prompts = instructions_to_message_lists(prompts)
+
     # constants
     seconds_to_pause_after_rate_limit_error = 15
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
 
     # initialize trackers
     retry_queue = asyncio.Queue()
-    status_tracker = (
-        StatusTracker()
-    )  # single instance to track a collection of variables
+    status_tracker = StatusTracker()
     next_request = None  # variable to hold the next request to call
 
     # initialize available capacity counts
@@ -287,12 +85,19 @@ async def process_api_requests_from_list(
     # initialize flags
     prompts_not_finished = True
 
+    # initials model weights
+    if isinstance(models, str):
+        models = [models]
+    if model_weights is None:
+        # if not given, spread requests evenly across models
+        model_weights = [1 / len(models) for _ in models]
+
     # turn the texts into an iterator
     if show_progress:
         pbar = tqdm(total=len(prompts))
     else:
         pbar = None
-    prompts = iter(enumerate(prompts))
+    prompts_iter = iter(enumerate(prompts))
     results = []
     while True:
         # get next request (if one is not already waiting for capacity)
@@ -303,18 +108,16 @@ async def process_api_requests_from_list(
             elif prompts_not_finished:
                 try:
                     # get new request
-                    idx, messages = next(prompts)
-                    next_request = APIRequest(
+                    idx, messages = next(prompts_iter)
+                    next_request = create_api_request(
                         task_id=idx,
+                        model_name=np.random.choice(models, p=model_weights),
                         messages=messages,
                         request_timeout=request_timeout,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
-                        temperature=temperature,
-                        json_mode=json_mode,
-                        model=model,
-                        max_new_tokens=max_new_tokens,
+                        sampling_params=sampling_params,
                         cache=cache,
                         pbar=pbar,
                         callback=callback
@@ -387,359 +190,46 @@ async def process_api_requests_from_list(
         print(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
-    return results
-
-def instructions_to_message_lists(prompts: list[str], system_prompt: str = None):
-    """
-    Convert a list of instructions into a list of lists of messages.
-    """
-    result = []
-    for p in prompts:
-        messages = []
-        if system_prompt is not None:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": p})
-        result.append(messages)
-    return result
-
-def run_instruct_queries_modal(
-    prompts: list[str],
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    model: Literal["mistral-instruct-modal"] = "mistral-instruct-modal",
-    max_new_tokens: Optional[int] = 512,
-    show_progress: bool = False,
-):
-    # split into batches if len(prompts) > 2000
-    if len(prompts) > 3000:
-        batch_size = 2000
-        batches = [
-            prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)
-        ]
-    else:
-        batches = [prompts]
-
-    results = []
-    get_completion = modal.Function.lookup(
-        "mistral-completions-h100", "Model.generate"
-    )
-    outputs = get_completion.map(
-        batches, kwargs={"temperature": temperature, "max_tokens": max_new_tokens, "json_mode": json_mode}
-    )
-    for output in tqdm.tqdm(outputs, total=len(batches), disable=not show_progress):
-        results.extend(output)
     
-    return results, None
-
-async def run_instruct_queries_modal_async(
-    prompts: list[str],
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    model: Literal["mistral-instruct-modal"] = "mistral-instruct-modal",
-    max_new_tokens: Optional[int] = 512,
-    show_progress: bool = False,
-):
-    # split into batches if len(prompts) > 2000
-    if len(prompts) > 3000:
-        batch_size = 2000
-        batches = [
-            prompts[i : i + batch_size] for i in range(0, len(prompts), batch_size)
-        ]
-    else:
-        batches = [prompts]
-    get_completion = modal.Function.lookup(
-        "mistral-completions-h100", "Model.generate"
-    )
-
-    result = await asyncio.gather(*[
-        get_completion.remote.aio(
-            batch,
-            temperature=temperature,
-            max_tokens=max_new_tokens,
-            json_mode=json_mode,
-        ) for batch in batches]
-    )
-
-    return result, None
-
-async def run_chat_queries_async(
-    prompts: list[list[dict]],  # each prompt is just a list of messages
-    max_tokens_per_minute: int,
-    max_requests_per_minute: int,
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    model: Literal[
-        "gpt-3.5-turbo", 
-        "gpt-4-turbo", 
-        "gpt-4", 
-        "anyscale-mistral", 
-        "anyscale-mixtral", 
-        "claude-haiku-anthropic",
-        "claude-sonnet-anthropic",
-        "claude-opus-anthropic",
-    ] = "gpt-3.5-turbo",
-    callback: Optional[Callable] = None,
-    max_new_tokens: Optional[int] = None,
-    max_attempts: int = 5,
-    request_timeout: int = 30,
-    cache_file: str = None,
-    show_progress: bool = False,
-):
-    if cache_file is not None:
-        cache = SqliteCache(cache_file)
-    else:
-        cache = None
-    results = await process_api_requests_from_list(
-        prompts=prompts,
-        max_attempts=max_attempts,
-        max_tokens_per_minute=max_tokens_per_minute,
-        request_timeout=request_timeout,
-        max_requests_per_minute=max_requests_per_minute,
-        temperature=temperature,
-        json_mode=json_mode,
-        max_new_tokens=max_new_tokens,
-        show_progress=show_progress,
-        cache=cache,
-        model=model,
-        callback=callback,
-    )
     # extract the replies
-    replies = [None for _ in range(len(prompts))]
-    usage = [None for _ in range(len(prompts))]
+    responses = [None for _ in range(len(prompts))]
     for result in results:
-        input_tokens = None
-        output_tokens = None
-        if len(result.result) == 0:
-            print(f"Result is empty: {result}")
-            raise Exception("Result is empty")
-        if isinstance(result.result[-1], str):
-            print(f"Result is a string instead of the expected dict: {result}")
-            raise Exception("Result is a string")
-        if "error" in result.result[-1].keys():
-            content = None
-        else:
-            # if anthropic model, extract completion differently
-            if model in ["claude-haiku-anthropic", "claude-sonnet-anthropic", "claude-opus-anthropic"]:
-                content =  result.result[-1]["content"][0]["text"]
-                input_tokens = result.result[-1]["usage"]["input_tokens"]
-                output_tokens = result.result[-1]["usage"]["output_tokens"]
-            else:
-                content = result.result[-1]["choices"][0]["message"][
-                    "content"
-                ]
-                input_tokens = result.result[-1]["usage"]["prompt_tokens"]
-                output_tokens = result.result[-1]["usage"]["completion_tokens"]
+        responses[result.task_id] = result.result[-1]
 
-        replies[result.task_id] = content
-        usage[result.task_id] = {
-            "model": result.model.name,
-            "input_tokens": input_tokens,
-            "completion_tokens": output_tokens,
-            "attempts": max_attempts - result.attempts_left,
-        }
+    if return_completions_only:
+        return [r.completion for r in results]
 
-    return replies, usage
+    return responses
 
-async def run_instruct_queries_async(
-    prompts: list[str],
-    max_tokens_per_minute: int,
-    max_requests_per_minute: int,
-    request_timeout: int = 30,
-    system_prompt: Optional[str] = None,
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    model: str = "gpt-3.5-turbo",
-    callback: Optional[Callable] = None,
-    max_new_tokens: Optional[int] = None,
-    max_attempts: int = 5,
-    cache_file: str = None,
-    show_progress: bool = False,
-):
-    """
-    Get a single completion from a list of prompts.
-    """
-    return await run_chat_queries_async(
-        prompts=instructions_to_message_lists(prompts, system_prompt),
-        max_tokens_per_minute=max_tokens_per_minute,
-        max_requests_per_minute=max_requests_per_minute,
-        request_timeout=request_timeout,
-        temperature=temperature,
-        json_mode=json_mode,
-        model=model,
-        max_new_tokens=max_new_tokens,
-        callback=callback,
-        max_attempts=max_attempts,
-        cache_file=cache_file,
-        show_progress=show_progress,
-    )
-
-async def run_instruct_queries_async_multi_model(
-    prompts: list[str],
-    max_tokens_per_minute: int,
-    max_requests_per_minute: int,
-    request_timeout: int = 30,
-    system_prompt: Optional[str] = None,
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    models: list[str] = ["gpt-3.5-turbo"],
-    callback: Optional[Callable] = None,
-    max_new_tokens: Optional[int] = None,
-    max_attempts: int = 5,
-    cache_file: str = None,
-    show_progress: bool = False,
-    model_weights: Optional[list] = None,
-):
-    if not isinstance(models, list):
-        raise ValueError("model must be a list of models")
-    if model_weights is None:
-        model_weights = [1 / len(models) for _ in models]
-
-    # shuffle the prompts, keep track of the original order (numpy ok here)
-    prompt_order = np.arange(len(prompts))
-    np.random.shuffle(prompt_order)
-    prompts = [prompts[i] for i in prompt_order]
-    
-    # partition the prompts into groups by model weights
-    split_idxs = np.cumsum([int(w * len(prompts)) for w in model_weights])
-    split_prompts = np.split(prompts, split_idxs[:-1])
-
-    # create an async task for each model, run them all in parallel
-    tasks = []
-    for i, model in enumerate(models):
-        if len(split_prompts[i]) < 1:
-            continue
-        if model == "mistral-instruct-modal":
-            tasks.append(run_instruct_queries_modal_async(
-                prompts=split_prompts[i],
-                temperature=temperature,
-                json_mode=json_mode,
-                model=model,
-                max_new_tokens=max_new_tokens,
-                show_progress=show_progress,
-            ))
-        else:
-            tasks.append(run_instruct_queries_async(
-                prompts=split_prompts[i],
-                max_tokens_per_minute=max_tokens_per_minute,
-                max_requests_per_minute=max_requests_per_minute,
-                request_timeout=request_timeout,
-                system_prompt=system_prompt,
-                temperature=temperature,
-                json_mode=json_mode,
-                model=model,
-                callback=callback,
-                max_new_tokens=max_new_tokens,
-                max_attempts=max_attempts,
-                cache_file=cache_file,
-                show_progress=show_progress,
-            ))
-
-    results = await asyncio.gather(*tasks)
-    shuffled_completions = []
-    for block in results:
-        completions, usage = block
-        shuffled_completions.extend(completions)
-    
-    # unshuffle the completions with numpy
-    unshuffle_idxs = np.argsort(prompt_order)
-    completions = [shuffled_completions[i] for i in unshuffle_idxs]
-
-    return completions, None
-
-# sync wrapper, don't use in async code or you'll be sad
-def run_chat_queries(
+def process_prompts_sync(
     prompts: list[list[dict]],  # each prompt is just a list of messages
-    max_tokens_per_minute: int,
-    max_requests_per_minute: int,
-    request_timeout: int = 30,
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    model: Literal[
-        "gpt-3.5-turbo", "gpt-4-turbo", "gpt-4", "mistral", "mixtral", "auto"
-    ] = "auto",
-    callback: Optional[Callable] = None,
-    max_new_tokens: Optional[int] = None,
+    models: Union[str, list[str]] = "gpt-3.5-turbo",
+    model_weights: Optional[list] = None,
+    sampling_params: SamplingParams = SamplingParams(),
     max_attempts: int = 5,
-    cache_file: str = None,
-    show_progress: bool = False,
-):
-    return asyncio.run(
-        run_chat_queries_async(
-            prompts=prompts,
-            max_tokens_per_minute=max_tokens_per_minute,
-            max_requests_per_minute=max_requests_per_minute,
-            request_timeout=request_timeout,
-            temperature=temperature,
-            json_mode=json_mode,
-            model=model,
-            callback=callback,
-            max_new_tokens=max_new_tokens,
-            max_attempts=max_attempts,
-            cache_file=cache_file,
-            show_progress=show_progress,
-        )
-    )
-
-def run_instruct_queries(
-    prompts: list[str],
-    max_tokens_per_minute: int = 100_000,
+    max_tokens_per_minute: int = 500_000,
     max_requests_per_minute: int = 1_000,
     request_timeout: int = 30,
-    system_prompt: Optional[str] = None,
-    temperature: float = 0.0,
-    json_mode: bool = False,
-    model: Union[list, str] = "gpt-3.5-turbo",
-    callback: Optional[Callable] = None,
-    max_new_tokens: Optional[int] = None,
-    max_attempts: int = 5,
-    cache_file: str = None,
+    cache_file: Optional[str] = None,
+    callback: Optional[Callable] = None,  # should take in (id, messages, response)
+    return_completions_only: bool = False,
     show_progress: bool = False,
-    model_weights: Optional[list] = None,
 ):
-    if isinstance(model, list):
-        return asyncio.run(
-            run_instruct_queries_async_multi_model(
-                prompts=prompts,
-                max_tokens_per_minute=max_tokens_per_minute,
-                max_requests_per_minute=max_requests_per_minute,
-                request_timeout=request_timeout,
-                system_prompt=system_prompt,
-                temperature=temperature,
-                json_mode=json_mode,
-                models=model,
-                callback=callback,
-                max_new_tokens=max_new_tokens,
-                max_attempts=max_attempts,
-                cache_file=cache_file,
-                show_progress=show_progress,
-                model_weights=model_weights,
-            )
-        )
-
-    elif model == "mistral-instruct-modal":
-        result = run_instruct_queries_modal(
+    results: list[APIResponse] = asyncio.run(
+        process_prompts_async(
             prompts=prompts,
-            temperature=temperature,
-            json_mode=json_mode,
-            model=model,
-            max_new_tokens=max_new_tokens,
-            show_progress=show_progress,
-        )
-        return result, None
-    return asyncio.run(
-        run_instruct_queries_async(
-            prompts=prompts,
+            models=models,
+            model_weights=model_weights,
+            sampling_params=sampling_params,
+            max_attempts=max_attempts,
             max_tokens_per_minute=max_tokens_per_minute,
             max_requests_per_minute=max_requests_per_minute,
             request_timeout=request_timeout,
-            system_prompt=system_prompt,
-            temperature=temperature,
-            json_mode=json_mode,
-            model=model,
-            callback=callback,
-            max_new_tokens=max_new_tokens,
-            max_attempts=max_attempts,
             cache_file=cache_file,
+            callback=callback,
+            return_completions_only=return_completions_only,
             show_progress=show_progress,
         )
     )
+    
+    return results

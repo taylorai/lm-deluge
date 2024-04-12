@@ -15,6 +15,13 @@ registry = {
         "supports_json": True,
         "api_spec": "openai"
     },
+    "gpt-4-turbo-majorly-improved": {
+        "name": "gpt-4-turbo-2024-04-09",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai"
+    },
     "gpt-4": {
         "name": "gpt-4-0613",
         "api_base": "https://api.openai.com/v1",
@@ -22,17 +29,46 @@ registry = {
         "supports_json": False,
         "api_spec": "openai"
     },
-    "anyscale-mistral": {
-        "name": "mistralai/Mistral-7B-Instruct-v0.1",
-        "api_base": "https://api.endpoints.anyscale.com/v1",
-        "api_key_env_var": "ANYSCALE_API_KEY",
+    # only reason to use Together AI models are <= 7B where they're cheaper than claude haiku
+    "gemma-instruct-7b-together": {
+        "name": "google/gemma-7b-it",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
         "api_spec": "openai"
     },
-    "anyscale-mixtral": {
-        "name": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-        "api_base": "https://api.endpoints.anyscale.com/v1",
-        "api_key_env_var": "ANYSCALE_API_KEY",
+    "gemma-instruct-2b-together": {
+        "name": "google/gemma-2b-it",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai"
+    },
+    "phi-2-together": {
+        "name": "microsoft/phi-2",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai"
+    },
+    "mistral-instruct-together": {
+        "name": "mistralai/Mistral-7B-Instruct-v0.2",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai"
+    },
+    "nous-mistral-together": {
+        "name": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai"
+    },
+    "qwen-chat-4b-together": {
+        "name": "Qwen/Qwen1.5-4B-Chat",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
         "api_spec": "openai"
     },
@@ -56,6 +92,30 @@ registry = {
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
         "api_spec": "anthropic"
+    },
+    "claude-haiku-vertex": {
+        "name": "claude-3-haiku@20240307",
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "api_spec": "vertex_anthropic"
+    },
+    "claude-sonnet-vertex": {
+        "name": "claude-3-sonnet@20240229",
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "api_spec": "vertex_anthropic"
+    },
+    "gemini-pro-1.0": {
+        "name": "gemini-pro-1.0",
+    },
+    "gemini-pro-1.5": {
+        "name": "gemini-pro-1.5",
+    },
+    "claude-haiku-bedrock": {
+
+    },
+    "claude-sonnet-bedrock": {
+                
     },
     "mistral-instruct-modal": {
         "name": "mistral-completions-h100",
