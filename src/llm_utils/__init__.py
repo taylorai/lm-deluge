@@ -192,12 +192,12 @@ async def process_prompts_async(
         )
     
     # extract the replies
-    responses = [None for _ in range(len(prompts))]
+    responses: list[Optional[APIResponse]] = [None for _ in range(len(prompts))]
     for result in results:
         responses[result.task_id] = result.result[-1]
 
     if return_completions_only:
-        return [r.completion for r in results]
+        return [r.completion for r in responses]
 
     return responses
 
