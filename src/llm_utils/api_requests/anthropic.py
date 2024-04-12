@@ -76,7 +76,7 @@ class AnthropicRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                content = data["content"][0]["text"]
+                completion = data["content"][0]["text"]
                 input_tokens = data["usage"]["input_tokens"]
                 output_tokens = data["usage"]["output_tokens"]
             except Exception as e:
