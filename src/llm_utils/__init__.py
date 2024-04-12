@@ -11,6 +11,7 @@ from tqdm.auto import tqdm
 from types import SimpleNamespace
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
+from .models import registry
 from .api_requests.base import APIResponse
 
 logger = SimpleNamespace(
@@ -88,6 +89,12 @@ async def process_prompts_async(
     # initials model weights
     if isinstance(models, str):
         models = [models]
+    if not isinstance(models, list):
+        raise ValueError("models must be a string or a list of model strings.")
+    for model in models:
+        if model not in registry:
+            raise ValueError(f"Model {model} not found in registry.")
+        
     if model_weights is None:
         # if not given, spread requests evenly across models
         model_weights = [1 / len(models) for _ in models]
