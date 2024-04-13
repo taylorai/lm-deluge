@@ -200,7 +200,7 @@ registry = {
         "api_spec": "vertex_gemini"
     },
     "gemini-1.5-pro": {
-        "name": "gemini-1.5-pro",
+        "name": "gemini-1.5-pro-preview-0409",
         "regions": gemini_regions, # 29 regions x 5RPM = ~150 RPM
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
