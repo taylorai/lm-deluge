@@ -49,15 +49,17 @@ class AnthropicRequest(APIRequestBase):
 
         self.system_message = None
         if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            self.system_message = self.messages.pop(0)
+            self.system_message = self.messages[0]["content"]
+        
         self.request_header = {
             "x-api-key": os.getenv(self.model.api_key_env_var),
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+
         self.request_json = {
             "model": self.model.name,
-            "messages": self.messages,
+            "messages": self.messages[1:] if self.system_message is not None else self.messages,
             "temperature": self.sampling_params.temperature,
             "top_p": self.sampling_params.top_p,
             "max_tokens": self.sampling_params.max_new_tokens
