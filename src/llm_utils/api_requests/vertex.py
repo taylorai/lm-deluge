@@ -188,7 +188,7 @@ class GeminiAPIRequest(APIRequestBase):
         token = get_access_token(credentials_file)
         project_id = os.getenv("PROJECT_ID")
         region = random.choice(self.model.regions) # load balance across regions
-        self.url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/{model_name}:generateContent"
+        self.url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/{self.model.name}:generateContent"
 
         self.request_header = {
             "Authorization": f"Bearer {token}",
