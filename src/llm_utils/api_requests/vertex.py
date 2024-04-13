@@ -17,14 +17,23 @@ from ..models import APIModel
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 
+LAST_REFRESHED = 0
+LAST_TOKEN = None
 def get_access_token(service_account_file: str):
     # Initialize service account credentials
     credentials = service_account.Credentials.from_service_account_file(
         service_account_file,
         scopes=['https://www.googleapis.com/auth/cloud-platform'],
     )
-    credentials.refresh(Request())
-    return credentials.token
+
+    # only refresh token if it's been more than 50 minutes since last refresh
+    global LAST_REFRESHED
+    global LAST_TOKEN
+    if time.time() - LAST_REFRESHED > 60 * 50 or LAST_TOKEN is None:
+        credentials.refresh(Request())
+        LAST_REFRESHED = time.time()
+        LAST_TOKEN = credentials.token
+    return LAST_TOKEN
 
 class VertexAnthropicAPIRequest(APIRequestBase):
     """
