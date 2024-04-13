@@ -103,7 +103,7 @@ class CohereRequest(APIRequestBase):
                 data = await response.json()
                 completion = data["text"]
                 input_tokens = data["meta"]["billed_units"]["input_tokens"]
-                output_tokens = ["meta"]["billed_units"]["input_tokens"]
+                output_tokens = data["meta"]["billed_units"]["input_tokens"]
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}"
