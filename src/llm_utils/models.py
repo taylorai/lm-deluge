@@ -1,6 +1,18 @@
 from dataclasses import dataclass, field
-
+gemini_regions = ['asia-east1', 'asia-east2', 'asia-northeast1', 'asia-northeast3', 'asia-south1', 'asia-southeast1', 'australia-southeast1', 'europe-central2', 'europe-north1', 'europe-southwest1', 'europe-west1', 'europe-west2', 'europe-west3', 'europe-west4', 'europe-west6', 'europe-west8', 'europe-west9', 'me-central1', 'me-central2', 'me-west1', 'northamerica-northeast1', 'southamerica-east1', 'us-central1', 'us-east1', 'us-east4', 'us-east5', 'us-south1', 'us-west1', 'us-west4']
 registry = {
+
+#     ███████                                    █████████   █████
+#   ███░░░░░███                                 ███░░░░░███ ░░███ 
+#  ███     ░░███ ████████   ██████  ████████   ░███    ░███  ░███ 
+# ░███      ░███░░███░░███ ███░░███░░███░░███  ░███████████  ░███ 
+# ░███      ░███ ░███ ░███░███████  ░███ ░███  ░███░░░░░███  ░███ 
+# ░░███     ███  ░███ ░███░███░░░   ░███ ░███  ░███    ░███  ░███ 
+#  ░░░███████░   ░███████ ░░██████  ████ █████ █████   █████ █████
+#    ░░░░░░░     ░███░░░   ░░░░░░  ░░░░ ░░░░░ ░░░░░   ░░░░░ ░░░░░ 
+#                ░███                                             
+#                █████                                            
+#               ░░░░░                                             
     "gpt-3.5-turbo": {
         "name": "gpt-3.5-turbo-0125",
         "api_base": "https://api.openai.com/v1",
@@ -29,7 +41,18 @@ registry = {
         "supports_json": False,
         "api_spec": "openai"
     },
-    # only reason to use Together AI models are <= 7B where they're cheaper than claude haiku
+#  ███████████                             █████    █████                        
+# ░█░░░███░░░█                            ░░███    ░░███                         
+# ░   ░███  ░   ██████   ███████  ██████  ███████   ░███████    ██████  ████████ 
+#     ░███     ███░░███ ███░░███ ███░░███░░░███░    ░███░░███  ███░░███░░███░░███
+#     ░███    ░███ ░███░███ ░███░███████   ░███     ░███ ░███ ░███████  ░███ ░░░ 
+#     ░███    ░███ ░███░███ ░███░███░░░    ░███ ███ ░███ ░███ ░███░░░   ░███     
+#     █████   ░░██████ ░░███████░░██████   ░░█████  ████ █████░░██████  █████    
+#    ░░░░░     ░░░░░░   ░░░░░███ ░░░░░░     ░░░░░  ░░░░ ░░░░░  ░░░░░░  ░░░░░     
+#                       ███ ░███                                                 
+#                      ░░██████                                                  
+#                       ░░░░░░                                                   
+# tbh only reason to use these are that they're cheap, but all worse than haiku
     "gemma-instruct-7b-together": {
         "name": "google/gemma-7b-it",
         "api_base": "https://api.together.xyz/v1",
@@ -72,6 +95,17 @@ registry = {
         "supports_json": False,
         "api_spec": "openai"
     },
+#    █████████               █████    █████                                    ███          
+#   ███░░░░░███             ░░███    ░░███                                    ░░░           
+#  ░███    ░███  ████████   ███████   ░███████   ████████   ██████  ████████  ████   ██████ 
+#  ░███████████ ░░███░░███ ░░░███░    ░███░░███ ░░███░░███ ███░░███░░███░░███░░███  ███░░███
+#  ░███░░░░░███  ░███ ░███   ░███     ░███ ░███  ░███ ░░░ ░███ ░███ ░███ ░███ ░███ ░███ ░░░ 
+#  ░███    ░███  ░███ ░███   ░███ ███ ░███ ░███  ░███     ░███ ░███ ░███ ░███ ░███ ░███  ███
+#  █████   █████ ████ █████  ░░█████  ████ █████ █████    ░░██████  ░███████  █████░░██████ 
+# ░░░░░   ░░░░░ ░░░░ ░░░░░    ░░░░░  ░░░░ ░░░░░ ░░░░░      ░░░░░░   ░███░░░  ░░░░░  ░░░░░░  
+#                                                                   ░███                    
+#                                                                   █████                   
+#                                                                  ░░░░░                    
     "claude-haiku-anthropic": {
         "name": "claude-3-haiku-20240307",
         "api_base": "https://api.anthropic.com/v1",
@@ -93,6 +127,16 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic"
     },
+
+#  █████   █████                     █████                        
+# ░░███   ░░███                     ░░███                         
+#  ░███    ░███   ██████  ████████  ███████    ██████  █████ █████
+#  ░███    ░███  ███░░███░░███░░███░░░███░    ███░░███░░███ ░░███ 
+#  ░░███   ███  ░███████  ░███ ░░░   ░███    ░███████  ░░░█████░  
+#   ░░░█████░   ░███░░░   ░███       ░███ ███░███░░░    ███░░░███ 
+#     ░░███     ░░██████  █████      ░░█████ ░░██████  █████ █████
+#      ░░░       ░░░░░░  ░░░░░        ░░░░░   ░░░░░░  ░░░░░ ░░░░░ 
+
     "claude-haiku-vertex": {
         "name": "claude-3-haiku@20240307",
         "regions": ["europe-west4", "us-central1"],
@@ -109,18 +153,52 @@ registry = {
         "supports_json": False,
         "api_spec": "vertex_anthropic"
     },
-    "gemini-pro-1.0": {
-        "name": "gemini-pro-1.0",
+    "claude-opus-vertex": {
+        "name": "claude-3-opus@20240229",
+        "regions": ["us-east5"],
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_anthropic"
     },
-    "gemini-pro-1.5": {
-        "name": "gemini-pro-1.5",
+    "gemini-1.0-pro": {
+        "name": "gemini-1.0-pro",
+        "regions": gemini_regions, # 29 regions x 10RPM = ~300 RPM
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_gemini"
     },
-    "claude-haiku-bedrock": {
+    "gemini-1.5-pro": {
+        "name": "gemini-1.5-pro",
+        "regions": gemini_regions, # 29 regions x 5RPM = ~150 RPM
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_gemini"
+    },
 
-    },
-    "claude-sonnet-bedrock": {
-                
-    },
+#  ███████████               █████                             █████     
+# ░░███░░░░░███             ░░███                             ░░███      
+#  ░███    ░███  ██████   ███████  ████████   ██████   ██████  ░███ █████
+#  ░██████████  ███░░███ ███░░███ ░░███░░███ ███░░███ ███░░███ ░███░░███ 
+#  ░███░░░░░███░███████ ░███ ░███  ░███ ░░░ ░███ ░███░███ ░░░  ░██████░  
+#  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███ 
+#  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
+# ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░ 
+                                                               
+    "claude-haiku-bedrock": {},
+    "claude-sonnet-bedrock": {},
+
+#    █████████           █████                                 
+#   ███░░░░░███         ░░███                                  
+#  ███     ░░░   ██████  ░███████    ██████  ████████   ██████ 
+# ░███          ███░░███ ░███░░███  ███░░███░░███░░███ ███░░███
+# ░███         ░███ ░███ ░███ ░███ ░███████  ░███ ░░░ ░███████ 
+# ░░███     ███░███ ░███ ░███ ░███ ░███░░░   ░███     ░███░░░  
+#  ░░█████████ ░░██████  ████ █████░░██████  █████    ░░██████ 
+#   ░░░░░░░░░   ░░░░░░  ░░░░ ░░░░░  ░░░░░░  ░░░░░      ░░░░░░  
+                                                      
     "command-r": {
         "name": "command-r",
         "api-base": "https://api.cohere.ai/v1",
