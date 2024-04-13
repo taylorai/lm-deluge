@@ -227,8 +227,8 @@ class APIModel:
     name: str
     api_base: str
     api_key_env_var: str
-    supports_json: bool
     api_spec: str
+    supports_json: bool = False
     regions: list[str] = field(default_factory=list)
 
     @classmethod
