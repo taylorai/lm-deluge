@@ -68,6 +68,8 @@ class VertexAnthropicAPIRequest(APIRequestBase):
             callback=callback,
             result=result
         )
+        token = get_access_token(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+
         self.model = APIModel.from_registry(model_name)
         project_id = os.getenv("PROJECT_ID")
         region = random.choice(self.model.regions) # load balance across regions
@@ -184,7 +186,7 @@ class GeminiAPIRequest(APIRequestBase):
         credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         token = get_access_token(credentials_file)
         project_id = os.getenv("PROJECT_ID")
-        region = os.getenv("REGION", "us-central1")
+        region = random.choice(self.model.regions) # load balance across regions
         self.url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/{model_name}:generateContent"
 
         self.request_header = {
@@ -203,6 +205,45 @@ class GeminiAPIRequest(APIRequestBase):
             },
             "safety_settings": {} # TODO: turn this off later lol
         }
+
+    async def handle_response(self, response: ClientResponse) -> APIResponse:
+        is_error = False
+        error_message = None
+        completion = None
+        input_tokens = None
+        output_tokens = None
+        status_code = response.status
+        mimetype = response.headers.get("Content-Type", None)
+        if status_code >= 200 and status_code < 300:
+            try:
+                data = await response.json()
+                completion = json.dumps(data, indent=2)
+                input_tokens = 0
+                output_tokens = 0
+            except Exception as e:
+                is_error = True
+                error_message = f"Error calling .json() on response w/ status {status_code}"
+        elif "json" in mimetype.lower():
+            is_error = True
+            data = await response.json()
+            error_message = json.dumps(data)
+        else:
+            is_error = True
+            text = await response.text()
+            error_message = text
+
+        return APIResponse(
+            status_code=status_code,
+            is_error=is_error,
+            error_message=error_message,
+            system_prompt=None,
+            messages=self.messages,
+            completion=completion,
+            model=self.model.name,
+            sampling_params=self.sampling_params,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
 
 
 # curl \
