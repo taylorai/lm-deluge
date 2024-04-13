@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 registry = {
     "gpt-3.5-turbo": {
@@ -147,7 +147,7 @@ class APIModel:
     api_key_env_var: str
     supports_json: bool
     api_spec: str
-    regions: list[str] = []
+    regions: list[str] = field(default_factory=list)
 
     @classmethod
     def from_registry(cls, name: str):
