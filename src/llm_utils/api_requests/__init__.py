@@ -3,6 +3,7 @@ from tqdm import tqdm
 from .anthropic import AnthropicRequest
 from .vertex import VertexAnthropicAPIRequest, GeminiAPIRequest
 from .openai import OpenAIRequest
+from .cohere import CohereRequest
 from ..tracker import StatusTracker
 from ..cache import SqliteCache
 from ..sampling_params import SamplingParams
@@ -68,6 +69,20 @@ def create_api_request(
         )
     elif model_obj.api_spec == "vertex_gemini":
         return GeminiAPIRequest(
+            task_id=task_id,
+            model_name=model_name,
+            messages=messages,
+            attempts_left=attempts_left,
+            status_tracker=status_tracker,
+            retry_queue=retry_queue,
+            request_timeout=request_timeout,
+            sampling_params=sampling_params,
+            cache=cache,
+            pbar=pbar,
+            callback=callback
+        )
+    elif model_obj.api_spec == "cohere":
+        return CohereRequest(
             task_id=task_id,
             model_name=model_name,
             messages=messages,
