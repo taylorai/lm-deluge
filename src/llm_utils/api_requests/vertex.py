@@ -3,6 +3,7 @@ import asyncio
 from aiohttp import ClientResponse
 import json
 import os
+import random
 import time
 from tqdm import tqdm
 from typing import Optional, Callable, Union
@@ -60,7 +61,7 @@ class VertexAnthropicAPIRequest(APIRequestBase):
         )
         self.model = APIModel.from_registry(model_name)
         project_id = os.getenv("PROJECT_ID")
-        region = self.model.region
+        region = random.choice(self.model.regions) # load balance across regions
         endpoint = f"https://{region}-aiplatform.googleapis.com"
         self.url = f"{endpoint}/v1/projects/{project_id}/locations/{region}/publishers/anthropic/models/{model_name}:rawPredict"
         self.request_header = {

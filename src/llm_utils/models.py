@@ -93,30 +93,16 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic"
     },
-    "claude-haiku-vertex-us": {
+    "claude-haiku-vertex": {
         "name": "claude-3-haiku@20240307",
-        "region": "us-central1",
+        "regions": ["europe-west4", "us-central1"],
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "api_spec": "vertex_anthropic"
     },
-    "claude-haiku-vertex-eu": {
-        "name": "claude-3-haiku@20240307",
-        "region": "europe-west4",
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "api_spec": "vertex_anthropic"
-    },
-    "claude-sonnet-vertex-us": {
+    "claude-sonnet-vertex": {
         "name": "claude-3-sonnet@20240229",
-        "region": "us-central1",
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "api_spec": "vertex_anthropic"
-    },
-    "claude-sonnet-vertex-asia": {
-        "name": "claude-3-sonnet@20240229",
-        "region": "asia-southeast1",
+        "regions": ["us-central1", "asia-southeast1"],
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "api_spec": "vertex_anthropic"
@@ -160,8 +146,8 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     supports_json: bool
-    region: str = None
     api_spec: str
+    regions: list[str] = []
 
     @classmethod
     def from_registry(cls, name: str):
