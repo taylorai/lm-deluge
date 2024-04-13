@@ -201,16 +201,18 @@ registry = {
                                                       
     "command-r": {
         "name": "command-r",
-        "api-base": "https://api.cohere.ai/v1",
+        "api_base": "https://api.cohere.ai/v1",
         "api_key_env_var": "COHERE_API_KEY",
         "api_spec": "cohere"
     },
     "command-r-plus": {
         "name": "command-r-plus",
-        "api-base": "https://api.cohere.ai/v1",
+        "api_base": "https://api.cohere.ai/v1",
         "api_key_env_var": "COHERE_API_KEY",
         "api_spec": "cohere"
     },
+
+# MODAL    
     "mistral-instruct-modal": {
         "name": "mistral-completions-h100",
         "api_base": None,
