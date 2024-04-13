@@ -18,7 +18,7 @@ gemini_regions = [
     'europe-west8', 
     'europe-west9', 
     # 'me-central1', 
-    'me-central2', 
+    # 'me-central2', 
     'me-west1', 
     'northamerica-northeast1', 
     'southamerica-east1', 
