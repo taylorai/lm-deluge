@@ -183,6 +183,7 @@ class GeminiAPIRequest(APIRequestBase):
             callback=callback,
             result=result
         )
+        self.model = APIModel.from_registry(model_name)
         credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         token = get_access_token(credentials_file)
         project_id = os.getenv("PROJECT_ID")
