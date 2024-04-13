@@ -100,7 +100,7 @@ class OpenAIRequest(APIRequestBase):
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            system_prompt=None, # if used, it's included in messages
+            system_prompt=self.messages[0] if self.messages[0]["role"] == "system" else None,
             messages=self.messages,
             completion=completion,
             model=self.model.name,
