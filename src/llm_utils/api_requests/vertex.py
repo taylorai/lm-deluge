@@ -218,9 +218,12 @@ class GeminiAPIRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                completion = json.dumps(data, indent=2)
-                input_tokens = 0
-                output_tokens = 0
+                candidate = data["candidates"][0]
+                parts = candidate["content"]["parts"]
+                completion = " ".join([part["text"] for part in parts])
+                usage = data["usageMetadata"]
+                input_tokens = usage["promptTokenCount"]
+                output_tokens = usage['candidatesTokenCount']
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}"
