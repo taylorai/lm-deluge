@@ -63,7 +63,7 @@ class VertexAnthropicAPIRequest(APIRequestBase):
         project_id = os.getenv("PROJECT_ID")
         region = random.choice(self.model.regions) # load balance across regions
         endpoint = f"https://{region}-aiplatform.googleapis.com"
-        self.url = f"{endpoint}/v1/projects/{project_id}/locations/{region}/publishers/anthropic/models/{model_name}:rawPredict"
+        self.url = f"{endpoint}/v1/projects/{project_id}/locations/{region}/publishers/anthropic/models/{self.model.name}:rawPredict"
         self.request_header = {
             "Authorization": f"Bearer {get_access_token(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))}",
             "Content-Type": "application/json"
