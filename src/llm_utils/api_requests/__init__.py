@@ -66,5 +66,19 @@ def create_api_request(
             pbar=pbar,
             callback=callback
         )
+    elif model_obj.api_spec == "vertex_gemini":
+        return GeminiAPIRequest(
+            task_id=task_id,
+            model_name=model_name,
+            messages=messages,
+            attempts_left=attempts_left,
+            status_tracker=status_tracker,
+            retry_queue=retry_queue,
+            request_timeout=request_timeout,
+            sampling_params=sampling_params,
+            cache=cache,
+            pbar=pbar,
+            callback=callback
+        )
     else:
         raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
