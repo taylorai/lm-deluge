@@ -98,6 +98,7 @@ registry = {
         "regions": ["europe-west4", "us-central1"],
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
         "api_spec": "vertex_anthropic"
     },
     "claude-sonnet-vertex": {
@@ -105,6 +106,7 @@ registry = {
         "regions": ["us-central1", "asia-southeast1"],
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
         "api_spec": "vertex_anthropic"
     },
     "gemini-pro-1.0": {
