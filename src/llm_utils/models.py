@@ -220,14 +220,14 @@ registry = {
                                                                
     "claude-haiku-bedrock": {
         "name": "anthropic.claude-3-haiku-20240307-v1:0",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-central-1", "eu-west-3"],
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "AWS_CREDENTIALS",
         "api_spec": "bedrock_anthropic"
     },
     "claude-sonnet-bedrock": {
         "name": "anthropic.claude-3-sonnet-20240229-v1:0",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-central-1", "eu-west-3"],
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "AWS_CREDENTIALS",
         "api_spec": "bedrock_anthropic"
