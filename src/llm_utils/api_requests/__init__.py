@@ -2,7 +2,7 @@ import asyncio
 from tqdm import tqdm
 from .anthropic import AnthropicRequest
 from .vertex import VertexAnthropicRequest, GeminiRequest
-from .bedrock import BedrockAnthropicRequest
+from .bedrock import BedrockAnthropicRequest, MistralBedrockRequest
 from .openai import OpenAIRequest
 from .cohere import CohereRequest
 from ..tracker import StatusTracker
@@ -110,6 +110,19 @@ def create_api_request(
             pbar=pbar,
             callback=callback
         )
-
+    elif model_obj.api_spec == "mistral_bedrock":
+        return MistralBedrockRequest(
+            task_id=task_id,
+            model_name=model_name,
+            messages=messages,
+            attempts_left=attempts_left,
+            status_tracker=status_tracker,
+            retry_queue=retry_queue,
+            request_timeout=request_timeout,
+            sampling_params=sampling_params,
+            cache=cache,
+            pbar=pbar,
+            callback=callback
+        )
     else:
         raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
