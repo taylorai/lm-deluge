@@ -112,7 +112,7 @@ class AnthropicRequest(APIRequestBase):
             system_prompt=self.system_message,
             messages=self.messages,
             completion=completion,
-            model=self.model.name,
+            model_internal=self.model_name,
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
