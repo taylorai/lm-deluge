@@ -10,32 +10,58 @@ from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..cache import SqliteCache
 from ..tokenizer import count_tokens
+from ..models import APIModel
 
 @dataclass
 class APIResponse:
+    # request information
+    model_internal: str # our internal model tag
+    system_prompt: Optional[str]
+    messages: list[dict]
+    sampling_params: SamplingParams
+    
+    # http response information
     status_code: int
     is_error: Optional[bool]
     error_message: Optional[str]
-    system_prompt: Optional[str]
-    messages: list[dict]
+    
+    # completion information
     completion: Optional[str]
-    model: Optional[str]
-    sampling_params: Optional[SamplingParams]
     input_tokens: Optional[int]
     output_tokens: Optional[int]
+    
+    # optional or calculated automatically
+    model_external: str # the model tag used by the API
+    region: Optional[str] = None
+    finish_reason: Optional[str] = None # make required later
+    cost: Optional[float] = None # calculated automatically
+
+    def __post_init__(self):
+        # calculate cost & get external model name
+        api_model = APIModel.from_registry(self.model_internal)
+        self.model_external = api_model.name
+        self.cost = (
+            self.input_tokens * api_model.input_cost / 1e6 +
+            self.output_tokens * api_model.output_cost / 1e6
+        )
+
 
     def to_dict(self):
         return {
+            "model_internal": self.model_internal,
+            "model_external": self.model_external,
+            "region": self.region,
+            "system_prompt": self.system_prompt,
+            "messages": self.messages,
+            "sampling_params": self.sampling_params.__dict__,
             "status_code": self.status_code,
             "is_error": self.is_error,
             "error_message": self.error_message,
-            "system_prompt": self.system_prompt,
-            "sampling_params": self.sampling_params.__dict__,
-            "messages": self.messages,
             "completion": self.completion,
-            "model": self.model,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
+            "finish_reason": self.finish_reason,
+            "cost": self.cost,
         }
     
     @classmethod
