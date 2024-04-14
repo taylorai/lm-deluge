@@ -21,6 +21,7 @@ def get_aws_headers(
     secret_access_key: str,
     region: str,
     url: str,
+    request_json: dict,
     service: str = "bedrock"
 ):
     auth = AWS4Auth(
@@ -35,7 +36,7 @@ def get_aws_headers(
         method='POST',
         url=url,
         headers=headers,
-        json={}
+        json=request_json
     ).prepare()
     auth(mock_request)
     print("headers:", mock_request.headers)
@@ -77,12 +78,6 @@ class BedrockAnthropicRequest(APIRequestBase):
         self.model = APIModel.from_registry(model_name)
         region = random.choice(self.model.regions) # load balance across regions
         self.url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{self.model.name}/invoke"
-        self.request_header = dict(get_aws_headers(
-            access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-            secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region=region,
-            url=self.url
-        ))
         self.system_message = None
         if len(self.messages) > 0 and self.messages[0]["role"] == "system":
             self.system_message = self.messages[0]["content"]
@@ -96,6 +91,14 @@ class BedrockAnthropicRequest(APIRequestBase):
         }
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
+        
+        self.request_header = dict(get_aws_headers(
+            access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+            region=region,
+            url=self.url,
+            request_json=self.request_json
+        ))
 
 # POST https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-v2/invoke HTTP/1.1
 # Host: bedrock-runtime.us-west-2.amazonaws.com
