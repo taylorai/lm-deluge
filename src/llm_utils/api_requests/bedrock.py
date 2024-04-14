@@ -226,7 +226,7 @@ class MistralBedrockRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                completion = json.dumps(data["content"])
+                completion = json.dumps(data)
                 input_tokens = len(self.request_json["prompt"]) // 4 # approximate
                 output_tokens = 0
             except Exception as e:
