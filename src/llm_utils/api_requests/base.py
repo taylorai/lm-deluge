@@ -31,7 +31,7 @@ class APIResponse:
     output_tokens: Optional[int]
     
     # optional or calculated automatically
-    model_external: str # the model tag used by the API
+    model_external: Optional[str] = None # the model tag used by the API
     region: Optional[str] = None
     finish_reason: Optional[str] = None # make required later
     cost: Optional[float] = None # calculated automatically
