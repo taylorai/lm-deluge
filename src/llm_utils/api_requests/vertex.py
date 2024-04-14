@@ -35,7 +35,7 @@ def get_access_token(service_account_file: str):
         LAST_TOKEN = credentials.token
     return LAST_TOKEN
 
-class VertexAnthropicAPIRequest(APIRequestBase):
+class VertexAnthropicRequest(APIRequestBase):
     """
     For Claude on Vertex, you'll also have to set the PROJECT_ID environment variable.
     """
@@ -81,11 +81,11 @@ class VertexAnthropicAPIRequest(APIRequestBase):
         }
         self.system_message = None
         if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            self.system_message = self.messages.pop(0)
+            self.system_message = self.messages[0]["content"]
 
         self.request_json = {
             "anthropic_version": "vertex-2023-10-16",
-            "messages": self.messages,
+            "messages": self.messages[1:] if self.system_message is not None else self.messages,
             "temperature": self.sampling_params.temperature,
             "top_p": self.sampling_params.top_p,
             "max_tokens": self.sampling_params.max_new_tokens
@@ -150,7 +150,7 @@ def convert_messages_to_contents(messages: list[dict]):
         contents.append({"role": message["role"], "parts": [{"text": message["content"]}]})
     return contents
 
-class GeminiAPIRequest(APIRequestBase):
+class GeminiRequest(APIRequestBase):
     """
     For Gemini, you'll also have to set the PROJECT_ID environment variable.
     """

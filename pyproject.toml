@@ -18,5 +18,6 @@ dependencies = [
     "tiktoken",
     "xxhash",
     "tqdm",
-    "google-auth"
+    "google-auth",
+    "requests-aws4auth"
 ]
