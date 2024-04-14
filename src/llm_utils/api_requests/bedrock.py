@@ -34,7 +34,8 @@ def get_aws_headers(
     mock_request = requests.Request(
         method='POST',
         url=url,
-        headers=headers
+        headers=headers,
+        json={}
     ).prepare()
     auth(mock_request)
     return mock_request.headers
