@@ -222,35 +222,35 @@ registry = {
         "name": "anthropic.claude-3-haiku-20240307-v1:0",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
-        "api_key_env_var": "AWS_CREDENTIALS",
+        "api_key_env_var": "",
         "api_spec": "bedrock_anthropic"
     },
     "claude-sonnet-bedrock": {
         "name": "anthropic.claude-3-sonnet-20240229-v1:0",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
-        "api_key_env_var": "AWS_CREDENTIALS",
+        "api_key_env_var": "",
         "api_spec": "bedrock_anthropic"
     },
     "mistral-7b-bedrock": {
         "name": "mistral.mistral-7b-instruct-v0:2",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
-        "api_key_env_var": "AWS_CREDENTIALS",
+        "api_key_env_var": "",
         "api_spec": "bedrock_mistral"
     },
     "mixtral-8x7b-bedrock": {
         "name": "mistral.mixtral-8x7b-instruct-v0:1",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
-        "api_key_env_var": "AWS_CREDENTIALS",
+        "api_key_env_var": "",
         "api_spec": "bedrock_mistral"
     },
     "mistral-large-bedrock": {
         "name": "mistral.mistral-large-2402-v1:0",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
-        "api_key_env_var": "AWS_CREDENTIALS",
+        "api_key_env_var": "",
         "api_spec": "bedrock_mistral"
     },
 
@@ -275,6 +275,53 @@ registry = {
         "api_key_env_var": "COHERE_API_KEY",
         "api_spec": "cohere"
     },
+
+#  ██████   ██████  ███           █████                        ████ 
+# ░░██████ ██████  ░░░           ░░███                        ░░███ 
+#  ░███░█████░███  ████   █████  ███████   ████████   ██████   ░███ 
+#  ░███░░███ ░███ ░░███  ███░░  ░░░███░   ░░███░░███ ░░░░░███  ░███ 
+#  ░███ ░░░  ░███  ░███ ░░█████   ░███     ░███ ░░░   ███████  ░███ 
+#  ░███      ░███  ░███  ░░░░███  ░███ ███ ░███      ███░░███  ░███ 
+#  █████     █████ █████ ██████   ░░█████  █████    ░░████████ █████
+# ░░░░░     ░░░░░ ░░░░░ ░░░░░░     ░░░░░  ░░░░░      ░░░░░░░░ ░░░░░ 
+    "mistral-7b": {
+        "name": "open-mistral-7b",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral"
+    },
+    "mistral-8x7b": {
+        "name": "open-mixtral-8x7b",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral"
+    },
+    "mistral-small": {
+        "name": "mistral-small-latest",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral"
+    },
+    "mistral-medium": {
+        "name": "mistral-medium-latest",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral"
+    },
+    "mistral-large": {
+        "name": "mistral-large-latest",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral"
+    },
+
+                                                                  
+                                                                  
 
 # MODAL    
     "mistral-instruct-modal": {
