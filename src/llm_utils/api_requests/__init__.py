@@ -110,7 +110,7 @@ def create_api_request(
             pbar=pbar,
             callback=callback
         )
-    elif model_obj.api_spec == "mistral_bedrock":
+    elif model_obj.api_spec == "bedrock_mistral":
         return MistralBedrockRequest(
             task_id=task_id,
             model_name=model_name,
