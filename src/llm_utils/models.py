@@ -194,7 +194,7 @@ registry = {
     },
     "gemini-1.0-pro": {
         "name": "gemini-1.0-pro",
-        "regions": gemini_regions, # 29 regions x 10RPM = ~300 RPM
+        "regions": gemini_regions,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
@@ -202,7 +202,7 @@ registry = {
     },
     "gemini-1.5-pro": {
         "name": "gemini-1.5-pro-preview-0409",
-        "regions": gemini_regions, # 29 regions x 5RPM = ~150 RPM
+        "regions": gemini_regions,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
