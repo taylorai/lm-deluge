@@ -49,28 +49,45 @@ registry = {
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.5,
+        "output_cost": 1.5
     },
     "gpt-4-turbo": {
         "name": "gpt-4-0125-preview",
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 10.0,
+        "output_cost": 30.0
     },
     "gpt-4-turbo-majorly-improved": {
         "name": "gpt-4-turbo-2024-04-09",
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 10.0,
+        "output_cost": 30.0
     },
     "gpt-4": {
         "name": "gpt-4-0613",
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 30.0,
+        "output_cost": 60.0
+    },
+    "gpt-4-32k": {
+        "name": "gpt-4-32k-0613",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 60.0,
+        "output_cost": 120.0
     },
 #  ███████████                             █████    █████                        
 # ░█░░░███░░░█                            ░░███    ░░███                         
@@ -89,42 +106,54 @@ registry = {
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.2,
+        "output_cost": 0.2
     },
     "gemma-instruct-2b-together": {
         "name": "google/gemma-2b-it",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.1
     },
     "phi-2-together": {
         "name": "microsoft/phi-2",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.1
     },
     "mistral-instruct-together": {
         "name": "mistralai/Mistral-7B-Instruct-v0.2",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.2,
+        "output_cost": 0.2
     },
     "nous-mistral-together": {
         "name": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.2,
+        "output_cost": 0.2
     },
     "qwen-chat-4b-together": {
         "name": "Qwen/Qwen1.5-4B-Chat",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
         "supports_json": False,
-        "api_spec": "openai"
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.1
     },
 #    █████████               █████    █████                                    ███          
 #   ███░░░░░███             ░░███    ░░███                                    ░░░           
@@ -142,21 +171,27 @@ registry = {
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
-        "api_spec": "anthropic"
+        "api_spec": "anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25
     },
     "claude-sonnet-anthropic": {
         "name": "claude-3-sonnet-20240229",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
-        "api_spec": "anthropic"
+        "api_spec": "anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0
     },
     "claude-opus-anthropic": {
         "name": "claude-3-opus-20240229",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
-        "api_spec": "anthropic"
+        "api_spec": "anthropic",
+        "input_cost": 15.0,
+        "output_cost": 75.0
     },
 
 #  █████   █████                     █████                        
@@ -174,7 +209,9 @@ registry = {
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
-        "api_spec": "vertex_anthropic"
+        "api_spec": "vertex_anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25
     },
     "claude-sonnet-vertex": {
         "name": "claude-3-sonnet@20240229",
@@ -182,7 +219,9 @@ registry = {
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
-        "api_spec": "vertex_anthropic"
+        "api_spec": "vertex_anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0
     },
     "claude-opus-vertex": {
         "name": "claude-3-opus@20240229",
@@ -190,7 +229,9 @@ registry = {
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
-        "api_spec": "vertex_anthropic"
+        "api_spec": "vertex_anthropic",
+        "input_cost": 15.0,
+        "output_cost": 75.0
     },
     "gemini-1.0-pro": {
         "name": "gemini-1.0-pro",
@@ -198,7 +239,10 @@ registry = {
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
-        "api_spec": "vertex_gemini"
+        "api_spec": "vertex_gemini",
+        "input_cost": 0.5,
+        "output_cost": 1.5
+
     },
     "gemini-1.5-pro": {
         "name": "gemini-1.5-pro-preview-0409",
@@ -206,7 +250,9 @@ registry = {
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
-        "api_spec": "vertex_gemini"
+        "api_spec": "vertex_gemini",
+        "input_cost": 7.0,
+        "output_cost": 21.0
     },
 
 #  ███████████               █████                             █████     
@@ -223,35 +269,45 @@ registry = {
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "",
-        "api_spec": "bedrock_anthropic"
+        "api_spec": "bedrock_anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25
     },
     "claude-sonnet-bedrock": {
         "name": "anthropic.claude-3-sonnet-20240229-v1:0",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "",
-        "api_spec": "bedrock_anthropic"
+        "api_spec": "bedrock_anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0
     },
     "mistral-7b-bedrock": {
         "name": "mistral.mistral-7b-instruct-v0:2",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "",
-        "api_spec": "bedrock_mistral"
+        "api_spec": "bedrock_mistral",
+        "input_cost": 0.15,
+        "output_cost": 0.2
     },
     "mixtral-8x7b-bedrock": {
         "name": "mistral.mixtral-8x7b-instruct-v0:1",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "",
-        "api_spec": "bedrock_mistral"
+        "api_spec": "bedrock_mistral",
+        "input_cost": 0.45,
+        "output_cost": 0.7
     },
     "mistral-large-bedrock": {
         "name": "mistral.mistral-large-2402-v1:0",
         "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
         "api_base": "",
         "api_key_env_var": "",
-        "api_spec": "bedrock_mistral"
+        "api_spec": "bedrock_mistral",
+        "input_cost": 8.0,
+        "output_cost": 24.0
     },
 
 #    █████████           █████                                 
@@ -267,13 +323,17 @@ registry = {
         "name": "command-r",
         "api_base": "https://api.cohere.ai/v1",
         "api_key_env_var": "COHERE_API_KEY",
-        "api_spec": "cohere"
+        "api_spec": "cohere",
+        "input_cost": 0.5,
+        "output_cost": 1.5
     },
     "command-r-plus": {
         "name": "command-r-plus",
         "api_base": "https://api.cohere.ai/v1",
         "api_key_env_var": "COHERE_API_KEY",
-        "api_spec": "cohere"
+        "api_spec": "cohere",
+        "input_cost": 3.0,
+        "output_cost": 15.0
     },
 
 #  ██████   ██████  ███           █████                        ████ 
@@ -289,48 +349,54 @@ registry = {
         "api_base": "https://api.mistral.ai/v1",
         "api_key_env_var": "MISTRAL_API_KEY",
         "supports_json": True,
-        "api_spec": "mistral"
+        "api_spec": "mistral",
+        "input_cost": 0.25,
+        "output_cost": 0.25
     },
     "mistral-8x7b": {
         "name": "open-mixtral-8x7b",
         "api_base": "https://api.mistral.ai/v1",
         "api_key_env_var": "MISTRAL_API_KEY",
         "supports_json": True,
-        "api_spec": "mistral"
+        "api_spec": "mistral",
+        "input_cost": 0.7,
+        "output_cost": 0.7
     },
     "mistral-small": {
         "name": "mistral-small-latest",
         "api_base": "https://api.mistral.ai/v1",
         "api_key_env_var": "MISTRAL_API_KEY",
         "supports_json": True,
-        "api_spec": "mistral"
+        "api_spec": "mistral",
+        "input_cost": 2.0,
+        "output_cost": 6.0
     },
     "mistral-medium": {
         "name": "mistral-medium-latest",
         "api_base": "https://api.mistral.ai/v1",
         "api_key_env_var": "MISTRAL_API_KEY",
         "supports_json": True,
-        "api_spec": "mistral"
+        "api_spec": "mistral",
+        "input_cost": 2.7,
+        "output_cost": 8.1
     },
     "mistral-large": {
         "name": "mistral-large-latest",
         "api_base": "https://api.mistral.ai/v1",
         "api_key_env_var": "MISTRAL_API_KEY",
         "supports_json": True,
-        "api_spec": "mistral"
+        "api_spec": "mistral",
+        "input_cost": 8.0,
+        "output_cost": 24.0
     },
-
-                                                                  
-                                                                  
-
-# MODAL    
-    "mistral-instruct-modal": {
-        "name": "mistral-completions-h100",
-        "api_base": None,
-        "api_key_env_var": None,
-        "supports_json": True,
-        "api_spec": "modal"
-    }
+    # # MODAL    
+    #     "mistral-instruct-modal": {
+    #         "name": "mistral-completions-h100",
+    #         "api_base": None,
+    #         "api_key_env_var": None,
+    #         "supports_json": True,
+    #         "api_spec": "modal"
+    #     }
 }
 
 @dataclass
@@ -339,6 +405,8 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
+    input_cost: float # $ per million input tokens
+    output_cost: float # $ per million output tokens
     supports_json: bool = False
     regions: list[str] = field(default_factory=list)
 

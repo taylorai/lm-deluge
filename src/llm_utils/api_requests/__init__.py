@@ -4,6 +4,7 @@ from .anthropic import AnthropicRequest
 from .vertex import VertexAnthropicRequest, GeminiRequest
 from .bedrock import BedrockAnthropicRequest, MistralBedrockRequest
 from .openai import OpenAIRequest
+from .mistral import MistralRequest
 from .cohere import CohereRequest
 from ..tracker import StatusTracker
 from ..cache import SqliteCache
@@ -112,6 +113,20 @@ def create_api_request(
         )
     elif model_obj.api_spec == "bedrock_mistral":
         return MistralBedrockRequest(
+            task_id=task_id,
+            model_name=model_name,
+            messages=messages,
+            attempts_left=attempts_left,
+            status_tracker=status_tracker,
+            retry_queue=retry_queue,
+            request_timeout=request_timeout,
+            sampling_params=sampling_params,
+            cache=cache,
+            pbar=pbar,
+            callback=callback
+        )
+    elif model_obj.api_spec == "mistral":
+        return MistralRequest(
             task_id=task_id,
             model_name=model_name,
             messages=messages,

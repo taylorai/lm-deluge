@@ -166,6 +166,9 @@ def format_conversation(messages, bos_token="<s>", eos_token="</s>"):
     return formatted_conversation
     
 class MistralBedrockRequest(APIRequestBase):
+    """
+    Documentation: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-mistral.html#model-parameters-mistral-request-response
+    """
     def __init__(
         self,
         task_id: int,
@@ -226,7 +229,7 @@ class MistralBedrockRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                completion = json.dumps(data)
+                completion = data[""]
                 input_tokens = len(self.request_json["prompt"]) // 4 # approximate
                 output_tokens = 0
             except Exception as e:
