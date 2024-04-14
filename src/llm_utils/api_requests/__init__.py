@@ -1,7 +1,8 @@
 import asyncio
 from tqdm import tqdm
 from .anthropic import AnthropicRequest
-from .vertex import VertexAnthropicAPIRequest, GeminiAPIRequest
+from .vertex import VertexAnthropicRequest, GeminiRequest
+from .bedrock import BedrockAnthropicRequest
 from .openai import OpenAIRequest
 from .cohere import CohereRequest
 from ..tracker import StatusTracker
@@ -54,7 +55,7 @@ def create_api_request(
             callback=callback
         )
     elif model_obj.api_spec == "vertex_anthropic":
-        return VertexAnthropicAPIRequest(
+        return VertexAnthropicRequest(
             task_id=task_id,
             model_name=model_name,
             messages=messages,
@@ -68,7 +69,7 @@ def create_api_request(
             callback=callback
         )
     elif model_obj.api_spec == "vertex_gemini":
-        return GeminiAPIRequest(
+        return GeminiRequest(
             task_id=task_id,
             model_name=model_name,
             messages=messages,
@@ -95,5 +96,20 @@ def create_api_request(
             pbar=pbar,
             callback=callback
         )
+    elif model_obj.api_spec == "bedrock_anthropic":
+        return BedrockAnthropicRequest(
+            task_id=task_id,
+            model_name=model_name,
+            messages=messages,
+            attempts_left=attempts_left,
+            status_tracker=status_tracker,
+            retry_queue=retry_queue,
+            request_timeout=request_timeout,
+            sampling_params=sampling_params,
+            cache=cache,
+            pbar=pbar,
+            callback=callback
+        )
+
     else:
         raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
