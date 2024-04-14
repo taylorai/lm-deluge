@@ -199,8 +199,8 @@ class MistralBedrockRequest(APIRequestBase):
             result=result
         )
         self.model = APIModel.from_registry(model_name)
-        region = random.choice(self.model.regions)
-        self.url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{self.model.name}/invoke"
+        self.region = random.choice(self.model.regions)
+        self.url = f"https://bedrock-runtime.{self.region}.amazonaws.com/model/{self.model.name}/invoke"
         self.system_message = None
         if len(self.messages) > 0 and self.messages[0]["role"] == "system":
             raise ValueError("System messages are not supported for Mistral on AWS.")
@@ -213,7 +213,7 @@ class MistralBedrockRequest(APIRequestBase):
         self.request_header = dict(get_aws_headers(
             access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
             secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
-            region=region,
+            region=self.region,
             url=self.url,
             request_json=self.request_json
         ))
@@ -245,15 +245,20 @@ class MistralBedrockRequest(APIRequestBase):
             text = await response.text()
             error_message = text
 
-        # handle special kinds of errors. TODO: make sure these are correct for anthropic
-        if is_error and error_message is not None:
-            if "rate limit" in error_message.lower() or "overloaded" in error_message.lower():
-                error_message += f" (Rate limit error, triggering cooldown.)"
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
-            if "context length" in error_message:
-                error_message += f" (Context length exceeded, set retries to 0.)"
-                self.attempts_left = 0
+        # TODO: Handle rate-limit errors
+        
+        # if error, change the region
+        old_region = self.region
+        if is_error:
+            self.region = random.choice(self.model.regions)
+            self.url = f"https://bedrock-runtime.{self.region}.amazonaws.com/model/{self.model.name}/invoke"
+            self.request_header = dict(get_aws_headers(
+                access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+                region=self.region,
+                url=self.url,
+                request_json=self.request_json
+            ))
 
         return APIResponse(
             status_code=status_code,
@@ -266,4 +271,5 @@ class MistralBedrockRequest(APIRequestBase):
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            region=old_region,
         )

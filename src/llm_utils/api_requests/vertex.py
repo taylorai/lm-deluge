@@ -186,9 +186,9 @@ class GeminiRequest(APIRequestBase):
         self.model = APIModel.from_registry(model_name)
         credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         token = get_access_token(credentials_file)
-        project_id = os.getenv("PROJECT_ID")
-        region = random.choice(self.model.regions) # load balance across regions
-        self.url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/{self.model.name}:generateContent"
+        self.project_id = os.getenv("PROJECT_ID")
+        self.region = random.choice(self.model.regions) # load balance across regions
+        self.url = f"https://{self.region}-aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{self.region}/publishers/google/models/{self.model.name}:generateContent"
 
         self.request_header = {
             "Authorization": f"Bearer {token}",
@@ -236,6 +236,13 @@ class GeminiRequest(APIRequestBase):
             text = await response.text()
             error_message = text
 
+        old_region = self.region
+        if is_error:
+            # change the region in case error is due to region unavailability
+            self.region = random.choice(self.model.regions)
+            self.url = f"https://{self.region}-aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{self.region}/publishers/google/models/{self.model.name}:generateContent"
+
+
         return APIResponse(
             status_code=status_code,
             is_error=is_error,
@@ -247,27 +254,5 @@ class GeminiRequest(APIRequestBase):
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            region=old_region,
         )
-
-
-# curl \
-# -X POST \
-# -H "Authorization: Bearer ya29.c.c0AY_VpZhm7AF_lzlYuQXXb11RnJqlS77KvlBkCRBfmXpdIVPlwgdX854xCppKSqRr1HSOEVWOdbUFTGpvYwEhhzAPxXGp9HefcRf0gcX0IUkypZySSdf-vlp4wE0TC6ViI29YPRKNYMVAwUUnmy2h1Ls-Nki99ATu9vdKgmDZ0Was6C_qcoGStnryibhHUdNkQRFO4VmOnSCn5KLT9KMFfeQQ7NKAm15VK5_PJGQ806gt0F_ONDLCgUu_3gSn7tlsCpt2cJ8nLBRAz8KB5F9odBc1xl3cuIDbwGa6E4FnQ1knZTgswEwXfbV-uwubOYg2Pbcfm0PQyAJ3AsYGU1pWBaIcGokha_FDKHlQMmsHiS16wxPPIpqRyQipH385AYzZR2ew8YbIJ9akrIXWX0afcvgXejFVeRFiff_2M8z9iVftU4lbyryZpstMahwrV8au9VqqfWJsWY72Izf25tm8ZlqlvtZom_WS66gJoxW6t2lu_4S6QgZJYybed9po9JUwSkxchpQ39y18O8stwui0ez8Z0F3riuWz11eSqFpBbdpwyrmjSou1ypVxxyhRMfatgeVS9dIFwRax2hIsjUBWbujwuwx4_VxoYZyuM5Mo0h_W99p5ne_vu1zXazVf1J4z6f3nJy8X098Fbg50aiiIxah2QssObay57tmahBxBmltm-okSpVcdupXIMU25sUmxFXZk2dlpW3My7cIOmV1u8aScbm8m7ayJIe0b9bw32lUs9RYo3f_RhU_rWvBzZv_BBRBsXz073_g6dm27hajB8cs8yoBga_vag0JowZfXB-891c59SFoksXYRy-_2z1JQra9MJpWWRf734WyQJ8hIX7Foe5MOJFf1WakIXaOtem55mWgqZX14pxmQlkd12yc8IbJdee-02iqIW2_hzwzfJ8rF-I59yZi09UoUulerUsahYr0debFrn-UOrQw1akid67hunj_Qb8WBh7IhvsRdt0-0VarvxptyQWlMvrcJQgl0B-cgggMIxW9" \
-# -H "Content-Type: application/json" \
-# https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/us-central1/publishers/google/models/${MODEL_ID}:streamGenerateContent -d \
-# $'{
-#   "contents": {
-#     "role": "user",
-#     "parts": [
-#       {
-#       "fileData": {
-#         "mimeType": "image/jpeg",
-#         "fileUri": "gs://generativeai-downloads/images/scones.jpg"
-#         }
-#       },
-#       {
-#         "text": "Describe this picture."
-#       }
-#     ]
-#   }
-# }'
