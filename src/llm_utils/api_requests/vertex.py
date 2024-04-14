@@ -186,9 +186,9 @@ class GeminiRequest(APIRequestBase):
         self.model = APIModel.from_registry(model_name)
         credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         token = get_access_token(credentials_file)
-        project_id = os.getenv("PROJECT_ID")
-        region = random.choice(self.model.regions) # load balance across regions
-        self.url = f"https://{region}-aiplatform.googleapis.com/v1/projects/{project_id}/locations/{region}/publishers/google/models/{self.model.name}:generateContent"
+        self.project_id = os.getenv("PROJECT_ID")
+        self.region = random.choice(self.model.regions) # load balance across regions
+        self.url = f"https://{self.region}-aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{self.region}/publishers/google/models/{self.model.name}:generateContent"
 
         self.request_header = {
             "Authorization": f"Bearer {token}",
@@ -236,6 +236,13 @@ class GeminiRequest(APIRequestBase):
             text = await response.text()
             error_message = text
 
+        old_region = self.region
+        if is_error:
+            # change the region in case error is due to region unavailability
+            self.region = random.choice(self.model.regions)
+            self.url = f"https://{self.region}-aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{self.region}/publishers/google/models/{self.model.name}:generateContent"
+
+
         return APIResponse(
             status_code=status_code,
             is_error=is_error,
@@ -247,27 +254,5 @@ class GeminiRequest(APIRequestBase):
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            region=old_region,
         )
-
-
-# curl \
-# -X POST \
-# -H "Authorization: Bearer ***REMOVED***" \
-# -H "Content-Type: application/json" \
-# https://us-central1-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/us-central1/publishers/google/models/${MODEL_ID}:streamGenerateContent -d \
-# $'{
-#   "contents": {
-#     "role": "user",
-#     "parts": [
-#       {
-#       "fileData": {
-#         "mimeType": "image/jpeg",
-#         "fileUri": "gs://generativeai-downloads/images/scones.jpg"
-#         }
-#       },
-#       {
-#         "text": "Describe this picture."
-#       }
-#     ]
-#   }
-# }'
