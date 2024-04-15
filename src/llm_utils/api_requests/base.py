@@ -40,10 +40,14 @@ class APIResponse:
         # calculate cost & get external model name
         api_model = APIModel.from_registry(self.model_internal)
         self.model_external = api_model.name
-        self.cost = (
-            self.input_tokens * api_model.input_cost / 1e6 +
-            self.output_tokens * api_model.output_cost / 1e6
-        )
+        self.cost = None
+        if self.input_tokens is not None and self.output_tokens is not None:
+            self.cost = (
+                self.input_tokens * api_model.input_cost / 1e6 +
+                self.output_tokens * api_model.output_cost / 1e6
+            )
+        elif self.completion is not None:
+            print(f"Warning: Completion provided without token counts for model {self.model_internal}.")
 
 
     def to_dict(self):
