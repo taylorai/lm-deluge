@@ -172,6 +172,9 @@ class APIRequestBase(ABC):
         self.set_cache(data)
 
     def handle_error(self):
+        last_result: APIResponse = self.result[-1]
+        print(
+            f"Task {self.task_id} failed. Code: {last_result.status_code}, Message: {last_result.error_message}.")
         if self.attempts_left > 0:
             self.attempts_left -= 1
             self.retry_queue.put_nowait(self)
