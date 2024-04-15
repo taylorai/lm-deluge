@@ -111,6 +111,7 @@ class APIRequestBase(ABC):
     ):
         self.task_id = task_id
         self.model_name = model_name
+        self.system_prompt = None
         self.messages = messages
         self.attempts_left = attempts_left
         self.status_tracker = status_tracker
@@ -211,13 +212,34 @@ class APIRequestBase(ABC):
                 self.handle_success(response)
 
         except asyncio.TimeoutError:
-            print("Request timed out.")
-            self.result.append({"error": "Request timed out."})
+            self.result.append(APIResponse(
+                model_internal=self.model_name,
+                system_prompt=self.system_prompt,
+                messages=self.messages,
+                sampling_params=self.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message="Request timed out (terminated by client).",
+                completion=None,
+                input_tokens=None,
+                output_tokens=None,
+            ))
             self.handle_error()
                
         except Exception as e:
             print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
-            self.result.append({"error": str(e)})
+            self.result.append(APIResponse(
+                model_internal=self.model_name,
+                system_prompt=self.system_prompt,
+                messages=self.messages,
+                sampling_params=self.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message=f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}",
+                completion=None,
+                input_tokens=None,
+                output_tokens=None,
+            ))
             self.handle_error()
 
             
