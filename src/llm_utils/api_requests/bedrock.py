@@ -246,6 +246,10 @@ class MistralBedrockRequest(APIRequestBase):
             error_message = text
 
         # TODO: Handle rate-limit errors
+        if status_code == 429:
+            error_message += f" (Rate limit error, triggering cooldown.)"
+            self.status_tracker.time_of_last_rate_limit_error = time.time()
+            self.status_tracker.num_rate_limit_errors += 1
         
         # if error, change the region
         old_region = self.region
