@@ -229,12 +229,12 @@ class MistralBedrockRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                completion = data[""]
+                completion = data["text"]
                 input_tokens = len(self.request_json["prompt"]) // 4 # approximate
-                output_tokens = 0
+                output_tokens = len(completion) // 4 # approximate
             except Exception as e:
                 is_error = True
-                error_message = f"Error calling .json() on response w/ status {status_code}"
+                error_message = f"Error calling .json() on response w/ status {status_code}: {e}"
         elif "json" in mimetype.lower():
             is_error = True # expected status is 200, otherwise it's an error
             data = await response.json()
