@@ -308,7 +308,9 @@ registry = {
         "api_key_env_var": "",
         "api_spec": "bedrock_anthropic",
         "input_cost": 0.25,
-        "output_cost": 1.25
+        "output_cost": 1.25,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 8_000_000
     },
     "claude-sonnet-bedrock": {
         "name": "anthropic.claude-3-sonnet-20240229-v1:0",
@@ -317,7 +319,9 @@ registry = {
         "api_key_env_var": "",
         "api_spec": "bedrock_anthropic",
         "input_cost": 3.0,
-        "output_cost": 15.0
+        "output_cost": 15.0,
+        "requests_per_minute": 2_000,
+        "tokens_per_minute": 4_000_000
     },
     "mistral-7b-bedrock": {
         "name": "mistral.mistral-7b-instruct-v0:2",
@@ -326,7 +330,9 @@ registry = {
         "api_key_env_var": "",
         "api_spec": "bedrock_mistral",
         "input_cost": 0.15,
-        "output_cost": 0.2
+        "output_cost": 0.2,
+        "requests_per_minute": 3_200,
+        "tokens_per_minute": 1_200_000
     },
     "mixtral-8x7b-bedrock": {
         "name": "mistral.mixtral-8x7b-instruct-v0:1",
@@ -335,7 +341,9 @@ registry = {
         "api_key_env_var": "",
         "api_spec": "bedrock_mistral",
         "input_cost": 0.45,
-        "output_cost": 0.7
+        "output_cost": 0.7,
+        "requests_per_minute": 1_600,
+        "tokens_per_minute": 1_200_000
     },
     "mistral-large-bedrock": {
         "name": "mistral.mistral-large-2402-v1:0",
@@ -344,7 +352,9 @@ registry = {
         "api_key_env_var": "",
         "api_spec": "bedrock_mistral",
         "input_cost": 8.0,
-        "output_cost": 24.0
+        "output_cost": 24.0,
+        "requests_per_minute": 1_600,
+        "tokens_per_minute": 1_200_000
     },
 
 #    █████████           █████                                 
