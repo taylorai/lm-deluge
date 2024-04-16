@@ -88,7 +88,7 @@ class OpenAIRequest(APIRequestBase):
 
         # handle special kinds of errors
         if is_error and error_message is not None:
-            if "rate limit" in error_message.lower():
+            if "rate limit" in error_message.lower() or status_code == 429:
                 error_message += f" (Rate limit error, triggering cooldown.)"
                 self.status_tracker.time_of_last_rate_limit_error = time.time()
                 self.status_tracker.num_rate_limit_errors += 1
