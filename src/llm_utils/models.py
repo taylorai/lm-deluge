@@ -51,7 +51,9 @@ registry = {
         "supports_json": True,
         "api_spec": "openai",
         "input_cost": 0.5,
-        "output_cost": 1.5
+        "output_cost": 1.5,
+        "requests_per_minute": 20_000,
+        "tokens_per_minute": 2_000_000
     },
     "gpt-4-turbo": {
         "name": "gpt-4-0125-preview",
@@ -60,7 +62,9 @@ registry = {
         "supports_json": True,
         "api_spec": "openai",
         "input_cost": 10.0,
-        "output_cost": 30.0
+        "output_cost": 30.0,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 1_500_000
     },
     "gpt-4-turbo-majorly-improved": {
         "name": "gpt-4-turbo-2024-04-09",
@@ -69,7 +73,9 @@ registry = {
         "supports_json": True,
         "api_spec": "openai",
         "input_cost": 10.0,
-        "output_cost": 30.0
+        "output_cost": 30.0,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 1_500_000
     },
     "gpt-4": {
         "name": "gpt-4-0613",
@@ -78,7 +84,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 30.0,
-        "output_cost": 60.0
+        "output_cost": 60.0,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 300_000
     },
     "gpt-4-32k": {
         "name": "gpt-4-32k-0613",
@@ -87,7 +95,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 60.0,
-        "output_cost": 120.0
+        "output_cost": 120.0,
+        "requests_per_minute": 1_000,
+        "tokens_per_minute": 150_000
     },
 #  ███████████                             █████    █████                        
 # ░█░░░███░░░█                            ░░███    ░░███                         
@@ -108,7 +118,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 0.2,
-        "output_cost": 0.2
+        "output_cost": 0.2,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
     },
     "gemma-instruct-2b-together": {
         "name": "google/gemma-2b-it",
@@ -117,7 +129,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 0.1,
-        "output_cost": 0.1
+        "output_cost": 0.1,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
     },
     "phi-2-together": {
         "name": "microsoft/phi-2",
@@ -126,7 +140,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 0.1,
-        "output_cost": 0.1
+        "output_cost": 0.1,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
     },
     "mistral-instruct-together": {
         "name": "mistralai/Mistral-7B-Instruct-v0.2",
@@ -135,7 +151,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 0.2,
-        "output_cost": 0.2
+        "output_cost": 0.2,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
     },
     "nous-mistral-together": {
         "name": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO",
@@ -144,7 +162,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 0.2,
-        "output_cost": 0.2
+        "output_cost": 0.2,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
     },
     "qwen-chat-4b-together": {
         "name": "Qwen/Qwen1.5-4B-Chat",
@@ -153,7 +173,9 @@ registry = {
         "supports_json": False,
         "api_spec": "openai",
         "input_cost": 0.1,
-        "output_cost": 0.1
+        "output_cost": 0.1,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
     },
 #    █████████               █████    █████                                    ███          
 #   ███░░░░░███             ░░███    ░░███                                    ░░░           
@@ -173,7 +195,9 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic",
         "input_cost": 0.25,
-        "output_cost": 1.25
+        "output_cost": 1.25,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
     },
     "claude-sonnet-anthropic": {
         "name": "claude-3-sonnet-20240229",
@@ -182,7 +206,9 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic",
         "input_cost": 3.0,
-        "output_cost": 15.0
+        "output_cost": 15.0,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000
     },
     "claude-opus-anthropic": {
         "name": "claude-3-opus-20240229",
@@ -191,7 +217,9 @@ registry = {
         "supports_json": False,
         "api_spec": "anthropic",
         "input_cost": 15.0,
-        "output_cost": 75.0
+        "output_cost": 75.0,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000
     },
 
 #  █████   █████                     █████                        
@@ -211,7 +239,9 @@ registry = {
         "supports_json": False,
         "api_spec": "vertex_anthropic",
         "input_cost": 0.25,
-        "output_cost": 1.25
+        "output_cost": 1.25,
+        "requests_per_minute": 120,
+        "tokens_per_minute": None
     },
     "claude-sonnet-vertex": {
         "name": "claude-3-sonnet@20240229",
@@ -221,7 +251,9 @@ registry = {
         "supports_json": False,
         "api_spec": "vertex_anthropic",
         "input_cost": 3.0,
-        "output_cost": 15.0
+        "output_cost": 15.0,
+        "requests_per_minute": 120,
+        "tokens_per_minute": None
     },
     "claude-opus-vertex": {
         "name": "claude-3-opus@20240229",
@@ -231,7 +263,9 @@ registry = {
         "supports_json": False,
         "api_spec": "vertex_anthropic",
         "input_cost": 15.0,
-        "output_cost": 75.0
+        "output_cost": 75.0,
+        "requests_per_minute": 120,
+        "tokens_per_minute": None
     },
     "gemini-1.0-pro": {
         "name": "gemini-1.0-pro",
@@ -241,8 +275,9 @@ registry = {
         "supports_json": False,
         "api_spec": "vertex_gemini",
         "input_cost": 0.5,
-        "output_cost": 1.5
-
+        "output_cost": 1.5,
+        "requests_per_minute": 1000 * len(gemini_regions),
+        "tokens_per_minute": None
     },
     "gemini-1.5-pro": {
         "name": "gemini-1.5-pro-preview-0409",
@@ -252,7 +287,9 @@ registry = {
         "supports_json": False,
         "api_spec": "vertex_gemini",
         "input_cost": 7.0,
-        "output_cost": 21.0
+        "output_cost": 21.0,
+        "requests_per_minute": 5 * len(gemini_regions),
+        "tokens_per_minute": None
     },
 
 #  ███████████               █████                             █████     
@@ -409,6 +446,8 @@ class APIModel:
     output_cost: float # $ per million output tokens
     supports_json: bool = False
     regions: list[str] = field(default_factory=list)
+    tokens_per_minute: int = None
+    requests_per_minute: int = None
 
     @classmethod
     def from_registry(cls, name: str):
