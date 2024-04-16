@@ -71,16 +71,20 @@ class APIResponse:
     @classmethod
     def from_dict(cls, data):
         return cls(
+            model_internal=data["model_internal"],
+            model_external=data["model_external"],
+            region=data["region"],
+            system_prompt=data["system_prompt"],
+            messages=data["messages"],
+            sampling_params=SamplingParams(**data["sampling_params"]),
             status_code=data["status_code"],
             is_error=data["is_error"],
             error_message=data["error_message"],
-            system_prompt=data["system_prompt"],
-            messages=data["messages"],
-            completion=data["completion"],
-            model=data["model"],
-            sampling_params=SamplingParams(**data["sampling_params"]),
             input_tokens=data["input_tokens"],
             output_tokens=data["output_tokens"],
+            completion=data["completion"],
+            finish_reason=data["finish_reason"],
+            cost=data["cost"],
         )
 
 class APIRequestBase(ABC):
