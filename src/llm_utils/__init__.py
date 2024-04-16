@@ -58,6 +58,7 @@ async def process_prompts_async(
     callback: Optional[Callable] = None,  # should take in (id, messages, response)
     return_completions_only: bool = False,
     show_progress: bool = False,
+    debug: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     if cache_file is not None:
@@ -127,7 +128,8 @@ async def process_prompts_async(
                         sampling_params=sampling_params,
                         cache=cache,
                         pbar=pbar,
-                        callback=callback
+                        callback=callback,
+                        debug=debug
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1
@@ -221,6 +223,7 @@ def process_prompts_sync(
     callback: Optional[Callable] = None,  # should take in (id, messages, response)
     return_completions_only: bool = False,
     show_progress: bool = False,
+    debug: bool = False,
 ):
     results: list[APIResponse] = asyncio.run(
         process_prompts_async(
@@ -236,6 +239,7 @@ def process_prompts_sync(
             callback=callback,
             return_completions_only=return_completions_only,
             show_progress=show_progress,
+            debug=debug
         )
     )
     

@@ -24,7 +24,8 @@ def create_api_request(
     sampling_params: SamplingParams = SamplingParams(),
     cache: Optional[SqliteCache] = None,
     pbar: Optional[tqdm] = None,
-    callback: Optional[Callable] = None
+    callback: Optional[Callable] = None,
+    debug: bool = False
 ):
     model_obj = APIModel.from_registry(model_name)
     if model_obj.api_spec == "openai":
@@ -53,7 +54,8 @@ def create_api_request(
             sampling_params=sampling_params,
             cache=cache,
             pbar=pbar,
-            callback=callback
+            callback=callback,
+            debug=debug
         )
     elif model_obj.api_spec == "vertex_anthropic":
         return VertexAnthropicRequest(
