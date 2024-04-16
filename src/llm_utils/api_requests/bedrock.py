@@ -39,7 +39,7 @@ def get_aws_headers(
         json=request_json
     ).prepare()
     auth(mock_request)
-    print("headers:", mock_request.headers)
+    #print("headers:", mock_request.headers)
     return mock_request.headers
 
 class BedrockAnthropicRequest(APIRequestBase):
