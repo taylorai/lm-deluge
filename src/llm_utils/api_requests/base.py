@@ -107,7 +107,8 @@ class APIRequestBase(ABC):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         self.task_id = task_id
         self.model_name = model_name
@@ -123,6 +124,7 @@ class APIRequestBase(ABC):
         self.callback = callback
         self.num_tokens = count_tokens(messages, sampling_params.max_new_tokens)
         self.result = [] if result is None else result
+        self.debug = debug
 
         # these should be set in the __init__ of the subclass
         self.url = None

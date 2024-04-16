@@ -28,7 +28,8 @@ class AnthropicRequest(APIRequestBase):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         super().__init__(
             task_id=task_id,
@@ -42,7 +43,8 @@ class AnthropicRequest(APIRequestBase):
             cache=cache,
             pbar=pbar,
             callback=callback,
-            result=result
+            result=result,
+            debug=debug
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/messages"
@@ -75,6 +77,18 @@ class AnthropicRequest(APIRequestBase):
         output_tokens = None
         status_code = response.status
         mimetype = response.headers.get("Content-Type", None)
+        rate_limits = {}
+        for header in [
+            "anthropic-ratelimit-requests-limit",
+            "anthropic-ratelimit-requests-remaining",
+            "anthropic-ratelimit-requests-reset",
+            "anthropic-ratelimit-tokens-limit",
+            "anthropic-ratelimit-tokens-remaining",
+            "anthropic-ratelimit-tokens-reset"
+        ]:
+            rate_limits[header] = response.headers.get(header, None)
+        if self.debug:
+            print(f"Rate limits: {rate_limits}")
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
