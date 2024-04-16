@@ -109,7 +109,7 @@ class VertexAnthropicRequest(APIRequestBase):
                 output_tokens = data["usage"]["output_tokens"]
             except Exception as e:
                 is_error = True
-                error_message = f"Error calling .json() on response w/ status {status_code}"
+                error_message = f"Error calling .json() on response w/ status {status_code}: {e}"
         elif "json" in mimetype.lower():
             is_error = True # expected status is 200, otherwise it's an error
             data = await response.json()
