@@ -226,7 +226,7 @@ class GeminiRequest(APIRequestBase):
                 output_tokens = usage['candidatesTokenCount']
             except Exception as e:
                 is_error = True
-                error_message = f"Error calling .json() on response w/ status {status_code}"
+                error_message = f"Error calling .json() on response w/ status {status_code}: {e.__class__} {e}"
         elif "json" in mimetype.lower():
             is_error = True
             data = await response.json()
