@@ -409,6 +409,15 @@ registry = {
         "input_cost": 0.7,
         "output_cost": 0.7
     },
+    "mixtral-8x7b": {
+        "name": "open-mixtral-8x7b",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral",
+        "input_cost": 0.7,
+        "output_cost": 0.7
+    },
     "mistral-small": {
         "name": "mistral-small-latest",
         "api_base": "https://api.mistral.ai/v1",
@@ -418,15 +427,33 @@ registry = {
         "input_cost": 2.0,
         "output_cost": 6.0
     },
-    "mistral-medium": {
-        "name": "mistral-medium-latest",
+    "mistral-8x22b": {
+        "name": "open-mixtral-8x22b",
         "api_base": "https://api.mistral.ai/v1",
         "api_key_env_var": "MISTRAL_API_KEY",
         "supports_json": True,
         "api_spec": "mistral",
-        "input_cost": 2.7,
-        "output_cost": 8.1
+        "input_cost": 2.0,
+        "output_cost": 6.0
     },
+    "mixtral-8x22b": {
+        "name": "open-mixtral-8x22b",
+        "api_base": "https://api.mistral.ai/v1",
+        "api_key_env_var": "MISTRAL_API_KEY",
+        "supports_json": True,
+        "api_spec": "mistral",
+        "input_cost": 2.0,
+        "output_cost": 6.0
+    },
+    # "mistral-medium": { WILL BE DEPRECATED SOON
+    #     "name": "mistral-medium-latest",
+    #     "api_base": "https://api.mistral.ai/v1",
+    #     "api_key_env_var": "MISTRAL_API_KEY",
+    #     "supports_json": True,
+    #     "api_spec": "mistral",
+    #     "input_cost": 2.7,
+    #     "output_cost": 8.1
+    # },
     "mistral-large": {
         "name": "mistral-large-latest",
         "api_base": "https://api.mistral.ai/v1",
