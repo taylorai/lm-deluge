@@ -194,8 +194,25 @@ class GeminiRequest(APIRequestBase):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        self.system_message = None
+        if len(self.messages) > 0 and self.messages[0]["role"] == "system":
+            self.system_message = self.messages[0]["content"] + " Do not use citations in your response."
+        else:
+            self.system_message = "Do not use citations in your response."
+
+        contents = (
+            convert_messages_to_contents(messages[1:]) if self.messages[0]["role"] == "system"
+            else convert_messages_to_contents(messages)
+        )
+
         self.request_json = {
-            "contents": convert_messages_to_contents(messages),
+            "contents": contents,
+            "systemInstruction": {
+                "role": "SYSTEM",
+                "parts": [
+                    { "text": self.system_message}
+                ]
+            },
             "generation_config": {
                 "stopSequences": [],
                 "temperature": sampling_params.temperature,
@@ -219,8 +236,13 @@ class GeminiRequest(APIRequestBase):
             try:
                 data = await response.json()
                 candidate = data["candidates"][0]
-                parts = candidate["content"]["parts"]
-                completion = " ".join([part["text"] for part in parts])
+                finish_reason = candidate["finishReason"]
+                if "content" in candidate:
+                    parts = candidate["content"]["parts"]
+                    completion = " ".join([part["text"] for part in parts])
+                else:
+                    is_error = True
+                    error_message = "No content in response."
                 usage = data["usageMetadata"]
                 input_tokens = usage["promptTokenCount"]
                 output_tokens = usage['candidatesTokenCount']
@@ -258,4 +280,5 @@ class GeminiRequest(APIRequestBase):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             region=old_region,
+            finish_reason=finish_reason
         )
