@@ -31,6 +31,10 @@ from .cache import SqliteCache
 from .models import APIModel
 from .api_requests import create_api_request
 
+# import so it's easy to top-level import
+from .sampling_params import SamplingParams
+from .api_requests.base import APIResponse
+
 def instructions_to_message_lists(prompts: list[str], system_prompt: str = None):
     """
     Convert a list of instructions into a list of lists of messages.

@@ -240,12 +240,13 @@ class GeminiRequest(APIRequestBase):
                 if "content" in candidate:
                     parts = candidate["content"]["parts"]
                     completion = " ".join([part["text"] for part in parts])
+                    usage = data["usageMetadata"]
+                    input_tokens = usage["promptTokenCount"]
+                    output_tokens = usage['candidatesTokenCount']
                 else:
                     is_error = True
                     error_message = "No content in response."
-                usage = data["usageMetadata"]
-                input_tokens = usage["promptTokenCount"]
-                output_tokens = usage['candidatesTokenCount']
+                
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}: {e.__class__} {e}"
