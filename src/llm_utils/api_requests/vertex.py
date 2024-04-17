@@ -227,6 +227,9 @@ class GeminiRequest(APIRequestBase):
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}: {e.__class__} {e}"
+                if isinstance(e, KeyError):
+                    print("Actual structure of response:")
+                    print(data)
         elif "json" in mimetype.lower():
             is_error = True
             data = await response.json()
