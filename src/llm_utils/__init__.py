@@ -13,6 +13,7 @@ from .tracker import StatusTracker
 from .sampling_params import SamplingParams
 from .models import registry
 from .api_requests.base import APIResponse
+from .utils import instructions_to_message_lists
 
 logger = SimpleNamespace(
     log_to_file=print,
@@ -24,9 +25,6 @@ logger = SimpleNamespace(
     log=print,
 )
 
-## TODO: Make a Queue where we can append API requests as-needed in other parts of the application, and they can be
-## processed in the background in parallel.
-
 from .cache import SqliteCache
 from .models import APIModel
 from .api_requests import create_api_request
@@ -34,19 +32,59 @@ from .api_requests import create_api_request
 # import so it's easy to top-level import
 from .sampling_params import SamplingParams
 from .api_requests.base import APIResponse
+from dataclasses import dataclass
 
-def instructions_to_message_lists(prompts: list[str], system_prompt: str = None):
+@dataclass
+class ParametrizedModel:
     """
-    Convert a list of instructions into a list of lists of messages.
+    The vision here is that when doing inference, the actual entity you sample
+    from is a model + sampling configuration, and so we should be able to specify
+    a collection of (model+SamplingParams) for the client to sample from, rather 
+    than a collection of models, + a monolithic SamplingParams. Respects the fact
+    that different models may have different optimal sampling params. Then,
+    an LLMClient will have a list of ParametrizedModels with weights to spread inference
+    requests across. Still figuring out how to make this have an API that isn't awful to use
+    (right now it's nice to just be able to pass in a list of strings if wanted).
     """
-    result = []
-    for p in prompts:
-        messages = []
-        if system_prompt is not None:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": p})
-        result.append(messages)
-    return result
+    model: str
+    sampling_params: SamplingParams
+
+    def to_dict(self):
+        return {
+            "model": self.model,
+            "sampling_params": self.sampling_params.__dict__
+        }
+    
+    def from_dict(d):
+        return ParametrizedModel(
+            model=d["model"],
+            sampling_params=SamplingParams(**d["sampling_params"])
+        )
+    
+    def from_model_name(model_name: str):
+        return ParametrizedModel(
+            model=model_name,
+            sampling_params=SamplingParams()
+        )
+    
+class LLMClient:
+    pass
+#     def __init__(
+#         self,
+#         models: list[Union[ParametrizedModel, list]],
+#         model_weights: Optional[list[float]] = None,
+
+#     ):
+#         models = [
+#             x
+#         ]
+        
+#     def process_prompts_async(
+#         self,
+#         prompts: list[list[dict]],  # each prompt is just a list of messages
+
+#     )
+
 
 # assumes the API keys are already stored in env variables
 async def process_prompts_async(
