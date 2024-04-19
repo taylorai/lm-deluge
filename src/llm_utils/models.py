@@ -111,7 +111,7 @@ registry = {
 #                      ░░██████                                                  
 #                       ░░░░░░                                                   
 # tbh only reason to use these are that they're cheap, but all worse than haiku
-    "gemma-instruct-7b-together": {
+    "gemma-7b-together": {
         "name": "google/gemma-7b-it",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
@@ -122,7 +122,7 @@ registry = {
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
-    "gemma-instruct-2b-together": {
+    "gemma-2b-together": {
         "name": "google/gemma-2b-it",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
@@ -133,7 +133,7 @@ registry = {
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
-    "phi-2-together": {
+    "phi2-together": {
         "name": "microsoft/phi-2",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
@@ -144,7 +144,7 @@ registry = {
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
-    "mistral-instruct-together": {
+    "mistral-7b-together": {
         "name": "mistralai/Mistral-7B-Instruct-v0.2",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
@@ -155,7 +155,7 @@ registry = {
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
-    "nous-mistral-together": {
+    "nous-mistral-7b-together": {
         "name": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
@@ -166,7 +166,7 @@ registry = {
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
-    "qwen-chat-4b-together": {
+    "qwen-4b-together": {
         "name": "Qwen/Qwen1.5-4B-Chat",
         "api_base": "https://api.together.xyz/v1",
         "api_key_env_var": "TOGETHER_API_KEY",
@@ -174,6 +174,63 @@ registry = {
         "api_spec": "openai",
         "input_cost": 0.1,
         "output_cost": 0.1,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
+    },
+    "llama3-8b-together": {
+        "name": "meta-llama/Llama-3-8b-chat-hf",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 0.2,
+        "output_cost": 0.2,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
+    },
+    # then these ones are big and pretty good, but more expensive
+    "llama3-70b-together": {
+        "name": "meta-llama/Llama-3-70b-chat-hf",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 0.9,
+        "output_cost": 0.9,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
+    },
+    "dbrx-together": {
+        "name": "databricks/dbrx-instruct",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 1.20,
+        "output_cost": 1.20,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
+    },
+    "mistral-8x7b-together": {
+        "name": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 0.6,
+        "output_cost": 0.6,
+        "requests_per_minute": 6000,
+        "tokens_per_minute": None
+
+    },
+    "mistral-8x22b-together": {
+        "name": "mistralai/Mixtral-8x22B-Instruct-v0.1",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 1.20,
+        "output_cost": 1.20,
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
