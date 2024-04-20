@@ -62,7 +62,7 @@ image = (
         "torch==2.1.2",
         "mistral-common"
     ).pip_install_private_repos(
-        "github.com/taylorai/llm_utils@90c0258",
+        "github.com/taylorai/llm_utils@ada22a1",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )

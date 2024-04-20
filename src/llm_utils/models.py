@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional, Union, List, Dict
 gemini_regions = [
     'asia-east1', 
     'asia-east2', 
@@ -543,8 +544,8 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
-    input_cost: float # $ per million input tokens
-    output_cost: float # $ per million output tokens
+    input_cost: Optional[float] = 0 # $ per million input tokens
+    output_cost: Optional[float] = 0 # $ per million output tokens
     supports_json: bool = False
     regions: list[str] = field(default_factory=list)
     tokens_per_minute: int = None
