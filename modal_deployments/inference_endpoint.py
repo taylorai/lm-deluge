@@ -12,7 +12,7 @@ MODEL_OPTIONS = {
     },
     "llama3-8b": {
         "name": "llama-8b",
-        "path": "meta-llama/Llama-3-8b-chat-hf",
+        "path": "meta-llama/Meta-Llama-3-8B-Instruct",
     },
     "gemma-7b": {
         "name": "gemma-7b",
@@ -26,7 +26,7 @@ MODEL_OPTIONS = {
 
 GPU_OPTIONS = {
     "a100": gpu.A100(count=1, memory=80),
-    "h100": gpu.H100(count=1, memory=80),
+    "h100": gpu.H100(count=1),
     "l4": gpu.L4(count=1)
 }
 
@@ -45,7 +45,6 @@ def download_model_to_folder():
     snapshot_download(
         model_path,
         local_dir=MODEL_DIR,
-        token=os.environ["HUGGINGFACE_TOKEN"],
         ignore_patterns=["*.pt", "*.gguf"],
     )
     move_cache()
@@ -58,16 +57,18 @@ image = (
     .pip_install(
         "vllm==0.3.2",
         "huggingface_hub==0.19.4",
+        "transformers==4.40.0",
         "hf-transfer==0.1.4",
         "torch==2.1.2",
+        "mistral-common"
     ).pip_install_private_repos(
-        "github.com/taylorai/llm_utils@c78e7c2",
+        "github.com/taylorai/llm_utils@90c0258",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1"})
     .run_function(
-        partial(download_model_to_folder, model_path=model_path),
+        download_model_to_folder,
         secrets=[Secret.from_name("HF-SECRET")],
         timeout=60 * 20,
     )
@@ -102,7 +103,11 @@ class Model:
         from llm_utils.sampling_params import SamplingParams
         sampling_params = SamplingParams(**sampling_params)
         vllm_sampling_params = sampling_params.to_vllm()
-
+        # make sure prompts is a list of lists
+        if not isinstance(prompts[0], list):
+            prompts = [prompts]
+        print(f"Tokenizing {len(prompts)} prompts...")
+        print(prompts)
         tokenized = [
             self.tokenizer.apply_chat_template(p, add_generation_prompt=True) for p in prompts
         ]
@@ -111,7 +116,10 @@ class Model:
             prompts = [p + "\n```json\n" for p in prompts]
             # TODO: figure out how to stop when the ``` is closed.
 
-        result = self.llm.generate(prompts, vllm_sampling_params)
+        result = self.llm.generate(
+            prompt_token_ids=tokenized, 
+            sampling_params=vllm_sampling_params
+        )
 
         responses = []
         for idx, output in enumerate(result):

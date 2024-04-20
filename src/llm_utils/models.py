@@ -520,14 +520,21 @@ registry = {
         "input_cost": 8.0,
         "output_cost": 24.0
     },
-    # # MODAL    
-    #     "mistral-instruct-modal": {
-    #         "name": "mistral-completions-h100",
-    #         "api_base": None,
-    #         "api_key_env_var": None,
-    #         "supports_json": True,
-    #         "api_spec": "modal"
-    #     }
+#  ██████   ██████              █████           ████ 
+# ░░██████ ██████              ░░███           ░░███ 
+#  ░███░█████░███   ██████   ███████   ██████   ░███ 
+#  ░███░░███ ░███  ███░░███ ███░░███  ░░░░░███  ░███ 
+#  ░███ ░░░  ░███ ░███ ░███░███ ░███   ███████  ░███ 
+#  ░███      ░███ ░███ ░███░███ ░███  ███░░███  ░███ 
+#  █████     █████░░██████ ░░████████░░████████ █████
+# ░░░░░     ░░░░░  ░░░░░░   ░░░░░░░░  ░░░░░░░░ ░░░░░                               
+    "llama3-8b-modal": {
+        "name": "llama3-8b-modal",
+        "api_base": None,
+        "api_key_env_var": None,
+        "supports_json": True,
+        "api_spec": "modal"
+    }
 }
 
 @dataclass
