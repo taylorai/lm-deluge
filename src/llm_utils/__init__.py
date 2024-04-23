@@ -141,7 +141,7 @@ async def process_modal_prompts_async(
     model_weights: list[float],
     sampling_params: list[SamplingParams],
     batch_size: int = 1_000,
-    progress_bar: Optional[tqdm.tqdm] = None,
+    progress_bar: Optional[tqdm] = None,
 ):
     # look up the models
     completion_fns = [
@@ -181,7 +181,7 @@ async def process_api_prompts_async(
     max_tokens_per_minute: int = 500_000,
     max_requests_per_minute: int = 1_000,
     request_timeout: int = 30,
-    progress_bar: Optional[tqdm.tqdm] = None,
+    progress_bar: Optional[tqdm] = None,
     use_qps: bool = False,
     debug: bool = False,
 ):
