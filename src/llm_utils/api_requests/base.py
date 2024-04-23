@@ -1,11 +1,10 @@
-import os
 import aiohttp
 import asyncio
 import json
 from tqdm import tqdm
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import Optional, Union, Callable
+from typing import Optional, Callable
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..cache import SqliteCache
@@ -15,6 +14,7 @@ from ..models import APIModel
 @dataclass
 class APIResponse:
     # request information
+    id: int # should be unique to the request within a given prompt-processing call
     model_internal: str # our internal model tag
     system_prompt: Optional[str]
     messages: list[dict]
