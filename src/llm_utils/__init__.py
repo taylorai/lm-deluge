@@ -89,14 +89,20 @@ class LLMClient:
         # create async tasks for each
         modal_prompts = [prompts[i] for i in modal_ids]
         api_prompts = [prompts[i] for i in api_ids]
+        modal_models = [model for model in self.models if registry[model]["api_spec"] == "modal"]
+        modal_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"]
+        modal_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"]
+        api_models = [model for model in self.models if registry[model]["api_spec"] != "modal"]
+        api_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
+        api_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
         modal_task = asyncio.create_task(
             process_modal_prompts_async(
-                modal_ids, modal_prompts, self.models, self.model_weights, self.sampling_params, progress_bar=pbar
+                modal_ids, modal_prompts, modal_models, modal_weights, modal_sampling_params, progress_bar=pbar
             )
         )
         api_task = asyncio.create_task(
             process_api_prompts_async(
-                api_ids, api_prompts, self.models, self.model_weights, self.sampling_params,
+                api_ids, api_prompts, api_models, api_weights, api_sampling_params,
                 max_attempts=self.max_attempts,
                 max_tokens_per_minute=self.max_tokens_per_minute,
                 max_requests_per_minute=self.max_requests_per_minute,
