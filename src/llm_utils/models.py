@@ -616,6 +616,7 @@ registry = {
 
 @dataclass
 class APIModel:
+    id: str
     name: str
     api_base: str
     api_key_env_var: str
