@@ -6,7 +6,7 @@ import os
 import random
 import time
 from tqdm import tqdm
-from typing import Optional, Callable, Union
+from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
@@ -76,7 +76,7 @@ class VertexAnthropicRequest(APIRequestBase):
         endpoint = f"https://{region}-aiplatform.googleapis.com"
         self.url = f"{endpoint}/v1/projects/{project_id}/locations/{region}/publishers/anthropic/models/{self.model.name}:rawPredict"
         self.request_header = {
-            "Authorization": f"Bearer {get_access_token(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
         self.system_message = None
@@ -124,11 +124,11 @@ class VertexAnthropicRequest(APIRequestBase):
         # handle special kinds of errors. TODO: make sure these are correct for anthropic
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or "overloaded" in error_message.lower() or status_code == 429:
-                error_message += f" (Rate limit error, triggering cooldown.)"
+                error_message += " (Rate limit error, triggering cooldown.)"
                 self.status_tracker.time_of_last_rate_limit_error = time.time()
                 self.status_tracker.num_rate_limit_errors += 1
             if "context length" in error_message:
-                error_message += f" (Context length exceeded, set retries to 0.)"
+                error_message += " (Context length exceeded, set retries to 0.)"
                 self.attempts_left = 0
 
         return APIResponse(
@@ -270,6 +270,7 @@ class GeminiRequest(APIRequestBase):
 
 
         return APIResponse(
+            id=self.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,

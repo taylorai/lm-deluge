@@ -4,7 +4,7 @@ import json
 import os
 import time
 from tqdm import tqdm
-from typing import Optional, Callable, Union
+from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
@@ -74,7 +74,7 @@ class MistralRequest(APIRequestBase):
                 input_tokens = data["usage"]["prompt_tokens"]
                 output_tokens = data["usage"]["completion_tokens"]
 
-            except Exception as e:
+            except Exception:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}"
         elif "json" in mimetype.lower():
@@ -89,14 +89,15 @@ class MistralRequest(APIRequestBase):
         # handle special kinds of errors
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower():
-                error_message += f" (Rate limit error, triggering cooldown.)"
+                error_message += " (Rate limit error, triggering cooldown.)"
                 self.status_tracker.time_of_last_rate_limit_error = time.time()
                 self.status_tracker.num_rate_limit_errors += 1
             if "context length" in error_message:
-                error_message += f" (Context length exceeded, set retries to 0.)"
+                error_message += " (Context length exceeded, set retries to 0.)"
                 self.attempts_left = 0
 
         return APIResponse(
+            id=self.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
