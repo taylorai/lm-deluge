@@ -1,6 +1,5 @@
 # run gemma with modal
 import os
-from functools import partial
 from modal import Image, Secret, Stub, enter, method, gpu
 
 MODEL_DIR = "/model"
@@ -18,10 +17,10 @@ MODEL_OPTIONS = {
         "name": "gemma-7b",
         "path": "google/gemma-7b-it"
     },
-    "nous-mistral-7b": {
-        "name": "nous-mistral-7b",
-        "path": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO"
-    }
+    # "nous-mistral-7b": {
+    #     "name": "nous-mistral-7b",
+    #     "path": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO"
+    # }
 }
 
 GPU_OPTIONS = {
@@ -62,7 +61,7 @@ image = (
         "torch==2.1.2",
         "mistral-common"
     ).pip_install_private_repos(
-        "github.com/taylorai/llm_utils@ada22a1",
+        "github.com/taylorai/llm_utils@a36e2fc",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )
@@ -94,11 +93,11 @@ class Model:
 
     @method()
     def generate(
-        self, 
+        self,
+        ids: list[int],
         prompts: list[list[dict]], 
         sampling_params: dict # should correspond to llm_utils sampling params spec
     ):
-        import time
         from llm_utils.api_requests.base import APIResponse
         from llm_utils.sampling_params import SamplingParams
         sampling_params = SamplingParams(**sampling_params)
@@ -124,6 +123,7 @@ class Model:
         responses = []
         for idx, output in enumerate(result):
             responses.append(APIResponse(
+                id=ids[idx],
                 model_internal=model_name + "-modal",
                 system_prompt=None,
                 messages=prompts[idx],

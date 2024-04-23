@@ -1,12 +1,7 @@
 import asyncio
-import json
-import modal
-import os
 import numpy as np
 import time
-from dataclasses import dataclass, field
-from typing import Callable, Literal, Optional, Union
-import aiohttp
+from typing import Literal, Optional, Union
 from tqdm.auto import tqdm
 from types import SimpleNamespace
 from .tracker import StatusTracker
@@ -14,6 +9,8 @@ from .sampling_params import SamplingParams
 from .models import registry
 from .api_requests.base import APIResponse
 from .utils import instructions_to_message_lists
+from .api_requests import create_api_request
+from itertools import zip_longest
 
 logger = SimpleNamespace(
     log_to_file=print,
@@ -25,93 +22,170 @@ logger = SimpleNamespace(
     log=print,
 )
 
-from .cache import SqliteCache
-from .models import APIModel
-from .api_requests import create_api_request
+def interleave(*iterables):
+    for item in zip_longest(*iterables):
+        for x in item:
+            if x is not None:
+                yield x
 
-# import so it's easy to top-level import
-from .sampling_params import SamplingParams
-from .api_requests.base import APIResponse
-from dataclasses import dataclass
-
-@dataclass
-class ParametrizedModel:
-    """
-    The vision here is that when doing inference, the actual entity you sample
-    from is a model + sampling configuration, and so we should be able to specify
-    a collection of (model+SamplingParams) for the client to sample from, rather 
-    than a collection of models, + a monolithic SamplingParams. Respects the fact
-    that different models may have different optimal sampling params. Then,
-    an LLMClient will have a list of ParametrizedModels with weights to spread inference
-    requests across. Still figuring out how to make this have an API that isn't awful to use
-    (right now it's nice to just be able to pass in a list of strings if wanted).
-    """
-    model: str
-    sampling_params: SamplingParams
-
-    def to_dict(self):
-        return {
-            "model": self.model,
-            "sampling_params": self.sampling_params.__dict__
-        }
-    
-    def from_dict(d):
-        return ParametrizedModel(
-            model=d["model"],
-            sampling_params=SamplingParams(**d["sampling_params"])
-        )
-    
-    def from_model_name(model_name: str):
-        return ParametrizedModel(
-            model=model_name,
-            sampling_params=SamplingParams()
-        )
-    
 class LLMClient:
+    """
+    LLMClient abstracts all the fixed arguments to process_prompts_async, so you can create it
+    once and use it for more stuff without having to configure all the arguments.
+    Handles models, sampling params for each model, model weights, rate limits, etc.
+    """
     pass
-#     def __init__(
-#         self,
-#         models: list[Union[ParametrizedModel, list]],
-#         model_weights: Optional[list[float]] = None,
+    def __init__(
+        self,
+        model_names: list[str],
+        max_requests_per_minute: int,
+        max_tokens_per_minute: int,
+        sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams(),
+        model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
+        max_attempts: int = 5,
+        request_timeout: int = 30,
+    ):
+        self.models = model_names
+        if isinstance(sampling_params, SamplingParams):
+            self.sampling_params = [sampling_params for _ in model_names]
+        else:
+            if len(sampling_params) != len(model_names):
+                raise ValueError("If sampling_params is a list, it must have the same length as model_names.")
+            self.sampling_params = sampling_params
+        if model_weights == "uniform":
+            self.model_weights = [1 / len(model_names) for _ in model_names]
+        elif model_weights == "rate_limit":
+            rpms = [registry[model]["requests_per_minute"] for model in model_names]
+            self.model_weights = [rpm / sum(rpms) for rpm in rpms]
+        elif sum(model_weights) != 1:
+            self.model_weights = [w / sum(model_weights) for w in model_weights]
 
-#     ):
-#         models = [
-#             x
-#         ]
+        self.max_requests_per_minute = max_requests_per_minute
+        self.max_tokens_per_minute = max_tokens_per_minute
+        self.max_attempts = max_attempts
+        self.request_timeout = request_timeout
+
+    async def process_prompts_async(
+        self,
+        prompts: Union[list[str], list[list[dict]]],
+        return_completions_only: bool = False,
+        show_progress=True
+    ):
+        # if prompts are strings, convert them to message lists
+        if isinstance(prompts[0], str):
+            prompts = instructions_to_message_lists(prompts)
+        ids = list(range(len(prompts)))
+
+        # set up progress bar
+        pbar = tqdm(total=len(prompts), disable=(not show_progress))
+
+        # split prompts between api and modal
+        modal_weight = sum([
+            self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"
+        ])
+        modal_ids = np.random.choice(ids, int(modal_weight * len(prompts)), replace=False)
+        api_ids = [i for i in ids if i not in modal_ids]
+
+        # create async tasks for each
+        modal_prompts = [prompts[i] for i in modal_ids]
+        api_prompts = [prompts[i] for i in api_ids]
+        modal_task = asyncio.create_task(
+            process_modal_prompts_async(
+                modal_ids, modal_prompts, self.models, self.model_weights, self.sampling_params, progress_bar=pbar
+            )
+        )
+        api_task = asyncio.create_task(
+            process_api_prompts_async(
+                api_ids, api_prompts, self.models, self.model_weights, self.sampling_params,
+                max_attempts=self.max_attempts,
+                max_tokens_per_minute=self.max_tokens_per_minute,
+                max_requests_per_minute=self.max_requests_per_minute,
+                request_timeout=self.request_timeout,
+                progress_bar=pbar
+            )
+        )
+
+        # wait for both, combine the results
+        modal_results = await modal_task
+        api_results = await api_task
+        results = [None for _ in range(len(prompts))]
+        for res in modal_results:
+            results[res.task_id] = res
+        for res in api_results:
+            results[res.task_id] = res
         
-#     def process_prompts_async(
-#         self,
-#         prompts: list[list[dict]],  # each prompt is just a list of messages
+        if return_completions_only:
+            results = [r.completions for r in results]
 
-#     )
+        return results
+    
+    def process_prompts_sync(
+        self,
+        prompts: Union[list[str], list[list[dict]]],
+        return_completions_only: bool = False,
+        show_progress=True
+    ):
+        return asyncio.run(
+            self.process_prompts_async(
+                prompts=prompts,
+                return_completions_only=return_completions_only,
+                show_progress=show_progress,
+            )
+        )
+            
 
-
-# assumes the API keys are already stored in env variables
-async def process_prompts_async(
+async def process_modal_prompts_async(
+    ids: list[int],
     prompts: list[list[dict]],  # each prompt is just a list of messages
-    models: Union[str, list[str]] = "gpt-3.5-turbo",
-    model_weights: Optional[list] = None,
-    sampling_params: SamplingParams = SamplingParams(),
+    models: list[str],
+    model_weights: list[float],
+    sampling_params: list[SamplingParams],
+    batch_size: int = 1_000,
+    progress_bar: Optional[tqdm.tqdm] = None,
+):
+    # look up the models
+    completion_fns = [
+        f'registry[model]["name"]-completions-{registry[model]["gpus"][0]}' for model in models
+    ]
+
+    # split into batches
+    batches = [prompts[i:i+batch_size] for i in range(0, len(prompts), batch_size)]
+    batch_ids = [ids[i:i+batch_size] for i in range(0, len(ids), batch_size)]
+
+    # iterate over batches, assigning each to model randomly & creating async task
+    tasks = []
+    for batch in batches:
+        model_idx = np.random.choice(range(len(models)), p=model_weights)
+        tasks.append(asyncio.create_task(
+            completion_fns[model_idx].remote.aio(batch_ids, batch, sampling_params[model_idx])
+        ))
+    
+    # gather them as they're completed, return the results
+    results = []
+    for task in asyncio.as_completed(tasks):
+        results.extend(await task)
+        if progress_bar:
+            progress_bar.update(batch_size)
+
+    return [
+        APIResponse(**r) for r in results
+    ]
+
+async def process_api_prompts_async(
+    ids: list[int],
+    prompts: list[list[dict]],  # each prompt is just a list of messages
+    models: Union[str, list[str]],
+    model_weights: list[float],
+    sampling_params: list[SamplingParams],
     max_attempts: int = 5,
     max_tokens_per_minute: int = 500_000,
     max_requests_per_minute: int = 1_000,
     request_timeout: int = 30,
-    cache_file: Optional[str] = None,
-    callback: Optional[Callable] = None,  # should take in (id, messages, response)
-    return_completions_only: bool = False,
-    show_progress: bool = False,
+    progress_bar: Optional[tqdm.tqdm] = None,
+    use_qps: bool = False,
     debug: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
-    if cache_file is not None:
-        cache = SqliteCache(cache_file)
-    else:
-        cache = None
-
-    # if prompts are strings, convert them to message lists
-    if isinstance(prompts[0], str):
-        prompts = instructions_to_message_lists(prompts)
-
     # constants
     seconds_to_pause_after_rate_limit_error = 15
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
@@ -122,8 +196,14 @@ async def process_prompts_async(
     next_request = None  # variable to hold the next request to call
 
     # initialize available capacity counts
-    available_request_capacity = max_requests_per_minute
-    available_token_capacity = max_tokens_per_minute
+    # throttle over a 1 second window rather than minute,
+    # since some models limit RPS rather than RPM
+    if use_qps:
+        available_request_capacity = max_requests_per_minute / 60.0
+        available_token_capacity = max_tokens_per_minute / 60.0
+    else:
+        available_request_capacity = max_requests_per_minute
+        available_token_capacity = max_tokens_per_minute
     last_update_time = time.time()
 
     # initialize flags
@@ -141,13 +221,12 @@ async def process_prompts_async(
     if model_weights is None:
         # if not given, spread requests evenly across models
         model_weights = [1 / len(models) for _ in models]
+    elif len(model_weights) != len(models):
+        raise ValueError("model_weights must be None or a list of the same length as models.")
+    elif sum(model_weights) != 1:
+        model_weights = [w / sum(model_weights) for w in model_weights]
 
-    # turn the texts into an iterator
-    if show_progress:
-        pbar = tqdm(total=len(prompts))
-    else:
-        pbar = None
-    prompts_iter = iter(enumerate(prompts))
+    prompts_iter = iter(zip(ids, prompts))
     results = []
     while True:
         # get next request (if one is not already waiting for capacity)
@@ -158,9 +237,9 @@ async def process_prompts_async(
             elif prompts_not_finished:
                 try:
                     # get new request
-                    idx, messages = next(prompts_iter)
+                    id, messages = next(prompts_iter)
                     next_request = create_api_request(
-                        task_id=idx,
+                        task_id=id,
                         model_name=np.random.choice(models, p=model_weights),
                         messages=messages,
                         request_timeout=request_timeout,
@@ -168,9 +247,7 @@ async def process_prompts_async(
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
                         sampling_params=sampling_params,
-                        cache=cache,
-                        pbar=pbar,
-                        callback=callback,
+                        pbar=progress_bar,
                         debug=debug
                     )
                     status_tracker.num_tasks_started += 1
@@ -247,42 +324,4 @@ async def process_prompts_async(
     for result in results:
         responses[result.task_id] = result.result[-1]
 
-    if return_completions_only:
-        return [r.completion for r in responses]
-
     return responses
-
-def process_prompts_sync(
-    prompts: list[list[dict]],  # each prompt is just a list of messages
-    models: Union[str, list[str]] = "gpt-3.5-turbo",
-    model_weights: Optional[list] = None,
-    sampling_params: SamplingParams = SamplingParams(),
-    max_attempts: int = 5,
-    max_tokens_per_minute: int = 500_000,
-    max_requests_per_minute: int = 1_000,
-    request_timeout: int = 30,
-    cache_file: Optional[str] = None,
-    callback: Optional[Callable] = None,  # should take in (id, messages, response)
-    return_completions_only: bool = False,
-    show_progress: bool = False,
-    debug: bool = False,
-):
-    results: list[APIResponse] = asyncio.run(
-        process_prompts_async(
-            prompts=prompts,
-            models=models,
-            model_weights=model_weights,
-            sampling_params=sampling_params,
-            max_attempts=max_attempts,
-            max_tokens_per_minute=max_tokens_per_minute,
-            max_requests_per_minute=max_requests_per_minute,
-            request_timeout=request_timeout,
-            cache_file=cache_file,
-            callback=callback,
-            return_completions_only=return_completions_only,
-            show_progress=show_progress,
-            debug=debug
-        )
-    )
-    
-    return results
