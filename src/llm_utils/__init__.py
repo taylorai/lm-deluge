@@ -244,15 +244,17 @@ async def process_api_prompts_async(
                 try:
                     # get new request
                     id, messages = next(prompts_iter)
+                    # select model
+                    model_idx = np.random.choice(range(len(models)), p=model_weights)
                     next_request = create_api_request(
                         task_id=id,
-                        model_name=np.random.choice(models, p=model_weights),
+                        model_name=models[model_idx],
                         messages=messages,
                         request_timeout=request_timeout,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
-                        sampling_params=sampling_params,
+                        sampling_params=sampling_params[model_idx],
                         pbar=progress_bar,
                         debug=debug
                     )
