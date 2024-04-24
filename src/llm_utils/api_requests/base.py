@@ -52,6 +52,7 @@ class APIResponse:
 
     def to_dict(self):
         return {
+            "id": self.id,
             "model_internal": self.model_internal,
             "model_external": self.model_external,
             "region": self.region,
