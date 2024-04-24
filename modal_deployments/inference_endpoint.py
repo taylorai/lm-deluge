@@ -61,7 +61,7 @@ image = (
         "torch==2.1.2",
         "mistral-common"
     ).pip_install_private_repos(
-        "github.com/taylorai/llm_utils@c994b14",
+        "github.com/taylorai/llm_utils@eca8183",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )
@@ -105,6 +105,9 @@ class Model:
         # make sure prompts is a list of lists
         if not isinstance(prompts[0], list):
             prompts = [prompts]
+        # make sure prompts is same length as ids
+        if len(prompts) != len(ids):
+            raise ValueError("Prompts and IDs must be the same length.")
         print(f"Tokenizing {len(prompts)} prompts...")
         print(prompts)
         tokenized = [
