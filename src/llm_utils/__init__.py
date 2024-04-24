@@ -181,10 +181,10 @@ async def process_modal_prompts_async(
 
     # iterate over batches, assigning each to model randomly & creating async task
     tasks = []
-    for batch in batches:
+    for i, b in zip(batch_ids, batches):
         model_idx = np.random.choice(range(len(models)), p=model_weights)
         tasks.append(asyncio.create_task(
-            completion_fns[model_idx].remote.aio(batch_ids, batch, sampling_params[model_idx].__dict__)
+            completion_fns[model_idx].remote.aio(i, b, sampling_params[model_idx].__dict__)
         ))
     
     # gather them as they're completed, return the results
