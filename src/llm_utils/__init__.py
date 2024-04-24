@@ -1,6 +1,7 @@
 import asyncio
 import numpy as np
 import time
+import modal
 from typing import Literal, Optional, Union
 from tqdm.auto import tqdm
 from types import SimpleNamespace
@@ -151,7 +152,10 @@ async def process_modal_prompts_async(
 ):
     # look up the models
     completion_fns = [
-        f'registry[model]["name"]-completions-{registry[model]["gpus"][0]}' for model in models
+        f'{registry[model]["name"]}-completions-{registry[model]["gpus"][0]}' for model in models
+    ]
+    completion_fns = [
+        modal.Function.lookup(f, "Model.generate") for f in completion_fns
     ]
 
     # split into batches
