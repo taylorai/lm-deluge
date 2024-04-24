@@ -163,6 +163,10 @@ async def process_modal_prompts_async(
     batch_size: int = 1_000,
     progress_bar: Optional[tqdm] = None,
 ):
+    # make sure ids and prompts are the same length
+    if len(ids) != len(prompts):
+        raise ValueError("ids and prompts must be the same length.")
+    
     # look up the models
     completion_fns = [
         f'{registry[model]["name"]}-completions-{registry[model]["gpus"][0]}' for model in models
