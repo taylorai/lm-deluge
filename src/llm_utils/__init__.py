@@ -75,7 +75,7 @@ class LLMClient:
         # if prompts are strings, convert them to message lists
         if isinstance(prompts[0], str):
             prompts = instructions_to_message_lists(prompts)
-        ids = list(range(len(prompts)))
+        ids = np.arange(len(prompts))
 
         # set up progress bar
         pbar = tqdm(total=len(prompts), disable=(not show_progress))
@@ -84,8 +84,10 @@ class LLMClient:
         modal_weight = sum([
             self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"
         ])
-        modal_ids = np.random.choice(ids, int(modal_weight * len(prompts)), replace=False)
+        modal_ids = np.random.binomial(1, modal_weight, size=len(prompts)).astype(bool)
+        modal_ids = ids[modal_ids].tolist()
         api_ids = [i for i in ids if i not in modal_ids]
+        print(f"Processing {len(modal_ids)} modal prompts and {len(api_ids)} api prompts.")
 
         # create async tasks for each
         modal_prompts = [prompts[i] for i in modal_ids]
@@ -96,25 +98,36 @@ class LLMClient:
         api_models = [model for model in self.models if registry[model]["api_spec"] != "modal"]
         api_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
         api_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
-        modal_task = asyncio.create_task(
-            process_modal_prompts_async(
-                modal_ids, modal_prompts, modal_models, modal_weights, modal_sampling_params, progress_bar=pbar
+        
+        modal_task = None
+        api_task = None
+        if len(modal_prompts) > 0:
+            modal_task = asyncio.create_task(
+                process_modal_prompts_async(
+                    modal_ids, modal_prompts, modal_models, modal_weights, modal_sampling_params, progress_bar=pbar
+                )
             )
-        )
-        api_task = asyncio.create_task(
-            process_api_prompts_async(
-                api_ids, api_prompts, api_models, api_weights, api_sampling_params,
-                max_attempts=self.max_attempts,
-                max_tokens_per_minute=self.max_tokens_per_minute,
-                max_requests_per_minute=self.max_requests_per_minute,
-                request_timeout=self.request_timeout,
-                progress_bar=pbar
+        if len(api_prompts) > 0:
+            api_task = asyncio.create_task(
+                process_api_prompts_async(
+                    api_ids, api_prompts, api_models, api_weights, api_sampling_params,
+                    max_attempts=self.max_attempts,
+                    max_tokens_per_minute=self.max_tokens_per_minute,
+                    max_requests_per_minute=self.max_requests_per_minute,
+                    request_timeout=self.request_timeout,
+                    progress_bar=pbar
+                )
             )
-        )
 
         # wait for both, combine the results
-        modal_results = await modal_task
-        api_results = await api_task
+        if modal_task:
+            modal_results = await modal_task
+        else:
+            modal_results = []
+        if api_task:
+            api_results = await api_task
+        else:
+            api_results = []
         results = [None for _ in range(len(prompts))]
         for res in modal_results:
             results[res.id] = res
@@ -268,7 +281,7 @@ async def process_api_prompts_async(
 
                 except StopIteration:
                     prompts_not_finished = False
-                    print("Prompts finished, only retries remain.")
+                    print("API requests finished, only retries remain.")
 
         # update available capacity
         current_time = time.time()
@@ -321,7 +334,6 @@ async def process_api_prompts_async(
             print(f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}")
 
     # after finishing, log final status
-    print("Done.")
     if status_tracker.num_tasks_failed > 0:
         print(
             f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed."
