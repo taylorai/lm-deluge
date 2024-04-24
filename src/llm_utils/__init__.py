@@ -116,12 +116,12 @@ class LLMClient:
         api_results = await api_task
         results = [None for _ in range(len(prompts))]
         for res in modal_results:
-            results[res.task_id] = res
+            results[res.id] = res
         for res in api_results:
-            results[res.task_id] = res
+            results[res.id] = res
         
         if return_completions_only:
-            results = [r.completions for r in results]
+            results = [r.completion for r in results]
 
         return results
     
