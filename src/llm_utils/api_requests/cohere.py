@@ -101,13 +101,18 @@ class CohereRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                completion = data["text"]
-                input_tokens = data["meta"]["billed_units"]["input_tokens"]
-                output_tokens = data["meta"]["billed_units"]["input_tokens"]
             except Exception:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}"
-        elif "json" in mimetype.lower():
+            if not is_error:
+                try:
+                    completion = data["text"]
+                    input_tokens = data["meta"]["billed_units"]["input_tokens"]
+                    output_tokens = data["meta"]["billed_units"]["input_tokens"]
+                except Exception:
+                    is_error = True
+                    error_message = f"Error getting 'text' or 'meta' from {self.model.name} response."
+        elif mimetype is not None and "json" in mimetype.lower():
             is_error = True # expected status is 200, otherwise it's an error
             data = await response.json()
             error_message = json.dumps(data)

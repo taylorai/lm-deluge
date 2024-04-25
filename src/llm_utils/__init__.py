@@ -369,6 +369,17 @@ async def process_api_prompts_async(
         )
         last_update_time = current_time
 
+        # update pbar status
+        if progress_bar:
+            progress_bar.set_postfix(
+                {
+                    "Token Capacity": available_token_capacity,
+                    "Request Capacity": available_request_capacity,
+                    "Requests in Progress": status_tracker.num_tasks_in_progress,
+                }
+            )
+
+
         # if enough capacity available, call API
         if next_request:
             next_request_tokens = next_request.num_tokens
