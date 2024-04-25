@@ -70,14 +70,18 @@ class OpenAIRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                completion = data["choices"][0]["message"]["content"]
-                input_tokens = data["usage"]["prompt_tokens"]
-                output_tokens = data["usage"]["completion_tokens"]
-
             except Exception:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}"
-        elif "json" in mimetype.lower():
+            if not is_error:
+                try:
+                    completion = data["choices"][0]["message"]["content"]
+                    input_tokens = data["usage"]["prompt_tokens"]
+                    output_tokens = data["usage"]["completion_tokens"]
+                except Exception:
+                    is_error = True
+                    error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response."
+        elif mimetype and "json" in mimetype.lower():
             is_error = True # expected status is 200, otherwise it's an error
             data = await response.json()
             error_message = json.dumps(data)
