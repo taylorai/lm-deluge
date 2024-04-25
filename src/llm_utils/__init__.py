@@ -2,6 +2,8 @@ import asyncio
 import numpy as np
 import time
 import modal
+import yaml
+from dataclasses import dataclass
 from typing import Literal, Optional, Union
 from tqdm.auto import tqdm
 from types import SimpleNamespace
@@ -11,24 +13,52 @@ from .models import registry
 from .api_requests.base import APIResponse
 from .utils import instructions_to_message_lists
 from .api_requests import create_api_request
-from itertools import zip_longest
 
-logger = SimpleNamespace(
-    log_to_file=print,
-    error=print,
-    info=print,
-    warn=print,
-    debug=print,
-    warning=print,
-    log=print,
-)
+@dataclass
+class ClientConfig:
+    model_names: list[str]
+    max_requests_per_minute: int
+    max_tokens_per_minute: int
+    max_attempts: int
+    request_timeout: int
+    sampling_params: Union[SamplingParams, list[SamplingParams]]
+    model_weights: Union[list[float], Literal["uniform", "rate_limit"]]
 
-def interleave(*iterables):
-    for item in zip_longest(*iterables):
-        for x in item:
-            if x is not None:
-                yield x
+    @classmethod
+    def from_dict(cls, config_dict: dict):
+        if isinstance(config_dict["sampling_params"], list):
+            config_dict["sampling_params"] = [
+                SamplingParams(**x) for x in config_dict["sampling_params"]
+            ]
+        else:
+            config_dict["sampling_params"] = SamplingParams(config_dict["sampling_params"])
 
+        return cls(**config_dict)
+
+    @classmethod
+    def from_yaml(cls, file_path: str):
+        config_dict = yaml.safe_load(open(file_path))
+        return cls.from_dict(config_dict)
+    
+    def to_dict(self):
+        if isinstance(self.sampling_params, list):
+            sp = [
+                x.__dict__ for x in self.sampling_params
+            ]
+        else:
+            sp = self.sampling_params.__dict__
+
+        return {
+            "model_names": self.model_names,
+            "max_requests_per_minute": self.max_requests_per_minute,
+            "max_tokens_per_minute": self.max_tokens_per_minute,
+            "max_attempts": self.max_attempts,
+            "request_timeout": self.request_timeout,
+            "sampling_params": sp,
+            "model_weights": self.model_weights
+        }
+        
+   
 class LLMClient:
     """
     LLMClient abstracts all the fixed arguments to process_prompts_async, so you can create it
@@ -65,6 +95,36 @@ class LLMClient:
         self.max_tokens_per_minute = max_tokens_per_minute
         self.max_attempts = max_attempts
         self.request_timeout = request_timeout
+
+    @classmethod
+    def from_config(cls, config: ClientConfig):
+        return cls(
+            model_names=config.model_names,
+            max_requests_per_minute=config.max_requests_per_minute,
+            max_tokens_per_minute=config.max_tokens_per_minute,
+            sampling_params=config.sampling_params,
+            model_weights=config.model_weights,
+            max_attempts=config.max_attempts,
+            request_timeout=config.request_timeout
+        )
+
+    @classmethod
+    def from_yaml(cls, file_path: str):
+        return cls.from_config(
+            ClientConfig.from_yaml(file_path)
+        )
+    
+    @property
+    def config(self):
+        return ClientConfig(
+            model_names=self.models,
+            model_weights=self.model_weights,
+            max_requests_per_minute=self.max_requests_per_minute,
+            max_tokens_per_minute=self.max_tokens_per_minute,
+            max_attempts=self.max_attempts,
+            request_timeout=self.request_timeout,
+            sampling_params=self.sampling_params
+        )
 
     async def process_prompts_async(
         self,
@@ -153,7 +213,6 @@ class LLMClient:
             )
         )
             
-
 async def process_modal_prompts_async(
     ids: list[int],
     prompts: list[list[dict]],  # each prompt is just a list of messages
