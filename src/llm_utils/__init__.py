@@ -224,6 +224,9 @@ async def process_modal_prompts_async(
     batch_size: int = 1_000,
     progress_bar: Optional[tqdm] = None,
 ):
+    # normalize weights
+    model_weights = [w / sum(model_weights) for w in model_weights]
+    
     # make sure ids and prompts are the same length
     if len(ids) != len(prompts):
         raise ValueError("ids and prompts must be the same length.")
@@ -274,6 +277,9 @@ async def process_api_prompts_async(
     debug: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
+    # normalize weights
+    model_weights = [w / sum(model_weights) for w in model_weights]
+    
     # constants
     seconds_to_pause_after_rate_limit_error = 15
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
