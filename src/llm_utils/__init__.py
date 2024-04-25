@@ -415,8 +415,9 @@ async def process_api_prompts_async(
         )
     
     # extract the replies
-    responses: list[Optional[APIResponse]] = [None for _ in range(len(prompts))]
-    for result in results:
-        responses[result.task_id] = result.result[-1]
+    # ERROR: doesn't work because task ids are not consecutive if split with Modal
+    # responses: list[Optional[APIResponse]] = [None for _ in range(len(prompts))]
+    # for result in results:
+    #     responses[result.task_id] = result.result[-1]
 
-    return responses
+    return [result.result[-1] for result in results]
