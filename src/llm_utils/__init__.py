@@ -90,6 +90,8 @@ class LLMClient:
             self.model_weights = [rpm / sum(rpms) for rpm in rpms]
         elif sum(model_weights) != 1:
             self.model_weights = [w / sum(model_weights) for w in model_weights]
+        else:
+            self.model_weights = model_weights
 
         self.max_requests_per_minute = max_requests_per_minute
         self.max_tokens_per_minute = max_tokens_per_minute
