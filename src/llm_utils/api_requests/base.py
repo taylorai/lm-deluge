@@ -220,6 +220,7 @@ class APIRequestBase(ABC):
 
         except asyncio.TimeoutError:
             self.result.append(APIResponse(
+                id=self.task_id,
                 model_internal=self.model_name,
                 system_prompt=self.system_prompt,
                 messages=self.messages,
@@ -236,6 +237,7 @@ class APIRequestBase(ABC):
         except Exception as e:
             print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
             self.result.append(APIResponse(
+                id=self.task_id,
                 model_internal=self.model_name,
                 system_prompt=self.system_prompt,
                 messages=self.messages,
