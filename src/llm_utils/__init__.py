@@ -279,7 +279,7 @@ async def process_api_prompts_async(
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # normalize weights
     model_weights = [w / sum(model_weights) for w in model_weights]
-    
+
     # constants
     seconds_to_pause_after_rate_limit_error = 15
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
@@ -294,7 +294,7 @@ async def process_api_prompts_async(
     # since some models limit RPS rather than RPM
     if use_qps:
         available_request_capacity = max_requests_per_minute / 60.0
-        available_token_capacity = max_tokens_per_minute / 60.0
+        available_token_capacity = max_tokens_per_minute
     else:
         available_request_capacity = max_requests_per_minute
         available_token_capacity = max_tokens_per_minute
