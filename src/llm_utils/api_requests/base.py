@@ -87,6 +87,14 @@ class APIResponse:
             finish_reason=data["finish_reason"],
             cost=data["cost"],
         )
+    
+    def write_to_file(self, filename):
+        """
+        Writes the APIResponse as a line to a file.
+        If file exists, appends to it.
+        """
+        with open(filename, "a") as f:
+            f.write(json.dumps(self.to_dict()) + "\n")
 
 class APIRequestBase(ABC):
     """
