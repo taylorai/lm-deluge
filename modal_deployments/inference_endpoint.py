@@ -24,14 +24,14 @@ MODEL_OPTIONS = {
 }
 
 GPU_OPTIONS = {
-    "a100": gpu.A100(count=1, memory=80),
+    "a100": gpu.A100(count=1, memory=40),
     "h100": gpu.H100(count=1),
     "l4": gpu.L4(count=1)
 }
 
 model_name = os.environ.get("MODEL_NAME", "llama3-8b")
 model_path = MODEL_OPTIONS[model_name]["path"]
-gpu_name = os.environ.get("GPU", "a100").lower()
+gpu_name = os.environ.get("GPU", "h100").lower()
 gpu_config = GPU_OPTIONS[gpu_name]
 
 def download_model_to_folder():
