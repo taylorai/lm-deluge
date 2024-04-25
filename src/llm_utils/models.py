@@ -443,6 +443,16 @@ registry = {
         "requests_per_minute": 1_600,
         "tokens_per_minute": 1_200_000
     },
+    # these are not ready yet bro
+    # "llama3-8b-bedrock": {
+    #     "id": "llama3-8b-bedrock",
+    #     "name": "meta.llama3-8b-instruct-v1:0",
+    #     "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+    #     "api_base": "",
+    #     "api_key_env_var": "",
+    #     "api_spec": "bedrock_llama",
+
+    # },
 
 #    █████████           █████                                 
 #   ███░░░░░███         ░░███                                  
