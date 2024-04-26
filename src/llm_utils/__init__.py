@@ -141,7 +141,7 @@ class LLMClient:
         # if prompts are strings, convert them to message lists
         if isinstance(prompts[0], str):
             prompts = instructions_to_message_lists(prompts)
-        ids = np.arange(len(prompts))
+        ids = np.arange(len(prompts)).tolist()
 
         # set up progress bar
         pbar = tqdm(total=len(prompts), disable=(not show_progress))
