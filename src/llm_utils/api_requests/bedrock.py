@@ -140,6 +140,7 @@ class BedrockAnthropicRequest(APIRequestBase):
                 self.attempts_left = 0
 
         return APIResponse(
+            id=self.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
