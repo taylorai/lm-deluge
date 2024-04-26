@@ -141,7 +141,7 @@ class LLMClient:
         # if prompts are strings, convert them to message lists
         if isinstance(prompts[0], str):
             prompts = instructions_to_message_lists(prompts)
-        ids = np.arange(len(prompts)).tolist()
+        ids = np.arange(len(prompts))
 
         # set up progress bar
         pbar = tqdm(total=len(prompts), disable=(not show_progress))
@@ -222,7 +222,7 @@ class LLMClient:
         )
             
 async def process_modal_prompts_async(
-    ids: list[int],
+    ids: np.ndarray,
     prompts: list[list[dict]],  # each prompt is just a list of messages
     models: list[str],
     model_weights: list[float],
@@ -230,6 +230,9 @@ async def process_modal_prompts_async(
     batch_size: int = 1_000,
     progress_bar: Optional[tqdm] = None,
 ):
+    # change ids to integer list
+    ids = ids.tolist()
+
     # normalize weights
     model_weights = [w / sum(model_weights) for w in model_weights]
     
@@ -269,7 +272,7 @@ async def process_modal_prompts_async(
     ]
 
 async def process_api_prompts_async(
-    ids: list[int],
+    ids: np.ndarray,
     prompts: list[list[dict]],  # each prompt is just a list of messages
     models: Union[str, list[str]],
     model_weights: list[float],
@@ -283,6 +286,9 @@ async def process_api_prompts_async(
     debug: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
+    # change ids to integer list
+    ids = ids.tolist()
+    
     # normalize weights
     model_weights = [w / sum(model_weights) for w in model_weights]
 
