@@ -38,6 +38,7 @@ class APIResponse:
 
     def __post_init__(self):
         # calculate cost & get external model name
+        self.id = int(self.id)
         api_model = APIModel.from_registry(self.model_internal)
         self.model_external = api_model.name
         self.cost = None
