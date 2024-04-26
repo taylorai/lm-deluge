@@ -59,7 +59,8 @@ class BedrockAnthropicRequest(APIRequestBase):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         super().__init__(
             task_id=task_id,
@@ -73,7 +74,8 @@ class BedrockAnthropicRequest(APIRequestBase):
             cache=cache,
             pbar=pbar,
             callback=callback,
-            result=result
+            result=result,
+            debug=debug
         )
         self.model = APIModel.from_registry(model_name)
         region = random.choice(self.model.regions) # load balance across regions
@@ -182,7 +184,8 @@ class MistralBedrockRequest(APIRequestBase):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         super().__init__(
             task_id=task_id,
@@ -196,7 +199,8 @@ class MistralBedrockRequest(APIRequestBase):
             cache=cache,
             pbar=pbar,
             callback=callback,
-            result=result
+            result=result,
+            debug=debug
         )
         self.model = APIModel.from_registry(model_name)
         self.region = random.choice(self.model.regions)
