@@ -28,7 +28,8 @@ class OpenAIRequest(APIRequestBase):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         super().__init__(
             task_id=task_id,
@@ -42,7 +43,8 @@ class OpenAIRequest(APIRequestBase):
             cache=cache,
             pbar=pbar,
             callback=callback,
-            result=result
+            result=result,
+            debug=debug
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat/completions"

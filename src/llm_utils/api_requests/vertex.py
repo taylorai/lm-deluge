@@ -52,7 +52,8 @@ class VertexAnthropicRequest(APIRequestBase):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         super().__init__(
             task_id=task_id,
@@ -66,7 +67,8 @@ class VertexAnthropicRequest(APIRequestBase):
             cache=cache,
             pbar=pbar,
             callback=callback,
-            result=result
+            result=result,
+            debug=debug
         )
         token = get_access_token(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
 
@@ -167,7 +169,8 @@ class GeminiRequest(APIRequestBase):
         cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None
+        result: Optional[list] = None,
+        debug: bool = False
     ):
         super().__init__(
             task_id=task_id,
@@ -181,7 +184,8 @@ class GeminiRequest(APIRequestBase):
             cache=cache,
             pbar=pbar,
             callback=callback,
-            result=result
+            result=result,
+            debug=debug
         )
         self.model = APIModel.from_registry(model_name)
         credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
