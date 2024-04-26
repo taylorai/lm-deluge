@@ -590,7 +590,7 @@ registry = {
         "api_key_env_var": None,
         "supports_json": True,
         "api_spec": "modal",
-        "gpus": ["a100"],
+        "gpus": ["h100"],
         "input_cost": 0.2, # made up numbers
         "output_cost": 0.2, # made up numbers
         "requests_per_minute": 10_000,
@@ -603,7 +603,7 @@ registry = {
         "api_key_env_var": None,
         "supports_json": True,
         "api_spec": "modal",
-         "gpus": ["a100"],
+         "gpus": ["h100"],
         "input_cost": 0.2, # made up numbers
         "output_cost": 0.2, # made up numbers
         "requests_per_minute": 10_000,
@@ -616,7 +616,7 @@ registry = {
         "api_key_env_var": None,
         "supports_json": True,
         "api_spec": "modal",
-         "gpus": ["a100"],
+         "gpus": ["h100"],
         "input_cost": 0.2, # made up numbers
         "output_cost": 0.2, # made up numbers
         "requests_per_minute": 10_000,

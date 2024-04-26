@@ -75,6 +75,8 @@ class LLMClient:
         model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
         max_attempts: int = 5,
         request_timeout: int = 30,
+        use_qps: bool = False,
+        debug: bool = False,
     ):
         self.models = model_names
         if isinstance(sampling_params, SamplingParams):
@@ -97,6 +99,8 @@ class LLMClient:
         self.max_tokens_per_minute = max_tokens_per_minute
         self.max_attempts = max_attempts
         self.request_timeout = request_timeout
+        self.use_qps = use_qps
+        self.debug = debug
 
     @classmethod
     def from_config(cls, config: ClientConfig):
@@ -177,7 +181,9 @@ class LLMClient:
                     max_tokens_per_minute=self.max_tokens_per_minute,
                     max_requests_per_minute=self.max_requests_per_minute,
                     request_timeout=self.request_timeout,
-                    progress_bar=pbar
+                    progress_bar=pbar,
+                    use_qps=self.use_qps,
+                    debug=self.debug
                 )
             )
 
