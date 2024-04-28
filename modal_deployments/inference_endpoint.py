@@ -54,11 +54,11 @@ image = (
         "nvidia/cuda:12.1.1-devel-ubuntu22.04", add_python="3.10"
     )
     .pip_install(
-        "vllm==0.3.2",
+        "vllm==0.4.1",
         "huggingface_hub==0.19.4",
         "transformers==4.40.0",
         "hf-transfer==0.1.4",
-        "torch==2.1.2",
+        "torch==2.2.1",
         "mistral-common"
     ).pip_install_private_repos(
         "github.com/taylorai/llm_utils@9cac33e",
@@ -88,7 +88,11 @@ class Model:
         from transformers import AutoTokenizer
 
         # Load the model. Tip: Some models, like MPT, may require `trust_remote_code=true`.
-        self.llm = LLM(MODEL_DIR, enforce_eager=True)
+        self.llm = LLM(
+            MODEL_DIR, 
+            enforce_eager=True,
+            enable_prefix_caching=True # should get major speedup on repetitive inputs
+        )
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
 
     @method()
