@@ -126,7 +126,7 @@ class LLMClient:
             model_names=[model],
             max_requests_per_minute=1_000,
             max_tokens_per_minute=500_000,
-            sampling_params=SamplingParams(temperature=0.75, max_tokens=1000),
+            sampling_params=SamplingParams(temperature=0.75, max_new_tokens=1000),
             model_weights="uniform",
             max_attempts=5,
             request_timeout=30
