@@ -15,12 +15,12 @@ MODEL_OPTIONS = {
     },
     "gemma-7b": {
         "name": "gemma-7b",
-        "path": "google/gemma-7b-it"
+        "path": "google/gemma-1.1-7b-it"
     },
-    # "nous-mistral-7b": {
-    #     "name": "nous-mistral-7b",
-    #     "path": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO"
-    # }
+    "gemma-2b": {
+        "name": "gemma-2b",
+        "path": "google/gemma-1.1-2b-it"
+    }
 }
 
 GPU_OPTIONS = {
