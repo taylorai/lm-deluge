@@ -91,7 +91,8 @@ class Model:
         self.llm = LLM(
             MODEL_DIR, 
             enforce_eager=True,
-            enable_prefix_caching=True # should get major speedup on repetitive inputs
+            # enable_prefix_caching=True # should get major speedup on repetitive inputs
+            kv_cache_dtype="fp8" # incompatible with prefix caching
         )
         self.tokenizer = AutoTokenizer.from_pretrained(MODEL_DIR)
 
