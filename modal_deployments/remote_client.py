@@ -9,8 +9,9 @@ vol = Volume.from_name("llm_utils", create_if_missing=True)
 
 image = (
     Image.debian_slim(python_version="3.10")
+    .pip_install("PyYAML")
     .pip_install_private_repos(
-        "github.com/taylorai/llm_utils@9cac33e",
+        "github.com/taylorai/llm_utils@41d1900",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )
@@ -20,7 +21,7 @@ app = App("llm-utils")
 
 @app.cls(
     image=image,
-    mounts={"/outputs": vol},
+    volumes={"/outputs": vol},
     secrets=[
         Secret.from_name("OPENAI_API_KEY"),
         Secret.from_name("ANTHROPIC_API_KEY"),
