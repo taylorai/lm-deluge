@@ -1,6 +1,7 @@
 import aiohttp
 import asyncio
 import json
+import random
 from tqdm import tqdm
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -71,8 +72,9 @@ class APIResponse:
         }
     
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data: dict):
         return cls(
+            id=data.get("id", random.randint(0, 1_000_000_000)),
             model_internal=data["model_internal"],
             model_external=data["model_external"],
             region=data["region"],
