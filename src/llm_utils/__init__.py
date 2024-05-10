@@ -460,8 +460,9 @@ async def process_api_prompts_async(
 
 
 class RemoteLLMClient:
-    def __init__(self, **kwargs):
+    def __init__(self, chunk_size=5_000, **kwargs):
         self.client = ModalLLMClient(**kwargs)
+        self.chunk_size = chunk_size
 
     def process_prompts_sync(
         self,
@@ -469,7 +470,13 @@ class RemoteLLMClient:
         return_completions_only: bool = False,
         show_progress=True
     ):
-        responses = self.client.process_prompts.remote(prompts)
+        chunks = [
+            prompts[i:i+self.chunk_size] for i in range(0, len(prompts), self.chunk_size)
+        ]
+        responses = []
+        for chunk in tqdm(chunks, disable=(not show_progress)):
+            responses.extend(self.client.process_prompts.remote(chunk))
+        
         if return_completions_only:
             return [r.completion for r in responses]
         return responses
@@ -480,7 +487,4 @@ class RemoteLLMClient:
         return_completions_only: bool = False,
         show_progress=True
     ):
-        responses = await self.client.process_prompts.remote.aio(prompts)
-        if return_completions_only:
-            return [r.completion for r in responses]
-        return responses
+        raise NotImplementedError("This method is not yet implemented.")
