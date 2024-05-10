@@ -47,8 +47,6 @@ class ModalLLMClient:
         filename = f"/outputs/{now.strftime('%H-%m-%d-%m-%Y')}.json"
         with open(filename, "w") as f:
             f.write(json.dumps(result_json))
+        vol.commit()
         print("Done!")
         return result_json
-            
-
-
