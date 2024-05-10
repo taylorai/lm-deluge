@@ -460,9 +460,33 @@ async def process_api_prompts_async(
 
 
 class RemoteLLMClient:
-    def __init__(self, chunk_size=10_000, **kwargs):
-        self.client = ModalLLMClient(**kwargs)
+    def __init__(
+        self, 
+        model_names: list[str],
+        max_requests_per_minute: int,
+        max_tokens_per_minute: int,
+        sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams(),
+        model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
+        max_attempts: int = 5,
+        request_timeout: int = 30,
+        use_qps: bool = False,
+        debug: bool = False,
+        chunk_size: int = 10_000,
+        max_concurrent_containers: int = 4
+    ):
         self.chunk_size = chunk_size
+        self.max_concurrent_containers = max_concurrent_containers
+        self.client = ModalLLMClient(
+            model_names=model_names,
+            max_requests_per_minute=max_requests_per_minute // self.max_concurrent_containers,
+            max_tokens_per_minute=max_tokens_per_minute // self.max_concurrent_containers,
+            sampling_params=sampling_params,
+            model_weights=model_weights,
+            max_attempts=max_attempts,
+            request_timeout=request_timeout,
+            use_qps=use_qps,
+            debug=debug
+        )
 
     def process_prompts_sync(
         self,
@@ -475,8 +499,9 @@ class RemoteLLMClient:
             prompts[i:i+self.chunk_size] for i in range(0, len(prompts), self.chunk_size)
         ]
         responses = []
-        for chunk in tqdm(chunks, disable=(not show_progress)):
-            responses.extend(self.client.process_prompts.remote(chunk))
+        outputs = self.client.process_prompts.map(chunks)
+        for chunk in tqdm(outputs, disable=(not show_progress), total=len(chunks)):
+            responses.extend(chunk)
         
         responses = [APIResponse.from_dict(d) for d in responses]
 

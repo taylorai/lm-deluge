@@ -26,7 +26,8 @@ app = App("llm-utils")
         Secret.from_name("OPENAI_API_KEY"),
         Secret.from_name("ANTHROPIC_API_KEY"),
         Secret.from_name("COHERE_API_KEY"),
-    ]
+    ],
+    concurrency_limit=4
 )
 class ModalLLMClient:
     def __init__(self, **kwargs):
@@ -41,10 +42,10 @@ class ModalLLMClient:
         result: list[APIResponse] = self.client.process_prompts_sync(prompts)
         result_json = [r.to_dict() for r in result]
         # log result to volume in case it's lost.
-        # file should start with HH-mm-MM-DD-YYYY
+        # file should start with HH-mm-ss-MM-DD-YYYY
         print("Writing results to file...")
-        now = datetime.datetime.now()
-        filename = f"/outputs/{now.strftime('%H-%m-%d-%m-%Y')}.json"
+        now = datetime.datetime.now().strftime('%H-%M-%S-%m-%d-%Y')
+        filename = f"/outputs/results-{now}.json"
         with open(filename, "w") as f:
             f.write(json.dumps(result_json))
         vol.commit()
