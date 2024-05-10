@@ -494,20 +494,15 @@ class RemoteLLMClient:
         return_completions_only: bool = False,
         show_progress=True
     ):
-        from .api_requests.base import APIResponse
-        chunks = [
-            prompts[i:i+self.chunk_size] for i in range(0, len(prompts), self.chunk_size)
-        ]
-        responses = []
-        outputs = self.client.process_prompts.map(chunks)
-        for chunk in tqdm(outputs, disable=(not show_progress), total=len(chunks)):
-            responses.extend(chunk)
+        import asyncio
+        return asyncio.run(
+            self.process_prompts_async(
+                prompts=prompts,
+                return_completions_only=return_completions_only,
+                show_progress=show_progress
+            )
+        )
         
-        responses = [APIResponse.from_dict(d) for d in responses]
-
-        if return_completions_only:
-            return [r.completion for r in responses]
-        return responses
     
     async def process_prompts_async(
         self,
@@ -515,4 +510,17 @@ class RemoteLLMClient:
         return_completions_only: bool = False,
         show_progress=True
     ):
-        raise NotImplementedError("This method is not yet implemented.")
+        from .api_requests.base import APIResponse
+        chunks = [
+            prompts[i:i+self.chunk_size] for i in range(0, len(prompts), self.chunk_size)
+        ]
+        responses = []
+        outputs = self.client.process_prompts.map(chunks)
+        async for chunk in tqdm(outputs, disable=(not show_progress), total=len(chunks)):
+            responses.extend(chunk)
+        
+        responses = [APIResponse.from_dict(d) for d in responses]
+
+        if return_completions_only:
+            return [r.completion for r in responses]
+        return responses
