@@ -460,7 +460,7 @@ async def process_api_prompts_async(
 
 
 class RemoteLLMClient:
-    def __init__(self, chunk_size=5_000, **kwargs):
+    def __init__(self, chunk_size=10_000, **kwargs):
         self.client = ModalLLMClient(**kwargs)
         self.chunk_size = chunk_size
 
@@ -470,6 +470,7 @@ class RemoteLLMClient:
         return_completions_only: bool = False,
         show_progress=True
     ):
+        from .api_requests.base import APIResponse
         chunks = [
             prompts[i:i+self.chunk_size] for i in range(0, len(prompts), self.chunk_size)
         ]
@@ -477,6 +478,8 @@ class RemoteLLMClient:
         for chunk in tqdm(chunks, disable=(not show_progress)):
             responses.extend(self.client.process_prompts.remote(chunk))
         
+        responses = [APIResponse.from_dict(d) for d in responses]
+
         if return_completions_only:
             return [r.completion for r in responses]
         return responses
