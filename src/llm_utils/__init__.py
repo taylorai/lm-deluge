@@ -516,8 +516,10 @@ class RemoteLLMClient:
         ]
         responses = []
         outputs = self.client.process_prompts.map(chunks)
-        async for chunk in tqdm(outputs, disable=(not show_progress), total=len(chunks)):
+        pbar = tqdm(total=len(prompts), disable=(not show_progress))
+        async for chunk in outputs:
             responses.extend(chunk)
+            pbar.update(len(chunk))
         
         responses = [APIResponse.from_dict(d) for d in responses]
 
