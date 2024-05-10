@@ -13,6 +13,8 @@ from .models import registry
 from .api_requests.base import APIResponse
 from .utils import instructions_to_message_lists
 from .api_requests import create_api_request
+ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
+
 
 @dataclass
 class ClientConfig:
@@ -453,11 +455,32 @@ async def process_api_prompts_async(
         print(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
-    
-    # extract the replies
-    # ERROR: doesn't work because task ids are not consecutive if split with Modal
-    # responses: list[Optional[APIResponse]] = [None for _ in range(len(prompts))]
-    # for result in results:
-    #     responses[result.task_id] = result.result[-1]
 
     return [result.result[-1] for result in results]
+
+
+class RemoteLLMClient:
+    def __init__(self, **kwargs):
+        self.client = ModalLLMClient(**kwargs)
+
+    def process_prompts_sync(
+        self,
+        prompts: Union[list[str], list[list[dict]]],
+        return_completions_only: bool = False,
+        show_progress=True
+    ):
+        responses = self.client.process_prompts.remote(prompts)
+        if return_completions_only:
+            return [r.completion for r in responses]
+        return responses
+    
+    async def process_prompts_async(
+        self,
+        prompts: Union[list[str], list[list[dict]]],
+        return_completions_only: bool = False,
+        show_progress=True
+    ):
+        responses = await self.client.process_prompts.remote.aio(prompts)
+        if return_completions_only:
+            return [r.completion for r in responses]
+        return responses
