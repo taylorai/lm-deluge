@@ -45,6 +45,18 @@ registry = {
 #                ░███                                             
 #                █████                                            
 #               ░░░░░                                             
+    "gpt-4o": {
+        "id": "gpt-4o",
+        "name": 'gpt-4o-2024-05-13',
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 5.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 2_000_000
+    },
     "gpt-3.5-turbo": {
         "id": "gpt-3.5-turbo",
         "name": "gpt-3.5-turbo-0125",
