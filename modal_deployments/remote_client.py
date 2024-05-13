@@ -27,7 +27,8 @@ app = App("llm-utils")
         Secret.from_name("ANTHROPIC_API_KEY"),
         Secret.from_name("COHERE_API_KEY"),
     ],
-    concurrency_limit=4
+    concurrency_limit=10,
+    timeout=60 * 60 * 24
 )
 class ModalLLMClient:
     def __init__(self, **kwargs):
