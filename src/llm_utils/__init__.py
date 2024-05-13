@@ -472,7 +472,7 @@ class RemoteLLMClient:
         use_qps: bool = False,
         debug: bool = False,
         chunk_size: int = 10_000,
-        max_concurrent_containers: int = 4
+        max_concurrent_containers: int = 5
     ):
         self.chunk_size = chunk_size
         self.max_concurrent_containers = max_concurrent_containers
@@ -526,3 +526,15 @@ class RemoteLLMClient:
         if return_completions_only:
             return [r.completion for r in responses]
         return responses
+    
+    @classmethod
+    def from_config(cls, config: ClientConfig):
+        return cls(
+            model_names=config.model_names,
+            max_requests_per_minute=config.max_requests_per_minute,
+            max_tokens_per_minute=config.max_tokens_per_minute,
+            sampling_params=config.sampling_params,
+            model_weights=config.model_weights,
+            max_attempts=config.max_attempts,
+            request_timeout=config.request_timeout
+        )
