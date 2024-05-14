@@ -511,8 +511,10 @@ class RemoteLLMClient:
         show_progress=True
     ):
         from .api_requests.base import APIResponse
+        # use all available containers to process prompts
+        chunk_size = min(self.chunk_size, len(prompts) // self.max_concurrent_containers + 1)
         chunks = [
-            prompts[i:i+self.chunk_size] for i in range(0, len(prompts), self.chunk_size)
+            prompts[i:i+chunk_size] for i in range(0, len(prompts), chunk_size)
         ]
         responses = []
         outputs = self.client.process_prompts.map(chunks)

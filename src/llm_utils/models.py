@@ -32,6 +32,22 @@ gemini_regions = [
     'us-west4'
 ]
 
+gemini_pro_high_limit_regions = [
+    "asia-east1",
+    "asia-east2",
+    "asia-northeast1",
+    "asia-northeast2",
+    "asia-northeast3",
+    "asia-south1",
+    "asia-southeast1",
+    "europe-central2",
+    "europe-west1",
+    "southamerica-east1",
+    "us-central1",
+    "us-east1",
+    "us-west1"
+]
+
 registry = {
 
 #     ███████                                    █████████   █████
@@ -372,17 +388,30 @@ registry = {
         "requests_per_minute": 1000 * len(gemini_regions),
         "tokens_per_minute": None
     },
-    "gemini-1.5-pro": {
-        "id": "gemini-1.5-pro",
-        "name": "gemini-1.5-pro-preview-0409",
-        "regions": gemini_regions,
+    "gemini-1.5-flash": {
+        "id": "gemini-1.5-flash",
+        "name": "gemini-1.5-flash-preview-0409",
+        "regions":  gemini_regions,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
         "supports_json": False,
         "api_spec": "vertex_gemini",
-        "input_cost": 7.0,
-        "output_cost": 21.0,
-        "requests_per_minute": 5 * len(gemini_regions),
+        "input_cost": 0.35,
+        "output_cost": 0.35,
+        "requests_per_minute": 60 * len(gemini_regions),
+        "tokens_per_minute": None
+    },
+    "gemini-1.5-pro": {
+        "id": "gemini-1.5-pro",
+        "name": "gemini-1.5-pro-preview-0409",
+        "regions": gemini_pro_high_limit_regions,
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_gemini",
+        "input_cost": 3.5,
+        "output_cost": 10.5,
+        "requests_per_minute": 500 * len(gemini_pro_high_limit_regions),
         "tokens_per_minute": None
     },
 
