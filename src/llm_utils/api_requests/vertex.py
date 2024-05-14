@@ -152,6 +152,13 @@ def convert_messages_to_contents(messages: list[dict]):
         contents.append({"role": message["role"], "parts": [{"text": message["content"]}]})
     return contents
 
+SAFETY_SETTING_CATEGORIES = [
+    "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "HARM_CATEGORY_HARASSMENT",
+    "HARM_CATEGORY_HATE_SPEECH",
+    "HARM_CATEGORY_SEXUALLY_EXPLICIT"
+]
+
 class GeminiRequest(APIRequestBase):
     """
     For Gemini, you'll also have to set the PROJECT_ID environment variable.
@@ -217,7 +224,7 @@ class GeminiRequest(APIRequestBase):
                     { "text": self.system_message}
                 ]
             },
-            "generation_config": {
+            "generationConfig": {
                 "stopSequences": [],
                 "temperature": sampling_params.temperature,
                 "maxOutputTokens": sampling_params.max_new_tokens,
@@ -225,7 +232,12 @@ class GeminiRequest(APIRequestBase):
                 "topK": None
 
             },
-            "safety_settings": {} # TODO: turn this off later lol
+            "safetySettings": [
+                {
+                    "category": category,
+                    "threshold": "BLOCK_ONLY_HIGH"
+                } for category in SAFETY_SETTING_CATEGORIES
+            ] # TODO: turn this off later lol
         }
 
     async def handle_response(self, response: ClientResponse) -> APIResponse:
