@@ -11,7 +11,7 @@ image = (
     Image.debian_slim(python_version="3.10")
     .pip_install("PyYAML")
     .pip_install_private_repos(
-        "github.com/taylorai/llm_utils@984e28e",
+        "github.com/taylorai/llm_utils@7f929cc",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )
