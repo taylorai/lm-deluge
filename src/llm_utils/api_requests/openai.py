@@ -29,7 +29,9 @@ class OpenAIRequest(APIRequestBase):
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
-        debug: bool = False
+        debug: bool = False,
+        all_model_names: list[str] = None,
+        all_sampling_params: list[SamplingParams] = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -44,7 +46,9 @@ class OpenAIRequest(APIRequestBase):
             pbar=pbar,
             callback=callback,
             result=result,
-            debug=debug
+            debug=debug,
+            all_model_names=all_model_names,
+            all_sampling_params=all_sampling_params
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat/completions"

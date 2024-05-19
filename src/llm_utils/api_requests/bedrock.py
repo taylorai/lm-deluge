@@ -60,7 +60,9 @@ class BedrockAnthropicRequest(APIRequestBase):
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
-        debug: bool = False
+        debug: bool = False,
+        all_model_names: list[str] = None,
+        all_sampling_params: list[SamplingParams] = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -75,7 +77,9 @@ class BedrockAnthropicRequest(APIRequestBase):
             pbar=pbar,
             callback=callback,
             result=result,
-            debug=debug
+            debug=debug,
+            all_model_names=all_model_names,
+            all_sampling_params=all_sampling_params
         )
         self.model = APIModel.from_registry(model_name)
         region = random.choice(self.model.regions) # load balance across regions
@@ -186,7 +190,9 @@ class MistralBedrockRequest(APIRequestBase):
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
-        debug: bool = False
+        debug: bool = False,
+        all_model_names: list[str] = None,
+        all_sampling_params: list[SamplingParams] = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -201,7 +207,9 @@ class MistralBedrockRequest(APIRequestBase):
             pbar=pbar,
             callback=callback,
             result=result,
-            debug=debug
+            debug=debug,
+            all_model_names=all_model_names,
+            all_sampling_params=all_sampling_params
         )
         self.model = APIModel.from_registry(model_name)
         self.region = random.choice(self.model.regions)
@@ -251,6 +259,7 @@ class MistralBedrockRequest(APIRequestBase):
             error_message = text
 
         # TODO: Handle rate-limit errors
+        # TODO: in the future, instead of slowing down, switch models?
         if status_code == 429:
             error_message += " (Rate limit error, triggering cooldown.)"
             self.status_tracker.time_of_last_rate_limit_error = time.time()
