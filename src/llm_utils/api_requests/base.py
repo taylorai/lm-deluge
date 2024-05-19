@@ -335,6 +335,7 @@ def create_api_request(
     cache: Optional[SqliteCache] = None,
     pbar: Optional[tqdm] = None,
     callback: Optional[Callable] = None,
+    result: Optional[list] = None,
     debug: bool = False,
     all_model_names: list[str] = None,
     all_sampling_params: list[SamplingParams] = None,
