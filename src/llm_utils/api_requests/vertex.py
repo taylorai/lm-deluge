@@ -247,13 +247,14 @@ class GeminiRequest(APIRequestBase):
         completion = None
         input_tokens = None
         output_tokens = None
+        finish_reason = None
         status_code = response.status
         mimetype = response.headers.get("Content-Type", None)
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
                 candidate = data["candidates"][0]
-                finish_reason = candidate.get("finishReason", None)
+                finish_reason = candidate["finishReason"]
                 if "content" in candidate:
                     parts = candidate["content"]["parts"]
                     completion = " ".join([part["text"] for part in parts])
