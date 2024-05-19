@@ -390,7 +390,7 @@ registry = {
     },
     "gemini-1.5-flash": {
         "id": "gemini-1.5-flash",
-        "name": "gemini-1.5-flash-preview-0409",
+        "name": "gemini-1.5-flash-preview-0514",
         "regions":  gemini_regions,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
