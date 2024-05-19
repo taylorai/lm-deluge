@@ -248,6 +248,7 @@ class GeminiRequest(APIRequestBase):
         input_tokens = None
         output_tokens = None
         finish_reason = None
+        retry_with_different_model = False
         status_code = response.status
         mimetype = response.headers.get("Content-Type", None)
         if status_code >= 200 and status_code < 300:
@@ -259,6 +260,7 @@ class GeminiRequest(APIRequestBase):
                         error_message = "Prompt rejected. Feedback: " + str(data["promptFeedback"])
                     else:
                         error_message = "No candidates in response."
+                    retry_with_different_model = True
                 else:
                     candidate = data["candidates"][0]
                     finish_reason = candidate["finishReason"]
@@ -308,5 +310,6 @@ class GeminiRequest(APIRequestBase):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             region=old_region,
-            finish_reason=finish_reason
+            finish_reason=finish_reason,
+            retry_with_different_model=retry_with_different_model
         )

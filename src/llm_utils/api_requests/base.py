@@ -11,6 +11,7 @@ from ..sampling_params import SamplingParams
 from ..cache import SqliteCache
 from ..utils import count_tokens
 from ..models import APIModel
+from .common import create_api_request
 
 @dataclass
 class APIResponse:
@@ -36,6 +37,8 @@ class APIResponse:
     region: Optional[str] = None
     finish_reason: Optional[str] = None # make required later
     cost: Optional[float] = None # calculated automatically
+    # set to true if is_error and should not be retried with the same model
+    retry_with_different_model: Optional[bool] = False
 
     def __post_init__(self):
         # calculate cost & get external model name
@@ -124,7 +127,9 @@ class APIRequestBase(ABC):
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
-        debug: bool = False
+        debug: bool = False,
+        all_model_options: list[str] = None,
+        all_sampling_params: list[SamplingParams] = None,
     ):
         self.task_id = task_id
         self.model_name = model_name
@@ -141,6 +146,8 @@ class APIRequestBase(ABC):
         self.num_tokens = count_tokens(messages, sampling_params.max_new_tokens)
         self.result = [] if result is None else result
         self.debug = debug
+        self.all_model_options = all_model_options
+        self.all_sampling_params = all_sampling_params
 
         # these should be set in the __init__ of the subclass
         self.url = None
@@ -190,13 +197,51 @@ class APIRequestBase(ABC):
         self.status_tracker.num_tasks_succeeded += 1
         self.set_cache(data)
 
-    def handle_error(self):
+    # TODO: actually use this. should just require the response object to set
+    # the retry_with_different_model flag in the relevant cases
+    def handle_error(self, create_new_request = False):
+        """
+        If create_new_request is True, will create a new API request (so that it
+        has a chance of being sent to a different model). If false, will retry
+        the same request.
+        """
         last_result: APIResponse = self.result[-1]
         print(
             f"Error on task {self.task_id}. Model: {last_result.model_internal} Code: {last_result.status_code}, Message: {last_result.error_message}.")
         if self.attempts_left > 0:
             self.attempts_left -= 1
-            self.retry_queue.put_nowait(self)
+            if not create_new_request:
+                self.retry_queue.put_nowait(self)
+                return
+            else:
+                # make sure we have another model to send it to besides the current one
+                if self.all_model_options is None or len(self.all_model_options) < 2:
+                    print(f"No other models to try for task {self.task_id}.")
+                    self.status_tracker.num_tasks_in_progress -= 1
+                    self.status_tracker.num_tasks_failed += 1
+
+                # two things to change: model_name and sampling_params
+                new_model_name = self.model_name
+                while new_model_name == self.model_name:
+                    new_model_idx = random.randint(0, len(self.all_model_options) - 1)
+                    new_model_name = self.all_model_options[new_model_idx]
+                new_sampling_params = self.sampling_params[new_model_idx] if self.all_sampling_params is not None else self.sampling_params
+                
+                print("Creating new request with model", new_model_name)
+                new_request = create_api_request(
+                    model_name=new_model_name,
+                    messages=self.messages,
+                    attempts_left=self.attempts_left,
+                    status_tracker=self.status_tracker,
+                    retry_queue=self.retry_queue,
+                    request_timeout=self.request_timeout,
+                    sampling_params=new_sampling_params,
+                    cache=self.cache,
+                    pbar=self.pbar,
+                    callback=self.callback,
+                    result=self.result,
+                )
+                self.retry_queue.put_nowait(new_request)
         else:
             print(f"Task {self.task_id} out of tries.")
             self.status_tracker.num_tasks_in_progress -= 1
@@ -225,7 +270,7 @@ class APIRequestBase(ABC):
             self.result.append(response)      
             if response.is_error:
                 print(f"Error in task {self.task_id}: {response.error_message}")
-                self.handle_error()     
+                self.handle_error(create_new_request=response.retry_with_different_model)     
             else:
                 self.handle_success(response)
 
@@ -243,7 +288,7 @@ class APIRequestBase(ABC):
                 input_tokens=None,
                 output_tokens=None,
             ))
-            self.handle_error()
+            self.handle_error(create_new_request=False)
                
         except Exception as e:
             print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
@@ -260,7 +305,8 @@ class APIRequestBase(ABC):
                 input_tokens=None,
                 output_tokens=None,
             ))
-            self.handle_error()
+            # maybe consider making True?
+            self.handle_error(create_new_request=False)
 
             
     @abstractmethod
