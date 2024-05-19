@@ -253,18 +253,24 @@ class GeminiRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await response.json()
-                candidate = data["candidates"][0]
-                finish_reason = candidate["finishReason"]
-                if "content" in candidate:
-                    parts = candidate["content"]["parts"]
-                    completion = " ".join([part["text"] for part in parts])
-                    usage = data["usageMetadata"]
-                    input_tokens = usage["promptTokenCount"]
-                    output_tokens = usage['candidatesTokenCount']
-                else:
+                if "candidates" not in data:
                     is_error = True
-                    error_message = "No content in response."
-                
+                    if "promptFeedback" in data:
+                        error_message = "Prompt rejected. Feedback: " + str(data["promptFeedback"])
+                    else:
+                        error_message = "No candidates in response."
+                else:
+                    candidate = data["candidates"][0]
+                    finish_reason = candidate["finishReason"]
+                    if "content" in candidate:
+                        parts = candidate["content"]["parts"]
+                        completion = " ".join([part["text"] for part in parts])
+                        usage = data["usageMetadata"]
+                        input_tokens = usage["promptTokenCount"]
+                        output_tokens = usage['candidatesTokenCount']
+                    else:
+                        is_error = True
+                        error_message = "No content in response."
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}: {e.__class__} {e}"
