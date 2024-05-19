@@ -274,6 +274,12 @@ class GeminiRequest(APIRequestBase):
                         usage = data["usageMetadata"]
                         input_tokens = usage["promptTokenCount"]
                         output_tokens = usage['candidatesTokenCount']
+                    elif finish_reason == "RECITATION":
+                        is_error = True
+                        citations = candidate.get('citationMetadata', {}).get('citations', [])
+                        urls = ",".join([citation.get('uri', '') for citation in citations])
+                        error_message = "Finish reason RECITATION. URLS: " + urls
+                        retry_with_different_model = True
                     elif finish_reason == "OTHER":
                         is_error = True
                         error_message = "Finish reason OTHER."
