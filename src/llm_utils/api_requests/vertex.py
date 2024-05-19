@@ -274,6 +274,10 @@ class GeminiRequest(APIRequestBase):
                         usage = data["usageMetadata"]
                         input_tokens = usage["promptTokenCount"]
                         output_tokens = usage['candidatesTokenCount']
+                    elif finish_reason == "OTHER":
+                        is_error = True
+                        error_message = "Finish reason OTHER."
+                        retry_with_different_model = True
                     else:
                         print("Actual structure of response:")
                         print(data)
