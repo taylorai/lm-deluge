@@ -11,7 +11,6 @@ from ..sampling_params import SamplingParams
 from ..cache import SqliteCache
 from ..utils import count_tokens
 from ..models import APIModel
-from .common import create_api_request
 
 @dataclass
 class APIResponse:
@@ -312,3 +311,41 @@ class APIRequestBase(ABC):
     @abstractmethod
     def handle_response(self) -> APIResponse:
         raise NotImplementedError
+    
+def create_api_request(
+    request_class,
+    task_id: int,
+    model_name: str,
+    messages: list[dict], 
+    attempts_left: int,
+    status_tracker: StatusTracker,
+    retry_queue: asyncio.Queue,
+    request_timeout: int = 30,
+    sampling_params: SamplingParams = SamplingParams(),
+    cache: Optional[SqliteCache] = None,
+    pbar: Optional[tqdm] = None,
+    callback: Optional[Callable] = None,
+    debug: bool = False,
+    all_model_names: list[str] = None,
+    all_sampling_params: list[SamplingParams] = None,
+):
+    from .common import CLASSES # circular import so made it lazy, does this work?
+    model_obj = APIModel.from_registry(model_name)
+    request_class = CLASSES.get(model_obj.api_spec, None)
+    if request_class is None:
+        raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
+    return request_class(
+        task_id=task_id,
+        model_name=model_name,
+        messages=messages,
+        attempts_left=attempts_left,
+        status_tracker=status_tracker,
+        retry_queue=retry_queue,
+        request_timeout=request_timeout,
+        sampling_params=sampling_params,
+        cache=cache,
+        pbar=pbar,
+        callback=callback,
+        all_model_names=all_model_names,
+        all_sampling_params=all_sampling_params,
+    )
