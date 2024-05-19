@@ -9,7 +9,7 @@ from typing import Optional, Callable
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..cache import SqliteCache
-from ..tokenizer import count_tokens
+from ..utils import count_tokens
 from ..models import APIModel
 
 @dataclass
