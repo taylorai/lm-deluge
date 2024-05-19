@@ -226,7 +226,13 @@ class APIRequestBase(ABC):
                 while new_model_name == self.model_name:
                     new_model_idx = random.randint(0, len(self.all_model_names) - 1)
                     new_model_name = self.all_model_names[new_model_idx]
-                new_sampling_params = self.sampling_params[new_model_idx] if self.all_sampling_params is not None else self.sampling_params
+                
+                if isinstance(self.all_sampling_params, list):
+                    new_sampling_params = self.all_sampling_params[new_model_idx]
+                elif isinstance(self.all_sampling_params, SamplingParams):
+                    new_sampling_params = self.all_sampling_params
+                elif self.all_sampling_params is None:
+                    new_sampling_params = self.sampling_params
                 
                 print("Creating new request with model", new_model_name)
                 new_request = create_api_request(
