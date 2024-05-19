@@ -236,6 +236,7 @@ class APIRequestBase(ABC):
                 
                 print("Creating new request with model", new_model_name)
                 new_request = create_api_request(
+                    task_id=self.task_id,
                     model_name=new_model_name,
                     messages=self.messages,
                     attempts_left=self.attempts_left,
