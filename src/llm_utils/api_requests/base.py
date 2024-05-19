@@ -130,6 +130,8 @@ class APIRequestBase(ABC):
         all_model_names: list[str] = None,
         all_sampling_params: list[SamplingParams] = None,
     ):
+        if all_model_names is None:
+            raise ValueError("all_model_names must be provided.")
         self.task_id = task_id
         self.model_name = model_name
         self.system_prompt = None
@@ -239,6 +241,9 @@ class APIRequestBase(ABC):
                     pbar=self.pbar,
                     callback=self.callback,
                     result=self.result,
+                    debug=self.debug,
+                    all_model_names=self.all_model_names,
+                    all_sampling_params=self.all_sampling_params,
                 )
                 self.retry_queue.put_nowait(new_request)
         else:

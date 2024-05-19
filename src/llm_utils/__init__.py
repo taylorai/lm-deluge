@@ -450,7 +450,9 @@ async def process_api_prompts_async(
                         retry_queue=retry_queue,
                         sampling_params=sampling_params[model_idx],
                         pbar=progress_bar,
-                        debug=debug
+                        debug=debug,
+                        all_model_names=models,
+                        all_sampling_params=sampling_params
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1
