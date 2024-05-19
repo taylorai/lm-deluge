@@ -240,7 +240,7 @@ class GeminiRequest(APIRequestBase):
             "safetySettings": [
                 {
                     "category": category,
-                    "threshold": "BLOCK_NONE"
+                    "threshold": "BLOCK_ONLY_HIGH" # might not be allowed
                 } for category in SAFETY_SETTING_CATEGORIES
             ] # TODO: turn this off later lol
         }
@@ -277,6 +277,10 @@ class GeminiRequest(APIRequestBase):
                     elif finish_reason == "OTHER":
                         is_error = True
                         error_message = "Finish reason OTHER."
+                        retry_with_different_model = True
+                    elif finish_reason == "SAFETY":
+                        is_error = True
+                        error_message = "Finish reason SAFETY."
                         retry_with_different_model = True
                     else:
                         print("Actual structure of response:")
