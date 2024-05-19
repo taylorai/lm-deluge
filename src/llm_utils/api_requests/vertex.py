@@ -253,7 +253,7 @@ class GeminiRequest(APIRequestBase):
             try:
                 data = await response.json()
                 candidate = data["candidates"][0]
-                finish_reason = candidate["finishReason"]
+                finish_reason = candidate.get("finishReason", None)
                 if "content" in candidate:
                     parts = candidate["content"]["parts"]
                     completion = " ".join([part["text"] for part in parts])
