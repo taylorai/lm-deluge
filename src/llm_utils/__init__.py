@@ -243,13 +243,15 @@ class LLMClient:
         self,
         prompts: Union[list[str], list[list[dict]]],
         return_completions_only: bool = False,
-        show_progress=True
+        show_progress=True,
+        dry_run=False
     ):
         return asyncio.run(
             self.process_prompts_async(
                 prompts=prompts,
                 return_completions_only=return_completions_only,
                 show_progress=show_progress,
+                dry_run=dry_run
             )
         )
             
