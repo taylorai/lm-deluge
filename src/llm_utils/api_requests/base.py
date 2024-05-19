@@ -128,7 +128,7 @@ class APIRequestBase(ABC):
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
         debug: bool = False,
-        all_model_options: list[str] = None,
+        all_model_names: list[str] = None,
         all_sampling_params: list[SamplingParams] = None,
     ):
         self.task_id = task_id
@@ -146,7 +146,7 @@ class APIRequestBase(ABC):
         self.num_tokens = count_tokens(messages, sampling_params.max_new_tokens)
         self.result = [] if result is None else result
         self.debug = debug
-        self.all_model_options = all_model_options
+        self.all_model_names = all_model_names
         self.all_sampling_params = all_sampling_params
 
         # these should be set in the __init__ of the subclass
@@ -215,7 +215,7 @@ class APIRequestBase(ABC):
                 return
             else:
                 # make sure we have another model to send it to besides the current one
-                if self.all_model_options is None or len(self.all_model_options) < 2:
+                if self.all_model_names is None or len(self.all_model_names) < 2:
                     print(f"No other models to try for task {self.task_id}.")
                     self.status_tracker.num_tasks_in_progress -= 1
                     self.status_tracker.num_tasks_failed += 1
@@ -223,8 +223,8 @@ class APIRequestBase(ABC):
                 # two things to change: model_name and sampling_params
                 new_model_name = self.model_name
                 while new_model_name == self.model_name:
-                    new_model_idx = random.randint(0, len(self.all_model_options) - 1)
-                    new_model_name = self.all_model_options[new_model_idx]
+                    new_model_idx = random.randint(0, len(self.all_model_names) - 1)
+                    new_model_name = self.all_model_names[new_model_idx]
                 new_sampling_params = self.sampling_params[new_model_idx] if self.all_sampling_params is not None else self.sampling_params
                 
                 print("Creating new request with model", new_model_name)
