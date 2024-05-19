@@ -269,6 +269,8 @@ class GeminiRequest(APIRequestBase):
                         input_tokens = usage["promptTokenCount"]
                         output_tokens = usage['candidatesTokenCount']
                     else:
+                        print("Actual structure of response:")
+                        print(data)
                         is_error = True
                         error_message = "No content in response."
             except Exception as e:
