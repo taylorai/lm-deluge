@@ -313,7 +313,6 @@ class APIRequestBase(ABC):
         raise NotImplementedError
     
 def create_api_request(
-    request_class,
     task_id: int,
     model_name: str,
     messages: list[dict], 
