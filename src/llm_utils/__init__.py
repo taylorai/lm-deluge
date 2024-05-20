@@ -555,8 +555,8 @@ class RemoteLLMClient:
     ):
         self.client = ModalLLMClient(
             model_names=model_names,
-            max_requests_per_minute=max_requests_per_minute // self.max_concurrent_containers,
-            max_tokens_per_minute=max_tokens_per_minute // self.max_concurrent_containers,
+            max_requests_per_minute=max_requests_per_minute,
+            max_tokens_per_minute=max_tokens_per_minute,
             sampling_params=sampling_params,
             model_weights=model_weights,
             max_attempts=max_attempts,
