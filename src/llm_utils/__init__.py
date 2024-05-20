@@ -13,6 +13,7 @@ from .models import registry
 from .api_requests.base import APIResponse
 from .utils import instructions_to_message_lists, dry_run
 from .api_requests import create_api_request
+from .cache import Cache
 ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
 
 # TODO: dry run to estimate costs
@@ -60,8 +61,7 @@ class ClientConfig:
             "sampling_params": sp,
             "model_weights": self.model_weights
         }
-        
-   
+
 class LLMClient:
     """
     LLMClient abstracts all the fixed arguments to process_prompts_async, so you can create it
@@ -80,6 +80,8 @@ class LLMClient:
         request_timeout: int = 30,
         use_qps: bool = False,
         debug: bool = False,
+        use_cache: bool = False,
+        cache_file: Optional[str] = None
     ):
         self.models = model_names
         if isinstance(sampling_params, SamplingParams):
@@ -104,6 +106,8 @@ class LLMClient:
         self.request_timeout = request_timeout
         self.use_qps = use_qps
         self.debug = debug
+        if use_cache:
+            self.cache = Cache(cache_file)
 
     @classmethod
     def from_config(cls, config: ClientConfig):
@@ -159,22 +163,39 @@ class LLMClient:
             prompts = instructions_to_message_lists(prompts)
         ids = np.arange(len(prompts))
 
+        # if using cache, check for cached completions
+        if self.cache:
+            cached_results = [
+                self.cache.get(prompt) for prompt in prompts
+            ]
+            cache_hit_ids = [id for id, res in zip(ids, cached_results) if res is not None]
+            cache_hit_results = [res for res in cached_results if res is not None]
+            print(f"{len(cache_hit_ids)} cache hits from previous completions.")
+
+            remaining_prompts = [prompts[i] for i in range(len(prompts)) if i not in cache_hit_ids]
+            remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
+
+        else:
+            cache_hit_ids = []
+            cache_hit_results = []
+            remaining_prompts = prompts
+            remaining_ids = ids
+
         # set up progress bar
-        pbar = tqdm(total=len(prompts), disable=(not show_progress))
+        pbar = tqdm(total=len(remaining_prompts), disable=(not show_progress))
 
         # split prompts between api and modal
         modal_weight = sum([
             self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"
         ])
-        modal_ids = np.random.binomial(1, modal_weight, size=len(prompts)).astype(bool)
-        modal_ids = ids[modal_ids].tolist()
-        api_ids = [i for i in ids if i not in modal_ids]
+        modal_ids = np.random.binomial(1, modal_weight, size=len(remaining_ids)).astype(bool)
+        modal_ids = remaining_ids[modal_ids]
+        api_ids = remaining_ids[~modal_ids]
         print(f"Processing {len(modal_ids)} modal prompts and {len(api_ids)} api prompts.")
 
-
         # decide which prompts go to which models
-        modal_prompts = [prompts[i] for i in modal_ids]
-        api_prompts = [prompts[i] for i in api_ids]
+        modal_prompts = [prompts[i] for i in modal_ids] # indexes into original prompts
+        api_prompts = [prompts[i] for i in api_ids] # indexes into original prompts
         modal_models = [model for model in self.models if registry[model]["api_spec"] == "modal"]
         modal_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"]
         modal_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"]
@@ -193,7 +214,8 @@ class LLMClient:
                 request_timeout=self.request_timeout,
                 progress_bar=pbar,
                 use_qps=self.use_qps,
-                debug=self.debug
+                debug=self.debug,
+                cache=self.cache
             )
             print("Dry run results for API models (does not include Modal):")
             print(results)
@@ -233,6 +255,10 @@ class LLMClient:
             results[res.id] = res
         for res in api_results:
             results[res.id] = res
+
+        # add cache hits back in
+        for id, res in zip(cache_hit_ids, cache_hit_results):
+            results[id] = res
         
         if return_completions_only:
             results = [r.completion for r in results]

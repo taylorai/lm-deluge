@@ -7,7 +7,6 @@ from .openai import OpenAIRequest
 from .mistral import MistralRequest
 from .cohere import CohereRequest
 from ..tracker import StatusTracker
-from ..cache import SqliteCache
 from ..sampling_params import SamplingParams
 from ..models import APIModel
 

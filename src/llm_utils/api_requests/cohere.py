@@ -11,7 +11,6 @@ from typing import Optional, Callable
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
-from ..cache import SqliteCache
 from ..models import APIModel
 
 def remap_messages_to_cohere(messages: list[dict]) -> list[dict]:
@@ -36,7 +35,6 @@ class CohereRequest(APIRequestBase):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
@@ -53,7 +51,6 @@ class CohereRequest(APIRequestBase):
             retry_queue=retry_queue,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            cache=cache,
             pbar=pbar,
             callback=callback,
             result=result,
