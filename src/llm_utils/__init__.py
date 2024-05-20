@@ -187,7 +187,10 @@ class LLMClient:
             remaining_ids = ids
 
         # set up progress bar
-        pbar = tqdm(total=len(remaining_prompts), disable=(not show_progress))
+        pbar = tqdm(total=len(prompts), disable=(not show_progress))
+
+        # update progress bar with cache hits
+        pbar.update(len(cache_hit_ids))
 
         # split prompts between api and modal
         modal_weight = sum([
