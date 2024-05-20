@@ -572,7 +572,7 @@ class RemoteLLMClient:
         show_progress=True
     ):
         import asyncio
-        return asyncio.run(
+        asyncio.run(
             self.process_prompts_async(
                 prompts=prompts,
                 return_completions_only=return_completions_only,
@@ -587,15 +587,8 @@ class RemoteLLMClient:
         show_progress=True
     ):
         from .api_requests.base import APIResponse
-        # use all available containers to process prompts
-        responses = []
-        for output in self.client.process_prompts.remote(prompts):
-            responses.append(output)
-        responses = [APIResponse.from_dict(d) for d in responses]
-
-        if return_completions_only:
-            return [r.completion for r in responses]
-        return responses
+        out_file = self.client.process_prompts.remote(prompts)
+        print("Job complete. Download file at: ", out_file)
     
     @classmethod
     def from_config(cls, config: ClientConfig):
