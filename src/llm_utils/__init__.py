@@ -27,6 +27,8 @@ class ClientConfig:
     request_timeout: int
     sampling_params: Union[SamplingParams, list[SamplingParams]]
     model_weights: Union[list[float], Literal["uniform", "rate_limit"]]
+    use_cache: bool = False
+    cache_file: Optional[str] = None
 
     @classmethod
     def from_dict(cls, config_dict: dict):
@@ -59,7 +61,9 @@ class ClientConfig:
             "max_attempts": self.max_attempts,
             "request_timeout": self.request_timeout,
             "sampling_params": sp,
-            "model_weights": self.model_weights
+            "model_weights": self.model_weights,
+            "use_cache": self.use_cache,
+            "cache_file": self.cache_file
         }
 
 class LLMClient:
@@ -118,7 +122,9 @@ class LLMClient:
             sampling_params=config.sampling_params,
             model_weights=config.model_weights,
             max_attempts=config.max_attempts,
-            request_timeout=config.request_timeout
+            request_timeout=config.request_timeout,
+            use_cache=config.use_cache,
+            cache_file=config.cache_file
         )
 
     @classmethod
@@ -128,15 +134,17 @@ class LLMClient:
         )
     
     @classmethod
-    def basic(cls, model: str):
+    def basic(cls, model: str, cache_file: Optional[str] = None):
         return cls(
             model_names=[model],
-            max_requests_per_minute=1_000,
-            max_tokens_per_minute=500_000,
+            max_requests_per_minute=5_000,
+            max_tokens_per_minute=1_000_000,
             sampling_params=SamplingParams(temperature=0.75, max_new_tokens=1000),
             model_weights="uniform",
             max_attempts=5,
-            request_timeout=30
+            request_timeout=30,
+            use_cache=(cache_file is not None),
+            cache_file=cache_file
         )
     
     @property
