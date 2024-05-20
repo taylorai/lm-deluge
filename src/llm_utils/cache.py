@@ -94,7 +94,7 @@ class SqliteCache:
         key = hash_messages(messages)
         self.cursor.execute("SELECT value FROM cache WHERE key=?", (key,))
         data = self.cursor.fetchone()
-        if data is not None:
+        if data is not None and len(data) > 0:
             return decode_api_response(data[0])
         return None
     
