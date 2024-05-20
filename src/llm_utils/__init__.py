@@ -174,8 +174,8 @@ class LLMClient:
             cache_hit_results = [res for res in cached_results if res is not None]
             print(f"{len(cache_hit_ids)} cache hits from previous completions.")
 
-            remaining_prompts = [prompts[i] for i in range(len(prompts)) if i not in cache_hit_ids]
             remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
+            remaining_prompts = [p for i, p in enumerate(prompts) if i not in cache_hit_ids]
 
         else:
             cache_hit_ids = []
