@@ -259,8 +259,14 @@ class LLMClient:
         results = [None for _ in range(len(prompts))]
         for res in modal_results:
             results[res.id] = res
+            # set to cache if result has a completion
+            if self.cache and res.completion:
+                self.cache.put(prompts[res.id], res)
         for res in api_results:
             results[res.id] = res
+            # set to cache if result has a completion
+            if self.cache and res.completion:
+                self.cache.put(prompts[res.id], res)
 
         # add cache hits back in
         for id, res in zip(cache_hit_ids, cache_hit_results):
