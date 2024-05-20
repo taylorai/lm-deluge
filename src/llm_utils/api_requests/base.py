@@ -189,38 +189,38 @@ class APIRequestBase(ABC):
                     print(f"No other models to try for task {self.task_id}.")
                     self.status_tracker.num_tasks_in_progress -= 1
                     self.status_tracker.num_tasks_failed += 1
-
-                # two things to change: model_name and sampling_params
-                new_model_name = self.model_name
-                while new_model_name == self.model_name:
-                    new_model_idx = random.randint(0, len(self.all_model_names) - 1)
-                    new_model_name = self.all_model_names[new_model_idx]
-                
-                if isinstance(self.all_sampling_params, list):
-                    new_sampling_params = self.all_sampling_params[new_model_idx]
-                elif isinstance(self.all_sampling_params, SamplingParams):
-                    new_sampling_params = self.all_sampling_params
-                elif self.all_sampling_params is None:
-                    new_sampling_params = self.sampling_params
-                
-                print("Creating new request with model", new_model_name)
-                new_request = create_api_request(
-                    task_id=self.task_id,
-                    model_name=new_model_name,
-                    messages=self.messages,
-                    attempts_left=self.attempts_left,
-                    status_tracker=self.status_tracker,
-                    retry_queue=self.retry_queue,
-                    request_timeout=self.request_timeout,
-                    sampling_params=new_sampling_params,
-                    pbar=self.pbar,
-                    callback=self.callback,
-                    result=self.result,
-                    debug=self.debug,
-                    all_model_names=self.all_model_names,
-                    all_sampling_params=self.all_sampling_params,
-                )
-                self.retry_queue.put_nowait(new_request)
+                else:
+                    # two things to change: model_name and sampling_params
+                    new_model_name = self.model_name
+                    while new_model_name == self.model_name:
+                        new_model_idx = random.randint(0, len(self.all_model_names) - 1)
+                        new_model_name = self.all_model_names[new_model_idx]
+                    
+                    if isinstance(self.all_sampling_params, list):
+                        new_sampling_params = self.all_sampling_params[new_model_idx]
+                    elif isinstance(self.all_sampling_params, SamplingParams):
+                        new_sampling_params = self.all_sampling_params
+                    elif self.all_sampling_params is None:
+                        new_sampling_params = self.sampling_params
+                    
+                    print("Creating new request with model", new_model_name)
+                    new_request = create_api_request(
+                        task_id=self.task_id,
+                        model_name=new_model_name,
+                        messages=self.messages,
+                        attempts_left=self.attempts_left,
+                        status_tracker=self.status_tracker,
+                        retry_queue=self.retry_queue,
+                        request_timeout=self.request_timeout,
+                        sampling_params=new_sampling_params,
+                        pbar=self.pbar,
+                        callback=self.callback,
+                        result=self.result,
+                        debug=self.debug,
+                        all_model_names=self.all_model_names,
+                        all_sampling_params=self.all_sampling_params,
+                    )
+                    self.retry_queue.put_nowait(new_request)
         else:
             print(f"Task {self.task_id} out of tries.")
             self.status_tracker.num_tasks_in_progress -= 1
