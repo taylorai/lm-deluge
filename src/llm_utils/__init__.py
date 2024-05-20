@@ -175,7 +175,7 @@ class LLMClient:
             print(f"{len(cache_hit_ids)} cache hits from previous completions.")
 
             remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
-            remaining_prompts = [p for i, p in enumerate(prompts) if i not in cache_hit_ids]
+            remaining_prompts = [prompts[i] for i in remaining_ids]
 
         else:
             cache_hit_ids = []
@@ -183,6 +183,7 @@ class LLMClient:
             remaining_prompts = prompts
             remaining_ids = ids
 
+        print(f"Processing {len(remaining_prompts)} prompts.")
         # set up progress bar
         pbar = tqdm(total=len(remaining_prompts), disable=(not show_progress))
 
@@ -193,7 +194,7 @@ class LLMClient:
         modal_ids = np.random.binomial(1, modal_weight, size=len(remaining_ids)).astype(bool)
         modal_ids = remaining_ids[modal_ids]
         api_ids = remaining_ids[~modal_ids]
-        print(f"Processing {len(modal_ids)} modal prompts and {len(api_ids)} api prompts.")
+        print(f"Split into {len(modal_ids)} Modal prompts and {len(api_ids)} api prompts.")
 
         # decide which prompts go to which models
         modal_prompts = [prompts[i] for i in modal_ids] # indexes into original prompts
