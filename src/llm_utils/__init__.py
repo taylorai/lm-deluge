@@ -250,6 +250,7 @@ class LLMClient:
             api_results = await api_task
         else:
             api_results = []
+            
         results = [None for _ in range(len(prompts))]
         for res in modal_results:
             results[res.id] = res
