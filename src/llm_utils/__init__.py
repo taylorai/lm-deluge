@@ -16,7 +16,8 @@ from .api_requests import create_api_request
 from .cache import LevelDBCache, SqliteCache
 ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
 
-# TODO: dry run to estimate costs
+# TODO: get completions as they finish, not all at once at the end.
+# relatedly, would be nice to cache them as they finish too.
 
 @dataclass
 class ClientConfig:
