@@ -13,7 +13,7 @@ from .models import registry
 from .api_requests.base import APIResponse
 from .utils import instructions_to_message_lists, dry_run
 from .api_requests import create_api_request
-from .cache import Cache
+from .cache import LevelDBCache, SqliteCache
 ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
 
 # TODO: dry run to estimate costs
@@ -27,8 +27,7 @@ class ClientConfig:
     request_timeout: int
     sampling_params: Union[SamplingParams, list[SamplingParams]]
     model_weights: Union[list[float], Literal["uniform", "rate_limit"]]
-    use_cache: bool = False
-    cache_file: Optional[str] = None
+    cache: Optional[Union[LevelDBCache, SqliteCache]] = None
 
     @classmethod
     def from_dict(cls, config_dict: dict):
@@ -61,9 +60,7 @@ class ClientConfig:
             "max_attempts": self.max_attempts,
             "request_timeout": self.request_timeout,
             "sampling_params": sp,
-            "model_weights": self.model_weights,
-            "use_cache": self.use_cache,
-            "cache_file": self.cache_file
+            "model_weights": self.model_weights
         }
 
 class LLMClient:
@@ -84,8 +81,7 @@ class LLMClient:
         request_timeout: int = 30,
         use_qps: bool = False,
         debug: bool = False,
-        use_cache: bool = False,
-        cache_file: Optional[str] = None
+        cache: Optional[Union[LevelDBCache, SqliteCache]] = None
     ):
         self.models = model_names
         if isinstance(sampling_params, SamplingParams):
@@ -110,11 +106,10 @@ class LLMClient:
         self.request_timeout = request_timeout
         self.use_qps = use_qps
         self.debug = debug
-        if use_cache:
-            self.cache = Cache(cache_file)
+        self.cache = cache
 
     @classmethod
-    def from_config(cls, config: ClientConfig):
+    def from_config(cls, config: ClientConfig, cache: Optional[Union[LevelDBCache, SqliteCache]] = None):
         return cls(
             model_names=config.model_names,
             max_requests_per_minute=config.max_requests_per_minute,
@@ -123,18 +118,18 @@ class LLMClient:
             model_weights=config.model_weights,
             max_attempts=config.max_attempts,
             request_timeout=config.request_timeout,
-            use_cache=config.use_cache,
-            cache_file=config.cache_file
+            cache=cache
         )
 
     @classmethod
-    def from_yaml(cls, file_path: str):
+    def from_yaml(cls, file_path: str, cache: Optional[Union[LevelDBCache, SqliteCache]] = None):
         return cls.from_config(
-            ClientConfig.from_yaml(file_path)
+            ClientConfig.from_yaml(file_path),
+            cache=cache
         )
     
     @classmethod
-    def basic(cls, model: str, cache_file: Optional[str] = None):
+    def basic(cls, model: str, cache: Optional[Union[LevelDBCache, SqliteCache]] = None):
         return cls(
             model_names=[model],
             max_requests_per_minute=5_000,
@@ -143,8 +138,7 @@ class LLMClient:
             model_weights="uniform",
             max_attempts=5,
             request_timeout=30,
-            use_cache=(cache_file is not None),
-            cache_file=cache_file
+            cache=cache
         )
     
     @property
