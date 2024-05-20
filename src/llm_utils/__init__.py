@@ -172,10 +172,13 @@ class LLMClient:
             ]
             cache_hit_ids = [id for id, res in zip(ids, cached_results) if res is not None]
             cache_hit_results = [res for res in cached_results if res is not None]
+            assert len(cache_hit_ids) == len(cache_hit_results), "Cache hit ids and results must be the same length."
             print(f"{len(cache_hit_ids)} cache hits from previous completions.")
 
             remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
+            print(f"{len(remaining_ids)} prompts remaining after cache hits.")
             remaining_prompts = [prompts[i] for i in remaining_ids]
+            print(f"Processing {len(remaining_prompts)} prompts.")
 
         else:
             cache_hit_ids = []
@@ -183,7 +186,6 @@ class LLMClient:
             remaining_prompts = prompts
             remaining_ids = ids
 
-        print(f"Processing {len(remaining_prompts)} prompts.")
         # set up progress bar
         pbar = tqdm(total=len(remaining_prompts), disable=(not show_progress))
 
