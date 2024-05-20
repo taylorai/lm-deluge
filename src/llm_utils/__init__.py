@@ -551,12 +551,8 @@ class RemoteLLMClient:
         max_attempts: int = 5,
         request_timeout: int = 30,
         use_qps: bool = False,
-        debug: bool = False,
-        chunk_size: int = 10_000,
-        max_concurrent_containers: int = 5
+        debug: bool = False
     ):
-        self.chunk_size = chunk_size
-        self.max_concurrent_containers = max_concurrent_containers
         self.client = ModalLLMClient(
             model_names=model_names,
             max_requests_per_minute=max_requests_per_minute // self.max_concurrent_containers,
@@ -584,7 +580,6 @@ class RemoteLLMClient:
             )
         )
         
-    
     async def process_prompts_async(
         self,
         prompts: Union[list[str], list[list[dict]]],
@@ -593,17 +588,9 @@ class RemoteLLMClient:
     ):
         from .api_requests.base import APIResponse
         # use all available containers to process prompts
-        chunk_size = min(self.chunk_size, len(prompts) // self.max_concurrent_containers + 1)
-        chunks = [
-            prompts[i:i+chunk_size] for i in range(0, len(prompts), chunk_size)
-        ]
         responses = []
-        outputs = self.client.process_prompts.map(chunks)
-        pbar = tqdm(total=len(prompts), disable=(not show_progress))
-        async for chunk in outputs:
-            responses.extend(chunk)
-            pbar.update(len(chunk))
-        
+        for output in self.client.process_prompts.remote(prompts):
+            responses.append(output)
         responses = [APIResponse.from_dict(d) for d in responses]
 
         if return_completions_only:
