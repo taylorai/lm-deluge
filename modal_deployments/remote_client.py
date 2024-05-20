@@ -66,4 +66,6 @@ class ModalLLMClient:
             lines=True
         )
         vol.commit()
-        return "Saved to " + filename
+        print("Saved to " + filename)
+
+        return result_jsons
