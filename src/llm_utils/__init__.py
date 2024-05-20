@@ -193,9 +193,9 @@ class LLMClient:
         modal_weight = sum([
             self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"
         ])
-        modal_ids = np.random.binomial(1, modal_weight, size=len(remaining_ids)).astype(bool)
-        modal_ids = remaining_ids[modal_ids]
-        api_ids = remaining_ids[~modal_ids]
+        modal_ids_mask = np.random.binomial(1, modal_weight, size=len(remaining_ids)).astype(bool)
+        modal_ids = remaining_ids[modal_ids_mask]
+        api_ids = remaining_ids[~modal_ids_mask]
         print(f"Split into {len(modal_ids)} Modal prompts and {len(api_ids)} api prompts.")
 
         # decide which prompts go to which models
