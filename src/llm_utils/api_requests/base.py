@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 from typing import Optional, Callable
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
-from ..cache import SqliteCache
 from ..utils import count_tokens
 from ..models import APIModel
 
@@ -122,7 +121,6 @@ class APIRequestBase(ABC):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
@@ -141,7 +139,6 @@ class APIRequestBase(ABC):
         self.retry_queue = retry_queue
         self.request_timeout = request_timeout
         self.sampling_params = sampling_params
-        self.cache = cache
         self.pbar = pbar
         self.callback = callback
         self.num_tokens = count_tokens(messages, sampling_params.max_new_tokens)
@@ -158,47 +155,19 @@ class APIRequestBase(ABC):
     def increment_pbar(self):
         if self.pbar is not None:
             self.pbar.update(1)
-
-    def set_cache(self, data: APIResponse):
-        # cache key should be specific to model & messages (for now)
-        if self.cache is None:
-            return
-        metadata = {
-            "model": self.model_name,
-            "messages": self.messages,
-        }
-        key = json.dumps(metadata)
-        self.cache.set_to_cache(key, json.dumps(data.to_dict()))
-                    
-    def check_cache(self):
-        if self.cache is not None:
-            cached_result = self.cache.get_from_cache(self.messages)
-            if cached_result:
-                self.result.append(
-                    APIResponse.from_dict(
-                        json.loads(cached_result)
-                    )
-                )
-                return True
-        return False
     
     def call_callback(self):
         if self.callback is not None:
-            self.callback(
-                self.task_id,
-                self.messages,
-                self.result[-1],
-                self.status_tracker,
-            )
+            # the APIResponse in self.result includes all the information
+            self.callback(self.result[-1], self.status_tracker)
 
     def handle_success(self, data):
         self.call_callback()
         self.increment_pbar()    
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
-        self.set_cache(data)
 
-    # TODO: actually use this. should just require the response object to set
+    # TODO: actually use create_new_request. should just require the response object to set
     # the retry_with_different_model flag in the relevant cases
     def handle_error(self, create_new_request = False):
         """
@@ -244,7 +213,6 @@ class APIRequestBase(ABC):
                     retry_queue=self.retry_queue,
                     request_timeout=self.request_timeout,
                     sampling_params=new_sampling_params,
-                    cache=self.cache,
                     pbar=self.pbar,
                     callback=self.callback,
                     result=self.result,
@@ -259,14 +227,6 @@ class APIRequestBase(ABC):
             self.status_tracker.num_tasks_failed += 1 
 
     async def call_api(self):
-        if self.check_cache():
-            self.increment_pbar()
-            self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_succeeded += 1
-            self.call_callback()
-            return
-        
-        # if not in cache, call the API
         try:
             self.status_tracker.total_requests += 1
             timeout = aiohttp.ClientTimeout(total=self.request_timeout)
@@ -333,7 +293,6 @@ def create_api_request(
     retry_queue: asyncio.Queue,
     request_timeout: int = 30,
     sampling_params: SamplingParams = SamplingParams(),
-    cache: Optional[SqliteCache] = None,
     pbar: Optional[tqdm] = None,
     callback: Optional[Callable] = None,
     result: Optional[list] = None,
@@ -355,7 +314,6 @@ def create_api_request(
         retry_queue=retry_queue,
         request_timeout=request_timeout,
         sampling_params=sampling_params,
-        cache=cache,
         pbar=pbar,
         callback=callback,
         all_model_names=all_model_names,

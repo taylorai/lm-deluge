@@ -11,7 +11,6 @@ from typing import Optional, Callable
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
-from ..cache import SqliteCache
 from ..models import APIModel
 
 from google.oauth2 import service_account
@@ -49,7 +48,6 @@ class VertexAnthropicRequest(APIRequestBase):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
@@ -64,7 +62,6 @@ class VertexAnthropicRequest(APIRequestBase):
             retry_queue=retry_queue,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            cache=cache,
             pbar=pbar,
             callback=callback,
             result=result,
@@ -174,7 +171,6 @@ class GeminiRequest(APIRequestBase):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        cache: Optional[SqliteCache] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
@@ -191,7 +187,6 @@ class GeminiRequest(APIRequestBase):
             retry_queue=retry_queue,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            cache=cache,
             pbar=pbar,
             callback=callback,
             result=result,

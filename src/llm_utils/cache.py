@@ -1,89 +1,84 @@
-import sqlite3
-import xxhash
+import tempfile
 import json
-from dataclasses import dataclass
+import xxhash
+from typing import Optional
+from .api_requests.base import APIResponse
 
-@dataclass
-class SqliteCache:
+try:
+    import plyvel
+except ImportError:
+    plyvel = None
+    print("Warning: plyvel not installed, using in-memory cache.")
+
+def hash_messages(messages: list[dict]) -> str:
     """
-    Cache class to avoid re-computing completions on the same prompt.
-    Use InstructStore or MessageStore if you want to just save inputs/outputs without hashing
-    (e.g. to store data for fine-tuning or inspection).
+    Hash a list of messages.
     """
-    path: str
+    hasher = xxhash.xxh64()
+    hasher.update(json.dumps(messages).encode())
+    return hasher.hexdigest()
 
-    def __post_init__(self):
-        self.conn = sqlite3.connect(self.path)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS cache (hash TEXT PRIMARY KEY, content TEXT)"
-        )
-        self.conn.commit()
-
-    @staticmethod
-    def get_hash(messages):
-        hasher = xxhash.xxh64()
-        hasher.update(json.dumps(messages).encode())
-        hash_key = hasher.hexdigest()
-        return hash_key
-
-    def get_from_cache(self, messages):
-        hash_key = self.get_hash(messages)
-        self.cursor.execute("SELECT content FROM cache WHERE hash=?", (hash_key,))
-        return self.cursor.fetchone()
-
-    def set_to_cache(self, messages, content):
-        hash_key = self.get_hash(messages)
-        try:
-            self.cursor.execute(
-                "INSERT INTO cache (hash, content) VALUES (?, ?)", (hash_key, content)
-            )
-        # if failed due to unique constraint, update instead
-        except sqlite3.IntegrityError:
-            self.cursor.execute(
-                "UPDATE cache SET content=? WHERE hash=?", (content, hash_key)
-            )
-        except Exception as e:
-            print(f"Error setting cache: {e}")
-        self.conn.commit()
-
-@dataclass
-class InstructStore:
+def encode_api_response(response: APIResponse) -> bytes:
     """
-    Store class to save (input_text, output_text) without hashing.
-    Use SqliteCache if you want to cache completions based on the prompt.
+    Encode an API response as a string.
     """
-    path: str
+    return json.dumps(response.to_dict()).encode()
 
-    def __post_init__(self):
-        self.conn = sqlite3.connect(self.path)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS store (id INTEGER PRIMARY KEY, inputs TEXT, outputs TEXT)"
-        )
-        self.conn.commit()
-
-    def get_from_store(self, inputs):
-        self.cursor.execute("SELECT outputs FROM store WHERE inputs=?", (inputs,))
-        return self.cursor.fetchone()
-
-    def set_to_store(self, inputs, outputs):
-        try:
-            self.cursor.execute(
-                "INSERT INTO store (inputs, outputs) VALUES (?, ?)", (inputs, outputs)
-            )
-        # if failed due to unique constraint, update instead
-        except sqlite3.IntegrityError:
-            self.cursor.execute(
-                "UPDATE store SET outputs=? WHERE inputs=?", (outputs, inputs)
-            )
-        except Exception as e:
-            print(f"Error setting store: {e}")
-        self.conn.commit()
-
-@dataclass
-class MessageStore:
+def decode_api_response(data: bytes) -> APIResponse:
     """
-    Store class to save (input_messages, output_text) without hashing.
-    Use SqliteCache if you want to cache completions based on the prompt.
+    Decode an API response from a string.
     """
+    return APIResponse.from_dict(json.loads(data.decode()))
+
+class Cache:
+    """
+    Store API responses based on their input messages.
+    """
+    def __init__(self, path: Optional[str] = None):
+        if path is None:
+            self.temp_file = tempfile.TemporaryFile(suffix=".db")
+            path = self.temp_file.name
+            print(f"Using temporary cache at {path}")
+        else:
+            self.temp_file = None
+        self.path = path
+        if plyvel is not None:
+            self.db = plyvel.DB(path, create_if_missing=True)
+        else:
+            self.db = {}
+
+    def get(self, messages: list[dict]) -> APIResponse:
+        """
+        Get an API response from the cache.
+        """
+        key = hash_messages(messages)
+        if plyvel is not None:
+            data = self.db.get(key.encode())
+            if data is not None:
+                return decode_api_response(data)
+        else:
+            data = self.db.get(key.encode()) # use the same key for in-memory cache
+            if data is not None:
+                return decode_api_response(data)
+        return None
+    
+    def put(self, messages: list[dict], response: APIResponse):
+        """
+        Put an API response into the cache.
+        """
+        key = hash_messages(messages)
+        if plyvel is not None:
+            self.db.put(key.encode(), encode_api_response(response))
+        else:
+            self.db[key.encode()] = encode_api_response(response)
+
+    def close(self):
+        """
+        Close the cache.
+        """
+        if plyvel is not None:
+            self.db.close()
+        else:
+            self.db = {}
+        if self.temp_file is not None:
+            self.temp_file.close()
