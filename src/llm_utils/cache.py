@@ -2,7 +2,7 @@ import tempfile
 import json
 import sqlite3
 import xxhash
-from typing import Optional
+from typing import Optional, Any
 from .api_requests.base import APIResponse
 
 try:
@@ -30,6 +30,33 @@ def decode_api_response(data: bytes) -> APIResponse:
     Decode an API response from a string.
     """
     return APIResponse.from_dict(json.loads(data.decode()))
+
+class DistributedDictCache:
+    """
+    Use distributed dictionary (e.g. Modal Dict) as a cache.
+    Pass in the dictionary object to use. Cache must implement
+    'get' and 'put' methods.
+    """
+    def __init__(self, cache: Any):
+        self.cache = cache
+
+    def get(self, messages: list[dict]) -> APIResponse:
+        """
+        Get an API response from the cache.
+        """
+        data = self.cache.get(hash_messages(messages))
+        if data is not None:
+            return decode_api_response(data)
+        return None
+    
+    def put(self, messages: list[dict], response: APIResponse):
+        """
+        Put an API response into the cache.
+        """
+        self.cache.put(
+            hash_messages(messages),
+            encode_api_response(response)
+        )
 
 class LevelDBCache:
     """
