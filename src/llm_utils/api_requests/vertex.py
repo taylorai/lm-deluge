@@ -314,7 +314,11 @@ class GeminiRequest(APIRequestBase):
         old_region = self.region
         if is_error:
             # change the region in case error is due to region unavailability
-            self.region = random.choice(self.model.regions)
+            region_keys = list(self.model.regions.keys())
+            region_counts = list(self.model.regions.values())
+            self.region = random.sample(
+                region_keys, 1, counts=region_counts
+            )[0]
             self.url = f"https://{self.region}-aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{self.region}/publishers/google/models/{self.model.name}:generateContent"
 
 
