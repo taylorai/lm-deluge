@@ -235,9 +235,9 @@ class GeminiRequest(APIRequestBase):
             "safetySettings": [
                 {
                     "category": category,
-                    "threshold": "BLOCK_ONLY_HIGH" # might not be allowed
+                    "threshold": "BLOCK_ONLY_HIGH"
                 } for category in SAFETY_SETTING_CATEGORIES
-            ] # TODO: turn this off later lol
+            ]
         }
 
     async def handle_response(self, response: ClientResponse) -> APIResponse:
