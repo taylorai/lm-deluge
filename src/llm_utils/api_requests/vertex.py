@@ -72,6 +72,7 @@ class VertexAnthropicRequest(APIRequestBase):
         self.model = APIModel.from_registry(model_name)
         project_id = os.getenv("PROJECT_ID")
         region = random.choice(self.model.regions) # load balance across regions
+        
         endpoint = f"https://{region}-aiplatform.googleapis.com"
         self.url = f"{endpoint}/v1/projects/{project_id}/locations/{region}/publishers/anthropic/models/{self.model.name}:generateContent"
         self.request_header = {
@@ -198,7 +199,14 @@ class GeminiRequest(APIRequestBase):
         credentials_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         token = get_access_token(credentials_file)
         self.project_id = os.getenv("PROJECT_ID")
-        self.region = random.choice(self.model.regions) # load balance across regions
+
+        region_keys = list(self.model.regions.keys())
+        region_counts = list(self.model.regions.values())
+
+        # sample weighted by region counts
+        self.region = random.sample(
+            region_keys, 1, counts=region_counts
+        )[0]
         self.url = f"https://{self.region}-aiplatform.googleapis.com/v1/projects/{self.project_id}/locations/{self.region}/publishers/google/models/{self.model.name}:generateContent"
 
         self.request_header = {
