@@ -30,7 +30,7 @@ app = App("llm-utils")
         Secret.from_name("OPENAI_API_KEY"),
         Secret.from_name("ANTHROPIC_API_KEY"),
         Secret.from_name("COHERE_API_KEY"),
-         Secret.from_name("my-googlecloud-secret")
+         Secret.from_name("my-googlecloud-secret") 
     ],
     concurrency_limit=1,
     timeout=60 * 60 * 24
