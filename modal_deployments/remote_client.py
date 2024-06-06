@@ -15,7 +15,7 @@ image = (
         "Faker"
     )
     .pip_install_private_repos(
-        "github.com/taylorai/llm_utils@eaa8be5",
+        "github.com/taylorai/llm_utils@255ec8c",
         secrets=[Secret.from_name("my-github-secret")],
         git_user="andersonbcdefg",
     )
