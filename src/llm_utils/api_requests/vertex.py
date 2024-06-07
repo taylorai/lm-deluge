@@ -313,6 +313,18 @@ class GeminiRequest(APIRequestBase):
             error_message = text
 
         old_region = self.region
+        if is_error and error_message is not None:
+            if (
+                "rate limit" in error_message.lower() or 
+                "temporarily out of capacity" in error_message.lower() or
+                "exceeded" in error_message.lower() or
+                # 429 code
+                status_code == 429
+            ):
+                error_message += " (Rate limit error, triggering cooldown & retrying with different model.)"
+                self.status_tracker.time_of_last_rate_limit_error = time.time()
+                self.status_tracker.num_rate_limit_errors += 1
+                retry_with_different_model = True
         if is_error:
             # change the region in case error is due to region unavailability
             region_keys = list(self.model.regions.keys())
