@@ -240,7 +240,6 @@ class APIRequestBase(ABC):
 
             self.result.append(response)      
             if response.is_error:
-                print(f"Error in task {self.task_id}: {response.error_message}")
                 self.handle_error(create_new_request=response.retry_with_different_model)     
             else:
                 self.handle_success(response)
