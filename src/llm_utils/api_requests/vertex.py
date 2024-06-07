@@ -1,4 +1,5 @@
 # TODO: automatically distribute across regions for >> throughput :D
+# consider: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/call-gemini-using-openai-library#call-chat-completions-api
 import asyncio
 from aiohttp import ClientResponse
 import json
