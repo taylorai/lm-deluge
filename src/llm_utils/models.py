@@ -430,7 +430,7 @@ registry = {
     },
     "gemini-1.0-pro": {
         "id": "gemini-1.0-pro",
-        "name": "gemini-1.0-pro",
+        "name": "gemini-1.0-pro-002",
         "regions": gemini_pro_limits,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
@@ -443,7 +443,7 @@ registry = {
     },
     "gemini-1.5-flash": {
         "id": "gemini-1.5-flash",
-        "name": "gemini-1.5-flash-preview-0514",
+        "name": "gemini-1.5-flash-001",
         "regions":  gemini_flash_limits,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
@@ -456,7 +456,7 @@ registry = {
     },
     "gemini-1.5-pro": {
         "id": "gemini-1.5-pro",
-        "name": "gemini-1.5-pro-preview-0409",
+        "name": "gemini-1.5-pro-001",
         "regions": gemini_1_5_pro_limits,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
