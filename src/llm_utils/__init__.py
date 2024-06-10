@@ -594,23 +594,15 @@ async def process_api_prompts_async(
     print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
     
     # deduplicate results by id
-    deduplicated = {}
-    def request_has_completion(request: APIRequestBase):
-        result_list: list[APIResponse] = request.result
-        if result_list is None or len(result_list) == 0:
-            return False
-        elif result_list[-1].completion is None:
-            return False
-        return True
-    
+    deduplicated = {}    
     for request in results:
         if request.task_id not in deduplicated:
-            deduplicated[request.task_id] = request
+            deduplicated[request.task_id] = request.result[-1]
         else:
-            current_request = deduplicated[request.task_id]
+            current_response: APIResponse = deduplicated[request.task_id]
             # only replace if the current request has no completion and the new one does
-            if request_has_completion(request) and not request_has_completion(current_request):
-                deduplicated[request.task_id] = request
+            if request.result[-1].completion is not None and current_response.completion is None:
+                deduplicated[request.task_id] = request.result[-1]
 
     output = list(deduplicated.values())
     print(f"Returning {len(output)} unique results.")
