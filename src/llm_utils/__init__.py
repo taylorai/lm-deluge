@@ -130,15 +130,27 @@ class LLMClient:
         )
     
     @classmethod
-    def basic(cls, model: str, cache: Optional[Union[LevelDBCache, SqliteCache]] = None):
+    def basic(
+        cls, 
+        model: Union[str, list[str]], 
+        max_requests_per_minute: int = 5_000,
+        max_tokens_per_minute: int = 1_000_000,
+        temperature: float = 0.75,
+        max_new_tokens: int = 1000,
+        model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
+        max_attempts: int = 5,
+        request_timeout: int = 30,
+        cache: Optional[Union[LevelDBCache, SqliteCache]] = None
+    ):
+        model_names = model if isinstance(model, list) else [model]
         return cls(
-            model_names=[model],
-            max_requests_per_minute=5_000,
-            max_tokens_per_minute=1_000_000,
-            sampling_params=SamplingParams(temperature=0.75, max_new_tokens=1000),
-            model_weights="uniform",
-            max_attempts=5,
-            request_timeout=30,
+            model_names=model_names,
+            max_requests_per_minute=max_requests_per_minute,
+            max_tokens_per_minute=max_tokens_per_minute,
+            sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_new_tokens),
+            model_weights=model_weights,
+            max_attempts=max_attempts,
+            request_timeout=request_timeout,
             cache=cache
         )
     
