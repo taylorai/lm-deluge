@@ -257,6 +257,7 @@ class GeminiRequest(APIRequestBase):
         output_tokens = None
         finish_reason = None
         retry_with_different_model = False
+        give_up_if_no_other_models = False
         status_code = response.status
         mimetype = response.headers.get("Content-Type", None)
         if status_code >= 200 and status_code < 300:
@@ -269,6 +270,7 @@ class GeminiRequest(APIRequestBase):
                     else:
                         error_message = "No candidates in response."
                     retry_with_different_model = True
+                    give_up_if_no_other_models = True
                 else:
                     candidate = data["candidates"][0]
                     finish_reason = candidate["finishReason"]
@@ -324,7 +326,7 @@ class GeminiRequest(APIRequestBase):
                 error_message += " (Rate limit error, triggering cooldown & retrying with different model.)"
                 self.status_tracker.time_of_last_rate_limit_error = time.time()
                 self.status_tracker.num_rate_limit_errors += 1
-                retry_with_different_model = True
+                retry_with_different_model = True # if possible, retry with a different model
         if is_error:
             # change the region in case error is due to region unavailability
             region_keys = list(self.model.regions.keys())
