@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
 from .models import registry
-from .api_requests.base import APIResponse
+from .api_requests.base import APIResponse, APIRequestBase
 from .utils import instructions_to_message_lists, dry_run
 from .api_requests import create_api_request
 from .cache import LevelDBCache, SqliteCache
@@ -430,7 +430,7 @@ async def process_api_prompts_async(
     model_weights = [w / sum(model_weights) for w in model_weights]
 
     # constants
-    seconds_to_pause_after_rate_limit_error = 15
+    seconds_to_pause_after_rate_limit_error = 5
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
 
     # initialize trackers
@@ -471,7 +471,7 @@ async def process_api_prompts_async(
         model_weights = [w / sum(model_weights) for w in model_weights]
 
     prompts_iter = iter(zip(ids, prompts))
-    results = []
+    results: list[APIRequestBase] = []
     while True:
         # get next request (if one is not already waiting for capacity)
         if next_request is None:
@@ -579,7 +579,31 @@ async def process_api_prompts_async(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
 
-    return [result.result[-1] for result in results]
+    print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
+    
+    # deduplicate results by id
+    deduplicated = {}
+    def request_has_completion(request: APIRequestBase):
+        result_list: list[APIResponse] = request.result
+        if result_list is None or len(result_list) == 0:
+            return False
+        elif result_list[-1].completion is None:
+            return False
+        return True
+    
+    for request in results:
+        if request.task_id not in deduplicated:
+            deduplicated[request.task_id] = request
+        else:
+            current_request = deduplicated[request.task_id]
+            # only replace if the current request has no completion and the new one does
+            if request_has_completion(request) and not request_has_completion(current_request):
+                deduplicated[request.task_id] = request
+
+    output = list(deduplicated.values())
+    print(f"Returning {len(output)} unique results.")
+
+    return output
 
 
 class RemoteLLMClient:

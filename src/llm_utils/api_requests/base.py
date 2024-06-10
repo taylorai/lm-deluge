@@ -35,8 +35,10 @@ class APIResponse:
     region: Optional[str] = None
     finish_reason: Optional[str] = None # make required later
     cost: Optional[float] = None # calculated automatically
-    # set to true if is_error and should not be retried with the same model
+    # set to true if is_error and should be retried with a different model
     retry_with_different_model: Optional[bool] = False
+    # set to true if should NOT retry with the same model (unrecoverable error)
+    give_up_if_no_other_models: Optional[bool] = False
 
     def __post_init__(self):
         # calculate cost & get external model name
@@ -151,6 +153,7 @@ class APIRequestBase(ABC):
         self.url = None
         self.request_header = None
         self.request_json = None
+        self.region = None
 
     def increment_pbar(self):
         if self.pbar is not None:
@@ -167,17 +170,23 @@ class APIRequestBase(ABC):
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
 
-    # TODO: actually use create_new_request. should just require the response object to set
-    # the retry_with_different_model flag in the relevant cases
-    def handle_error(self, create_new_request = False):
+    # TODO: make an "optional" retry with other model that will
+    # try to re-assign if possible, but otherwise doesn't totally give up
+    # TODO: i don't think the retry with new model works correctly because even when it
+    # retries the completion is None
+    def handle_error(self, create_new_request = False, give_up_if_no_other_models = False):
         """
         If create_new_request is True, will create a new API request (so that it
         has a chance of being sent to a different model). If false, will retry
         the same request.
         """
         last_result: APIResponse = self.result[-1]
-        print(
-            f"Error on task {self.task_id}. Model: {last_result.model_internal} Code: {last_result.status_code}, Message: {last_result.error_message}.")
+        error_to_print = f"Error  task {self.task_id}. "
+        error_to_print += f"Model: {last_result.model_internal} Code: {last_result.status_code}, "
+        if self.region is not None:
+            error_to_print += f"Region: {self.region}, "
+        error_to_print += f"Message: {last_result.error_message}."
+        print(error_to_print)
         if self.attempts_left > 0:
             self.attempts_left -= 1
             if not create_new_request:
@@ -186,9 +195,13 @@ class APIRequestBase(ABC):
             else:
                 # make sure we have another model to send it to besides the current one
                 if self.all_model_names is None or len(self.all_model_names) < 2:
-                    print(f"No other models to try for task {self.task_id}.")
-                    self.status_tracker.num_tasks_in_progress -= 1
-                    self.status_tracker.num_tasks_failed += 1
+                    if give_up_if_no_other_models:
+                        print(f"No other models to try for task {self.task_id}. Giving up.")
+                        self.status_tracker.num_tasks_in_progress -= 1
+                        self.status_tracker.num_tasks_failed += 1
+                    else:
+                        print(f"No other models to try for task {self.task_id}. Retrying with same model.")
+                        self.retry_queue.put_nowait(self)
                 else:
                     # two things to change: model_name and sampling_params
                     new_model_name = self.model_name
@@ -240,7 +253,10 @@ class APIRequestBase(ABC):
 
             self.result.append(response)      
             if response.is_error:
-                self.handle_error(create_new_request=response.retry_with_different_model)     
+                self.handle_error(
+                    create_new_request=response.retry_with_different_model,
+                    give_up_if_no_other_models=response.give_up_if_no_other_models
+                )     
             else:
                 self.handle_success(response)
 
@@ -298,7 +314,7 @@ def create_api_request(
     debug: bool = False,
     all_model_names: list[str] = None,
     all_sampling_params: list[SamplingParams] = None,
-):
+) -> APIRequestBase:
     from .common import CLASSES # circular import so made it lazy, does this work?
     model_obj = APIModel.from_registry(model_name)
     request_class = CLASSES.get(model_obj.api_spec, None)
