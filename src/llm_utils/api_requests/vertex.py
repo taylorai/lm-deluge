@@ -351,5 +351,6 @@ class GeminiRequest(APIRequestBase):
             output_tokens=output_tokens,
             region=old_region,
             finish_reason=finish_reason,
-            retry_with_different_model=retry_with_different_model
+            retry_with_different_model=retry_with_different_model,
+            give_up_if_no_other_models=give_up_if_no_other_models
         )
