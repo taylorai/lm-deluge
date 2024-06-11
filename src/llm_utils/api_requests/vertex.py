@@ -17,24 +17,29 @@ from ..models import APIModel
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 
-LAST_REFRESHED = 0
-LAST_TOKEN = None
 def get_access_token(service_account_file: str):
-    # Initialize service account credentials
-    credentials = service_account.Credentials.from_service_account_file(
-        service_account_file,
-        scopes=['https://www.googleapis.com/auth/cloud-platform'],
-    )
+    """
+    Get access token from environment variables if another process/coroutine
+    has already got them, otherwise get from service account file.
+    """
+    LAST_REFRESHED = os.getenv("VERTEX_TOKEN_LAST_REFRESHED", None)
+    LAST_REFRESHED = int(LAST_REFRESHED) if LAST_REFRESHED is not None else 0
+    VERTEX_API_TOKEN = os.getenv("VERTEX_API_TOKEN", None)
 
-    # only refresh token if it's been more than 50 minutes since last refresh
-    global LAST_REFRESHED
-    global LAST_TOKEN
-    if time.time() - LAST_REFRESHED > 60 * 50 or LAST_TOKEN is None:
+    if VERTEX_API_TOKEN is not None and time.time() - LAST_REFRESHED < 60 * 50:
+        return VERTEX_API_TOKEN
+    else:
+        credentials = service_account.Credentials.from_service_account_file(
+            service_account_file,
+            scopes=['https://www.googleapis.com/auth/cloud-platform'],
+        )
         credentials.refresh(Request())
-        LAST_REFRESHED = time.time()
-        LAST_TOKEN = credentials.token
-    return LAST_TOKEN
+        token = credentials.token
+        os.environ["VERTEX_API_TOKEN"] = token
+        os.environ["VERTEX_TOKEN_LAST_REFRESHED"] = str(int(time.time()))
 
+        return token
+    
 class VertexAnthropicRequest(APIRequestBase):
     """
     For Claude on Vertex, you'll also have to set the PROJECT_ID environment variable.
