@@ -6,7 +6,6 @@ import yaml
 from dataclasses import dataclass
 from typing import Literal, Optional, Union
 from tqdm.auto import tqdm
-from types import SimpleNamespace
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
 from .models import registry
