@@ -120,6 +120,7 @@ registry = {
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
+        "supports_logprobs": True,
         "api_spec": "openai",
         "input_cost": 5.0,
         "output_cost": 15.0,
@@ -132,30 +133,33 @@ registry = {
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
+        "supports_logprobs": True,
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
         "requests_per_minute": 20_000,
         "tokens_per_minute": 2_000_000
     },
+    # "gpt-4-turbo": {
+    #     "id": "gpt-4-turbo",
+    #     "name": "gpt-4-0125-preview",
+    #     "api_base": "https://api.openai.com/v1",
+    #     "api_key_env_var": "OPENAI_API_KEY",
+    #     "supports_json": True,
+    #     "supports_logprobs": True,
+    #     "api_spec": "openai",
+    #     "input_cost": 10.0,
+    #     "output_cost": 30.0,
+    #     "requests_per_minute": 10_000,
+    #     "tokens_per_minute": 1_500_000
+    # },
     "gpt-4-turbo": {
         "id": "gpt-4-turbo",
-        "name": "gpt-4-0125-preview",
-        "api_base": "https://api.openai.com/v1",
-        "api_key_env_var": "OPENAI_API_KEY",
-        "supports_json": True,
-        "api_spec": "openai",
-        "input_cost": 10.0,
-        "output_cost": 30.0,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 1_500_000
-    },
-    "gpt-4-turbo-majorly-improved": {
-        "id": "gpt-4-turbo-majorly-improved",
         "name": "gpt-4-turbo-2024-04-09",
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
+        "supports_logprobs": True,
         "api_spec": "openai",
         "input_cost": 10.0,
         "output_cost": 30.0,
@@ -168,6 +172,7 @@ registry = {
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": False,
+        "supports_logprobs": False,
         "api_spec": "openai",
         "input_cost": 30.0,
         "output_cost": 60.0,
@@ -180,6 +185,7 @@ registry = {
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": False,
+        "supports_logprobs": False,
         "api_spec": "openai",
         "input_cost": 60.0,
         "output_cost": 120.0,
@@ -728,6 +734,7 @@ class APIModel:
     input_cost: Optional[float] = 0 # $ per million input tokens
     output_cost: Optional[float] = 0 # $ per million output tokens
     supports_json: bool = False
+    supports_logprobs: bool = False
     regions: list[str] = field(default_factory=list)
     tokens_per_minute: int = None
     requests_per_minute: int = None

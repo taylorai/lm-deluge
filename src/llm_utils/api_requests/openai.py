@@ -24,6 +24,8 @@ class OpenAIRequest(APIRequestBase):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
+        logprobs: bool = False,
+        top_logprobs: Optional[int] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
@@ -40,6 +42,8 @@ class OpenAIRequest(APIRequestBase):
             retry_queue=retry_queue,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
+            logprobs=logprobs,
+            top_logprobs=top_logprobs,
             pbar=pbar,
             callback=callback,
             result=result,
@@ -59,6 +63,10 @@ class OpenAIRequest(APIRequestBase):
             "top_p": sampling_params.top_p,
             "max_tokens": sampling_params.max_new_tokens
         }
+        if logprobs:
+            self.request_json["logprobs"] = True
+            if top_logprobs is not None:
+                self.request_json["top_logprobs"] = top_logprobs
         if sampling_params.json_mode and self.model.supports_json:
             self.request_json["response_format"] = {"type": "json_object"}
 
@@ -68,6 +76,7 @@ class OpenAIRequest(APIRequestBase):
         completion = None
         input_tokens = None
         output_tokens = None
+        logprobs = None
         status_code = response.status
         mimetype = response.headers.get("Content-Type", None)
         if status_code >= 200 and status_code < 300:
@@ -81,6 +90,8 @@ class OpenAIRequest(APIRequestBase):
                     completion = data["choices"][0]["message"]["content"]
                     input_tokens = data["usage"]["prompt_tokens"]
                     output_tokens = data["usage"]["completion_tokens"]
+                    if self.logprobs and "logprobs" in data["choices"][0]:
+                        logprobs = data["choices"][0]["logprobs"]["content"]
                 except Exception:
                     is_error = True
                     error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response."
@@ -110,6 +121,7 @@ class OpenAIRequest(APIRequestBase):
             error_message=error_message,
             system_prompt=self.messages[0] if self.messages[0]["role"] == "system" else None,
             messages=self.messages,
+            logprobs=logprobs,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
