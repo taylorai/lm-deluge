@@ -33,6 +33,7 @@ class APIResponse:
     # optional or calculated automatically
     model_external: Optional[str] = None # the model tag used by the API
     region: Optional[str] = None
+    logprobs: Optional[list] = None
     finish_reason: Optional[str] = None # make required later
     cost: Optional[float] = None # calculated automatically
     # set to true if is_error and should be retried with a different model
@@ -123,12 +124,15 @@ class APIRequestBase(ABC):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
+        logprobs: bool = False,
+        top_logprobs: Optional[int] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         result: Optional[list] = None,
         debug: bool = False,
         all_model_names: list[str] = None,
         all_sampling_params: list[SamplingParams] = None,
+        
     ):
         if all_model_names is None:
             raise ValueError("all_model_names must be provided.")
@@ -141,6 +145,8 @@ class APIRequestBase(ABC):
         self.retry_queue = retry_queue
         self.request_timeout = request_timeout
         self.sampling_params = sampling_params
+        self.logprobs = logprobs
+        self.top_logprobs = top_logprobs
         self.pbar = pbar
         self.callback = callback
         self.num_tokens = count_tokens(messages, sampling_params.max_new_tokens)
@@ -226,6 +232,8 @@ class APIRequestBase(ABC):
                         retry_queue=self.retry_queue,
                         request_timeout=self.request_timeout,
                         sampling_params=new_sampling_params,
+                        logprobs=self.logprobs,
+                        top_logprobs=self.top_logprobs,
                         pbar=self.pbar,
                         callback=self.callback,
                         result=self.result,
@@ -277,7 +285,7 @@ class APIRequestBase(ABC):
             self.handle_error(create_new_request=False)
                
         except Exception as e:
-            print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
+            # print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
             self.result.append(APIResponse(
                 id=self.task_id,
                 model_internal=self.model_name,
@@ -286,7 +294,7 @@ class APIRequestBase(ABC):
                 sampling_params=self.sampling_params,
                 status_code=None,
                 is_error=True,
-                error_message=f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}",
+                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
                 completion=None,
                 input_tokens=None,
                 output_tokens=None,
@@ -308,6 +316,8 @@ def create_api_request(
     retry_queue: asyncio.Queue,
     request_timeout: int = 30,
     sampling_params: SamplingParams = SamplingParams(),
+    logprobs: bool = False,
+    top_logprobs: Optional[int] = None,
     pbar: Optional[tqdm] = None,
     callback: Optional[Callable] = None,
     result: Optional[list] = None,
@@ -320,6 +330,7 @@ def create_api_request(
     request_class = CLASSES.get(model_obj.api_spec, None)
     if request_class is None:
         raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
+    kwargs = {} if not logprobs else {"logprobs": logprobs, "top_logprobs": top_logprobs}
     return request_class(
         task_id=task_id,
         model_name=model_name,
@@ -333,4 +344,5 @@ def create_api_request(
         callback=callback,
         all_model_names=all_model_names,
         all_sampling_params=all_sampling_params,
+        **kwargs
     )

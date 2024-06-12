@@ -27,8 +27,10 @@ class ClientConfig:
     request_timeout: int
     sampling_params: Union[SamplingParams, list[SamplingParams]]
     model_weights: Union[list[float], Literal["uniform", "rate_limit"]]
+    logprobs: bool = False
+    top_logprobs: Optional[int] = None
     cache: Optional[Union[LevelDBCache, SqliteCache]] = None
-
+    
     @classmethod
     def from_dict(cls, config_dict: dict):
         if isinstance(config_dict["sampling_params"], list):
@@ -60,7 +62,9 @@ class ClientConfig:
             "max_attempts": self.max_attempts,
             "request_timeout": self.request_timeout,
             "sampling_params": sp,
-            "model_weights": self.model_weights
+            "model_weights": self.model_weights,
+            "logprobs": self.logprobs,
+            "top_logprobs": self.top_logprobs
         }
 
 class LLMClient:
@@ -79,6 +83,8 @@ class LLMClient:
         model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
         max_attempts: int = 5,
         request_timeout: int = 30,
+        logprobs: bool = False,
+        top_logprobs: Optional[int] = None,
         use_qps: bool = False,
         debug: bool = False,
         cache: Optional[Union[LevelDBCache, SqliteCache]] = None
@@ -99,6 +105,25 @@ class LLMClient:
             self.model_weights = [w / sum(model_weights) for w in model_weights]
         else:
             self.model_weights = model_weights
+
+        self.logprobs = logprobs
+        self.top_logprobs = top_logprobs
+
+         # logprobs and top_logprobs are only supported for OpenAI models
+        if self.logprobs:
+            for model in self.models:
+                if registry[model].get("supports_logprobs", False) is False: 
+                    raise ValueError("logprobs can only be enabled if all models support it.")
+            if self.top_logprobs is None:
+                self.top_logprobs = 0 # will just return logprob of the chosen token
+            elif self.top_logprobs > 20 or self.top_logprobs < 0:
+                raise ValueError("top_logprobs must be between 0 and 20.")
+            for sp in self.sampling_params:
+                if sp.max_new_tokens > 10:
+                    print("WARNING: using logprobs with large max_new_tokens can result in very large outputs. you may want to avoid saving these outputs to disk/db.")
+                    break
+        else:
+            self.top_logprobs = None
 
         self.max_requests_per_minute = max_requests_per_minute
         self.max_tokens_per_minute = max_tokens_per_minute
@@ -137,6 +162,8 @@ class LLMClient:
         temperature: float = 0.75,
         max_new_tokens: int = 1000,
         model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
+        logprobs: bool = False,
+        top_logprobs: Optional[int] = None,
         max_attempts: int = 5,
         request_timeout: int = 30,
         cache: Optional[Union[LevelDBCache, SqliteCache]] = None
@@ -147,6 +174,8 @@ class LLMClient:
             max_requests_per_minute=max_requests_per_minute,
             max_tokens_per_minute=max_tokens_per_minute,
             sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_new_tokens),
+            logprobs=logprobs,
+            top_logprobs=top_logprobs,
             model_weights=model_weights,
             max_attempts=max_attempts,
             request_timeout=request_timeout,
@@ -162,7 +191,9 @@ class LLMClient:
             max_tokens_per_minute=self.max_tokens_per_minute,
             max_attempts=self.max_attempts,
             request_timeout=self.request_timeout,
-            sampling_params=self.sampling_params
+            sampling_params=self.sampling_params,
+            logprobs=self.logprobs,
+            top_logprobs=self.top_logprobs,
         )
     
     async def process_prompts_async(
@@ -228,14 +259,8 @@ class LLMClient:
         if dry_run:
             results = api_prompts_dry_run(
                 ids, api_prompts, api_models, api_weights, api_sampling_params,
-                max_attempts=self.max_attempts,
                 max_tokens_per_minute=self.max_tokens_per_minute,
                 max_requests_per_minute=self.max_requests_per_minute,
-                request_timeout=self.request_timeout,
-                progress_bar=pbar,
-                use_qps=self.use_qps,
-                debug=self.debug,
-                cache=self.cache
             )
             print("Dry run results for API models (does not include Modal):")
             print(results)
@@ -251,6 +276,7 @@ class LLMClient:
             api_task = asyncio.create_task(
                 process_api_prompts_async(
                     api_ids, api_prompts, api_models, api_weights, api_sampling_params,
+                    logprobs=self.logprobs, top_logprobs=self.top_logprobs,
                     max_attempts=self.max_attempts,
                     max_tokens_per_minute=self.max_tokens_per_minute,
                     max_requests_per_minute=self.max_requests_per_minute,
@@ -366,13 +392,8 @@ def api_prompts_dry_run(
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
-    max_attempts: int = 5,
     max_tokens_per_minute: int = 500_000,
-    max_requests_per_minute: int = 1_000,
-    request_timeout: int = 30,
-    progress_bar: Optional[tqdm] = None,
-    use_qps: bool = False,
-    debug: bool = False
+    max_requests_per_minute: int = 1_000
 ):
     """
     Count tokens and estimate costs for a batch of prompts.
@@ -424,6 +445,8 @@ async def process_api_prompts_async(
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
+    logprobs: bool,
+    top_logprobs: Optional[int],
     max_attempts: int = 5,
     max_tokens_per_minute: int = 500_000,
     max_requests_per_minute: int = 1_000,
@@ -504,6 +527,8 @@ async def process_api_prompts_async(
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
                         sampling_params=sampling_params[model_idx],
+                        logprobs=logprobs,
+                        top_logprobs=top_logprobs,
                         pbar=progress_bar,
                         debug=debug,
                         all_model_names=models,
