@@ -233,8 +233,6 @@ class APIRequestBase(ABC):
                         top_logprobs=self.top_logprobs,
                         pbar=self.pbar,
                         callback=self.callback,
-                        result=self.result,
-                        debug=self.debug,
                         all_model_names=self.all_model_names,
                         all_sampling_params=self.all_sampling_params,
                     )
