@@ -2,7 +2,6 @@ import json
 from dataclasses import dataclass
 import tiktoken
 from .models import APIModel
-from .prompt import Prompt
 from typing import Union
 from .image import Image
 import xxhash
