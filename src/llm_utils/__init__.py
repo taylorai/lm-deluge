@@ -6,6 +6,7 @@ import yaml
 from dataclasses import dataclass
 from typing import Literal, Optional, Union
 from tqdm.auto import tqdm
+from .image import Image
 from .prompt import Prompt
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
