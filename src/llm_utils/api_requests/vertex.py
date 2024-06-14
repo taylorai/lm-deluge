@@ -49,7 +49,7 @@ class VertexAnthropicRequest(APIRequestBase):
         self,
         task_id: int,
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -63,7 +63,7 @@ class VertexAnthropicRequest(APIRequestBase):
         super().__init__(
             task_id=task_id,
             model_name=model_name,
-            messages=messages,
+            prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
@@ -86,13 +86,11 @@ class VertexAnthropicRequest(APIRequestBase):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        self.system_message = None
-        if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            self.system_message = self.messages[0]["content"]
+        self.system_message, messages = prompt.to_anthropic()
 
         self.request_json = {
             "anthropic_version": "vertex-2023-10-16",
-            "messages": self.messages[1:] if self.system_message is not None else self.messages,
+            "messages": messages,
             "temperature": self.sampling_params.temperature,
             "top_p": self.sampling_params.top_p,
             "max_tokens": self.sampling_params.max_new_tokens
@@ -127,7 +125,6 @@ class VertexAnthropicRequest(APIRequestBase):
             text = await response.text()
             error_message = text
 
-
         # handle special kinds of errors. TODO: make sure these are correct for anthropic
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or "overloaded" in error_message.lower() or status_code == 429:
@@ -143,8 +140,7 @@ class VertexAnthropicRequest(APIRequestBase):
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            system_prompt=self.system_message,
-            messages=self.messages,
+            prompt=self.prompt,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
@@ -167,7 +163,7 @@ class GeminiRequest(APIRequestBase):
         self,
         task_id: int,
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -183,7 +179,7 @@ class GeminiRequest(APIRequestBase):
         super().__init__(
             task_id=task_id,
             model_name=model_name,
-            messages=messages,
+            prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
@@ -337,8 +333,7 @@ class GeminiRequest(APIRequestBase):
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            system_prompt=None,
-            messages=self.messages,
+            prompt=self.prompt,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
