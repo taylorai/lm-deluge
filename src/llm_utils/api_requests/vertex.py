@@ -210,7 +210,7 @@ class GeminiRequest(APIRequestBase):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        self.system_message, contents = Prompt(messages).to_gemini()
+        self.system_message, contents = prompt.to_gemini()
         # if len(self.messages) > 0 and self.messages[0]["role"] == "system":
         #     self.system_message = self.messages[0]["content"] + " Do not use citations in your response."
         # else:
