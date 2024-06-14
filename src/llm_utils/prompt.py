@@ -158,7 +158,7 @@ class Prompt:
                     self.image.to_anthropic_input(),
                     {
                         "type": "text",
-                        "content": self.user_message
+                        "text": self.user_message
                     }
                 ]
             })
