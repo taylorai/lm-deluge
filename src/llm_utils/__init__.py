@@ -355,7 +355,7 @@ def api_prompts_dry_run(
 
 async def process_api_prompts_async(
     ids: Union[np.ndarray, list[int]],
-    prompts: list[Prompt],  # each prompt is just a list of messages
+    prompts: list[Prompt],
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
@@ -429,13 +429,13 @@ async def process_api_prompts_async(
             elif prompts_not_finished:
                 try:
                     # get new request
-                    id, messages = next(prompts_iter)
+                    id, prompt = next(prompts_iter)
                     # select model
                     model_idx = np.random.choice(range(len(models)), p=model_weights)
                     next_request = create_api_request(
                         task_id=id,
                         model_name=models[model_idx],
-                        messages=messages,
+                        prompt=prompt,
                         request_timeout=request_timeout,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
