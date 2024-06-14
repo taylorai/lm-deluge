@@ -9,18 +9,10 @@ from tqdm import tqdm
 from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
+from ..prompt import Prompt
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
-
-def remap_messages_to_cohere(messages: list[dict]) -> list[dict]:
-    return [
-        {
-            "role": "USER" if message["role"] == "user" else "CHATBOT",
-            "message": message["content"]
-        }
-        for message in messages
-    ]
 
 class CohereRequest(APIRequestBase):
     def __init__(
@@ -29,7 +21,7 @@ class CohereRequest(APIRequestBase):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -45,7 +37,7 @@ class CohereRequest(APIRequestBase):
         super().__init__(
             task_id=task_id,
             model_name=model_name,
-            messages=messages,
+            prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
@@ -63,28 +55,18 @@ class CohereRequest(APIRequestBase):
 
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat"
-        if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            self.system_message = self.messages[0]["content"]
-
-        if self.messages[-1]["role"] == "user":
-            self.last_user_message = self.messages[-1]["content"]
-        if not self.last_user_message:
-            raise ValueError("Last message must be a user message")
+        self.system_message, chat_history, last_user_message = prompt.to_cohere()
 
         self.request_header = {
             "Authorization": f"bearer {os.getenv(self.model.api_key_env_var)}",
             "content-type": "application/json",
             "accept": "application/json"
         }
-        # history excludes the last user message
-        chat_history = remap_messages_to_cohere(self.messages)[:-1]
-        if self.system_message:
-            chat_history = chat_history[1:]
         
         self.request_json = {
             "model": self.model.name,
             "chat_history": chat_history,
-            "message": self.last_user_message,
+            "message": last_user_message,
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
             "max_tokens": sampling_params.max_new_tokens
@@ -140,8 +122,7 @@ class CohereRequest(APIRequestBase):
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            system_prompt=self.system_message,
-            messages=self.messages,
+            prompt=self.prompt,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,

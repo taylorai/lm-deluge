@@ -7,6 +7,7 @@ from tqdm import tqdm
 from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
+from ..prompt import Prompt
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -18,7 +19,7 @@ class AnthropicRequest(APIRequestBase):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -35,7 +36,7 @@ class AnthropicRequest(APIRequestBase):
         super().__init__(
             task_id=task_id,
             model_name=model_name,
-            messages=messages,
+            prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
@@ -51,10 +52,7 @@ class AnthropicRequest(APIRequestBase):
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/messages"
 
-        self.system_message = None
-        if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            self.system_message = self.messages[0]["content"]
-        
+        self.system_message, messages = prompt.to_anthropic()
         self.request_header = {
             "x-api-key": os.getenv(self.model.api_key_env_var),
             "anthropic-version": "2023-06-01",
@@ -63,7 +61,7 @@ class AnthropicRequest(APIRequestBase):
 
         self.request_json = {
             "model": self.model.name,
-            "messages": self.messages[1:] if self.system_message is not None else self.messages,
+            "messages": messages,
             "temperature": self.sampling_params.temperature,
             "top_p": self.sampling_params.top_p,
             "max_tokens": self.sampling_params.max_new_tokens
@@ -126,8 +124,7 @@ class AnthropicRequest(APIRequestBase):
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            system_prompt=self.system_message,
-            messages=self.messages,
+            prompt=self.prompt,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,

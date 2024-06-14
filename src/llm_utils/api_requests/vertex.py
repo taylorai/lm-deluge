@@ -9,6 +9,7 @@ import time
 from tqdm import tqdm
 from typing import Optional, Callable
 
+from ..prompt import Prompt
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -151,12 +152,6 @@ class VertexAnthropicRequest(APIRequestBase):
             output_tokens=output_tokens,
         )
 
-def convert_messages_to_contents(messages: list[dict]):
-    contents = []
-    for message in messages:
-        contents.append({"role": message["role"], "parts": [{"text": message["content"]}]})
-    return contents
-
 SAFETY_SETTING_CATEGORIES = [
     "HARM_CATEGORY_DANGEROUS_CONTENT",
     "HARM_CATEGORY_HARASSMENT",
@@ -219,23 +214,18 @@ class GeminiRequest(APIRequestBase):
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        self.system_message = None
-        if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            self.system_message = self.messages[0]["content"] + " Do not use citations in your response."
-        else:
-            self.system_message = "Do not use citations in your response."
-
-        contents = (
-            convert_messages_to_contents(messages[1:]) if self.messages[0]["role"] == "system"
-            else convert_messages_to_contents(messages)
-        )
+        self.system_message, contents = Prompt(messages).to_gemini()
+        # if len(self.messages) > 0 and self.messages[0]["role"] == "system":
+        #     self.system_message = self.messages[0]["content"] + " Do not use citations in your response."
+        # else:
+        #     self.system_message = "Do not use citations in your response."
 
         self.request_json = {
             "contents": contents,
             "systemInstruction": {
                 "role": "SYSTEM",
                 "parts": [
-                    { "text": self.system_message}
+                    {"text": self.system_message}
                 ]
             },
             "generationConfig": {

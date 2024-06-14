@@ -3,6 +3,7 @@ import json
 import sqlite3
 import xxhash
 from typing import Optional, Any
+from .prompt import Prompt
 from .api_requests.base import APIResponse
 
 try:
@@ -10,14 +11,6 @@ try:
 except ImportError:
     plyvel = None
     print("Warning: plyvel not installed, cannot use LevelDB.")
-
-def hash_messages(messages: list[dict]) -> str:
-    """
-    Hash a list of messages.
-    """
-    hasher = xxhash.xxh64()
-    hasher.update(json.dumps(messages).encode())
-    return hasher.hexdigest()
 
 def encode_api_response(response: APIResponse) -> bytes:
     """
@@ -40,21 +33,21 @@ class DistributedDictCache:
     def __init__(self, cache: Any):
         self.cache = cache
 
-    def get(self, messages: list[dict]) -> APIResponse:
+    def get(self, prompt: Prompt) -> APIResponse:
         """
         Get an API response from the cache.
         """
-        data = self.cache.get(hash_messages(messages))
+        data = self.cache.get(prompt.fingerprint)
         if data is not None:
             return decode_api_response(data)
         return None
     
-    def put(self, messages: list[dict], response: APIResponse):
+    def put(self, prompt: Prompt, response: APIResponse):
         """
         Put an API response into the cache.
         """
         self.cache.put(
-            hash_messages(messages),
+            prompt.fingerprint,
             encode_api_response(response)
         )
 
@@ -75,21 +68,21 @@ class LevelDBCache:
         else:
            raise ImportError("plyvel not installed, cannot use LevelDBCache.")
 
-    def get(self, messages: list[dict]) -> APIResponse:
+    def get(self, prompt: Prompt) -> APIResponse:
         """
         Get an API response from the cache.
         """
-        key = hash_messages(messages)
+        key = prompt.fingerprint
         data = self.db.get(key.encode())
         if data is not None:
             return decode_api_response(data)
         return None
     
-    def put(self, messages: list[dict], response: APIResponse):
+    def put(self, prompt: Prompt, response: APIResponse):
         """
         Put an API response into the cache.
         """
-        key = hash_messages(messages)
+        key = prompt.fingerprint
         self.db.put(key.encode(), encode_api_response(response))
 
     def close(self):
@@ -114,22 +107,22 @@ class SqliteCache:
         )
         self.conn.commit()
 
-    def get(self, messages: list[dict]) -> APIResponse:
+    def get(self, prompt: Prompt) -> APIResponse:
         """
         Get an API response from the cache.
         """
-        key = hash_messages(messages)
+        key = prompt.fingerprint
         self.cursor.execute("SELECT value FROM cache WHERE key=?", (key,))
         data = self.cursor.fetchone()
         if data is not None and len(data) > 0:
             return decode_api_response(data[0])
         return None
     
-    def put(self, messages: list[dict], response: APIResponse):
+    def put(self, prompt: Prompt, response: APIResponse):
         """
         Put an API response into the cache.
         """
-        key = hash_messages(messages)
+        key = prompt.fingerprint
         self.cursor.execute(
             "INSERT OR REPLACE INTO cache (key, value) VALUES (?, ?)", (key, encode_api_response(response))
         )
