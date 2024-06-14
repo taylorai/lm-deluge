@@ -6,11 +6,11 @@ import yaml
 from dataclasses import dataclass
 from typing import Literal, Optional, Union
 from tqdm.auto import tqdm
+from .prompt import Prompt
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
 from .models import registry
 from .api_requests.base import APIResponse, APIRequestBase
-from .utils import instructions_to_message_lists, dry_run
 from .api_requests import create_api_request
 from .cache import LevelDBCache, SqliteCache
 ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
@@ -198,14 +198,13 @@ class LLMClient:
     
     async def process_prompts_async(
         self,
-        prompts: Union[list[str], list[list[dict]]],
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
         return_completions_only: bool = False,
         show_progress: bool = True,
         dry_run: bool = False
     ):
-        # if prompts are strings, convert them to message lists
-        if isinstance(prompts[0], str):
-            prompts = instructions_to_message_lists(prompts)
+        # if prompts are not Prompts, convert them
+        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
         ids = np.arange(len(prompts))
 
         # if using cache, check for cached completions
@@ -234,75 +233,41 @@ class LLMClient:
 
         # update progress bar with cache hits
         pbar.update(len(cache_hit_ids))
-
-        # split prompts between api and modal
-        modal_weight = sum([
-            self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"
-        ])
-        modal_ids_mask = np.random.binomial(1, modal_weight, size=len(remaining_ids)).astype(bool)
-        modal_ids = remaining_ids[modal_ids_mask]
-        api_ids = remaining_ids[~modal_ids_mask]
-        print(f"Split into {len(modal_ids)} Modal prompts and {len(api_ids)} api prompts.")
-
-        # decide which prompts go to which models
-        modal_prompts = [prompts[i] for i in modal_ids] # indexes into original prompts
-        api_prompts = [prompts[i] for i in api_ids] # indexes into original prompts
-        modal_models = [model for model in self.models if registry[model]["api_spec"] == "modal"]
-        modal_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"]
-        modal_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"]
-        api_models = [model for model in self.models if registry[model]["api_spec"] != "modal"]
-        api_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
-        api_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
-
-        modal_task = None
         api_task = None
         if dry_run:
             results = api_prompts_dry_run(
-                ids, api_prompts, api_models, api_weights, api_sampling_params,
+                ids, 
+                prompts, 
+                self.models, 
+                self.model_weights, 
+                self.sampling_params,
                 max_tokens_per_minute=self.max_tokens_per_minute,
                 max_requests_per_minute=self.max_requests_per_minute,
             )
-            print("Dry run results for API models (does not include Modal):")
+            print("Dry run results:")
             print(results)
             return results
-        
-        if len(modal_prompts) > 0:
-            modal_task = asyncio.create_task(
-                process_modal_prompts_async(
-                    modal_ids, modal_prompts, modal_models, modal_weights, modal_sampling_params, progress_bar=pbar
-                )
-            )
-        if len(api_prompts) > 0:
-            api_task = asyncio.create_task(
-                process_api_prompts_async(
-                    api_ids, api_prompts, api_models, api_weights, api_sampling_params,
-                    logprobs=self.logprobs, top_logprobs=self.top_logprobs,
-                    max_attempts=self.max_attempts,
-                    max_tokens_per_minute=self.max_tokens_per_minute,
-                    max_requests_per_minute=self.max_requests_per_minute,
-                    request_timeout=self.request_timeout,
-                    progress_bar=pbar,
-                    use_qps=self.use_qps,
-                    debug=self.debug
-                )
-            )
 
-        # wait for both, combine the results
-        if modal_task:
-            modal_results = await modal_task
-        else:
-            modal_results = []
-        if api_task:
-            api_results = await api_task
-        else:
-            api_results = []
-            
-        results = [None for _ in range(len(prompts))]
-        for res in modal_results:
-            results[res.id] = res
-            # set to cache if result has a completion
-            if self.cache and res.completion:
-                self.cache.put(prompts[res.id], res)
+        api_task = asyncio.create_task(
+            process_api_prompts_async(
+                ids, 
+                prompts, 
+                self.models, 
+                self.model_weights, 
+                self.sampling_params,
+                logprobs=self.logprobs, 
+                top_logprobs=self.top_logprobs,
+                max_attempts=self.max_attempts,
+                max_tokens_per_minute=self.max_tokens_per_minute,
+                max_requests_per_minute=self.max_requests_per_minute,
+                request_timeout=self.request_timeout,
+                progress_bar=pbar,
+                use_qps=self.use_qps,
+                debug=self.debug
+            )
+        )
+        api_results: list[APIResponse] = await api_task
+        results: list[APIResponse] = [None for _ in range(len(prompts))]
         for res in api_results:
             results[res.id] = res
             # set to cache if result has a completion
@@ -320,7 +285,7 @@ class LLMClient:
     
     def process_prompts_sync(
         self,
-        prompts: Union[list[str], list[list[dict]]],
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
         return_completions_only: bool = False,
         show_progress=True,
         dry_run=False
@@ -333,62 +298,10 @@ class LLMClient:
                 dry_run=dry_run
             )
         )
-            
-async def process_modal_prompts_async(
-    ids: Union[np.ndarray, list[int]],
-    prompts: list[list[dict]],  # each prompt is just a list of messages
-    models: list[str],
-    model_weights: list[float],
-    sampling_params: list[SamplingParams],
-    batch_size: int = 1_000,
-    progress_bar: Optional[tqdm] = None
-):
-    # change ids to integer list
-    if isinstance(ids, np.ndarray):
-        ids = ids.tolist()
-
-    # normalize weights
-    model_weights = [w / sum(model_weights) for w in model_weights]
-    
-    # make sure ids and prompts are the same length
-    if len(ids) != len(prompts):
-        raise ValueError("ids and prompts must be the same length.")
-    
-    # if dry run, just directly create list of APIResponse objects with no completion and return them
-    # look up the models
-    completion_fns = [
-        f'{registry[model]["name"]}-completions-{registry[model]["gpus"][0]}' for model in models
-    ]
-    completion_fns = [
-        modal.Function.lookup(f, "Model.generate") for f in completion_fns
-    ]
-
-    # split into batches
-    batches = [prompts[i:i+batch_size] for i in range(0, len(prompts), batch_size)]
-    batch_ids = [ids[i:i+batch_size] for i in range(0, len(ids), batch_size)]
-
-    # iterate over batches, assigning each to model randomly & creating async task
-    tasks = []
-    for i, b in zip(batch_ids, batches):
-        model_idx = np.random.choice(range(len(models)), p=model_weights)
-        tasks.append(asyncio.create_task(
-            completion_fns[model_idx].remote.aio(i, b, sampling_params[model_idx].__dict__)
-        ))
-    
-    # gather them as they're completed, return the results
-    results = []
-    for task in asyncio.as_completed(tasks):
-        results.extend(await task)
-        if progress_bar:
-            progress_bar.update(batch_size)
-
-    return [
-        APIResponse(**r) for r in results
-    ]
 
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
-    prompts: list[list[dict]],  # each prompt is just a list of messages
+    prompts: list[Prompt],
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
@@ -399,14 +312,14 @@ def api_prompts_dry_run(
     Count tokens and estimate costs for a batch of prompts.
     """
     results = []
-    for i, messages in zip(ids, prompts):
+    for i, prompt in zip(ids, prompts):
         # choose a model
         model_idx = np.random.choice(range(len(models)), p=model_weights)
         model = models[model_idx]
 
         # dry run
-        input_tokens, output_tokens, min_cost, max_cost = dry_run(
-            model, messages, sampling_params[model_idx].max_new_tokens
+        input_tokens, output_tokens, min_cost, max_cost = prompt.dry_run(
+            model, sampling_params[model_idx].max_new_tokens
         )
         results.append({
             "id": i,
@@ -441,7 +354,7 @@ def api_prompts_dry_run(
 
 async def process_api_prompts_async(
     ids: Union[np.ndarray, list[int]],
-    prompts: list[list[dict]],  # each prompt is just a list of messages
+    prompts: list[Prompt],  # each prompt is just a list of messages
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
@@ -719,7 +632,7 @@ class BatchLLMClient:
 
     def process_prompts_sync(
         self,
-        prompts: Union[list[str], list[list[dict]]],
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
         return_completions_only: bool = False,
         show_progress=True
     ):
@@ -734,7 +647,7 @@ class BatchLLMClient:
         
     async def process_prompts_async(
         self,
-        prompts: Union[list[str], list[list[dict]]],
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
         return_completions_only: bool = False,
         show_progress=True
     ):
@@ -744,8 +657,7 @@ class BatchLLMClient:
         import requests
 
         # if prompts are strings, convert them to message lists
-        if isinstance(prompts[0], str):
-            prompts = instructions_to_message_lists(prompts)
+        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
         ids = np.arange(len(prompts))
 
         # create file with requests to send to batch api
@@ -757,7 +669,7 @@ class BatchLLMClient:
                 "url": "/v1/chat/completions",
                 "body": {
                     "model": self.openai_model,
-                    "messages": prompt,
+                    "messages": prompt.to_openai(),
                     "max_tokens": self.sampling_params.max_new_tokens,
                     "temperature": self.sampling_params.temperature,
                     "top_p": self.sampling_params.top_p,

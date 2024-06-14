@@ -6,9 +6,9 @@ from tqdm import tqdm
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Optional, Callable
+from ..prompt import Prompt
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
-from ..utils import count_tokens
 from ..models import APIModel
 
 @dataclass
@@ -16,8 +16,7 @@ class APIResponse:
     # request information
     id: int # should be unique to the request within a given prompt-processing call
     model_internal: str # our internal model tag
-    system_prompt: Optional[str]
-    messages: list[dict]
+    prompt: Prompt
     sampling_params: SamplingParams
     
     # http response information
@@ -62,8 +61,7 @@ class APIResponse:
             "model_internal": self.model_internal,
             "model_external": self.model_external,
             "region": self.region,
-            "system_prompt": self.system_prompt,
-            "messages": self.messages,
+            "prompt": self.prompt.to_log(), # destroys image if present
             "sampling_params": self.sampling_params.__dict__,
             "status_code": self.status_code,
             "is_error": self.is_error,
@@ -82,8 +80,7 @@ class APIResponse:
             model_internal=data["model_internal"],
             model_external=data["model_external"],
             region=data["region"],
-            system_prompt=data["system_prompt"],
-            messages=data["messages"],
+            prompt=Prompt.from_log(data["prompt"]),
             sampling_params=SamplingParams(**data["sampling_params"]),
             status_code=data["status_code"],
             is_error=data["is_error"],
@@ -118,7 +115,7 @@ class APIRequestBase(ABC):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt, 
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -139,7 +136,7 @@ class APIRequestBase(ABC):
         self.task_id = task_id
         self.model_name = model_name
         self.system_prompt = None
-        self.messages = messages
+        self.prompt = prompt
         self.attempts_left = attempts_left
         self.status_tracker = status_tracker
         self.retry_queue = retry_queue
@@ -149,7 +146,7 @@ class APIRequestBase(ABC):
         self.top_logprobs = top_logprobs
         self.pbar = pbar
         self.callback = callback
-        self.num_tokens = count_tokens(messages, sampling_params.max_new_tokens)
+        self.num_tokens = prompt.count_tokens(sampling_params.max_new_tokens)
         self.result = [] if result is None else result
         self.debug = debug
         self.all_model_names = all_model_names
@@ -226,7 +223,7 @@ class APIRequestBase(ABC):
                     new_request = create_api_request(
                         task_id=self.task_id,
                         model_name=new_model_name,
-                        messages=self.messages,
+                        prompt=self.prompt,
                         attempts_left=self.attempts_left,
                         status_tracker=self.status_tracker,
                         retry_queue=self.retry_queue,
@@ -272,8 +269,7 @@ class APIRequestBase(ABC):
             self.result.append(APIResponse(
                 id=self.task_id,
                 model_internal=self.model_name,
-                system_prompt=self.system_prompt,
-                messages=self.messages,
+                prompt=self.prompt,
                 sampling_params=self.sampling_params,
                 status_code=None,
                 is_error=True,
@@ -290,7 +286,7 @@ class APIRequestBase(ABC):
                 id=self.task_id,
                 model_internal=self.model_name,
                 system_prompt=self.system_prompt,
-                messages=self.messages,
+                prompt=self.prompt,
                 sampling_params=self.sampling_params,
                 status_code=None,
                 is_error=True,
@@ -310,7 +306,7 @@ class APIRequestBase(ABC):
 def create_api_request(
     task_id: int,
     model_name: str,
-    messages: list[dict], 
+    prompt: Prompt,
     attempts_left: int,
     status_tracker: StatusTracker,
     retry_queue: asyncio.Queue,
@@ -320,8 +316,6 @@ def create_api_request(
     top_logprobs: Optional[int] = None,
     pbar: Optional[tqdm] = None,
     callback: Optional[Callable] = None,
-    result: Optional[list] = None,
-    debug: bool = False,
     all_model_names: list[str] = None,
     all_sampling_params: list[SamplingParams] = None,
 ) -> APIRequestBase:
@@ -334,7 +328,7 @@ def create_api_request(
     return request_class(
         task_id=task_id,
         model_name=model_name,
-        messages=messages,
+        prompt=prompt,
         attempts_left=attempts_left,
         status_tracker=status_tracker,
         retry_queue=retry_queue,

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
+from ..prompt import Prompt
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -18,7 +19,7 @@ class MistralRequest(APIRequestBase):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -34,7 +35,7 @@ class MistralRequest(APIRequestBase):
         super().__init__(
             task_id=task_id,
             model_name=model_name,
-            messages=messages,
+            prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
@@ -52,9 +53,12 @@ class MistralRequest(APIRequestBase):
         self.request_header = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
+        if prompt.image is not None:
+            raise ValueError("Mistral does not support images.")
+        
         self.request_json = {
             "model": self.model.name,
-            "messages": self.messages,
+            "messages": prompt.to_openai(),
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
             "max_tokens": sampling_params.max_new_tokens
@@ -104,8 +108,7 @@ class MistralRequest(APIRequestBase):
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            system_prompt=self.messages[0] if self.messages[0]["role"] == "system" else None,
-            messages=self.messages,
+            prompt=self.prompt,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
