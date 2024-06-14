@@ -444,7 +444,6 @@ async def process_api_prompts_async(
                         logprobs=logprobs,
                         top_logprobs=top_logprobs,
                         pbar=progress_bar,
-                        debug=debug,
                         all_model_names=models,
                         all_sampling_params=sampling_params
                     )
