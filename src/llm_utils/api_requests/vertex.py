@@ -218,12 +218,6 @@ class GeminiRequest(APIRequestBase):
 
         self.request_json = {
             "contents": contents,
-            "systemInstruction": {
-                "role": "SYSTEM",
-                "parts": [
-                    {"text": self.system_message}
-                ]
-            },
             "generationConfig": {
                 "stopSequences": [],
                 "temperature": sampling_params.temperature,
@@ -239,6 +233,14 @@ class GeminiRequest(APIRequestBase):
                 } for category in SAFETY_SETTING_CATEGORIES
             ]
         }
+
+        if self.system_message is not None:
+            self.request_json["systemInstruction"] = {
+                "role": "SYSTEM",
+                "parts": [
+                    {"text": self.system_message}
+                ]
+            },
 
     async def handle_response(self, response: ClientResponse) -> APIResponse:
         is_error = False
