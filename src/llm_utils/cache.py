@@ -30,14 +30,15 @@ class DistributedDictCache:
     Pass in the dictionary object to use. Cache must implement
     'get' and 'put' methods.
     """
-    def __init__(self, cache: Any):
+    def __init__(self, cache: Any, cache_key: str = "default"):
         self.cache = cache
+        self.cache_key = cache_key # for namespacing
 
     def get(self, prompt: Prompt) -> APIResponse:
         """
         Get an API response from the cache.
         """
-        data = self.cache.get(prompt.fingerprint)
+        data = self.cache.get(f"{self.cache_key}:{prompt.fingerprint}")
         if data is not None:
             return decode_api_response(data)
         return None
@@ -46,8 +47,9 @@ class DistributedDictCache:
         """
         Put an API response into the cache.
         """
+        key = f"{self.cache_key}:{prompt.fingerprint}"
         self.cache.put(
-            prompt.fingerprint,
+            key,
             encode_api_response(response)
         )
 
@@ -55,7 +57,7 @@ class LevelDBCache:
     """
     Store API responses based on their input messages.
     """
-    def __init__(self, path: Optional[str] = None):
+    def __init__(self, path: Optional[str] = None, cache_key: str = "default"):
         if path is None:
             self.temp_file = tempfile.TemporaryFile(suffix=".db")
             path = self.temp_file.name
@@ -67,12 +69,13 @@ class LevelDBCache:
             self.db = plyvel.DB(path, create_if_missing=True)
         else:
            raise ImportError("plyvel not installed, cannot use LevelDBCache.")
+        self.cache_key = cache_key # for namespacing
 
     def get(self, prompt: Prompt) -> APIResponse:
         """
         Get an API response from the cache.
         """
-        key = prompt.fingerprint
+        key = f"{self.cache_key}:{prompt.fingerprint}"
         data = self.db.get(key.encode())
         if data is not None:
             return decode_api_response(data)
@@ -82,7 +85,7 @@ class LevelDBCache:
         """
         Put an API response into the cache.
         """
-        key = prompt.fingerprint
+        key = f"{self.cache_key}:{prompt.fingerprint}"
         self.db.put(key.encode(), encode_api_response(response))
 
     def close(self):
@@ -98,8 +101,9 @@ class SqliteCache:
     Same interface as LevelDBCache, but uses SQLite as KV store instead.
     Good to use on systems where LevelDB installation is problematic.
     """
-    def __init__(self, path: str):
+    def __init__(self, path: str, cache_key: str = "default"):
         self.path = path
+        self.cache_key = cache_key # for namespacing
         self.conn = sqlite3.connect(path)
         self.cursor = self.conn.cursor()
         self.cursor.execute(
@@ -111,7 +115,7 @@ class SqliteCache:
         """
         Get an API response from the cache.
         """
-        key = prompt.fingerprint
+        key = f"{self.cache_key}:{prompt.fingerprint}"
         self.cursor.execute("SELECT value FROM cache WHERE key=?", (key,))
         data = self.cursor.fetchone()
         if data is not None and len(data) > 0:
@@ -122,7 +126,7 @@ class SqliteCache:
         """
         Put an API response into the cache.
         """
-        key = prompt.fingerprint
+        key = f"{self.cache_key}:{prompt.fingerprint}"
         self.cursor.execute(
             "INSERT OR REPLACE INTO cache (key, value) VALUES (?, ?)", (key, encode_api_response(response))
         )
