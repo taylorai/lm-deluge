@@ -283,7 +283,6 @@ class APIRequestBase(ABC):
             self.result.append(APIResponse(
                 id=self.task_id,
                 model_internal=self.model_name,
-                system_prompt=self.system_prompt,
                 prompt=self.prompt,
                 sampling_params=self.sampling_params,
                 status_code=None,
