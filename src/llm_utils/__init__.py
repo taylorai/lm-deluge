@@ -229,51 +229,52 @@ class LLMClient:
             remaining_prompts = prompts
             remaining_ids = ids
 
-        # set up progress bar
-        pbar = tqdm(total=len(prompts), disable=(not show_progress))
-
-        # update progress bar with cache hits
-        pbar.update(len(cache_hit_ids))
-        api_task = None
-        if dry_run:
-            results = api_prompts_dry_run(
-                ids, 
-                prompts, 
-                self.models, 
-                self.model_weights, 
-                self.sampling_params,
-                max_tokens_per_minute=self.max_tokens_per_minute,
-                max_requests_per_minute=self.max_requests_per_minute,
-            )
-            print("Dry run results:")
-            print(results)
-            return results
-
-        api_task = asyncio.create_task(
-            process_api_prompts_async(
-                ids, 
-                prompts, 
-                self.models, 
-                self.model_weights, 
-                self.sampling_params,
-                logprobs=self.logprobs, 
-                top_logprobs=self.top_logprobs,
-                max_attempts=self.max_attempts,
-                max_tokens_per_minute=self.max_tokens_per_minute,
-                max_requests_per_minute=self.max_requests_per_minute,
-                request_timeout=self.request_timeout,
-                progress_bar=pbar,
-                use_qps=self.use_qps,
-                debug=self.debug
-            )
-        )
-        api_results: list[APIResponse] = await api_task
         results: list[APIResponse] = [None for _ in range(len(prompts))]
-        for res in api_results:
-            results[res.id] = res
-            # set to cache if result has a completion
-            if self.cache and res.completion:
-                self.cache.put(prompts[res.id], res)
+        if len(remaining_prompts) > 0:
+            # set up progress bar
+            pbar = tqdm(total=len(prompts), disable=(not show_progress))
+
+            # update progress bar with cache hits
+            pbar.update(len(cache_hit_ids))
+            api_task = None
+            if dry_run:
+                results = api_prompts_dry_run(
+                    ids, 
+                    prompts, 
+                    self.models, 
+                    self.model_weights, 
+                    self.sampling_params,
+                    max_tokens_per_minute=self.max_tokens_per_minute,
+                    max_requests_per_minute=self.max_requests_per_minute,
+                )
+                print("Dry run results:")
+                print(results)
+                return results
+
+            api_task = asyncio.create_task(
+                process_api_prompts_async(
+                    ids, 
+                    prompts, 
+                    self.models, 
+                    self.model_weights, 
+                    self.sampling_params,
+                    logprobs=self.logprobs, 
+                    top_logprobs=self.top_logprobs,
+                    max_attempts=self.max_attempts,
+                    max_tokens_per_minute=self.max_tokens_per_minute,
+                    max_requests_per_minute=self.max_requests_per_minute,
+                    request_timeout=self.request_timeout,
+                    progress_bar=pbar,
+                    use_qps=self.use_qps,
+                    debug=self.debug
+                )
+            )
+            api_results: list[APIResponse] = await api_task
+            for res in api_results:
+                results[res.id] = res
+                # set to cache if result has a completion
+                if self.cache and res.completion:
+                    self.cache.put(prompts[res.id], res)
 
         # add cache hits back in
         for id, res in zip(cache_hit_ids, cache_hit_results):
