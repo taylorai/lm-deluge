@@ -177,9 +177,23 @@ class Prompt:
             "image": None if self.image is None else f"<Image ({self.image.num_pixels} pixels)>"
         }
     
-    def from_log(self, log):
-        self.user_message = log["user_message"]
-        self.system_message = log["system_message"]
-        if log["image"] is not None:
-            print("WARNING: Image cannot be reconstructed from log.")
-        return self
+    @classmethod
+    def from_log(cls, log):
+        # self.user_message = log["user_message"]
+        # self.system_message = log["system_message"]
+        # if log["image"] is not None:
+        #     print("WARNING: Image cannot be reconstructed from log.")
+        # return self
+        messages = []
+        if log["system_message"] is not None:
+            messages.append({
+                "role": "system",
+                "content": log["system_message"]
+            })
+        messages.append({
+            "role": "user",
+            "content": log["user_message"]
+        })
+        return cls(
+            messages, image=None
+        )
