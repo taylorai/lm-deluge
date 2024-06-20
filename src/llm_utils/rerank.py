@@ -132,13 +132,10 @@ class RerankingRequest:
                 ) as response:
                     response_obj: RerankingResponse = self.handle_response(response)
             self.result.append(response_obj)
-            if response.is_error:
-                self.handle_error(
-                    create_new_request=response.retry_with_different_model,
-                    give_up_if_no_other_models=response.give_up_if_no_other_models
-                )     
+            if response_obj.is_error:
+                self.handle_error()     
             else:
-                self.handle_success(response)
+                self.handle_success()
 
         except asyncio.TimeoutError:
             self.result.append(RerankingResponse(
