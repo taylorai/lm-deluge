@@ -173,10 +173,6 @@ class APIRequestBase(ABC):
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
 
-    # TODO: make an "optional" retry with other model that will
-    # try to re-assign if possible, but otherwise doesn't totally give up
-    # TODO: i don't think the retry with new model works correctly because even when it
-    # retries the completion is None
     def handle_error(self, create_new_request = False, give_up_if_no_other_models = False):
         """
         If create_new_request is True, will create a new API request (so that it
