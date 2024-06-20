@@ -221,6 +221,7 @@ async def rerank_parallel_async(
                         task_id=id,
                         model_name=model,
                         query=query,
+                        documents=docs,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
