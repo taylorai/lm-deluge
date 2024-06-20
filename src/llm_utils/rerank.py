@@ -22,6 +22,7 @@ class RerankingRequest:
         model_name: str,
         query: str,
         documents: list[str],
+        top_k: int,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -32,6 +33,7 @@ class RerankingRequest:
         self.model_name = model_name
         self.query = query
         self.documents = documents
+        self.top_k = top_k
         self.attempts_left = attempts_left
         self.status_tracker = status_tracker
         self.retry_queue = retry_queue
@@ -117,7 +119,7 @@ class RerankingRequest:
         data = {
             "model": self.model_name,
             "query": self.query,
-            "top_n": 3,
+            "top_n": self.top_k,
             "documents": self.documents
         }
         try:
