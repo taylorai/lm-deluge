@@ -126,6 +126,7 @@ class RerankingRequest:
                 async with session.post(
                     url, headers=headers, json=data, timeout=self.request_timeout
                 ) as response:
+                    print("got response!!")
                     response_obj: RerankingResponse = await self.handle_response(response)
             self.result.append(response_obj)
             if response_obj.is_error:
