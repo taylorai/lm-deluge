@@ -21,6 +21,7 @@ class RerankingRequest:
         task_id: int,
         model_name: str,
         query: str,
+        documents: list[str],
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -30,6 +31,7 @@ class RerankingRequest:
         self.task_id = task_id
         self.model_name = model_name
         self.query = query
+        self.documents = documents
         self.attempts_left = attempts_left
         self.status_tracker = status_tracker
         self.retry_queue = retry_queue
@@ -76,7 +78,7 @@ class RerankingRequest:
                     is_error=False,
                     error_message=None,
                     query=self.query,
-                    documents=result["documents"],
+                    documents=self.documents,
                     top_k_indices=[doc["index"] for doc in result["results"]],
                     top_k_scores=[doc["relevance_score"] for doc in result["results"]]
                 )
@@ -116,13 +118,7 @@ class RerankingRequest:
             "model": self.model_name,
             "query": self.query,
             "top_n": 3,
-            "documents": [
-                "Carson City is the capital city of the American state of Nevada.",
-                "The Commonwealth of the Northern Mariana Islands is a group of islands in the Pacific Ocean. Its capital is Saipan.",
-                "Washington, D.C. (also known as simply Washington or D.C., and officially as the District of Columbia) is the capital of the United States. It is a federal district.",
-                "Capitalization or capitalisation in English grammar is the use of a capital letter at the start of a word. English usage varies from capitalization in other languages.",
-                "Capital punishment (the death penalty) has existed in the United States since beforethe United States was a country. As of 2017, capital punishment is legal in 30 of the 50 states."
-            ]
+            "documents": self.documents
         }
         try:
             self.status_tracker.total_requests += 1
