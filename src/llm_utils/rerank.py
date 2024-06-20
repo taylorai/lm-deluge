@@ -181,6 +181,7 @@ class RerankingResponse:
 async def rerank_parallel_async(
     queries: list[str],
     docs: list[list[str]], # one list per query
+    top_k: int = 3,
     model: str = "rerank-english-v3.0",
     max_attempts: int = 5,
     max_requests_per_minute: int = 4_000,
@@ -225,6 +226,7 @@ async def rerank_parallel_async(
                         model_name=model,
                         query=query,
                         documents=docs,
+                        top_k=top_k,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
