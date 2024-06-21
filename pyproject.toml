@@ -20,5 +20,6 @@ dependencies = [
     "xxhash",
     "tqdm",
     "google-auth",
-    "requests-aws4auth"
+    "requests-aws4auth",
+    "pillow"
 ]
