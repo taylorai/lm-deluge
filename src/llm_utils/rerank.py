@@ -185,6 +185,7 @@ async def rerank_parallel_async(
     model: str = "rerank-english-v3.0",
     max_attempts: int = 5,
     max_requests_per_minute: int = 4_000,
+    max_concurrent_requests: int = 500,
     request_timeout: int = 10,
     progress_bar: Optional[tqdm] = None,
 ):
@@ -266,7 +267,8 @@ async def rerank_parallel_async(
         # if enough capacity available, call API
         if next_request:
             if (
-                available_request_capacity >= 1
+                available_request_capacity >= 1 and
+                status_tracker.num_tasks_in_progress < max_concurrent_requests
             ):
                 # update counters
                 available_request_capacity -= 1
