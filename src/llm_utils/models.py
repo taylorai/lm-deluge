@@ -363,7 +363,7 @@ registry = {
     },
     "claude-sonnet-anthropic": {
         "id": "claude-sonnet-anthropic",
-        "name": "claude-3-sonnet-20240229",
+        "name": "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
