@@ -229,7 +229,7 @@ class GeminiRequest(APIRequestBase):
             "safetySettings": [
                 {
                     "category": category,
-                    "threshold": "BLOCK_ONLY_HIGH"
+                    "threshold": "BLOCK_NONE"
                 } for category in SAFETY_SETTING_CATEGORIES
             ]
         }
