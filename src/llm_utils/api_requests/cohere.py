@@ -30,7 +30,6 @@ class CohereRequest(APIRequestBase):
         sampling_params: SamplingParams = SamplingParams(),
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None,
         debug: bool = False,
         all_model_names: list[str] = None,
         all_sampling_params: list[SamplingParams] = None,
@@ -47,7 +46,6 @@ class CohereRequest(APIRequestBase):
             sampling_params=sampling_params,
             pbar=pbar,
             callback=callback,
-            result=result,
             debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params
