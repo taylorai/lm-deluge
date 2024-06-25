@@ -24,6 +24,7 @@ class ClientConfig:
     model_names: list[str]
     max_requests_per_minute: int
     max_tokens_per_minute: int
+    max_concurrent_requests: int
     max_attempts: int
     request_timeout: int
     sampling_params: Union[SamplingParams, list[SamplingParams]]
@@ -60,6 +61,7 @@ class ClientConfig:
             "model_names": self.model_names,
             "max_requests_per_minute": self.max_requests_per_minute,
             "max_tokens_per_minute": self.max_tokens_per_minute,
+            "max_concurrent_requests": self.max_concurrent_requests,
             "max_attempts": self.max_attempts,
             "request_timeout": self.request_timeout,
             "sampling_params": sp,
@@ -80,6 +82,7 @@ class LLMClient:
         model_names: list[str],
         max_requests_per_minute: int,
         max_tokens_per_minute: int,
+        max_concurrent_requests: int,
         sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams(),
         model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
         max_attempts: int = 5,
@@ -128,6 +131,7 @@ class LLMClient:
 
         self.max_requests_per_minute = max_requests_per_minute
         self.max_tokens_per_minute = max_tokens_per_minute
+        self.max_concurrent_requests = max_concurrent_requests
         self.max_attempts = max_attempts
         self.request_timeout = request_timeout
         self.use_qps = use_qps
@@ -140,6 +144,7 @@ class LLMClient:
             model_names=config.model_names,
             max_requests_per_minute=config.max_requests_per_minute,
             max_tokens_per_minute=config.max_tokens_per_minute,
+            max_concurrent_requests=config.max_concurrent_requests,
             sampling_params=config.sampling_params,
             model_weights=config.model_weights,
             max_attempts=config.max_attempts,
@@ -160,6 +165,7 @@ class LLMClient:
         model: Union[str, list[str]], 
         max_requests_per_minute: int = 5_000,
         max_tokens_per_minute: int = 1_000_000,
+        max_concurrent_requests: int = 1_000,
         temperature: float = 0.75,
         max_new_tokens: int = 1000,
         model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
@@ -174,6 +180,7 @@ class LLMClient:
             model_names=model_names,
             max_requests_per_minute=max_requests_per_minute,
             max_tokens_per_minute=max_tokens_per_minute,
+            max_concurrent_requests=max_concurrent_requests,
             sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_new_tokens),
             logprobs=logprobs,
             top_logprobs=top_logprobs,
@@ -190,6 +197,7 @@ class LLMClient:
             model_weights=self.model_weights,
             max_requests_per_minute=self.max_requests_per_minute,
             max_tokens_per_minute=self.max_tokens_per_minute,
+            max_concurrent_requests=self.max_concurrent_requests,
             max_attempts=self.max_attempts,
             request_timeout=self.request_timeout,
             sampling_params=self.sampling_params,
@@ -263,6 +271,7 @@ class LLMClient:
                     max_attempts=self.max_attempts,
                     max_tokens_per_minute=self.max_tokens_per_minute,
                     max_requests_per_minute=self.max_requests_per_minute,
+                    max_concurrent_requests=self.max_concurrent_requests,
                     request_timeout=self.request_timeout,
                     progress_bar=pbar,
                     use_qps=self.use_qps,
@@ -365,6 +374,7 @@ async def process_api_prompts_async(
     max_attempts: int = 5,
     max_tokens_per_minute: int = 500_000,
     max_requests_per_minute: int = 1_000,
+    max_concurrent_requests: int = 1_000,
     request_timeout: int = 30,
     progress_bar: Optional[tqdm] = None,
     use_qps: bool = False,
@@ -491,6 +501,7 @@ async def process_api_prompts_async(
             if (
                 available_request_capacity >= 1
                 and available_token_capacity >= next_request_tokens
+                and status_tracker.num_tasks_in_progress < max_concurrent_requests
             ):
                 # update counters
                 available_request_capacity -= 1
