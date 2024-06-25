@@ -52,6 +52,7 @@ class BedrockAnthropicRequest(APIRequestBase):
         model_name: str, # must correspond to registry
         prompt: Prompt,
         attempts_left: int,
+        results_arr: list,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
@@ -70,6 +71,7 @@ class BedrockAnthropicRequest(APIRequestBase):
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
+            results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
             pbar=pbar,
@@ -152,21 +154,6 @@ class BedrockAnthropicRequest(APIRequestBase):
             output_tokens=output_tokens,
         )
     
-def format_conversation(messages, bos_token="<s>", eos_token="</s>"):
-    formatted_conversation = bos_token
-    for i, message in enumerate(messages):
-        if (message["role"] == "system"):
-            raise ValueError("System messages are not supported for Mistral on AWS.")
-        if (message['role'] in 'user') != (i % 2 == 0):
-            raise ValueError('Conversation roles must alternate user/assistant/user/assistant/...')
-        if message['role'] == 'user':
-            formatted_conversation += f"[INST] {message['content']} [/INST]"
-        elif message['role'] == 'assistant':
-            formatted_conversation += f"{message['content']}{eos_token} "
-        else:
-            raise ValueError('Only user and assistant roles are supported!')
-    return formatted_conversation
-    
 class MistralBedrockRequest(APIRequestBase):
     """
     Documentation: https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-mistral.html#model-parameters-mistral-request-response
@@ -175,10 +162,11 @@ class MistralBedrockRequest(APIRequestBase):
         self,
         task_id: int,
         model_name: str, # must correspond to registry
-        messages: list[dict], 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
+        results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
         pbar: Optional[tqdm] = None,
@@ -191,10 +179,11 @@ class MistralBedrockRequest(APIRequestBase):
         super().__init__(
             task_id=task_id,
             model_name=model_name,
-            messages=messages,
+            prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
             retry_queue=retry_queue,
+            results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
             pbar=pbar,
@@ -208,10 +197,8 @@ class MistralBedrockRequest(APIRequestBase):
         self.region = random.choice(self.model.regions)
         self.url = f"https://bedrock-runtime.{self.region}.amazonaws.com/model/{self.model.name}/invoke"
         self.system_message = None
-        if len(self.messages) > 0 and self.messages[0]["role"] == "system":
-            raise ValueError("System messages are not supported for Mistral on AWS.")
         self.request_json = {
-            "prompt": format_conversation(self.messages),
+            "prompt": prompt.to_mistral_bedrock(),
             "max_tokens" : self.sampling_params.max_new_tokens,
             "temperature": self.sampling_params.temperature,
             "top_p": self.sampling_params.top_p,

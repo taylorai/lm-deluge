@@ -170,6 +170,15 @@ class Prompt:
         
         return system_message, messages
     
+    def to_mistral_bedrock(self, bos_token="<s>", eos_token="</s>"):
+        """
+        Convert the prompt to a format that can be sent to the
+        Mistral API.
+        """
+        formatted_conversation = bos_token
+        formatted_conversation += f"[INST] {self.user_message} [/INST]"
+        return formatted_conversation
+    
     def to_log(self):
         return {
             "user_message": self.user_message,

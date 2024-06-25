@@ -119,13 +119,14 @@ class APIRequestBase(ABC):
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
+        # needed in order to retry with a different model and not throw the output away
+        results_arr: list["APIRequestBase"],
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
         logprobs: bool = False,
         top_logprobs: Optional[int] = None,
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
-        result: Optional[list] = None,
         debug: bool = False,
         all_model_names: list[str] = None,
         all_sampling_params: list[SamplingParams] = None,
@@ -147,10 +148,11 @@ class APIRequestBase(ABC):
         self.pbar = pbar
         self.callback = callback
         self.num_tokens = prompt.count_tokens(sampling_params.max_new_tokens)
-        self.result = [] if result is None else result
+        self.results_arr = results_arr
         self.debug = debug
         self.all_model_names = all_model_names
         self.all_sampling_params = all_sampling_params
+        self.result = []  # list of APIResponse objects from each attempt
 
         # these should be set in the __init__ of the subclass
         self.url = None
@@ -223,6 +225,7 @@ class APIRequestBase(ABC):
                         attempts_left=self.attempts_left,
                         status_tracker=self.status_tracker,
                         retry_queue=self.retry_queue,
+                        results_arr=self.results_arr,
                         request_timeout=self.request_timeout,
                         sampling_params=new_sampling_params,
                         logprobs=self.logprobs,
@@ -232,7 +235,10 @@ class APIRequestBase(ABC):
                         all_model_names=self.all_model_names,
                         all_sampling_params=self.all_sampling_params,
                     )
+                    # PROBLEM: new request is never put into results array, so we can't get the result.
                     self.retry_queue.put_nowait(new_request)
+                    # SOLUTION: just need to make sure it's deduplicated by task_id later.
+                    self.results_arr.append(new_request)
         else:
             print(f"Task {self.task_id} out of tries.")
             self.status_tracker.num_tasks_in_progress -= 1
@@ -303,6 +309,7 @@ def create_api_request(
     attempts_left: int,
     status_tracker: StatusTracker,
     retry_queue: asyncio.Queue,
+    results_arr: list["APIRequestBase"],
     request_timeout: int = 30,
     sampling_params: SamplingParams = SamplingParams(),
     logprobs: bool = False,
@@ -325,6 +332,7 @@ def create_api_request(
         attempts_left=attempts_left,
         status_tracker=status_tracker,
         retry_queue=retry_queue,
+        results_arr=results_arr,
         request_timeout=request_timeout,
         sampling_params=sampling_params,
         pbar=pbar,
