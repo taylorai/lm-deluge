@@ -441,6 +441,7 @@ async def process_api_prompts_async(
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
+                        results_arr=results,
                         sampling_params=sampling_params[model_idx],
                         logprobs=logprobs,
                         top_logprobs=top_logprobs,
