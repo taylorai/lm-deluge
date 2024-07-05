@@ -18,8 +18,9 @@ class Image:
     
     @classmethod
     def from_file(cls, file_path: str):
-        image = PILImage.open(file_path)
-        return cls(image)
+        with PILImage.open(file_path) as img:
+            img_copy = img.copy() # close the file
+        return cls(img_copy)
     
     @classmethod
     def from_base64(cls, base64_str: str):
