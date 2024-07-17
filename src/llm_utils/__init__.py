@@ -14,11 +14,11 @@ from .models import registry
 from .api_requests.base import APIResponse, APIRequestBase
 from .api_requests import create_api_request
 from .cache import LevelDBCache, SqliteCache
-try:
-    ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
-except:
-    print("Couldn't get ModalLLMClient, so cannot use RemoteLLMClient.")
-    ModalLLMClient = None
+# try:
+#     ModalLLMClient = modal.Cls.lookup("llm-utils", "ModalLLMClient")
+# except:
+#     print("Couldn't get ModalLLMClient, so cannot use RemoteLLMClient.")
+ModalLLMClient = None
 
 # TODO: get completions as they finish, not all at once at the end.
 # relatedly, would be nice to cache them as they finish too.
