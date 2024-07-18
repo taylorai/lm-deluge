@@ -125,7 +125,20 @@ registry = {
         "input_cost": 5.0,
         "output_cost": 15.0,
         "requests_per_minute": 10_000,
-        "tokens_per_minute": 2_000_000
+        "tokens_per_minute": 30_000_000
+    },
+     "gpt-4o-mini": {
+        "id": "gpt-4o-mini",
+        "name": 'gpt-4o-mini-2024-07-18',
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 0.15,
+        "output_cost": 0.6,
+        "requests_per_minute": 20_000,
+        "tokens_per_minute": 50_000_000
     },
     "gpt-3.5-turbo": {
         "id": "gpt-3.5-turbo",
@@ -137,22 +150,9 @@ registry = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 20_000,
-        "tokens_per_minute": 2_000_000
+        "requests_per_minute": 40_000,
+        "tokens_per_minute": 75_000_000
     },
-    # "gpt-4-turbo": {
-    #     "id": "gpt-4-turbo",
-    #     "name": "gpt-4-0125-preview",
-    #     "api_base": "https://api.openai.com/v1",
-    #     "api_key_env_var": "OPENAI_API_KEY",
-    #     "supports_json": True,
-    #     "supports_logprobs": True,
-    #     "api_spec": "openai",
-    #     "input_cost": 10.0,
-    #     "output_cost": 30.0,
-    #     "requests_per_minute": 10_000,
-    #     "tokens_per_minute": 1_500_000
-    # },
     "gpt-4-turbo": {
         "id": "gpt-4-turbo",
         "name": "gpt-4-turbo-2024-04-09",
