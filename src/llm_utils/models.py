@@ -72,7 +72,7 @@ gemini_1_5_pro_limits = {
     "asia-east1": 500,
     "asia-east2": 500,
     "asia-northeast1": 500,
-    # "asia-northeast2": 500,
+    # "asia-northeast2": 500,  
     "asia-northeast3": 500,
     "asia-south1": 500,
     "asia-southeast1": 500,
