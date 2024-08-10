@@ -58,6 +58,7 @@ class EmbeddingRequest:
         retry_queue: asyncio.Queue,
         request_timeout: int,
         pbar: Optional[tqdm] = None,
+        **kwargs # openai or cohere specific params
     ):
         self.task_id = task_id
         self.model_name = model_name
@@ -68,7 +69,7 @@ class EmbeddingRequest:
         self.request_timeout = request_timeout
         self.pbar = pbar
         self.result = []
-    
+        self.kwargs = kwargs
     def increment_pbar(self):
         if self.pbar is not None:
             self.pbar.update(1)
@@ -131,30 +132,26 @@ class EmbeddingRequest:
 
 
     async def call_api(
-        self,
-        session: aiohttp.ClientSession,
-        model_name: str, 
-        texts: list[str],
-        **kwargs # openai or cohere specific params
+        self, session: aiohttp.ClientSession,
     ):
-        if len(texts) > 96:
+        if len(self.texts) > 96:
             raise ValueError("Embeddings only support up to 96 texts per request.")
-        model_obj = registry[model_name]
+        model_obj = registry[self.model_name]
         url = "https://api.openai.com/v1/embeddings" if model_obj["provider"] == "openai" else "https://api.cohere.com/v1/embed"
         headers = {
             "Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY')}" if model_obj["provider"] == "openai" else \
                 f"bearer {os.environ.get('COHERE_API_KEY')}"
         }
-        payload = {"model": model_name}
+        payload = {"model": self.model_name}
         if model_obj["provider"] == "openai":
-            payload["input"] = texts
+            payload["input"] = self.texts
             payload["encoding_format"] = "float"
-            for k, v in kwargs.items():
+            for k, v in self.kwargs.items():
                 payload[k] = v
         elif model_obj["provider"] == "cohere":
-            payload["texts"] = texts
-            payload["input_type"] = kwargs.get("input_type", "search_document")
-            for k, v in kwargs.items():
+            payload["texts"] = self.texts
+            payload["input_type"] = self.kwargs.get("input_type", "search_document")
+            for k, v in self.kwargs.items():
                 payload[k] = v
         try:
             self.status_tracker.total_requests += 1
@@ -295,11 +292,7 @@ async def embed_parallel_async(
                 next_request.attempts_left -= 1
 
                 # call API
-                asyncio.create_task(next_request.call_api(
-                    session=session,
-                    model_name=model,
-                    texts=batch
-                ))
+                asyncio.create_task(next_request.call_api(session=session))
                 next_request = None  # reset next_request to empty
 
         # if all tasks are finished, break
@@ -346,7 +339,7 @@ async def embed_parallel_async(
 
     output = list(deduplicated.values())
     print(f"Returning {len(output)} unique results.")
-
+    await session.close()
     return output
 
 def submit_batch_request():
