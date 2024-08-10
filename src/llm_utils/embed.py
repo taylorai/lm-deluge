@@ -352,7 +352,7 @@ def stack_results(
 ) -> list[list[float]] | np.ndarray:
     if not all(response.status_code == 200 for response in results):
         raise ValueError("Some responses were not successful; cannot coalesce results.")
-    stacked = np.stack([response.embeddings for response in results])
+    stacked = np.concatenate([response.embeddings for response in results], axis=0)
     return stacked.tolist() if not return_numpy else stacked
 
 
