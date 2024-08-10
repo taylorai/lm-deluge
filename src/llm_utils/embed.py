@@ -204,7 +204,8 @@ async def embed_parallel_async(
     max_concurrent_requests: int = 500,
     request_timeout: int = 10,
     batch_size: int = 16,
-    show_progress: bool = True
+    show_progress: bool = True,
+    **kwargs
 ):
     """Processes embed requests in parallel, throttling to stay under rate limits."""
     if batch_size > 96:
@@ -252,7 +253,8 @@ async def embed_parallel_async(
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
                         request_timeout=request_timeout,
-                        pbar=pbar
+                        pbar=pbar,
+                        **kwargs
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1
