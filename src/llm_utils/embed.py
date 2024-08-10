@@ -102,7 +102,7 @@ class EmbeddingRequest:
                 if self.model_name in ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]:
                     embeddings = [embedding['embedding'] for embedding in result['data']]
                 elif self.model_name in ["embed-english-v3.0", "embed-english-light-v3.0", "embed-multilingual-v3.0", "embed-multilingual-light-v3.0"]:
-                    embeddings = [embedding['embedding'] for embedding in result['embeddings']]
+                    embeddings = result['embeddings']['float']
                 return EmbeddingResponse(
                     id=self.task_id,
                     status_code=response.status,
