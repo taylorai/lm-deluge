@@ -233,6 +233,7 @@ async def embed_parallel_async(
     prompts_not_finished = True
     prompts_iter = iter(batches)
     results: list = []
+    session = aiohttp.ClientSession()
 
     while True:
         # get next request (if one is not already waiting for capacity)
@@ -243,7 +244,7 @@ async def embed_parallel_async(
             elif prompts_not_finished:
                 try:
                     # get new request
-                    id, query, docs = next(prompts_iter)
+                    batch = next(prompts_iter)
                     next_request = EmbeddingRequest(
                         task_id=id,
                         model_name=model,
@@ -294,7 +295,11 @@ async def embed_parallel_async(
                 next_request.attempts_left -= 1
 
                 # call API
-                asyncio.create_task(next_request.call_api())
+                asyncio.create_task(next_request.call_api(
+                    session=session,
+                    model_name=model,
+                    texts=batch
+                ))
                 next_request = None  # reset next_request to empty
 
         # if all tasks are finished, break
