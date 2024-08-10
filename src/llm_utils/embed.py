@@ -206,10 +206,10 @@ async def embed_parallel_async(
     show_progress: bool = True
 ):
     """Processes rerank requests in parallel, throttling to stay under rate limits."""
-    pbar = tqdm(total=len(texts), desc="Embedding") if show_progress else None
     if batch_size > 96:
         raise ValueError("Embeddings only support up to 96 texts per request.")
     batches = [texts[i:i+batch_size] for i in range(0, len(texts), batch_size)]
+    pbar = tqdm(total=len(batches), desc="Embedding") if show_progress else None
     ids = range(len(batches))
     # constants
     seconds_to_pause_after_rate_limit_error = 5
@@ -246,7 +246,7 @@ async def embed_parallel_async(
                     next_request = EmbeddingRequest(
                         task_id=batch_id,
                         model_name=model,
-                        texts=texts,
+                        texts=batch,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
