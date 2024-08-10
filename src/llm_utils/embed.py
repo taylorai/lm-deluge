@@ -1,5 +1,6 @@
 ### specific utility for cohere rerank api
 import os
+import numpy as np
 import aiohttp
 from tqdm.auto import tqdm
 import asyncio
@@ -205,7 +206,7 @@ async def embed_parallel_async(
     batch_size: int = 16,
     show_progress: bool = True
 ):
-    """Processes rerank requests in parallel, throttling to stay under rate limits."""
+    """Processes embed requests in parallel, throttling to stay under rate limits."""
     if batch_size > 96:
         raise ValueError("Embeddings only support up to 96 texts per request.")
     batches = [texts[i:i+batch_size] for i in range(0, len(texts), batch_size)]
@@ -342,6 +343,16 @@ async def embed_parallel_async(
     print(f"Returning {len(output)} unique results.")
     await session.close()
     return output
+
+def stack_results(
+    results: list[EmbeddingResponse],
+    return_numpy: bool = True
+) -> list[list[float]] | np.ndarray:
+    if not all(response.status_code == 200 for response in results):
+        raise ValueError("Some responses were not successful; cannot coalesce results.")
+    stacked = np.stack([response.embeddings for response in results])
+    return stacked.tolist() if not return_numpy else stacked
+
 
 def submit_batch_request():
     pass
