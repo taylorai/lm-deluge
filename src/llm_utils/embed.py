@@ -340,6 +340,8 @@ async def embed_parallel_async(
                 deduplicated[request.task_id] = request.result[-1]
 
     output = list(deduplicated.values())
+    # sort by id
+    output.sort(key=lambda x: x.id)
     print(f"Returning {len(output)} unique results.")
     await session.close()
     return output
