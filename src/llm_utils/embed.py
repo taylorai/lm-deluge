@@ -1,0 +1,349 @@
+### specific utility for cohere rerank api
+import os
+import aiohttp
+from tqdm.auto import tqdm
+import asyncio
+import time
+from typing import Optional
+from dataclasses import dataclass
+from .tracker import StatusTracker
+
+registry = {
+    "text-embedding-3-small": {
+        "name": "text-embedding-3-small",
+        "provider": "openai",
+        "cost": 0.02 # per million tokens
+    },
+    "text-embedding-3-large": {
+        "name": "text-embedding-3-large",
+        "provider": "openai",
+        "cost": 0.13
+    },
+    "text-embedding-ada-002": {
+        "name": "text-embedding-ada-002",
+        "provider": "openai",
+        "cost": 1
+    },
+    "embed-english-v3.0": {
+        "name": "embed-english-v3.0",
+        "provider": "cohere",
+        "cost": 0.1
+    },
+    "embed-english-light-v3.0": {
+        "name": "embed-english-light-v3.0",
+        "provider": "cohere",
+        "cost": 0.1
+    },
+    "embed-multilingual-v3.0": {
+        "name": "embed-multilingual-v3.0",
+        "provider": "cohere",
+        "cost": 0.1
+    },
+    "embed-multilingual-light-v3.0": {
+        "name": "embed-multilingual-light-v3.0",
+        "provider": "cohere",
+        "cost": 0.1
+    },
+}
+
+
+class EmbeddingRequest:
+    def __init__(
+        self,
+        task_id: int,
+        model_name: str,
+        texts: list[str],
+        attempts_left: int,
+        status_tracker: StatusTracker,
+        retry_queue: asyncio.Queue,
+        request_timeout: int,
+        pbar: Optional[tqdm] = None,
+    ):
+        self.task_id = task_id
+        self.model_name = model_name
+        self.texts = texts
+        self.attempts_left = attempts_left
+        self.status_tracker = status_tracker
+        self.retry_queue = retry_queue
+        self.request_timeout = request_timeout
+        self.pbar = pbar
+        self.result = []
+    
+    def increment_pbar(self):
+        if self.pbar is not None:
+            self.pbar.update(1)
+
+    def handle_success(self):
+        self.increment_pbar()    
+        self.status_tracker.num_tasks_in_progress -= 1
+        self.status_tracker.num_tasks_succeeded += 1
+
+    def handle_error(self):
+        last_result: EmbeddingResponse = self.result[-1]
+        error_to_print = f"Error on task {self.task_id}, Code: {last_result.status_code}, "
+        error_to_print += f"Message: {last_result.error_message}."
+        print(error_to_print)
+        if self.attempts_left > 0:
+            self.attempts_left -= 1
+            self.retry_queue.put_nowait(self)
+            return
+        else:
+            print(f"Task {self.task_id} out of tries.")
+            self.status_tracker.num_tasks_in_progress -= 1
+            self.status_tracker.num_tasks_failed += 1 
+
+    async def handle_response(self, response: aiohttp.ClientResponse):
+        try:
+            if response.status == 200:
+                result = await response.json()
+                # TODO: add cost calculation
+                if self.model_name in ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]:
+                    embeddings = [embedding['embedding'] for embedding in result['data']]
+                elif self.model_name in ["embed-english-v3.0", "embed-english-light-v3.0", "embed-multilingual-v3.0", "embed-multilingual-light-v3.0"]:
+                    embeddings = [embedding['embedding'] for embedding in result['embeddings']]
+                return EmbeddingResponse(
+                    id=self.task_id,
+                    status_code=response.status,
+                    is_error=False,
+                    error_message=None,
+                    texts=self.texts,
+                    embeddings=embeddings
+                )
+            else:
+                error_msg = await response.text()
+                return EmbeddingResponse(
+                    id=self.task_id,
+                    status_code=response.status,
+                    is_error=True,
+                    error_message=error_msg,
+                    texts=[],
+                    embeddings=[]
+                    )
+        except Exception as e:
+            return EmbeddingResponse(
+                id=self.task_id,
+                status_code=response.status,
+                is_error=True,
+                error_message=str(e),
+                texts=[],
+                embeddings=[]
+            )
+
+
+    async def call_api(
+        self,
+        session: aiohttp.ClientSession,
+        model_name: str, 
+        texts: list[str],
+        **kwargs # openai or cohere specific params
+    ):
+        if len(texts) > 96:
+            raise ValueError("Embeddings only support up to 96 texts per request.")
+        model_obj = registry[model_name]
+        url = "https://api.openai.com/v1/embeddings" if model_obj["provider"] == "openai" else "https://api.cohere.com/v1/embed"
+        headers = {
+            "Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY')}" if model_obj["provider"] == "openai" else \
+                f"bearer {os.environ.get('COHERE_API_KEY')}"
+        }
+        payload = {"model": model_name}
+        if model_obj["provider"] == "openai":
+            payload["input"] = texts
+            payload["encoding_format"] = "float"
+            for k, v in kwargs.items():
+                payload[k] = v
+        elif model_obj["provider"] == "cohere":
+            payload["texts"] = texts
+            payload["input_type"] = kwargs.get("input_type", "search_document")
+            for k, v in kwargs.items():
+                payload[k] = v
+        try:
+            self.status_tracker.total_requests += 1
+            async with session.post(url, json=payload, headers=headers) as response:
+                response_obj: EmbeddingResponse = await self.handle_response(response)
+            self.result.append(response_obj)
+            if response_obj.is_error:
+                self.handle_error()     
+            else:
+                self.handle_success()
+
+        except asyncio.TimeoutError:
+            self.result.append(EmbeddingResponse(
+                id=self.task_id,
+                status_code=None,
+                is_error=True,
+                error_message="Timeout",
+                texts=[],
+                embeddings=[]
+            ))
+            self.handle_error()
+               
+        except Exception as e:
+            self.result.append(EmbeddingResponse(
+                id=self.task_id,
+                status_code=None,
+                is_error=True,
+                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                texts=[],
+                embeddings=[]
+            ))
+            self.handle_error()
+        
+            
+@dataclass
+class EmbeddingResponse:
+    id: int
+    status_code: int
+    is_error: bool
+    error_message: Optional[str]
+    texts: list[str]
+    embeddings: list[list[float]]
+
+async def embed_parallel_async(
+    texts: list[str],
+    model: str = "rerank-english-v3.0",
+    max_attempts: int = 5,
+    max_requests_per_minute: int = 4_000,
+    max_concurrent_requests: int = 500,
+    request_timeout: int = 10,
+    batch_size: int = 64,
+    progress_bar: Optional[tqdm] = None,
+):
+    """Processes rerank requests in parallel, throttling to stay under rate limits."""
+    if batch_size > 96:
+        raise ValueError("Embeddings only support up to 96 texts per request.")
+    batches = [texts[i:i+batch_size] for i in range(0, len(texts), batch_size)]
+    ids = range(len(batches))
+    # constants
+    seconds_to_pause_after_rate_limit_error = 5
+    seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
+
+    # initialize trackers
+    retry_queue = asyncio.Queue()
+    status_tracker = StatusTracker()
+    next_request = None  # variable to hold the next request to call
+
+    # initialize available capacity counts
+    # throttle over a 1 second window rather than minute,
+    # since some models limit RPS rather than RPM
+    available_request_capacity = max_requests_per_minute
+    last_update_time = time.time()
+    last_pbar_update_time = time.time()
+
+    # initialize flags
+    prompts_not_finished = True
+    prompts_iter = iter(batches)
+    results: list = []
+
+    while True:
+        # get next request (if one is not already waiting for capacity)
+        if next_request is None:
+            if not retry_queue.empty():
+                next_request = retry_queue.get_nowait()
+                print(f"Retrying request {next_request.task_id}.")
+            elif prompts_not_finished:
+                try:
+                    # get new request
+                    id, query, docs = next(prompts_iter)
+                    next_request = EmbeddingRequest(
+                        task_id=id,
+                        model_name=model,
+                        texts=texts,
+                        attempts_left=max_attempts,
+                        status_tracker=status_tracker,
+                        retry_queue=retry_queue,
+                        request_timeout=request_timeout,
+                        pbar=progress_bar,
+                    )
+                    status_tracker.num_tasks_started += 1
+                    status_tracker.num_tasks_in_progress += 1
+                    results.append(next_request)
+
+                except StopIteration:
+                    prompts_not_finished = False
+                    print("API requests finished, only retries remain.")
+
+        # update available capacity
+        current_time = time.time()
+        seconds_since_update = current_time - last_update_time
+        available_request_capacity = min(
+            available_request_capacity
+            + max_requests_per_minute * seconds_since_update / 60.0,
+            max_requests_per_minute,
+        )
+        last_update_time = current_time
+
+        # update pbar status
+        if progress_bar:
+            if current_time - last_pbar_update_time > 1:
+                last_pbar_update_time = current_time
+                progress_bar.set_postfix(
+                    {
+                        "Req. Capacity": f"{available_request_capacity:.1f}",
+                        "Reqs in Progress": status_tracker.num_tasks_in_progress,
+                    }
+                )
+
+        # if enough capacity available, call API
+        if next_request:
+            if (
+                available_request_capacity >= 1 and
+                status_tracker.num_tasks_in_progress < max_concurrent_requests
+            ):
+                # update counters
+                available_request_capacity -= 1
+                next_request.attempts_left -= 1
+
+                # call API
+                asyncio.create_task(next_request.call_api())
+                next_request = None  # reset next_request to empty
+
+        # if all tasks are finished, break
+        if status_tracker.num_tasks_in_progress == 0:
+            break
+
+        # main loop sleeps briefly so concurrent tasks can run
+        await asyncio.sleep(seconds_to_sleep_each_loop)
+
+        # if a rate limit error was hit recently, pause to cool down
+        seconds_since_rate_limit_error = (
+            time.time() - status_tracker.time_of_last_rate_limit_error
+        )
+        if seconds_since_rate_limit_error < seconds_to_pause_after_rate_limit_error:
+            remaining_seconds_to_pause = (
+                seconds_to_pause_after_rate_limit_error - seconds_since_rate_limit_error
+            )
+            await asyncio.sleep(remaining_seconds_to_pause)
+            # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
+            print(f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}")
+
+    # after finishing, log final status
+    if status_tracker.num_tasks_failed > 0:
+        print(
+            f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed."
+        )
+    if status_tracker.num_rate_limit_errors > 0:
+        print(
+            f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
+        )
+
+    print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
+    
+    # deduplicate results by id
+    deduplicated = {}    
+    for request in results:
+        if request.task_id not in deduplicated:
+            deduplicated[request.task_id] = request.result[-1]
+        else:
+            current_response: EmbeddingResponse = deduplicated[request.task_id]
+            # only replace if the current request has no top_k_indexes and the new one does
+            if request.result[-1].top_k_indices and not current_response.top_k_indices:
+                deduplicated[request.task_id] = request.result[-1]
+
+    output = list(deduplicated.values())
+    print(f"Returning {len(output)} unique results.")
+
+    return output
+
+def submit_batch_request():
+    pass
+
