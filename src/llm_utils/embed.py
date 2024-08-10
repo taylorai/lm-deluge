@@ -203,9 +203,10 @@ async def embed_parallel_async(
     max_concurrent_requests: int = 500,
     request_timeout: int = 10,
     batch_size: int = 64,
-    progress_bar: Optional[tqdm] = None,
+    show_progress: bool = True
 ):
     """Processes rerank requests in parallel, throttling to stay under rate limits."""
+    pbar = tqdm(total=len(texts), desc="Embedding") if show_progress else None
     if batch_size > 96:
         raise ValueError("Embeddings only support up to 96 texts per request.")
     batches = [texts[i:i+batch_size] for i in range(0, len(texts), batch_size)]
@@ -250,7 +251,7 @@ async def embed_parallel_async(
                         status_tracker=status_tracker,
                         retry_queue=retry_queue,
                         request_timeout=request_timeout,
-                        pbar=progress_bar,
+                        pbar=pbar
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1
@@ -271,10 +272,10 @@ async def embed_parallel_async(
         last_update_time = current_time
 
         # update pbar status
-        if progress_bar:
+        if pbar:
             if current_time - last_pbar_update_time > 1:
                 last_pbar_update_time = current_time
-                progress_bar.set_postfix(
+                pbar.set_postfix(
                     {
                         "Req. Capacity": f"{available_request_capacity:.1f}",
                         "Reqs in Progress": status_tracker.num_tasks_in_progress,
