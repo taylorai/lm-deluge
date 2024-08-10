@@ -202,7 +202,7 @@ async def embed_parallel_async(
     max_requests_per_minute: int = 4_000,
     max_concurrent_requests: int = 500,
     request_timeout: int = 10,
-    batch_size: int = 64,
+    batch_size: int = 16,
     show_progress: bool = True
 ):
     """Processes rerank requests in parallel, throttling to stay under rate limits."""
@@ -229,7 +229,7 @@ async def embed_parallel_async(
 
     # initialize flags
     prompts_not_finished = True
-    prompts_iter = iter(batches)
+    prompts_iter = iter(zip(ids, batches))
     results: list = []
     session = aiohttp.ClientSession()
 
@@ -242,9 +242,9 @@ async def embed_parallel_async(
             elif prompts_not_finished:
                 try:
                     # get new request
-                    batch = next(prompts_iter)
+                    batch_id, batch = next(prompts_iter)
                     next_request = EmbeddingRequest(
-                        task_id=id,
+                        task_id=batch_id,
                         model_name=model,
                         texts=texts,
                         attempts_left=max_attempts,
