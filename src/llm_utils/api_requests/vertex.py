@@ -346,5 +346,5 @@ class GeminiRequest(APIRequestBase):
             give_up_if_no_other_models=give_up_if_no_other_models
         )
     
-class LlamaEndpointRequest(APIRequestBase):
-    raise NotImplementedError("Llama endpoints are not implemented and never will be because Vertex AI sucks ass.")
+# class LlamaEndpointRequest(APIRequestBase):
+#     raise NotImplementedError("Llama endpoints are not implemented and never will be because Vertex AI sucks ass.")
