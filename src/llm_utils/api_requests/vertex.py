@@ -1,4 +1,3 @@
-# TODO: automatically distribute across regions for >> throughput :D
 # consider: https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/call-gemini-using-openai-library#call-chat-completions-api
 import asyncio
 from aiohttp import ClientResponse
@@ -346,3 +345,6 @@ class GeminiRequest(APIRequestBase):
             retry_with_different_model=retry_with_different_model,
             give_up_if_no_other_models=give_up_if_no_other_models
         )
+    
+class LlamaEndpointRequest(APIRequestBase):
+    raise NotImplementedError("Llama endpoints are not implemented and never will be because Vertex AI sucks ass.")

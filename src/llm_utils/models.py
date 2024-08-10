@@ -675,53 +675,33 @@ registry = {
         "input_cost": 8.0,
         "output_cost": 24.0
     },
-#  ██████   ██████              █████           ████ 
-# ░░██████ ██████              ░░███           ░░███ 
-#  ░███░█████░███   ██████   ███████   ██████   ░███ 
-#  ░███░░███ ░███  ███░░███ ███░░███  ░░░░░███  ░███ 
-#  ░███ ░░░  ░███ ░███ ░███░███ ░███   ███████  ░███ 
-#  ░███      ░███ ░███ ░███░███ ░███  ███░░███  ░███ 
-#  █████     █████░░██████ ░░████████░░████████ █████
-# ░░░░░     ░░░░░  ░░░░░░   ░░░░░░░░  ░░░░░░░░ ░░░░░                               
-    "llama3-8b-modal": {
-        "id": "llama3-8b-modal",
-        "name": "llama3-8b",
-        "api_base": None,
-        "api_key_env_var": None,
-        "supports_json": True,
-        "api_spec": "modal",
-        "gpus": ["h100"],
-        "input_cost": 0.2, # made up numbers
-        "output_cost": 0.2, # made up numbers
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None
+#  ______                                     _     
+# (______)                                   | |    
+#  _     _ _____ _____ ____   ___ _____ _____| |  _ 
+# | |   | | ___ | ___ |  _ \ /___) ___ | ___ | |_/ )
+# | |__/ /| ____| ____| |_| |___ | ____| ____|  _ ( 
+# |_____/ |_____)_____)  __/(___/|_____)_____)_| \_)
+#                     |_|                           
+
+    "deepseek-chat": {
+        "id": "deepseek-chat",
+        "name": "deepseek-chat",
+        "api_base": "https://api.deepseek.com/v1",
+        "api_key_env_var": "DEEPSEEK_API_KEY",
+        "api_spec": "deepseek",
+        "input_cost": 0.14,
+        "output_cost": 0.28
     },
-    "mistral-7b-modal": {
-        "id": "mistral-7b-modal",
-        "name": "mistral-7b",
-        "api_base": None,
-        "api_key_env_var": None,
-        "supports_json": True,
-        "api_spec": "modal",
-         "gpus": ["h100"],
-        "input_cost": 0.2, # made up numbers
-        "output_cost": 0.2, # made up numbers
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None
+    "deepseek-coder": {
+        "id": "deepseek-coder",
+        "name": "deepseek-coder",
+        "api_base": "https://api.deepseek.com/v1",
+        "api_key_env_var": "DEEPSEEK_API_KEY",
+        "api_spec": "deepseek",
+        "input_cost": 0.14,
+        "output_cost": 0.28
     },
-    "gemma-7b-modal": {
-        "id": "gemma-7b-modal",
-        "name": "gemma-7b",
-        "api_base": None,
-        "api_key_env_var": None,
-        "supports_json": True,
-        "api_spec": "modal",
-         "gpus": ["h100"],
-        "input_cost": 0.2, # made up numbers
-        "output_cost": 0.2, # made up numbers
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None
-    },
+
 }
 
 @dataclass
