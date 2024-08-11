@@ -232,6 +232,8 @@ class GeminiRequest(APIRequestBase):
                 } for category in SAFETY_SETTING_CATEGORIES
             ]
         }
+        if sampling_params.json_mode and self.model.supports_json:
+            self.request_json['generationConfig']['responseMimeType'] = 'application/json'
 
         if self.system_message is not None:
             self.request_json["systemInstruction"] = {

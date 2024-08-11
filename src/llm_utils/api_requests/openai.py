@@ -128,8 +128,3 @@ class OpenAIRequest(APIRequestBase):
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
-    
-    
-
-
-    

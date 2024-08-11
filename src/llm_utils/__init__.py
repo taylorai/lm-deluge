@@ -1,7 +1,6 @@
 import asyncio
 import numpy as np
 import time
-import modal
 import yaml
 from dataclasses import dataclass
 from typing import Literal, Optional, Union
@@ -14,6 +13,9 @@ from .models import registry
 from .api_requests.base import APIResponse, APIRequestBase
 from .api_requests import create_api_request
 from .cache import LevelDBCache, SqliteCache
+import os
+import pandas as pd
+import requests
 
 # TODO: get completions as they finish, not all at once at the end.
 # relatedly, would be nice to cache them as they finish too.
@@ -308,7 +310,100 @@ class LLMClient:
                 dry_run=dry_run
             )
         )
+    
+    def submit_batch_job(self, prompts: Union[list[Prompt], list[str], list[list[dict]]]):
+        # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+        model = self.models[0]
+        if registry[model].get("api_spec", None) != "openai":
+            raise ValueError("Batch jobs can only be submitted with OpenAI models.")
+        
+        # if prompts are strings, convert them to message lists
+        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
+        ids = np.arange(len(prompts))
 
+        # create file with requests to send to batch api
+        batch_requests = []
+        for id, prompt in zip(ids, prompts):
+            batch_requests.append({
+                "custom_id": str(id),
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": {
+                    "model": self.models[0],
+                    "messages": prompt.to_openai(),
+                    "max_tokens": self.sampling_params[0].max_new_tokens,
+                    "temperature": self.sampling_params[0].temperature,
+                    "top_p": self.sampling_params[0].top_p,
+                }
+            })
+
+        # save the file
+        pd.DataFrame(batch_requests).to_json(
+            "openai_requests_temp.jsonl", orient="records", lines=True
+        )
+
+        # upload the file
+        api_key = os.environ.get("OPENAI_API_KEY", None)
+        if api_key is None:
+            raise ValueError("OPENAI_API_KEY environment variable must be set.")
+        url = 'https://api.openai.com/v1/files'
+        files = {
+            'file': ("openai_requests_temp.jsonl", open("openai_requests_temp.jsonl", 'rb')),
+        }
+        data = {
+            'purpose': 'batch',
+        }
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+        }
+        response = requests.post(url, files=files, data=data, headers=headers)
+
+        file_id = None
+        if response.status_code == 200:
+            print('File uploaded successfully')
+            data = response.json()
+            file_id = data['id']
+
+        else:
+            print('File upload failed')
+            raise ValueError(f"Error uploading file: {response.text}")
+        
+        url = 'https://api.openai.com/v1/batches'
+        data = {
+            'input_file_id': file_id,
+            'endpoint': '/v1/chat/completions',
+            'completion_window': '24h'
+        }
+        response = requests.post(url, json=data, headers=headers)
+
+        batch_id = None
+        if response.status_code == 200:
+            data = response.json()
+            batch_id = data['id']
+            print('Batch job started successfully: id = ', batch_id)
+            return batch_id
+        else:
+            print('Batch job failed to start')
+            raise ValueError(f"Error starting batch job: {response.text}")
+        
+        # every 30s check job status. give up after 24h
+        # for t in range(24 * 60 * 2):
+        #     print(f"Checking job status, attempt {t}")
+        #     response = requests.get(
+        #         f"https://api.openai.com/v1/batches/{batch_id}", headers=headers)
+        #     if response.status_code == 200:
+        #         data = response.json()
+        #         print(data)
+        #         if data['status'] == "completed":
+        #             print('Job completed successfully')
+        #             break
+        #     else:
+        #         print('Error checking job status')
+        #         raise ValueError(f"Error checking job status: {response.text}")
+        #     await asyncio.sleep(30)
+        
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
     prompts: list[Prompt],
@@ -558,139 +653,44 @@ async def process_api_prompts_async(
 
     return output
     
-class BatchLLMClient:
-    def __init__(
-        self, 
-        model_names: list[str],
-        sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams()
-    ):
-        if len(model_names) > 1:
-            raise ValueError("BatchLLMClient only supports a single model.")
-        model = model_names[0]
-        if registry.get(model, {}).get("api_spec", None) != "openai":
-            raise ValueError("BatchLLMClient only supports OpenAI models.")
+# class BatchLLMClient:
+#     def __init__(
+#         self, 
+#         model_names: list[str],
+#         sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams()
+#     ):
+#         if len(model_names) > 1:
+#             raise ValueError("BatchLLMClient only supports a single model.")
+#         model = model_names[0]
+#         if registry.get(model, {}).get("api_spec", None) != "openai":
+#             raise ValueError("BatchLLMClient only supports OpenAI models.")
         
-        self.openai_model = registry[model]["name"]
-        self.sampling_params = sampling_params
+#         self.openai_model = registry[model]["name"]
+#         self.sampling_params = sampling_params
 
-    def process_prompts_sync(
-        self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
-        return_completions_only: bool = False,
-        show_progress=True
-    ):
-        import asyncio
-        return asyncio.run(
-            self.process_prompts_async(
-                prompts=prompts,
-                return_completions_only=return_completions_only,
-                show_progress=show_progress
-            )
-        )
+#     def process_prompts_sync(
+#         self,
+#         prompts: Union[list[Prompt], list[str], list[list[dict]]],
+#         return_completions_only: bool = False,
+#         show_progress=True
+#     ):
+#         import asyncio
+#         return asyncio.run(
+#             self.process_prompts_async(
+#                 prompts=prompts,
+#                 return_completions_only=return_completions_only,
+#                 show_progress=show_progress
+#             )
+#         )
         
-    async def process_prompts_async(
-        self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
-        return_completions_only: bool = False,
-        show_progress=True
-    ):
-        import os
-        from .api_requests.base import APIResponse
-        import pandas as pd
-        import requests
-
-        # if prompts are strings, convert them to message lists
-        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
-        ids = np.arange(len(prompts))
-
-        # create file with requests to send to batch api
-        batch_requests = []
-        for id, prompt in zip(ids, prompts):
-            batch_requests.append({
-                "custom_id": str(id),
-                "method": "POST",
-                "url": "/v1/chat/completions",
-                "body": {
-                    "model": self.openai_model,
-                    "messages": prompt.to_openai(),
-                    "max_tokens": self.sampling_params.max_new_tokens,
-                    "temperature": self.sampling_params.temperature,
-                    "top_p": self.sampling_params.top_p,
-                }
-            })
-
-        # save the file
-        pd.DataFrame(batch_requests).to_json(
-            "openai_requests_temp.jsonl", orient="records", lines=True
-        )
-
-        # upload the file
-        api_key = os.environ.get("OPENAI_API_KEY", None)
-        if api_key is None:
-            raise ValueError("OPENAI_API_KEY environment variable must be set.")
-        url = 'https://api.openai.com/v1/files'
-        files = {
-            'file': ("openai_requests_temp.jsonl", open("openai_requests_temp.jsonl", 'rb')),
-        }
-        data = {
-            'purpose': 'batch',
-        }
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-        }
-        response = requests.post(url, files=files, data=data, headers=headers)
-
-        file_id = None
-        if response.status_code == 200:
-            print('File uploaded successfully')
-            data = response.json()
-            file_id = data['id']
-
-        else:
-            print('File upload failed')
-            raise ValueError(f"Error uploading file: {response.text}")
+#     async def process_prompts_async(
+#         self,
+#         prompts: Union[list[Prompt], list[str], list[list[dict]]],
+#         return_completions_only: bool = False,
+#         show_progress=True
+#     ):
         
-        # start batch completions job
-        # curl https://api.openai.com/v1/batches \
-        #   -H "Authorization: Bearer $OPENAI_API_KEY" \
-        #   -H "Content-Type: application/json" \
-        #   -d '{
-        #     "input_file_id": "file-abc123",
-        #     "endpoint": "/v1/chat/completions",
-        #     "completion_window": "24h"
-        #   }'
-        url = 'https://api.openai.com/v1/batches'
-        data = {
-            'input_file_id': file_id,
-            'endpoint': '/v1/chat/completions',
-            'completion_window': '24h'
-        }
-        response = requests.post(url, json=data, headers=headers)
 
-        batch_id = None
-        if response.status_code == 200:
-            print('Batch job started successfully')
-            data = response.json()
-            batch_id = data['id']
-
-        else:
-            print('Batch job failed to start')
-            raise ValueError(f"Error starting batch job: {response.text}")
         
-        # every 30s check job status. give up after 24h
-        for t in range(24 * 60 * 2):
-            print(f"Checking job status, attempt {t}")
-            response = requests.get(
-                f"https://api.openai.com/v1/batches/{batch_id}", headers=headers)
-            if response.status_code == 200:
-                data = response.json()
-                print(data)
-                if data['status'] == "completed":
-                    print('Job completed successfully')
-                    break
-            else:
-                print('Error checking job status')
-                raise ValueError(f"Error checking job status: {response.text}")
-            await asyncio.sleep(30)
 
 
