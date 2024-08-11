@@ -116,7 +116,7 @@ registry = {
 #               ░░░░░                                             
     "gpt-4o": {
         "id": "gpt-4o",
-        "name": 'gpt-4o-2024-05-13',
+        "name": 'gpt-4o-2024-08-06',
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": True,
