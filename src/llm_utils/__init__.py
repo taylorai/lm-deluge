@@ -311,34 +311,7 @@ class LLMClient:
             )
         )
     
-    def submit_batch_job(self, prompts: Union[list[Prompt], list[str], list[list[dict]]]):
-        # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
-        if len(self.models) != 1:
-            raise ValueError("Batch jobs can only be submitted with a single model.")
-        model = self.models[0]
-        if registry[model].get("api_spec", None) != "openai":
-            raise ValueError("Batch jobs can only be submitted with OpenAI models.")
-        
-        # if prompts are strings, convert them to message lists
-        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
-        ids = np.arange(len(prompts))
-
-        # create file with requests to send to batch api
-        batch_requests = []
-        for id, prompt in zip(ids, prompts):
-            batch_requests.append({
-                "custom_id": str(id),
-                "method": "POST",
-                "url": "/v1/chat/completions",
-                "body": {
-                    "model": self.models[0],
-                    "messages": prompt.to_openai(),
-                    "max_tokens": self.sampling_params[0].max_new_tokens,
-                    "temperature": self.sampling_params[0].temperature,
-                    "top_p": self.sampling_params[0].top_p,
-                }
-            })
-
+    def _submit_one_batch(self, batch_requests: list):
         # save the file
         pd.DataFrame(batch_requests).to_json(
             "openai_requests_temp.jsonl", orient="records", lines=True
@@ -387,23 +360,46 @@ class LLMClient:
         else:
             print('Batch job failed to start')
             raise ValueError(f"Error starting batch job: {response.text}")
+    
+    def submit_batch_job(self, prompts: Union[list[Prompt], list[str], list[list[dict]]]):
+        # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+        model = self.models[0]
+        if registry[model].get("api_spec", None) != "openai":
+            raise ValueError("Batch jobs can only be submitted with OpenAI models.")
         
-        # every 30s check job status. give up after 24h
-        # for t in range(24 * 60 * 2):
-        #     print(f"Checking job status, attempt {t}")
-        #     response = requests.get(
-        #         f"https://api.openai.com/v1/batches/{batch_id}", headers=headers)
-        #     if response.status_code == 200:
-        #         data = response.json()
-        #         print(data)
-        #         if data['status'] == "completed":
-        #             print('Job completed successfully')
-        #             break
-        #     else:
-        #         print('Error checking job status')
-        #         raise ValueError(f"Error checking job status: {response.text}")
-        #     await asyncio.sleep(30)
-        
+        # if prompts are strings, convert them to message lists
+        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
+        ids = np.arange(len(prompts))
+
+        # create file with requests to send to batch api
+        batch_requests = []
+        for id, prompt in zip(ids, prompts):
+            batch_requests.append({
+                "custom_id": str(id),
+                "method": "POST",
+                "url": "/v1/chat/completions",
+                "body": {
+                    "model": self.models[0],
+                    "messages": prompt.to_openai(),
+                    "max_tokens": self.sampling_params[0].max_new_tokens,
+                    "temperature": self.sampling_params[0].temperature,
+                    "top_p": self.sampling_params[0].top_p,
+                }
+            })
+
+        # since the api only accepts up to 50,000 requests per batch job, we chunk into 50k chunks
+        BATCH_SIZE = 50_000
+        batches = [batch_requests[i:i+BATCH_SIZE] for i in range(0, len(batch_requests), BATCH_SIZE)]
+        batch_ids = []
+        for batch in tqdm(batches):
+            batch_id = self._submit_one_batch(batch)
+            batch_ids.append(batch_id)
+
+        print(f"Submitted {len(batches)} batch jobs.")
+        return batch_ids
+    
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
     prompts: list[Prompt],
