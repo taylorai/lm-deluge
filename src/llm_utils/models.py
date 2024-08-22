@@ -137,6 +137,19 @@ registry = {
         "api_spec": "openai",
         "input_cost": 0.15,
         "output_cost": 0.6,
+        "requests_per_minute": 60_000,
+        "tokens_per_minute": 250_000_000
+    },
+    "gpt-4o-mini-free": {
+        "id": "gpt-4o-mini-free",
+        "name": "gpt-4o-mini-2024-07-18-free",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 0.,
+        "output_cost": 0.,
         "requests_per_minute": 20_000,
         "tokens_per_minute": 50_000_000
     },
