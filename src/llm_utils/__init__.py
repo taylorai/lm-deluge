@@ -480,7 +480,9 @@ async def process_api_prompts_async(
 
     # constants
     seconds_to_pause_after_rate_limit_error = 5
-    seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
+    # seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
+    # calculate dynamically so we don't throttle RPM
+    seconds_to_sleep_each_loop = (60.0 * 0.9) / max_requests_per_minute
 
     # initialize trackers
     retry_queue = asyncio.Queue()
