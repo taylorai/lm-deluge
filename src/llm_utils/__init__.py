@@ -33,7 +33,7 @@ class ClientConfig:
     logprobs: bool = False
     top_logprobs: Optional[int] = None
     cache: Optional[Union[LevelDBCache, SqliteCache]] = None
-    
+
     @classmethod
     def from_dict(cls, config_dict: dict):
         if isinstance(config_dict["sampling_params"], list):
@@ -49,7 +49,7 @@ class ClientConfig:
     def from_yaml(cls, file_path: str):
         config_dict = yaml.safe_load(open(file_path))
         return cls.from_dict(config_dict)
-    
+
     def to_dict(self):
         if isinstance(self.sampling_params, list):
             sp = [
@@ -117,7 +117,7 @@ class LLMClient:
          # logprobs and top_logprobs are only supported for OpenAI models
         if self.logprobs:
             for model in self.models:
-                if registry[model].get("supports_logprobs", False) is False: 
+                if registry[model].get("supports_logprobs", False) is False:
                     raise ValueError("logprobs can only be enabled if all models support it.")
             if self.top_logprobs is None:
                 self.top_logprobs = 0 # will just return logprob of the chosen token
@@ -159,11 +159,11 @@ class LLMClient:
             ClientConfig.from_yaml(file_path),
             cache=cache
         )
-    
+
     @classmethod
     def basic(
-        cls, 
-        model: Union[str, list[str]], 
+        cls,
+        model: Union[str, list[str]],
         max_requests_per_minute: int = 5_000,
         max_tokens_per_minute: int = 1_000_000,
         max_concurrent_requests: int = 1_000,
@@ -190,7 +190,7 @@ class LLMClient:
             request_timeout=request_timeout,
             cache=cache
         )
-    
+
     @property
     def config(self):
         return ClientConfig(
@@ -205,7 +205,7 @@ class LLMClient:
             logprobs=self.logprobs,
             top_logprobs=self.top_logprobs,
         )
-    
+
     async def process_prompts_async(
         self,
         prompts: Union[list[Prompt], list[str], list[list[dict]]],
@@ -248,10 +248,10 @@ class LLMClient:
             api_task = None
             if dry_run:
                 results = api_prompts_dry_run(
-                    ids, 
-                    prompts, 
-                    self.models, 
-                    self.model_weights, 
+                    ids,
+                    prompts,
+                    self.models,
+                    self.model_weights,
                     self.sampling_params,
                     max_tokens_per_minute=self.max_tokens_per_minute,
                     max_requests_per_minute=self.max_requests_per_minute,
@@ -262,12 +262,12 @@ class LLMClient:
 
             api_task = asyncio.create_task(
                 process_api_prompts_async(
-                    ids, 
-                    prompts, 
-                    self.models, 
-                    self.model_weights, 
+                    ids,
+                    prompts,
+                    self.models,
+                    self.model_weights,
                     self.sampling_params,
-                    logprobs=self.logprobs, 
+                    logprobs=self.logprobs,
                     top_logprobs=self.top_logprobs,
                     max_attempts=self.max_attempts,
                     max_tokens_per_minute=self.max_tokens_per_minute,
@@ -289,12 +289,12 @@ class LLMClient:
         # add cache hits back in
         for id, res in zip(cache_hit_ids, cache_hit_results):
             results[id] = res
-        
+
         if return_completions_only:
             results = [r.completion for r in results]
 
         return results
-    
+
     def process_prompts_sync(
         self,
         prompts: Union[list[Prompt], list[str], list[list[dict]]],
@@ -310,7 +310,7 @@ class LLMClient:
                 dry_run=dry_run
             )
         )
-    
+
     def _submit_one_batch(self, batch_requests: list):
         # save the file
         pd.DataFrame(batch_requests).to_json(
@@ -342,7 +342,7 @@ class LLMClient:
         else:
             print('File upload failed')
             raise ValueError(f"Error uploading file: {response.text}")
-        
+
         url = 'https://api.openai.com/v1/batches'
         data = {
             'input_file_id': file_id,
@@ -360,7 +360,7 @@ class LLMClient:
         else:
             print('Batch job failed to start')
             raise ValueError(f"Error starting batch job: {response.text}")
-    
+
     def submit_batch_job(self, prompts: Union[list[Prompt], list[str], list[list[dict]]]):
         # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
         if len(self.models) != 1:
@@ -368,7 +368,7 @@ class LLMClient:
         model = self.models[0]
         if registry[model].get("api_spec", None) != "openai":
             raise ValueError("Batch jobs can only be submitted with OpenAI models.")
-        
+
         # if prompts are strings, convert them to message lists
         prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
         ids = np.arange(len(prompts))
@@ -399,7 +399,7 @@ class LLMClient:
 
         print(f"Submitted {len(batches)} batch jobs.")
         return batch_ids
-    
+
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
     prompts: list[Prompt],
@@ -450,7 +450,7 @@ def api_prompts_dry_run(
     else:
         limiting_factor = "depends"
     results["limiting_factor"] = limiting_factor
-    
+
     return results
 
 async def process_api_prompts_async(
@@ -474,7 +474,7 @@ async def process_api_prompts_async(
     # change ids to integer list
     if isinstance(ids, np.ndarray):
         ids = ids.tolist()
-    
+
     # normalize weights
     model_weights = [w / sum(model_weights) for w in model_weights]
 
@@ -510,7 +510,7 @@ async def process_api_prompts_async(
     for model in models:
         if model not in registry:
             raise ValueError(f"Model {model} not found in registry.")
-        
+
     if model_weights is None:
         # if not given, spread requests evenly across models
         model_weights = [1 / len(models) for _ in models]
@@ -572,27 +572,14 @@ async def process_api_prompts_async(
         )
         last_update_time = current_time
 
-        # update pbar status
-        if progress_bar:
-            if current_time - last_pbar_update_time > 1:
-                last_pbar_update_time = current_time
-                progress_bar.set_postfix(
-                    {
-                        "Token Capacity": f"{available_token_capacity/1_000:.1f}k",
-                        "Request Capacity": f"{available_request_capacity:.1f}",
-                        "Requests in Progress": status_tracker.num_tasks_in_progress,
-                    }
-                )
-
-
         # if enough capacity available, call API
+        limiting_factor = None
         if next_request:
             next_request_tokens = next_request.num_tokens
-            if (
-                available_request_capacity >= 1
-                and available_token_capacity >= next_request_tokens
-                and status_tracker.num_tasks_in_progress < max_concurrent_requests
-            ):
+            request_available = (available_request_capacity >= 1)
+            tokens_available = (available_token_capacity >= next_request_tokens)
+            concurrent_request_available = (status_tracker.num_tasks_in_progress < max_concurrent_requests)
+            if request_available and tokens_available and concurrent_request_available:
                 # update counters
                 available_request_capacity -= 1
                 available_token_capacity -= next_request_tokens
@@ -601,6 +588,25 @@ async def process_api_prompts_async(
                 # call API
                 asyncio.create_task(next_request.call_api())
                 next_request = None  # reset next_request to empty
+            else:
+                if not request_available:
+                    limiting_factor = "Requests"
+                elif not concurrent_request_available:
+                    limiting_factor = "Concurrent Requests"
+                elif not tokens_available:
+                    limiting_factor = "Tokens"
+
+        # update pbar status
+        if progress_bar and (current_time - last_pbar_update_time > 1):
+            last_pbar_update_time = current_time
+            progress_bar.set_postfix(
+                {
+                    "Token Capacity": f"{available_token_capacity/1_000:.1f}k",
+                    "Req. Capacity": f"{available_request_capacity:.1f}",
+                    "Reqs. in Progress": status_tracker.num_tasks_in_progress,
+                    "Limiting Factor": limiting_factor,
+                }
+            )
 
         # if all tasks are finished, break
         if status_tracker.num_tasks_in_progress == 0:
@@ -632,9 +638,9 @@ async def process_api_prompts_async(
         )
 
     print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
-    
+
     # deduplicate results by id
-    deduplicated = {}    
+    deduplicated = {}
     for request in results:
         if request.task_id not in deduplicated:
             deduplicated[request.task_id] = request.result[-1]
@@ -648,10 +654,10 @@ async def process_api_prompts_async(
     print(f"Returning {len(output)} unique results.")
 
     return output
-    
+
 # class BatchLLMClient:
 #     def __init__(
-#         self, 
+#         self,
 #         model_names: list[str],
 #         sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams()
 #     ):
@@ -660,7 +666,7 @@ async def process_api_prompts_async(
 #         model = model_names[0]
 #         if registry.get(model, {}).get("api_spec", None) != "openai":
 #             raise ValueError("BatchLLMClient only supports OpenAI models.")
-        
+
 #         self.openai_model = registry[model]["name"]
 #         self.sampling_params = sampling_params
 
@@ -678,15 +684,10 @@ async def process_api_prompts_async(
 #                 show_progress=show_progress
 #             )
 #         )
-        
+
 #     async def process_prompts_async(
 #         self,
 #         prompts: Union[list[Prompt], list[str], list[list[dict]]],
 #         return_completions_only: bool = False,
 #         show_progress=True
 #     ):
-        
-
-        
-
-
