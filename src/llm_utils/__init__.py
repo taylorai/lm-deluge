@@ -400,6 +400,31 @@ class LLMClient:
         print(f"Submitted {len(batches)} batch jobs.")
         return batch_ids
 
+    def submit_batch_job_modal(
+        self,
+        batch_job_name: str,
+        prompts: list[Prompt] | list[str] | list[list[dict]] | None = None,
+        prompt_template: Optional[str] = None,
+        inputs: list[tuple] | list[dict] | None = None,
+        batch_size = 50_000
+    ):
+        import modal
+        if not prompts and (not inputs or not prompt_template):
+            raise ValueError("Either prompts or inputs and prompt_template must be provided.")
+        batch_api = modal.Function.lookup("llm-utils-batch-jobs", "batch_job")
+        num_chunks = len(inputs) // batch_size + 1 if inputs else len(prompts) // batch_size + 1
+        handles = []
+        for i in range(num_chunks):
+            obj = batch_api.spawn(
+                output_file=f"{batch_job_name}_shard_{i}",
+                client=self,
+                prompts=prompts[i*batch_size:(i+1)*batch_size] if prompts else None,
+                prompt_template=prompt_template,
+                inputs=inputs[i*batch_size:(i+1)*batch_size] if inputs else None
+            )
+            handles.append(obj)
+        return handles
+
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
     prompts: list[Prompt],
@@ -656,40 +681,3 @@ async def process_api_prompts_async(
     print(f"Returning {len(output)} unique results.")
 
     return output
-
-# class BatchLLMClient:
-#     def __init__(
-#         self,
-#         model_names: list[str],
-#         sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams()
-#     ):
-#         if len(model_names) > 1:
-#             raise ValueError("BatchLLMClient only supports a single model.")
-#         model = model_names[0]
-#         if registry.get(model, {}).get("api_spec", None) != "openai":
-#             raise ValueError("BatchLLMClient only supports OpenAI models.")
-
-#         self.openai_model = registry[model]["name"]
-#         self.sampling_params = sampling_params
-
-#     def process_prompts_sync(
-#         self,
-#         prompts: Union[list[Prompt], list[str], list[list[dict]]],
-#         return_completions_only: bool = False,
-#         show_progress=True
-#     ):
-#         import asyncio
-#         return asyncio.run(
-#             self.process_prompts_async(
-#                 prompts=prompts,
-#                 return_completions_only=return_completions_only,
-#                 show_progress=show_progress
-#             )
-#         )
-
-#     async def process_prompts_async(
-#         self,
-#         prompts: Union[list[Prompt], list[str], list[list[dict]]],
-#         return_completions_only: bool = False,
-#         show_progress=True
-#     ):
