@@ -1,3 +1,4 @@
+import asyncio
 from ftlangdetect import detect
 from ..client import LLMClient
 
@@ -12,7 +13,9 @@ def is_english(text: str, low_memory: bool = True):
     return lang == "en"
 
 
-def translate(texts: list[str], client: LLMClient, low_memory: bool = True):
+async def translate_async(
+    texts: list[str], client: LLMClient, low_memory: bool = True
+):
     to_translate_idxs = [
         i for i, text in enumerate(texts)
         if not is_english(text, low_memory=low_memory)
@@ -21,9 +24,14 @@ def translate(texts: list[str], client: LLMClient, low_memory: bool = True):
         return texts
 
     prompts = [translation_prompt.format(texts[i]) for i in to_translate_idxs]
-    resps = client.process_prompts_sync(prompts)
-    translations = [resp.completion.strip() for resp in resps]
+    resps = await client.process_prompts_async(prompts)
+    translations = [resp.completion.strip() if reps.completion is not None else None for resp in resps]
     for i, translation in zip(to_translate_idxs, translations):
         texts[i] = translation
 
     return texts
+
+def translate(
+    texts: list[str], client: LLMClient, low_memory: bool = True
+):
+    return asyncio.run(translate_async(texts, client, low_memory))

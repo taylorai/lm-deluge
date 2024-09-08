@@ -1,5 +1,5 @@
 import json
-# from pydantic import BaseModel
+import asyncio
 from ..client import LLMClient
 from typing import Optional, Any
 
@@ -14,7 +14,7 @@ def parse_json(text: Optional[str]):
     return json.loads(text)
 
 
-def extract(
+async def extract_async(
     texts: list[str],
     schema: Any,
     client: LLMClient,
@@ -50,7 +50,16 @@ def extract(
     )
 
     prompts = [prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", text) for text in texts]
-    resps = client.process_prompts_sync(prompts)
+    resps = await client.process_prompts_async(prompts)
     completions = [parse_json(resp.completion) for resp in resps]
 
     return completions
+
+def extract(
+    texts: list[str],
+    schema: Any,
+    client: LLMClient,
+    document_name: Optional[str] = None,
+    object_name: Optional[str] = None,
+):
+    return asyncio.run(extract_async(texts, schema, client, document_name, object_name))
