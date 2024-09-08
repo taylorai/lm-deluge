@@ -7,13 +7,16 @@ translation_prompt = (
 )
 
 
-def is_english(text: str):
-    lang = detect(text.replace("\n", " "))["lang"]
+def is_english(text: str, low_memory: bool = True):
+    lang = detect(text.replace("\n", " "), low_memory=low_memory)["lang"]
     return lang == "en"
 
 
-def translate(texts: list[str], client: LLMClient):
-    to_translate_idxs = [i for i, text in enumerate(texts) if not is_english(text)]
+def translate(texts: list[str], client: LLMClient, low_memory: bool = True):
+    to_translate_idxs = [
+        i for i, text in enumerate(texts)
+        if not is_english(text, low_memory=low_memory)
+    ]
     if len(to_translate_idxs) == 0:
         return texts
 
