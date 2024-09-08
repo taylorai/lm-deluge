@@ -3,15 +3,13 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "llm_utils"
-version="0.0.2"
-authors = [
-    {name = "Benjamin Anderson", email = "ben@trytaylor.ai"},
-]
+version = "0.0.3"
+authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
 requires-python = ">=3.9"
 keywords = []
-license = {text = ""}
+license = { text = "" }
 classifiers = []
 dependencies = [
     "PyYAML",
@@ -22,5 +20,8 @@ dependencies = [
     "tqdm",
     "google-auth",
     "requests-aws4auth",
-    "pillow"
+    "pillow",
+    "pydantic",
+    "fasttext-wheel",
+    "fasttext-langdetect",
 ]
