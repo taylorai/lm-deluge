@@ -20,6 +20,8 @@ import requests
 # TODO: get completions as they finish, not all at once at the end.
 # relatedly, would be nice to cache them as they finish too.
 
+# TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
+
 @dataclass
 class ClientConfig:
     model_names: list[str]
