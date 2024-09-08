@@ -1,7 +1,7 @@
 import json
-from pydantic import BaseModel
+# from pydantic import BaseModel
 from ..client import LLMClient
-from typing import Optional
+from typing import Optional, Any
 
 def parse_json(text: Optional[str]):
     if text is None:
@@ -16,15 +16,17 @@ def parse_json(text: Optional[str]):
 
 def extract(
     texts: list[str],
-    schema: BaseModel | dict,
+    schema: Any,
     client: LLMClient,
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
 ):
-    if isinstance(schema, BaseModel):
+    if hasattr(schema, "model_dump_json"):
         schema_dict = schema.model_dump_json()
-    else:
+    elif isinstance(schema, dict):
         schema_dict = schema
+    else:
+        raise ValueError("schema must be a pydantic model or a dict.")
 
     # warn if json_mode is not True
     for sp in client.sampling_params:
