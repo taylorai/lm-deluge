@@ -21,8 +21,8 @@ def extract(
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
 ):
-    if hasattr(schema, "model_dump_json"):
-        schema_dict = schema.model_dump_json()
+    if hasattr(schema, "model_json_schema"):
+        schema_dict = schema.model_json_schema()
     elif isinstance(schema, dict):
         schema_dict = schema
     else:
