@@ -24,4 +24,6 @@ dependencies = [
     "pydantic",
     "fasttext-wheel",
     "fasttext-langdetect",
+    "pdf2image",
+    "pymupdf",
 ]
