@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-# total: 31_000
+# total: 35_000
 gemini_flash_limits = {
     'asia-east1': 2000,
     'asia-east2': 200,
@@ -25,12 +25,12 @@ gemini_flash_limits = {
     'me-west1': 200,
     'northamerica-northeast1': 200,
     'southamerica-east1': 200,
-    'us-central1': 3_000,
+    'us-central1': 5_000,
     'us-east1': 3_000,
     'us-east4': 200,
     # 'us-east5': 200,
     'us-south1': 3_000,
-    'us-west1': 3_000,
+    'us-west1': 5_000,
     'us-west4': 200,
 }
 
@@ -114,6 +114,36 @@ registry = {
 #                ░███
 #                █████
 #               ░░░░░
+# o1-preview	o1-preview: reasoning model designed to solve hard problems across domains.	128,000 tokens	32,768 tokens	Up to Oct 2023
+# o1-preview-2024-09-12	o1-preview currently points to this version.	128,000 tokens	32,768 tokens	Up to Oct 2023
+# o1-mini	o1-mini: faster and cheaper reasoning model particularly good at coding, math, and science.	128,000 tokens	65,536 tokens	Up to Oct 2023
+# o1-mini-2024-09-12
+    "o1-preview": {
+        "id": "o1-preview",
+        "name": "o1-preview-2024-09-12",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 15.0,
+        "output_cost": 60.0,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000
+    },
+    "o1-mini": {
+        "id": "o1-mini",
+        "name": "o1-mini-2024-09-12",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000
+    },
     "gpt-4o": {
         "id": "gpt-4o",
         "name": 'gpt-4o-2024-08-06',
