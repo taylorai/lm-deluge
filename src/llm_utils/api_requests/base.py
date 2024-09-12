@@ -10,6 +10,7 @@ from ..prompt import Prompt
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
+from aiohttp import ClientResponse
 
 @dataclass
 class APIResponse:
@@ -18,17 +19,17 @@ class APIResponse:
     model_internal: str # our internal model tag
     prompt: Prompt
     sampling_params: SamplingParams
-    
+
     # http response information
     status_code: int
     is_error: Optional[bool]
     error_message: Optional[str]
-    
+
     # completion information
     completion: Optional[str]
     input_tokens: Optional[int]
     output_tokens: Optional[int]
-    
+
     # optional or calculated automatically
     model_external: Optional[str] = None # the model tag used by the API
     region: Optional[str] = None
@@ -72,7 +73,7 @@ class APIResponse:
             "finish_reason": self.finish_reason,
             "cost": self.cost,
         }
-    
+
     @classmethod
     def from_dict(cls, data: dict):
         return cls(
@@ -91,7 +92,7 @@ class APIResponse:
             finish_reason=data["finish_reason"],
             cost=data["cost"],
         )
-    
+
     def write_to_file(self, filename):
         """
         Writes the APIResponse as a line to a file.
@@ -115,7 +116,7 @@ class APIRequestBase(ABC):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str, # must correspond to registry
-        prompt: Prompt, 
+        prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -130,7 +131,7 @@ class APIRequestBase(ABC):
         debug: bool = False,
         all_model_names: list[str] = None,
         all_sampling_params: list[SamplingParams] = None,
-        
+
     ):
         if all_model_names is None:
             raise ValueError("all_model_names must be provided.")
@@ -143,7 +144,7 @@ class APIRequestBase(ABC):
         self.retry_queue = retry_queue
         self.request_timeout = request_timeout
         self.sampling_params = sampling_params
-        self.logprobs = logprobs
+        self.logprobs = logprobs # len(completion) logprobs
         self.top_logprobs = top_logprobs
         self.pbar = pbar
         self.callback = callback
@@ -163,7 +164,7 @@ class APIRequestBase(ABC):
     def increment_pbar(self):
         if self.pbar is not None:
             self.pbar.update(1)
-    
+
     def call_callback(self):
         if self.callback is not None:
             # the APIResponse in self.result includes all the information
@@ -171,7 +172,7 @@ class APIRequestBase(ABC):
 
     def handle_success(self, data):
         self.call_callback()
-        self.increment_pbar()    
+        self.increment_pbar()
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
 
@@ -209,14 +210,14 @@ class APIRequestBase(ABC):
                     while new_model_name == self.model_name:
                         new_model_idx = random.randint(0, len(self.all_model_names) - 1)
                         new_model_name = self.all_model_names[new_model_idx]
-                    
+
                     if isinstance(self.all_sampling_params, list):
                         new_sampling_params = self.all_sampling_params[new_model_idx]
                     elif isinstance(self.all_sampling_params, SamplingParams):
                         new_sampling_params = self.all_sampling_params
                     elif self.all_sampling_params is None:
                         new_sampling_params = self.sampling_params
-                    
+
                     print("Creating new request with model", new_model_name)
                     new_request = create_api_request(
                         task_id=self.task_id,
@@ -242,7 +243,7 @@ class APIRequestBase(ABC):
         else:
             print(f"Task {self.task_id} out of tries.")
             self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_failed += 1 
+            self.status_tracker.num_tasks_failed += 1
 
     async def call_api(self):
         try:
@@ -256,12 +257,12 @@ class APIRequestBase(ABC):
                 ) as response:
                     response: APIResponse = await self.handle_response(response)
 
-            self.result.append(response)      
+            self.result.append(response)
             if response.is_error:
                 self.handle_error(
                     create_new_request=response.retry_with_different_model,
                     give_up_if_no_other_models=response.give_up_if_no_other_models
-                )     
+                )
             else:
                 self.handle_success(response)
 
@@ -347,11 +348,11 @@ class APIRequestBase(ABC):
             # maybe consider making True?
             self.handle_error(create_new_request=False)
 
-            
+
     @abstractmethod
-    def handle_response(self) -> APIResponse:
+    def handle_response(self, ClientResponse) -> APIResponse:
         raise NotImplementedError
-    
+
 def create_api_request(
     task_id: int,
     model_name: str,
