@@ -435,14 +435,3 @@ def extract_prob(
             return 1 - top_prob
         else:
             return 0.0
-
-    # use regexp to keep only alpha characters
-    entry = logprobs[token_index]
-    top_token = logprobs[0]["token"].lower()
-    top_token =
-    if top_token == "yes":
-        return np.exp(logprobs[0]["logprob"])
-    elif top_token == "no":
-        return 1 - np.exp(logprobs[0]["logprob"])
-    else:
-        return 0.5
