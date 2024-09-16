@@ -108,3 +108,56 @@ def get_tags(html_string: str, tag: str, return_attributes: bool = False) -> lis
         print(f"Failed to extract content from HTML tag '{tag}': {e}. Returning no matches.")
 
     return []
+
+def object_to_xml(
+    obj: dict | list | str | int | float,
+    root_tag: str,
+    ignore_dict_nulls: bool = True,
+    list_item_tag: str = "li", # could also be "option", "item", etc.
+    include_list_index: bool = True,
+    index_attr: str = "key", # could be index, id, name, etc.
+    indent_level: int = 0,
+    indent_str: str = "  ",
+    index=None
+):
+    """
+    Convert a Python object to an XML string.
+    """
+    xml = indent_str * indent_level
+    xml += f"<{root_tag}"
+    if include_list_index and index is not None:
+        xml += f" {index_attr}=\"{index}\""
+    xml += ">\n"
+    # base case
+    if isinstance(obj, str) or isinstance(obj, int) or isinstance(obj, float):
+        xml += indent_str * (indent_level + 1)
+        xml += f"{obj}\n"
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            if ignore_dict_nulls and value is None:
+                continue
+            xml += object_to_xml(
+                value,
+                root_tag=key,
+                list_item_tag=list_item_tag,
+                include_list_index=include_list_index,
+                index_attr=index_attr,
+                indent_level=indent_level + 1
+            )
+    elif isinstance(obj, list):
+        for index, item in enumerate(obj):
+            xml += object_to_xml(
+                item,
+                root_tag=list_item_tag,
+                list_item_tag=list_item_tag,
+                include_list_index=include_list_index,
+                index_attr=index_attr,
+                indent_level=indent_level + 1,
+                index=index
+            )
+    else:
+        raise ValueError("Unsupported object type.")
+
+    xml += indent_str * indent_level
+    xml += f"</{root_tag}>\n"
+    return xml
