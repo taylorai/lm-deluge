@@ -12,6 +12,7 @@ keywords = []
 license = { text = "" }
 classifiers = []
 dependencies = [
+    "json5",
     "PyYAML",
     "pandas",
     "aiohttp",
