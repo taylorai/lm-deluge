@@ -1,5 +1,7 @@
 import re
 from bs4 import BeautifulSoup, Tag
+# import xml.etree.ElementTree as ET
+from lxml import etree
 
 def get_tag(html_string: str, tag: str, return_attributes: bool = False) -> dict | str | None:
     # Try to use regular expressions first
@@ -109,6 +111,28 @@ def get_tags(html_string: str, tag: str, return_attributes: bool = False) -> lis
 
     return []
 
+def strip_xml(xml_string: str) -> str:
+    """
+    Remove all stuff outside of the XML so it can be parsed.
+    """
+    while not xml_string.startswith("<"):
+        xml_string = xml_string[1:]
+    while not xml_string.endswith(">"):
+        xml_string = xml_string[:-1]
+
+    # TODO: ensure it has a single root element
+    return xml_string
+
+def remove_namespace_prefixes(xml_string):
+    """
+    Remove namespace prefixes from XML tags in the provided XML string.
+    """
+    # Remove namespace prefixes in opening and closing tags
+    xml_string = re.sub(r'<(/?)(\w+:)', r'<\1', xml_string)
+    # Remove namespace declarations in root element
+    xml_string = re.sub(r'xmlns(:\w+)?="[^"]+"', '', xml_string)
+    return xml_string
+
 def object_to_xml(
     obj: dict | list | str | int | float,
     root_tag: str,
@@ -161,3 +185,77 @@ def object_to_xml(
     xml += indent_str * indent_level
     xml += f"</{root_tag}>\n"
     return xml
+
+def xml_to_object(
+    xml_string: str,
+    parse_null_text_as_none=True,
+    empty_tags_as_none=False
+):
+    """
+    Intended to be the reverse of object_to_xml.
+    Written by ChatGPT so unclear if this will work as intended.
+    """
+    xml_string = strip_xml(xml_string)
+    xml_string = remove_namespace_prefixes(xml_string)
+    parser = etree.XMLParser(recover=True, ns_clean=True)
+    root = etree.fromstring(xml_string.encode('utf-8'), parser=parser)
+
+    def parse_element(element):
+        # Base case: element has no child elements
+        if len(element) == 0:
+            text = element.text
+            if text is None or text.strip() == '':
+                return None if empty_tags_as_none else ''
+            text = text.strip()
+            if parse_null_text_as_none and text.lower() == 'null':
+                return None
+            # Try to convert text to int or float
+            if text.isdigit():
+                return int(text)
+            else:
+                try:
+                    return float(text)
+                except ValueError:
+                    return text
+        else:
+            is_list = False
+            index_attrs = ["key", "index"]
+            # Get child tag names without namespace prefixes
+            child_tags = [etree.QName(child).localname for child in element]
+            # Treat it as a list if there are any repeated children
+            if len(set(child_tags)) == 1 and len(child_tags) == len(element) and len(child_tags) > 1:
+                is_list = True
+            # Treat as list if it has one child, but the child has a "key" or "index" attribute
+            elif len(child_tags) == 1 and any(attr in element[0].attrib for attr in index_attrs):
+                is_list = True
+            # If multiple child tag types, but has repeats, error
+            elif len(set(child_tags)) > 1 and len(set(child_tags)) < len(element):
+                raise ValueError("Cannot parse XML with multiple child tags and repeats.")
+
+            if is_list:
+                items_with_index = []
+                for child in element:
+                    index = child.attrib.get(index_attr)
+                    if index is not None and index.isdigit():
+                        index = int(index)
+                    else:
+                        index = None
+                    item = parse_element(child)
+                    items_with_index.append((index, item))
+                # Sort items if indices are present
+                if all(index is not None for index, _ in items_with_index):
+                    items_with_index.sort(key=lambda x: x[0])
+                items = [item for _, item in items_with_index]
+                return items
+            else:
+                # Treat as a dictionary
+                obj = {}
+                for child in element:
+                    key = etree.QName(child).localname  # Get tag name without namespace
+                    value = parse_element(child)
+                    if key in obj:
+                        raise ValueError(f"Duplicate key '{key}' found in XML when not expecting a list.")
+                    obj[key] = value
+                return obj
+
+    return parse_element(root)
