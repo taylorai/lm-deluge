@@ -76,7 +76,7 @@ class EmbeddingRequest:
             self.pbar.update(1)
 
     def handle_success(self):
-        self.increment_pbar()    
+        self.increment_pbar()
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
 
@@ -92,7 +92,7 @@ class EmbeddingRequest:
         else:
             print(f"Task {self.task_id} out of tries.")
             self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_failed += 1 
+            self.status_tracker.num_tasks_failed += 1
 
     async def handle_response(self, response: aiohttp.ClientResponse):
         try:
@@ -103,6 +103,8 @@ class EmbeddingRequest:
                     embeddings = [embedding['embedding'] for embedding in result['data']]
                 elif self.model_name in ["embed-english-v3.0", "embed-english-light-v3.0", "embed-multilingual-v3.0", "embed-multilingual-light-v3.0"]:
                     embeddings = result['embeddings']
+                else:
+                    raise ValueError(f"Unsupported model {self.model_name}")
                 return EmbeddingResponse(
                     id=self.task_id,
                     status_code=response.status,
@@ -160,7 +162,7 @@ class EmbeddingRequest:
                 response_obj: EmbeddingResponse = await self.handle_response(response)
             self.result.append(response_obj)
             if response_obj.is_error:
-                self.handle_error()     
+                self.handle_error()
             else:
                 self.handle_success()
 
@@ -174,7 +176,7 @@ class EmbeddingRequest:
                 embeddings=[]
             ))
             self.handle_error()
-               
+
         except Exception as e:
             self.result.append(EmbeddingResponse(
                 id=self.task_id,
@@ -185,8 +187,8 @@ class EmbeddingRequest:
                 embeddings=[]
             ))
             self.handle_error()
-        
-            
+
+
 @dataclass
 class EmbeddingResponse:
     id: int
@@ -329,9 +331,9 @@ async def embed_parallel_async(
         )
 
     print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
-    
+
     # deduplicate results by id
-    deduplicated = {}    
+    deduplicated = {}
     for request in results:
         if request.task_id not in deduplicated:
             deduplicated[request.task_id] = request.result[-1]
@@ -360,4 +362,3 @@ def stack_results(
 
 def submit_batch_request():
     pass
-
