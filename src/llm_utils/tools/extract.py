@@ -74,10 +74,10 @@ async def extract_async(
     return completions
 
 def extract(
-    texts: list[str],
+    inputs: list[str | PILImage.Image],
     schema: Any,
     client: LLMClient,
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
 ):
-    return asyncio.run(extract_async(texts, schema, client, document_name, object_name))
+    return asyncio.run(extract_async(inputs, schema, client, document_name, object_name))
