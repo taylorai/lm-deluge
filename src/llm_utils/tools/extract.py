@@ -1,4 +1,7 @@
 import json
+from PIL import Image as PILImage
+from ..image import Image
+from ..prompt import Prompt
 import asyncio
 from ..client import LLMClient
 from typing import Optional, Any
@@ -15,7 +18,7 @@ def parse_json(text: Optional[str]):
 
 
 async def extract_async(
-    texts: list[str],
+    inputs: list[str | PILImage.Image],
     schema: Any,
     client: LLMClient,
     document_name: Optional[str] = None,
@@ -41,7 +44,7 @@ async def extract_async(
     else:
         object_name += " "
 
-    prompt = (
+    text_only_prompt = (
         f"Given the following {document_name}, extract the {object_name}information "
         + "from it according to the following JSON schema:\n\n```json\n"
         + json.dumps(schema_dict, indent=2)
@@ -49,7 +52,22 @@ async def extract_async(
         + "Return the extracted information as JSON, no explanation required."
     )
 
-    prompts = [prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", text) for text in texts]
+    image_only_prompt = (
+        f"Given the attached {document_name} image, extract the {object_name}information "
+        + "from it according to the following JSON schema:\n\n```json\n"
+        + json.dumps(schema_dict, indent=2)
+        + "Return the extracted information as JSON, no explanation required."
+    )
+
+    prompts = []
+    for input in inputs:
+        if isinstance(input, str):
+            prompts.append(text_only_prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", input))
+        elif isinstance(input, PILImage.Image):
+            prompts.append(Prompt(text=image_only_prompt, image=Image(input)))
+        else:
+                raise ValueError("inputs must be a list of strings or PIL images.")
+
     resps = await client.process_prompts_async(prompts)
     completions = [parse_json(resp.completion) for resp in resps]
 
