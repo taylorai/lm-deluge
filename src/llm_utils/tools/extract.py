@@ -49,7 +49,7 @@ async def extract_async(
         + "from it according to the following JSON schema:\n\n```json\n"
         + json.dumps(schema_dict, indent=2)
         + "```\n\nHere is the {document_name}:\n\n```\n{<<__REPLACE_WITH_TEXT__>>}\n```"
-        + "Return the extracted information as JSON, no explanation required."
+        + "Return the extracted information as JSON, no explanation required. "
     )
 
     image_only_prompt = (
