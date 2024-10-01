@@ -32,7 +32,14 @@ def strip_json(json_string: str | None) -> str | None:
     if json_string.startswith("```json"):
         json_string = json_string.split("```json", 1)[1]
     json_string = json_string.strip("`")
-    return json_string.strip()
+
+    # not strict enough!
+    while not json_string.startswith("{") and not json_string.startswith("["):
+        json_string = json_string[1:]
+    while not json_string.endswith("}") and not json_string.endswith("]"):
+        json_string = json_string[:-1]
+
+    return json_string
 
 def load_json(
     json_string: str | None,
