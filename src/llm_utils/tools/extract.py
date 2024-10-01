@@ -80,5 +80,6 @@ def extract(
     client: LLMClient,
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
+    show_progress: bool = True,
 ):
-    return asyncio.run(extract_async(inputs, schema, client, document_name, object_name))
+    return asyncio.run(extract_async(inputs, schema, client, document_name, object_name, show_progress))
