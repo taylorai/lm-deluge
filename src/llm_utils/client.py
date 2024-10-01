@@ -138,7 +138,7 @@ class LLMClient:
         self.max_attempts = max_attempts
         self.request_timeout = request_timeout
         self.use_qps = use_qps
-        self.debug = debug
+        self.debug = debug # UNUSED/DEPRECATED i think? but dont want to break everything
         self.cache = cache
 
     @classmethod
@@ -213,7 +213,8 @@ class LLMClient:
         prompts: Union[list[Prompt], list[str], list[list[dict]]],
         return_completions_only: bool = False,
         show_progress: bool = True,
-        dry_run: bool = False
+        dry_run: bool = False,
+        verbose: bool = False
     ):
         # if prompts are not Prompts, convert them
         prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
@@ -227,12 +228,12 @@ class LLMClient:
             cache_hit_ids = [id for id, res in zip(ids, cached_results) if res is not None]
             cache_hit_results = [res for res in cached_results if res is not None]
             assert len(cache_hit_ids) == len(cache_hit_results), "Cache hit ids and results must be the same length."
-            print(f"{len(cache_hit_ids)} cache hits from previous completions.")
-
             remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
-            print(f"{len(remaining_ids)} prompts remaining after cache hits.")
             remaining_prompts = [prompts[i] for i in remaining_ids]
-            print(f"Processing {len(remaining_prompts)} prompts.")
+            if verbose:
+                print(f"{len(cache_hit_ids)} cache hits from previous completions.")
+                print(f"{len(remaining_ids)} prompts remaining after cache hits.")
+                print(f"Processing {len(remaining_prompts)} prompts.")
 
         else:
             cache_hit_ids = []
@@ -240,7 +241,7 @@ class LLMClient:
             remaining_prompts = prompts
             remaining_ids = ids
 
-        results: list[APIResponse] = [None for _ in range(len(prompts))]
+        results: list[APIResponse | None] = [None for _ in range(len(prompts))]
         if len(remaining_prompts) > 0:
             # set up progress bar
             pbar = tqdm(total=len(prompts), disable=(not show_progress))
@@ -249,7 +250,7 @@ class LLMClient:
             pbar.update(len(cache_hit_ids))
             api_task = None
             if dry_run:
-                results = api_prompts_dry_run(
+                dry_run_results = api_prompts_dry_run(
                     ids,
                     prompts,
                     self.models,
@@ -259,8 +260,8 @@ class LLMClient:
                     max_requests_per_minute=self.max_requests_per_minute,
                 )
                 print("Dry run results:")
-                print(results)
-                return results
+                print(dry_run_results)
+                return dry_run_results
 
             api_task = asyncio.create_task(
                 process_api_prompts_async(
@@ -278,7 +279,7 @@ class LLMClient:
                     request_timeout=self.request_timeout,
                     progress_bar=pbar,
                     use_qps=self.use_qps,
-                    debug=self.debug
+                    verbose=verbose
                 )
             )
             api_results: list[APIResponse] = await api_task
@@ -302,14 +303,16 @@ class LLMClient:
         prompts: Union[list[Prompt], list[str], list[list[dict]]],
         return_completions_only: bool = False,
         show_progress=True,
-        dry_run=False
+        dry_run: bool =False,
+        verbose: bool =False
     ):
         return asyncio.run(
             self.process_prompts_async(
                 prompts=prompts,
                 return_completions_only=return_completions_only,
                 show_progress=show_progress,
-                dry_run=dry_run
+                dry_run=dry_run,
+                verbose=verbose
             )
         )
 
@@ -496,7 +499,7 @@ async def process_api_prompts_async(
     request_timeout: int = 30,
     progress_bar: Optional[tqdm] = None,
     use_qps: bool = False,
-    debug: bool = False
+    verbose: bool = False
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
@@ -585,7 +588,8 @@ async def process_api_prompts_async(
 
                 except StopIteration:
                     prompts_not_finished = False
-                    print("API requests finished, only retries remain.")
+                    if verbose:
+                        print("API requests finished, only retries remain.")
 
         # update available capacity
         current_time = time.time()
@@ -666,8 +670,8 @@ async def process_api_prompts_async(
         print(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
-
-    print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
+    if verbose:
+        print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
 
     # deduplicate results by id
     deduplicated = {}
@@ -681,6 +685,7 @@ async def process_api_prompts_async(
                 deduplicated[request.task_id] = request.result[-1]
 
     output = list(deduplicated.values())
-    print(f"Returning {len(output)} unique results.")
+    if verbose:
+        print(f"Returning {len(output)} unique results.")
 
     return output
