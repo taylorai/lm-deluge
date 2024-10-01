@@ -5,16 +5,7 @@ from ..prompt import Prompt
 import asyncio
 from ..client import LLMClient
 from typing import Optional, Any
-
-def parse_json(text: Optional[str]):
-    if text is None:
-        return None
-    text = text.strip()
-    if text.startswith("```json"):
-        text = text.split("```json", 1)[1]
-    text = text.rstrip("`")
-
-    return json.loads(text)
+from ..util.json import load_json
 
 
 async def extract_async(
@@ -70,7 +61,7 @@ async def extract_async(
                 raise ValueError("inputs must be a list of strings or PIL images.")
 
     resps = await client.process_prompts_async(prompts, show_progress=show_progress)
-    completions = [parse_json(resp.completion) for resp in resps]
+    completions = [load_json(resp.completion) for resp in resps]
 
     return completions
 
