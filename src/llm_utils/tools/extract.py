@@ -14,7 +14,8 @@ async def extract_async(
     client: LLMClient,
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
-    show_progress: bool = True
+    show_progress: bool = True,
+    return_prompts: bool = False
 ):
     if hasattr(schema, "model_json_schema"):
         schema_dict = schema.model_json_schema()
@@ -60,6 +61,9 @@ async def extract_async(
         else:
                 raise ValueError("inputs must be a list of strings or PIL images.")
 
+    if return_prompts:
+        return prompts
+
     resps = await client.process_prompts_async(prompts, show_progress=show_progress)
     completions = [load_json(resp.completion) for resp in resps]
 
@@ -72,5 +76,6 @@ def extract(
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
     show_progress: bool = True,
+    return_prompts: bool = False
 ):
-    return asyncio.run(extract_async(inputs, schema, client, document_name, object_name, show_progress))
+    return asyncio.run(extract_async(inputs, schema, client, document_name, object_name, show_progress, return_prompts))
