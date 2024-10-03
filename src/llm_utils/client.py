@@ -3,7 +3,7 @@ import numpy as np
 import time
 import yaml
 from dataclasses import dataclass
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Union, Any
 from tqdm.auto import tqdm
 from .image import Image
 from .prompt import Prompt
@@ -12,7 +12,7 @@ from .sampling_params import SamplingParams
 from .models import registry
 from .api_requests.base import APIResponse, APIRequestBase
 from .api_requests import create_api_request
-from .cache import LevelDBCache, SqliteCache
+# from .cache import LevelDBCache, SqliteCache
 import os
 import pandas as pd
 import requests
@@ -34,7 +34,7 @@ class ClientConfig:
     model_weights: Union[list[float], Literal["uniform", "rate_limit"]]
     logprobs: bool = False
     top_logprobs: Optional[int] = None
-    cache: Optional[Union[LevelDBCache, SqliteCache]] = None
+    cache: Optional[Any] = None
 
     @classmethod
     def from_dict(cls, config_dict: dict):
@@ -94,7 +94,7 @@ class LLMClient:
         top_logprobs: Optional[int] = None,
         use_qps: bool = False,
         debug: bool = False,
-        cache: Optional[Union[LevelDBCache, SqliteCache]] = None
+        cache: Optional[Any] = None
     ):
         self.models = model_names
         if isinstance(sampling_params, SamplingParams):
@@ -142,7 +142,7 @@ class LLMClient:
         self.cache = cache
 
     @classmethod
-    def from_config(cls, config: ClientConfig, cache: Optional[Union[LevelDBCache, SqliteCache]] = None):
+    def from_config(cls, config: ClientConfig, cache: Optional[Any] = None):
         return cls(
             model_names=config.model_names,
             max_requests_per_minute=config.max_requests_per_minute,
@@ -156,7 +156,7 @@ class LLMClient:
         )
 
     @classmethod
-    def from_yaml(cls, file_path: str, cache: Optional[Union[LevelDBCache, SqliteCache]] = None):
+    def from_yaml(cls, file_path: str, cache: Optional[Any] = None):
         return cls.from_config(
             ClientConfig.from_yaml(file_path),
             cache=cache
@@ -176,7 +176,7 @@ class LLMClient:
         top_logprobs: Optional[int] = None,
         max_attempts: int = 5,
         request_timeout: int = 30,
-        cache: Optional[Union[LevelDBCache, SqliteCache]] = None
+        cache: Optional[Any] = None
     ):
         model_names = model if isinstance(model, list) else [model]
         return cls(
