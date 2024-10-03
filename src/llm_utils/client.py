@@ -1,3 +1,5 @@
+import os
+import requests
 import asyncio
 import numpy as np
 import time
@@ -13,9 +15,7 @@ from .models import registry
 from .api_requests.base import APIResponse, APIRequestBase
 from .api_requests import create_api_request
 # from .cache import LevelDBCache, SqliteCache
-import os
-import pandas as pd
-import requests
+
 
 # TODO: get completions as they finish, not all at once at the end.
 # relatedly, would be nice to cache them as they finish too.
@@ -318,6 +318,7 @@ class LLMClient:
 
     def _submit_one_batch(self, batch_requests: list):
         # save the file
+        import pandas as pd
         pd.DataFrame(batch_requests).to_json(
             "openai_requests_temp.jsonl", orient="records", lines=True
         )

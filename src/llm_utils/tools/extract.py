@@ -43,13 +43,17 @@ async def extract_async(
         + json.dumps(schema_dict, indent=2)
         + "```\n\nHere is the {document_name}:\n\n```\n{<<__REPLACE_WITH_TEXT__>>}\n```"
         + "Return the extracted information as JSON, no explanation required. "
+        + f"If the {document_name} seems to be totally irrelevant to the schema (not just incomplete), you may return a JSON object "
+        + "like `{\"error\": \"The document is not relevant to the schema.\"}`."
     )
 
     image_only_prompt = (
         f"Given the attached {document_name} image, extract the {object_name}information "
         + "from it according to the following JSON schema:\n\n```json\n"
         + json.dumps(schema_dict, indent=2)
-        + "Return the extracted information as JSON, no explanation required."
+        + "Return the extracted information as JSON, no explanation required. "
+        + f"If the {document_name} seems to be totally irrelevant to the schema (not just incomplete), you may return a JSON object "
+        + "like `{\"error\": \"The document is not relevant to the schema.\"}`."
     )
 
     prompts = []
