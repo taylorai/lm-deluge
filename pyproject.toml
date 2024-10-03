@@ -27,4 +27,6 @@ dependencies = [
     "fasttext-langdetect",
     "pdf2image",
     "pymupdf",
+    "bs4",
+    "lxml",
 ]
