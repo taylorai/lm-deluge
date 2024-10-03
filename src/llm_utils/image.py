@@ -56,7 +56,7 @@ class Image:
         return self.size[0] * self.size[1]
 
     def resize(self, size: tuple[int, int]):
-        self.image = self.image.resize(size)
+        self.image = self.image.resize(size, resample=PILImage.Resampling.LANCZOS)
 
     def resize_longer_side(self, size: int):
         width, height = self.image.size
