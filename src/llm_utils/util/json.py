@@ -65,7 +65,7 @@ def load_json(
     if allow_json5:
         try:
             return json5.loads(json_string)
-        except Exception as e
+        except Exception as e:
             pass
     if allow_partial:
         try:
