@@ -73,4 +73,4 @@ def load_json(
             return string_list_to_dict(string_list)
         except Exception:
             pass
-    raise ValueError("Invalid JSON string: ", json_string)
+    raise ValueError(f"Invalid JSON string: {json_string}")
