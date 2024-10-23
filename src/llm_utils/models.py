@@ -34,39 +34,6 @@ gemini_flash_limits = {
     'us-west4': 200,
 }
 
-# total: 29_000
-gemini_pro_limits = {
-    "asia-east1": 1_000,
-    "asia-east2": 1_000,
-    "asia-northeast1": 1_000,
-    "asia-northeast3": 1_000,
-    "asia-south1": 1_000,
-    "asia-southeast1": 1_000,
-    "australia-southeast1": 1_000,
-    "europe-central2": 1_000,
-    "europe-north1": 1_000,
-    'europe-southwest1': 1_000,
-    "europe-west1": 1_000,
-    "europe-west2": 1_000,
-    "europe-west3": 1_000,
-    "europe-west4": 1_000,
-    "europe-west6": 1_000,
-    "europe-west8": 1_000,
-    "europe-west9": 1_000,
-    "me-central1": 1_000,
-    "me-central2": 1_000,
-    "me-west1": 1_000,
-    "northamerica-northeast1": 1_000,
-    "southamerica-east1": 1_000,
-    "us-central1": 1_000,
-    "us-east1": 1_000,
-    "us-east4": 1_000,
-    "us-east5": 1_000,
-    "us-south1": 1_000,
-    "us-west1": 1_000,
-    "us-west4": 1_000,
-}
-
 # total: 7_520
 gemini_1_5_pro_limits = {
     "asia-east1": 500,
@@ -406,7 +373,7 @@ registry = {
     },
     "claude-sonnet-anthropic": {
         "id": "claude-sonnet-anthropic",
-        "name": "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
+        "name": "claude-3-5-sonnet-20241022", # "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
@@ -477,22 +444,9 @@ registry = {
         "requests_per_minute": 120,
         "tokens_per_minute": None
     },
-    "gemini-1.0-pro": {
-        "id": "gemini-1.0-pro",
-        "name": "gemini-1.0-pro-002",
-        "regions": gemini_pro_limits,
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "supports_json": False,
-        "api_spec": "vertex_gemini",
-        "input_cost": 0.5,
-        "output_cost": 1.5,
-        "requests_per_minute": sum(gemini_pro_limits.values()),
-        "tokens_per_minute": None
-    },
     "gemini-1.5-flash": {
         "id": "gemini-1.5-flash",
-        "name": "gemini-1.5-flash-001",
+        "name": "gemini-1.5-flash-002", # "gemini-1.5-flash-001",
         "regions":  gemini_flash_limits,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
@@ -505,7 +459,7 @@ registry = {
     },
     "gemini-1.5-pro": {
         "id": "gemini-1.5-pro",
-        "name": "gemini-1.5-pro-001",
+        "name": "gemini-1.5-pro-002", # "gemini-1.5-pro-001",
         "regions": gemini_1_5_pro_limits,
         "api_base": "",
         "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
