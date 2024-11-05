@@ -371,6 +371,18 @@ registry = {
         "requests_per_minute": 10_000,
         "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
     },
+    "claude-haiku-anthropic-expensive": {
+        "id": "claude-haiku-anthropic-expensive",
+        "name": "claude-3-5-haiku-20241022",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 1.00,
+        "output_cost": 5.00,
+        "requests_per_minute": 20_000,
+        "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
+    },
     "claude-sonnet-anthropic": {
         "id": "claude-sonnet-anthropic",
         "name": "claude-3-5-sonnet-20241022", # "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
