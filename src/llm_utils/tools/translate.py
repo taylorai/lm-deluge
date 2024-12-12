@@ -1,6 +1,10 @@
 import asyncio
-from ftlangdetect import detect
 from ..client import LLMClient
+try:
+    from ftlangdetect import detect
+except ImportError:
+    print("fasttext-langdetect is recommended to use the translate tool. Install llm_utils[translate] or llm_utils[full].")
+    detect = None
 
 translation_prompt = (
     "Translate the following text (enclosed in ```) into English. "
@@ -25,7 +29,7 @@ async def translate_async(
 
     prompts = [translation_prompt.format(texts[i]) for i in to_translate_idxs]
     resps = await client.process_prompts_async(prompts)
-    translations = [resp.completion.strip() if reps.completion is not None else None for resp in resps]
+    translations = [resp.completion.strip() if resp.completion is not None else None for resp in resps]
     for i, translation in zip(to_translate_idxs, translations):
         texts[i] = translation
 
