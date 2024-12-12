@@ -1,6 +1,5 @@
 import io
 import json
-import pymupdf
 from dataclasses import dataclass
 import tiktoken
 from .models import APIModel
@@ -46,6 +45,10 @@ class Prompt:
         - Bytes of a PDF file
         - A BytesIO object containing a PDF file
         """
+        try:
+            import pymupdf
+        except ImportError:
+            raise ImportError("pymupdf is required to extract text from PDFs. Install llm_utils[pdf] or llm_utils[full].")
         if isinstance(pdf, str):
             # It's a file path
             doc = pymupdf.open(pdf)

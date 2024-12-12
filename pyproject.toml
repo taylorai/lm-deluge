@@ -21,12 +21,19 @@ dependencies = [
     "tqdm",
     "google-auth",
     "requests-aws4auth",
-    "pillow",
     "pydantic",
-    "fasttext-wheel",
-    "fasttext-langdetect",
-    "pdf2image",
-    "pymupdf",
     "bs4",
     "lxml",
+]
+
+[project.optional-dependencies]
+image = ["pdf2image", "pillow"]
+pdf = ["pdf2image", "pymupdf"]
+translate = ["fasttext-wheel", "fasttext-langdetect"]
+full = [
+    "pillow",
+    "pdf2image",
+    "pymupdf",
+    "fasttext-wheel",
+    "fasttext-langdetect",
 ]
