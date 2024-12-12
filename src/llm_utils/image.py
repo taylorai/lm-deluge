@@ -6,7 +6,7 @@ try:
     from PIL import Image as PILImage
     from pdf2image import convert_from_path
 except ImportError:
-    raise ImportError("PIL and pdf2image are required to use images. Install llm_utils[image] or llm_utils[full].")
+    print("Warning: PIL and pdf2image are required to use images. Install llm_utils[image] or llm_utils[full].")
     PILImage = None
     pdf2image = None
 
