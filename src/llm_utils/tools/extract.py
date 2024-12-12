@@ -1,15 +1,18 @@
 import json
-from PIL import Image as PILImage
 from ..image import Image
 from ..prompt import Prompt
 import asyncio
 from ..client import LLMClient
 from typing import Optional, Any
 from ..util.json import load_json
+try:
+    from PIL import Image as PILImage
+except ImportError:
+    PILImage = None
 
 
 async def extract_async(
-    inputs: list[str | PILImage.Image],
+    inputs: list[str | Any],
     schema: Any,
     client: LLMClient,
     document_name: Optional[str] = None,
@@ -60,10 +63,10 @@ async def extract_async(
     for input in inputs:
         if isinstance(input, str):
             prompts.append(text_only_prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", input))
-        elif isinstance(input, PILImage.Image):
+        elif PILImage is not None and isinstance(input, PILImage.Image):
             prompts.append(Prompt(text=image_only_prompt, image=Image(input)))
         else:
-                raise ValueError("inputs must be a list of strings or PIL images.")
+            raise ValueError("inputs must be a list of strings or PIL images.")
 
     if return_prompts:
         return prompts
@@ -74,7 +77,7 @@ async def extract_async(
     return completions
 
 def extract(
-    inputs: list[str | PILImage.Image],
+    inputs: list[str | Any],
     schema: Any,
     client: LLMClient,
     document_name: Optional[str] = None,
