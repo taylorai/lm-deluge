@@ -86,6 +86,19 @@ registry = {
 # o1-mini	o1-mini: faster and cheaper reasoning model particularly good at coding, math, and science.	128,000 tokens	65,536 tokens	Up to Oct 2023
 # o1-mini-2024-09-12
     "o1-preview": {
+        "id": "o1",
+        "name": "o1-2024-12-17",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 15.0,
+        "output_cost": 60.0,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000
+    },
+    "o1-preview": {
         "id": "o1-preview",
         "name": "o1-preview-2024-09-12",
         "api_base": "https://api.openai.com/v1",
@@ -202,6 +215,233 @@ registry = {
         "requests_per_minute": 1_000,
         "tokens_per_minute": 150_000
     },
+#    █████████               █████    █████                                    ███
+#   ███░░░░░███             ░░███    ░░███                                    ░░░
+#  ░███    ░███  ████████   ███████   ░███████   ████████   ██████  ████████  ████   ██████
+#  ░███████████ ░░███░░███ ░░░███░    ░███░░███ ░░███░░███ ███░░███░░███░░███░░███  ███░░███
+#  ░███░░░░░███  ░███ ░███   ░███     ░███ ░███  ░███ ░░░ ░███ ░███ ░███ ░███ ░███ ░███ ░░░
+#  ░███    ░███  ░███ ░███   ░███ ███ ░███ ░███  ░███     ░███ ░███ ░███ ░███ ░███ ░███  ███
+#  █████   █████ ████ █████  ░░█████  ████ █████ █████    ░░██████  ░███████  █████░░██████
+# ░░░░░   ░░░░░ ░░░░ ░░░░░    ░░░░░  ░░░░ ░░░░░ ░░░░░      ░░░░░░   ░███░░░  ░░░░░  ░░░░░░
+#                                                                   ░███
+#                                                                   █████
+#                                                                  ░░░░░
+    "claude-haiku-anthropic": {
+        "id": "claude-haiku-anthropic",
+        "name": "claude-3-haiku-20240307",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
+    },
+    "claude-haiku-anthropic-expensive": {
+        "id": "claude-haiku-anthropic-expensive",
+        "name": "claude-3-5-haiku-20241022",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 1.00,
+        "output_cost": 5.00,
+        "requests_per_minute": 20_000,
+        "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
+    },
+    "claude-sonnet-anthropic": {
+        "id": "claude-sonnet-anthropic",
+        "name": "claude-3-5-sonnet-20241022", # "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000
+    },
+    "claude-opus-anthropic": {
+        "id": "claude-opus-anthropic",
+        "name": "claude-3-opus-20240229",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 15.0,
+        "output_cost": 75.0,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000
+    },
+
+#  █████   █████                     █████
+# ░░███   ░░███                     ░░███
+#  ░███    ░███   ██████  ████████  ███████    ██████  █████ █████
+#  ░███    ░███  ███░░███░░███░░███░░░███░    ███░░███░░███ ░░███
+#  ░░███   ███  ░███████  ░███ ░░░   ░███    ░███████  ░░░█████░
+#   ░░░█████░   ░███░░░   ░███       ░███ ███░███░░░    ███░░░███
+#     ░░███     ░░██████  █████      ░░█████ ░░██████  █████ █████
+#      ░░░       ░░░░░░  ░░░░░        ░░░░░   ░░░░░░  ░░░░░ ░░░░░
+
+    "claude-haiku-vertex": {
+        "id": "claude-haiku-vertex",
+        "name": "claude-3-haiku@20240307",
+        "regions": ["europe-west4", "us-central1"],
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25,
+        "requests_per_minute": 120,
+        "tokens_per_minute": None
+    },
+    "claude-sonnet-vertex": {
+        "id": "claude-sonnet-vertex",
+        "name": "claude-3-sonnet@20240229",
+        "regions": ["us-central1", "asia-southeast1"],
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 120,
+        "tokens_per_minute": None
+    },
+    "claude-opus-vertex": {
+        "id": "claude-opus-vertex",
+        "name": "claude-3-opus@20240229",
+        "regions": ["us-east5"],
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": False,
+        "api_spec": "vertex_anthropic",
+        "input_cost": 15.0,
+        "output_cost": 75.0,
+        "requests_per_minute": 120,
+        "tokens_per_minute": None
+    },
+    "gemini-1.5-flash": {
+        "id": "gemini-1.5-flash",
+        "name": "gemini-1.5-flash-002", # "gemini-1.5-flash-001",
+        "regions":  gemini_flash_limits,
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": True,
+        "api_spec": "vertex_gemini",
+        "input_cost": 0.35,
+        "output_cost": 0.35,
+        "requests_per_minute": sum(gemini_flash_limits.values()),
+        "tokens_per_minute": None
+    },
+    "gemini-1.5-pro": {
+        "id": "gemini-1.5-pro",
+        "name": "gemini-1.5-pro-002", # "gemini-1.5-pro-001",
+        "regions": gemini_1_5_pro_limits,
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": True,
+        "api_spec": "vertex_gemini",
+        "input_cost": 3.5,
+        "output_cost": 10.5,
+        "requests_per_minute": sum(gemini_1_5_pro_limits.values()),
+        "tokens_per_minute": None
+    },
+    "gemini-2.0-flash": {
+        "id": "gemini-2.0-flash",
+        "name": 'gemini-2.0-flash-exp', # "gemini-1.5-flash-001",
+        "regions":  gemini_flash_limits,
+        "api_base": "",
+        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
+        "supports_json": True,
+        "api_spec": "vertex_gemini",
+        "input_cost": 0.35,
+        "output_cost": 0.35,
+        "requests_per_minute": sum(gemini_flash_limits.values()),
+        "tokens_per_minute": None
+    },
+
+#  ███████████               █████                             █████
+# ░░███░░░░░███             ░░███                             ░░███
+#  ░███    ░███  ██████   ███████  ████████   ██████   ██████  ░███ █████
+#  ░██████████  ███░░███ ███░░███ ░░███░░███ ███░░███ ███░░███ ░███░░███
+#  ░███░░░░░███░███████ ░███ ░███  ░███ ░░░ ░███ ░███░███ ░░░  ░██████░
+#  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
+#  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
+# ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
+
+    "claude-haiku-bedrock": {
+        "id": "claude-haiku-bedrock",
+        "name": "anthropic.claude-3-haiku-20240307-v1:0",
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock_anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 8_000_000
+    },
+    "claude-sonnet-bedrock": {
+        "id": "claude-sonnet-bedrock",
+        "name": "anthropic.claude-3-sonnet-20240229-v1:0",
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock_anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 2_000,
+        "tokens_per_minute": 4_000_000
+    },
+    "mistral-7b-bedrock": {
+        "id": "mistral-7b-bedrock",
+        "name": "mistral.mistral-7b-instruct-v0:2",
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock_mistral",
+        "input_cost": 0.15,
+        "output_cost": 0.2,
+        "requests_per_minute": 3_200,
+        "tokens_per_minute": 1_200_000
+    },
+    "mixtral-8x7b-bedrock": {
+        "id": "mixtral-8x7b-bedrock",
+        "name": "mistral.mixtral-8x7b-instruct-v0:1",
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock_mistral",
+        "input_cost": 0.45,
+        "output_cost": 0.7,
+        "requests_per_minute": 1_600,
+        "tokens_per_minute": 1_200_000
+    },
+    "mistral-large-bedrock": {
+        "id": "mistral-large-bedrock",
+        "name": "mistral.mistral-large-2402-v1:0",
+        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock_mistral",
+        "input_cost": 8.0,
+        "output_cost": 24.0,
+        "requests_per_minute": 1_600,
+        "tokens_per_minute": 1_200_000
+    },
+    # these are not ready yet bro
+    # "llama3-8b-bedrock": {
+    #     "id": "llama3-8b-bedrock",
+    #     "name": "meta.llama3-8b-instruct-v1:0",
+    #     "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
+    #     "api_base": "",
+    #     "api_key_env_var": "",
+    #     "api_spec": "bedrock_llama",
+
+# },
 #  ███████████                             █████    █████
 # ░█░░░███░░░█                            ░░███    ░░███
 # ░   ░███  ░   ██████   ███████  ██████  ███████   ░███████    ██████  ████████
@@ -348,220 +588,6 @@ registry = {
         "requests_per_minute": 6000,
         "tokens_per_minute": None
     },
-#    █████████               █████    █████                                    ███
-#   ███░░░░░███             ░░███    ░░███                                    ░░░
-#  ░███    ░███  ████████   ███████   ░███████   ████████   ██████  ████████  ████   ██████
-#  ░███████████ ░░███░░███ ░░░███░    ░███░░███ ░░███░░███ ███░░███░░███░░███░░███  ███░░███
-#  ░███░░░░░███  ░███ ░███   ░███     ░███ ░███  ░███ ░░░ ░███ ░███ ░███ ░███ ░███ ░███ ░░░
-#  ░███    ░███  ░███ ░███   ░███ ███ ░███ ░███  ░███     ░███ ░███ ░███ ░███ ░███ ░███  ███
-#  █████   █████ ████ █████  ░░█████  ████ █████ █████    ░░██████  ░███████  █████░░██████
-# ░░░░░   ░░░░░ ░░░░ ░░░░░    ░░░░░  ░░░░ ░░░░░ ░░░░░      ░░░░░░   ░███░░░  ░░░░░  ░░░░░░
-#                                                                   ░███
-#                                                                   █████
-#                                                                  ░░░░░
-    "claude-haiku-anthropic": {
-        "id": "claude-haiku-anthropic",
-        "name": "claude-3-haiku-20240307",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 0.25,
-        "output_cost": 1.25,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
-    },
-    "claude-haiku-anthropic-expensive": {
-        "id": "claude-haiku-anthropic-expensive",
-        "name": "claude-3-5-haiku-20241022",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 1.00,
-        "output_cost": 5.00,
-        "requests_per_minute": 20_000,
-        "tokens_per_minute": 4_000_000 # supposed to be this but they fucked up
-    },
-    "claude-sonnet-anthropic": {
-        "id": "claude-sonnet-anthropic",
-        "name": "claude-3-5-sonnet-20241022", # "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 3.0,
-        "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000
-    },
-    "claude-opus-anthropic": {
-        "id": "claude-opus-anthropic",
-        "name": "claude-3-opus-20240229",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 15.0,
-        "output_cost": 75.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000
-    },
-
-#  █████   █████                     █████
-# ░░███   ░░███                     ░░███
-#  ░███    ░███   ██████  ████████  ███████    ██████  █████ █████
-#  ░███    ░███  ███░░███░░███░░███░░░███░    ███░░███░░███ ░░███
-#  ░░███   ███  ░███████  ░███ ░░░   ░███    ░███████  ░░░█████░
-#   ░░░█████░   ░███░░░   ░███       ░███ ███░███░░░    ███░░░███
-#     ░░███     ░░██████  █████      ░░█████ ░░██████  █████ █████
-#      ░░░       ░░░░░░  ░░░░░        ░░░░░   ░░░░░░  ░░░░░ ░░░░░
-
-    "claude-haiku-vertex": {
-        "id": "claude-haiku-vertex",
-        "name": "claude-3-haiku@20240307",
-        "regions": ["europe-west4", "us-central1"],
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "supports_json": False,
-        "api_spec": "vertex_anthropic",
-        "input_cost": 0.25,
-        "output_cost": 1.25,
-        "requests_per_minute": 120,
-        "tokens_per_minute": None
-    },
-    "claude-sonnet-vertex": {
-        "id": "claude-sonnet-vertex",
-        "name": "claude-3-sonnet@20240229",
-        "regions": ["us-central1", "asia-southeast1"],
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "supports_json": False,
-        "api_spec": "vertex_anthropic",
-        "input_cost": 3.0,
-        "output_cost": 15.0,
-        "requests_per_minute": 120,
-        "tokens_per_minute": None
-    },
-    "claude-opus-vertex": {
-        "id": "claude-opus-vertex",
-        "name": "claude-3-opus@20240229",
-        "regions": ["us-east5"],
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "supports_json": False,
-        "api_spec": "vertex_anthropic",
-        "input_cost": 15.0,
-        "output_cost": 75.0,
-        "requests_per_minute": 120,
-        "tokens_per_minute": None
-    },
-    "gemini-1.5-flash": {
-        "id": "gemini-1.5-flash",
-        "name": "gemini-1.5-flash-002", # "gemini-1.5-flash-001",
-        "regions":  gemini_flash_limits,
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "supports_json": True,
-        "api_spec": "vertex_gemini",
-        "input_cost": 0.35,
-        "output_cost": 0.35,
-        "requests_per_minute": sum(gemini_flash_limits.values()),
-        "tokens_per_minute": None
-    },
-    "gemini-1.5-pro": {
-        "id": "gemini-1.5-pro",
-        "name": "gemini-1.5-pro-002", # "gemini-1.5-pro-001",
-        "regions": gemini_1_5_pro_limits,
-        "api_base": "",
-        "api_key_env_var": "GOOGLE_APPLICATION_CREDENTIALS",
-        "supports_json": True,
-        "api_spec": "vertex_gemini",
-        "input_cost": 3.5,
-        "output_cost": 10.5,
-        "requests_per_minute": sum(gemini_1_5_pro_limits.values()),
-        "tokens_per_minute": None
-    },
-
-#  ███████████               █████                             █████
-# ░░███░░░░░███             ░░███                             ░░███
-#  ░███    ░███  ██████   ███████  ████████   ██████   ██████  ░███ █████
-#  ░██████████  ███░░███ ███░░███ ░░███░░███ ███░░███ ███░░███ ░███░░███
-#  ░███░░░░░███░███████ ░███ ░███  ░███ ░░░ ░███ ░███░███ ░░░  ░██████░
-#  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
-#  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
-# ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
-
-    "claude-haiku-bedrock": {
-        "id": "claude-haiku-bedrock",
-        "name": "anthropic.claude-3-haiku-20240307-v1:0",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-        "api_base": "",
-        "api_key_env_var": "",
-        "api_spec": "bedrock_anthropic",
-        "input_cost": 0.25,
-        "output_cost": 1.25,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 8_000_000
-    },
-    "claude-sonnet-bedrock": {
-        "id": "claude-sonnet-bedrock",
-        "name": "anthropic.claude-3-sonnet-20240229-v1:0",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-        "api_base": "",
-        "api_key_env_var": "",
-        "api_spec": "bedrock_anthropic",
-        "input_cost": 3.0,
-        "output_cost": 15.0,
-        "requests_per_minute": 2_000,
-        "tokens_per_minute": 4_000_000
-    },
-    "mistral-7b-bedrock": {
-        "id": "mistral-7b-bedrock",
-        "name": "mistral.mistral-7b-instruct-v0:2",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-        "api_base": "",
-        "api_key_env_var": "",
-        "api_spec": "bedrock_mistral",
-        "input_cost": 0.15,
-        "output_cost": 0.2,
-        "requests_per_minute": 3_200,
-        "tokens_per_minute": 1_200_000
-    },
-    "mixtral-8x7b-bedrock": {
-        "id": "mixtral-8x7b-bedrock",
-        "name": "mistral.mixtral-8x7b-instruct-v0:1",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-        "api_base": "",
-        "api_key_env_var": "",
-        "api_spec": "bedrock_mistral",
-        "input_cost": 0.45,
-        "output_cost": 0.7,
-        "requests_per_minute": 1_600,
-        "tokens_per_minute": 1_200_000
-    },
-    "mistral-large-bedrock": {
-        "id": "mistral-large-bedrock",
-        "name": "mistral.mistral-large-2402-v1:0",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-        "api_base": "",
-        "api_key_env_var": "",
-        "api_spec": "bedrock_mistral",
-        "input_cost": 8.0,
-        "output_cost": 24.0,
-        "requests_per_minute": 1_600,
-        "tokens_per_minute": 1_200_000
-    },
-    # these are not ready yet bro
-    # "llama3-8b-bedrock": {
-    #     "id": "llama3-8b-bedrock",
-    #     "name": "meta.llama3-8b-instruct-v1:0",
-    #     "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-    #     "api_base": "",
-    #     "api_key_env_var": "",
-    #     "api_spec": "bedrock_llama",
-
-    # },
 
 #    █████████           █████
 #   ███░░░░░███         ░░███
