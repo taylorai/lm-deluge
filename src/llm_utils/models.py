@@ -96,7 +96,8 @@ registry = {
         "input_cost": 1.1,
         "output_cost": 4.4,
         "requests_per_minute": 20,
-        "tokens_per_minute": 100_000
+        "tokens_per_minute": 100_000,
+        "reasoning_model": True
     },
     "o1": {
         "id": "o1",
@@ -109,7 +110,8 @@ registry = {
         "input_cost": 15.0,
         "output_cost": 60.0,
         "requests_per_minute": 20,
-        "tokens_per_minute": 100_000
+        "tokens_per_minute": 100_000,
+        "reasoning_model": True
     },
     "o1-preview": {
         "id": "o1-preview",
@@ -122,7 +124,8 @@ registry = {
         "input_cost": 15.0,
         "output_cost": 60.0,
         "requests_per_minute": 20,
-        "tokens_per_minute": 100_000
+        "tokens_per_minute": 100_000,
+        "reasoning_model": True
     },
     "o1-mini": {
         "id": "o1-mini",
@@ -135,7 +138,8 @@ registry = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "requests_per_minute": 20,
-        "tokens_per_minute": 100_000
+        "tokens_per_minute": 100_000,
+        "reasoning_model": True
     },
     "gpt-4o": {
         "id": "gpt-4o",
@@ -763,6 +767,7 @@ class APIModel:
     output_cost: Optional[float] = 0 # $ per million output tokens
     supports_json: bool = False
     supports_logprobs: bool = False
+    reasoning_model: bool = False
     regions: list[str] = field(default_factory=list)
     tokens_per_minute: int | None = None
     requests_per_minute: int | None = None
