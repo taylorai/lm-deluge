@@ -63,13 +63,14 @@ class OpenAIRequest(APIRequestBase):
             "messages": prompt.to_openai(),
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
+            "max_completion_tokens": sampling_params.max_new_tokens
         }
         if self.model.reasoning_model:
-            self.request_json["max_completion_tokens"] = sampling_params.max_new_tokens
+            self.request_json["temperature"] = 1.0
+            self.request_json["top_p"] = 1.0
+            self.request_json["reasoning_effort"] = sampling_params.reasoning_effort
         else:
-            self.request_json["max_tokens"] = sampling_params.max_new_tokens
-        if sampling_params.reasoning_effort:
-            if not self.model.reasoning_model:
+            if sampling_params.reasoning_effort:
                 warnings.warn(f"Ignoring reasoning_effort param for non-reasoning model: {model_name}")
         if logprobs:
             self.request_json["logprobs"] = True
