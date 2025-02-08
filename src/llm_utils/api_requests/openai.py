@@ -1,9 +1,10 @@
 import asyncio
+import warnings
 from aiohttp import ClientResponse
 import json
 import os
 import time
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
@@ -64,6 +65,9 @@ class OpenAIRequest(APIRequestBase):
             "top_p": sampling_params.top_p,
             "max_tokens": sampling_params.max_new_tokens
         }
+        if sampling_params.reasoning_effort:
+            if not model_name.startswith("o"):
+                warnings.warn(f"Ignoring reasoning_effort param for non-reasoning model: {model_name}")
         if logprobs:
             self.request_json["logprobs"] = True
             if top_logprobs is not None:

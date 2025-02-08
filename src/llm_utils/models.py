@@ -85,7 +85,20 @@ registry = {
 # o1-preview-2024-09-12	o1-preview currently points to this version.	128,000 tokens	32,768 tokens	Up to Oct 2023
 # o1-mini	o1-mini: faster and cheaper reasoning model particularly good at coding, math, and science.	128,000 tokens	65,536 tokens	Up to Oct 2023
 # o1-mini-2024-09-12
-    "o1-preview": {
+    "o3-mini": {
+        "id": "o3-mini",
+        "name": "o3-mini-2025-01-31",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 1.1,
+        "output_cost": 4.4,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000
+    },
+    "o1": {
         "id": "o1",
         "name": "o1-2024-12-17",
         "api_base": "https://api.openai.com/v1",
@@ -751,8 +764,8 @@ class APIModel:
     supports_json: bool = False
     supports_logprobs: bool = False
     regions: list[str] = field(default_factory=list)
-    tokens_per_minute: int = None
-    requests_per_minute: int = None
+    tokens_per_minute: int | None = None
+    requests_per_minute: int | None = None
     gpus: Optional[list[str]] = None
 
     @classmethod
