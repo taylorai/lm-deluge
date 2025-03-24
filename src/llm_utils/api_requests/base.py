@@ -48,7 +48,7 @@ class APIResponse:
         api_model = APIModel.from_registry(self.model_internal)
         self.model_external = api_model.name
         self.cost = None
-        if self.input_tokens is not None and self.output_tokens is not None:
+        if self.input_tokens is not None and self.output_tokens is not None and api_model.input_cost is not None and api_model.output_cost is not None:
             self.cost = (
                 self.input_tokens * api_model.input_cost / 1e6 +
                 self.output_tokens * api_model.output_cost / 1e6
@@ -130,8 +130,8 @@ class APIRequestBase(ABC):
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         debug: bool = False,
-        all_model_names: list[str] = None,
-        all_sampling_params: list[SamplingParams] = None,
+        all_model_names: list[str] | None = None,
+        all_sampling_params: list[SamplingParams] | None = None,
 
     ):
         if all_model_names is None:
@@ -208,6 +208,7 @@ class APIRequestBase(ABC):
                 else:
                     # two things to change: model_name and sampling_params
                     new_model_name = self.model_name
+                    new_model_idx = 0
                     while new_model_name == self.model_name:
                         new_model_idx = random.randint(0, len(self.all_model_names) - 1)
                         new_model_name = self.all_model_names[new_model_idx]
@@ -217,6 +218,8 @@ class APIRequestBase(ABC):
                     elif isinstance(self.all_sampling_params, SamplingParams):
                         new_sampling_params = self.all_sampling_params
                     elif self.all_sampling_params is None:
+                        new_sampling_params = self.sampling_params
+                    else:
                         new_sampling_params = self.sampling_params
 
                     print("Creating new request with model", new_model_name)
