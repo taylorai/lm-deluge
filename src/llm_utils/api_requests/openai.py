@@ -32,8 +32,8 @@ class OpenAIRequest(APIRequestBase):
         pbar: Optional[tqdm] = None,
         callback: Optional[Callable] = None,
         debug: bool = False,
-        all_model_names: list[str] = None,
-        all_sampling_params: list[SamplingParams] = None,
+        all_model_names: list[str] | None = None,
+        all_sampling_params: list[SamplingParams] | None = None,
     ):
         super().__init__(
             task_id=task_id,

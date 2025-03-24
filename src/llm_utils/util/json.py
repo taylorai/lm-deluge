@@ -36,12 +36,23 @@ def strip_json(json_string: str | None) -> str | None:
     # not strict enough!
     if "[" not in json_string and "{" not in json_string:
         return None
-    while not json_string.startswith("{") and not json_string.startswith("["):
-        json_string = json_string[1:]
-    while not json_string.endswith("}") and not json_string.endswith("]"):
-        json_string = json_string[:-1]
-
-    return json_string
+    
+    # Find the first opening bracket/brace
+    start_idx = min(
+        (json_string.find("{") if "{" in json_string else len(json_string)),
+        (json_string.find("[") if "[" in json_string else len(json_string))
+    )
+    
+    # Find the last closing bracket/brace
+    end_idx = max(
+        json_string.rfind("}"), 
+        json_string.rfind("]")
+    )
+    
+    if start_idx >= 0 and end_idx >= 0:
+        return json_string[start_idx:end_idx+1]
+    
+    return None
 
 def heal_json(json_string: str) -> str:
     """
