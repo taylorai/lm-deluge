@@ -79,22 +79,24 @@ class OpenAIRequest(APIRequestBase):
         if sampling_params.json_mode and self.model.supports_json:
             self.request_json["response_format"] = {"type": "json_object"}
 
-    async def handle_response(self, response: ClientResponse) -> APIResponse:
+    async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
         error_message = None
         completion = None
         input_tokens = None
         output_tokens = None
         logprobs = None
-        status_code = response.status
-        mimetype = response.headers.get("Content-Type", None)
+        status_code = http_response.status
+        mimetype = http_response.headers.get("Content-Type", None)
+        data = None
         if status_code >= 200 and status_code < 300:
             try:
-                data = await response.json()
+                data = await http_response.json()
             except Exception:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}"
             if not is_error:
+                assert data is not None, "data is None"
                 try:
                     completion = data["choices"][0]["message"]["content"]
                     input_tokens = data["usage"]["prompt_tokens"]
@@ -106,11 +108,11 @@ class OpenAIRequest(APIRequestBase):
                     error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response."
         elif mimetype and "json" in mimetype.lower():
             is_error = True # expected status is 200, otherwise it's an error
-            data = await response.json()
+            data = await http_response.json()
             error_message = json.dumps(data)
         else:
             is_error = True
-            text = await response.text()
+            text = await http_response.text()
             error_message = text
 
         # handle special kinds of errors
