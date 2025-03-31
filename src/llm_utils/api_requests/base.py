@@ -22,7 +22,7 @@ class APIResponse:
     sampling_params: SamplingParams
 
     # http response information
-    status_code: int
+    status_code: int | None
     is_error: Optional[bool]
     error_message: Optional[str]
 
@@ -254,18 +254,19 @@ class APIRequestBase(ABC):
             self.status_tracker.total_requests += 1
             timeout = aiohttp.ClientTimeout(total=self.request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
+                assert self.url is not None, "URL is not set"
                 async with session.post(
                     url=self.url,
                     headers=self.request_header,
                     json=self.request_json,
-                ) as response:
-                    response: APIResponse = await self.handle_response(response)
+                ) as http_response:
+                    response: APIResponse = await self.handle_response(http_response)
 
             self.result.append(response)
             if response.is_error:
                 self.handle_error(
-                    create_new_request=response.retry_with_different_model,
-                    give_up_if_no_other_models=response.give_up_if_no_other_models
+                    create_new_request=response.retry_with_different_model or False,
+                    give_up_if_no_other_models=response.give_up_if_no_other_models or False
                 )
             else:
                 self.handle_success(response)
@@ -305,7 +306,7 @@ class APIRequestBase(ABC):
 
 
     @abstractmethod
-    def handle_response(self, ClientResponse) -> APIResponse:
+    async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         raise NotImplementedError
 
 def create_api_request(
@@ -322,8 +323,8 @@ def create_api_request(
     top_logprobs: Optional[int] = None,
     pbar: Optional[tqdm] = None,
     callback: Optional[Callable] = None,
-    all_model_names: list[str] = None,
-    all_sampling_params: list[SamplingParams] = None,
+    all_model_names: list[str] | None = None,
+    all_sampling_params: list[SamplingParams] | None = None,
 ) -> APIRequestBase:
     from .common import CLASSES # circular import so made it lazy, does this work?
     model_obj = APIModel.from_registry(model_name)
