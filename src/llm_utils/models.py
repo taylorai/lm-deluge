@@ -83,7 +83,7 @@ registry = {
     "gemini-2.0-flash": {
         "id": "gemini-2.0-flash",
         "name": "gemini-2.0-flash",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
         "api_key_env_var": "GEMINI_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
@@ -97,7 +97,7 @@ registry = {
     "gemini-2.0-flash-lite": {
         "id": "gemini-2.0-flash-lite",
         "name": "gemini-2.0-flash-lite",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
         "api_key_env_var": "GEMINI_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
@@ -111,7 +111,7 @@ registry = {
     "gemini-2.5-pro": {
         "id": "gemini-2.5-pro-exp-03-25",
         "name": "gemini-2.5-pro-exp-03-25",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
         "api_key_env_var": "GEMINI_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
@@ -428,7 +428,7 @@ registry = {
         "requests_per_minute": sum(gemini_1_5_pro_limits.values()),
         "tokens_per_minute": None
     },
-    "gemini-2.0-flash": {
+    "gemini-2.0-flash-vertex": {
         "id": "gemini-2.0-flash",
         "name": 'gemini-2.0-flash-exp', # "gemini-1.5-flash-001",
         "regions":  gemini_flash_limits,
