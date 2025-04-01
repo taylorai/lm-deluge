@@ -215,7 +215,7 @@ class LLMClient:
         show_progress: bool = True,
         dry_run: bool = False,
         verbose: bool = False
-    ):
+    ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Prompts, convert them
         prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
         ids = np.arange(len(prompts))
@@ -294,7 +294,7 @@ class LLMClient:
             results[id] = res
 
         if return_completions_only:
-            results = [r.completion for r in results]
+            return [r.completion if r is not None else None for r in results]
 
         return results
 
@@ -415,11 +415,11 @@ class LLMClient:
         batch_size = 50_000,
         metadata: list[dict] | None = None
     ):
-        import modal
+        import modal # pyright: ignore
         if not prompts and (not inputs or not prompt_template):
             raise ValueError("Either prompts or inputs and prompt_template must be provided.")
         batch_api = modal.Function.lookup("llm-utils-batch-jobs", "batch_job")
-        num_chunks = len(inputs) // batch_size + 1 if inputs else len(prompts) // batch_size + 1
+        num_chunks = len(inputs) // batch_size + 1 if inputs else len(prompts) // batch_size + 1 # pyright: ignore
         handles = []
         for i in range(num_chunks):
             obj = batch_api.spawn(
@@ -462,18 +462,18 @@ def api_prompts_dry_run(
             "max_cost": max_cost
         })
 
-    results = {
+    combined_results: dict[str, Any] = {
         "total_input_tokens": sum([r["input_tokens"] for r in results]),
         "total_output_tokens": sum([r["output_tokens"] for r in results]),
         "total_min_cost": sum([r["min_cost"] for r in results]),
         "total_max_cost": sum([r["max_cost"] for r in results]),
     }
-    minimum_time_tpm = results["total_input_tokens"] / max_tokens_per_minute
-    maximum_time_tpm = (results["total_input_tokens"] + results["total_output_tokens"]) / max_tokens_per_minute
+    minimum_time_tpm = combined_results["total_input_tokens"] / max_tokens_per_minute
+    maximum_time_tpm = (combined_results["total_input_tokens"] + combined_results["total_output_tokens"]) / max_tokens_per_minute
     minimum_time_rpm = len(prompts) / max_requests_per_minute
 
-    results["minimum_time"] = max(minimum_time_tpm, minimum_time_rpm)
-    results["maximum_time"] = max(maximum_time_tpm, minimum_time_rpm)
+    combined_results["minimum_time"] = max(minimum_time_tpm, minimum_time_rpm)
+    combined_results["maximum_time"] = max(maximum_time_tpm, minimum_time_rpm)
     limiting_factor = None
     if minimum_time_rpm > maximum_time_tpm:
         limiting_factor = "requests"
@@ -481,9 +481,9 @@ def api_prompts_dry_run(
         limiting_factor = "tokens"
     else:
         limiting_factor = "depends"
-    results["limiting_factor"] = limiting_factor
+    combined_results["limiting_factor"] = limiting_factor
 
-    return results
+    return combined_results
 
 async def process_api_prompts_async(
     ids: Union[np.ndarray, list[int]],
@@ -505,7 +505,7 @@ async def process_api_prompts_async(
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
     if isinstance(ids, np.ndarray):
-        ids = ids.tolist()
+        ids = ids.tolist() # pyright: ignore
 
     # normalize weights
     model_weights = [w / sum(model_weights) for w in model_weights]
