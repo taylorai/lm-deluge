@@ -12,6 +12,7 @@ keywords = []
 license = { text = "" }
 classifiers = []
 dependencies = [
+    "python-dotenv",
     "json5",
     "PyYAML",
     "pandas",
