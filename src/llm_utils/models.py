@@ -70,6 +70,59 @@ gemini_1_5_pro_limits = {
 
 registry = {
 
+#   .oooooo.                                   oooo                  .o.       ooooo
+#  d8P'  `Y8b                                  `888                 .888.      `888'
+# 888            .ooooo.   .ooooo.   .oooooooo  888   .ooooo.      .8"888.      888
+# 888           d88' `88b d88' `88b 888' `88b   888  d88' `88b    .8' `888.     888
+# 888     ooooo 888   888 888   888 888   888   888  888ooo888   .88ooo8888.    888
+# `88.    .88'  888   888 888   888 `88bod8P'   888  888    .o  .8'     `888.   888
+#  `Y8bood8P'   `Y8bod8P' `Y8bod8P' `8oooooo.  o888o `Y8bod8P' o88o     o8888o o888o
+#                                   d"     YD
+#                                   "Y88888P'
+    # these are through AI studio rather than Vertex, and using the OpenAI-compatible endpoints
+    "gemini-2.0-flash": {
+        "id": "gemini-2.0-flash",
+        "name": "gemini-2.0-flash",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.4,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+    },
+    "gemini-2.0-flash-lite": {
+        "id": "gemini-2.0-flash-lite",
+        "name": "gemini-2.0-flash-lite",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.4,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+    },
+    "gemini-2.5-pro": {
+        "id": "gemini-2.5-pro-exp-03-25",
+        "name": "gemini-2.5-pro-exp-03-25",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.4,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+    },
+
 #     ███████                                    █████████   █████
 #   ███░░░░░███                                 ███░░░░░███ ░░███
 #  ███     ░░███ ████████   ██████  ████████   ░███    ░███  ░███
@@ -81,10 +134,7 @@ registry = {
 #                ░███
 #                █████
 #               ░░░░░
-# o1-preview	o1-preview: reasoning model designed to solve hard problems across domains.	128,000 tokens	32,768 tokens	Up to Oct 2023
-# o1-preview-2024-09-12	o1-preview currently points to this version.	128,000 tokens	32,768 tokens	Up to Oct 2023
-# o1-mini	o1-mini: faster and cheaper reasoning model particularly good at coding, math, and science.	128,000 tokens	65,536 tokens	Up to Oct 2023
-# o1-mini-2024-09-12
+
     "o3-mini": {
         "id": "o3-mini",
         "name": "o3-mini-2025-01-31",
