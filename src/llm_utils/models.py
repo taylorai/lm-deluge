@@ -135,6 +135,22 @@ registry = {
 #                █████
 #               ░░░░░
 
+
+
+    "gpt-4.5": {
+        "id": "o3-mini",
+        "name": "o3-mini-2025-01-31",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 1.1,
+        "output_cost": 4.4,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": True
+    },
     "o3-mini": {
         "id": "o3-mini",
         "name": "o3-mini-2025-01-31",
@@ -327,11 +343,24 @@ registry = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000,
+        "reasoning_model": True
+    },
+    "claude-3-6-sonnet-anthropic": {
+        "id": "claude-sonnet-anthropic",
+        "name": "claude-3-5-sonnet-20241022",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 4_000,
         "tokens_per_minute": 400_000
     },
     "claude-3-5-sonnet-anthropic": {
         "id": "claude-sonnet-anthropic",
-        "name": "claude-3-5-sonnet-20241022", # "claude-3-5-sonnet-20240620", # "claude-3-sonnet-20240229",
+        "name": "claude-3-5-sonnet-20240620",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,

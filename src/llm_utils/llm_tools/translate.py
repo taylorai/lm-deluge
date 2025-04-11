@@ -1,10 +1,10 @@
 import asyncio
 from ..client import LLMClient
 try:
-    from ftlangdetect import detect
+    from ftlangdetect import detect # pyright: ignore
 except ImportError:
-    print("fasttext-langdetect is recommended to use the translate tool. Install llm_utils[translate] or llm_utils[full].")
-    detect = None
+    print("fasttext-langdetect is recommended to use the translate tool, will assume everything is english")
+    detect = lambda x: {"lang": "en"}
 
 translation_prompt = (
     "Translate the following text (enclosed in ```) into English. "
