@@ -135,21 +135,19 @@ registry = {
 #                █████
 #               ░░░░░
 
-
-
     "gpt-4.5": {
-        "id": "o3-mini",
-        "name": "o3-mini-2025-01-31",
+        "id": "gpt-4.5",
+        "name": "gpt-4.5-preview-2025-02-27",
         "api_base": "https://api.openai.com/v1",
         "api_key_env_var": "OPENAI_API_KEY",
         "supports_json": False,
         "supports_logprobs": True,
         "api_spec": "openai",
-        "input_cost": 1.1,
-        "output_cost": 4.4,
+        "input_cost": 75.,
+        "output_cost": 150.,
         "requests_per_minute": 20,
         "tokens_per_minute": 100_000,
-        "reasoning_model": True
+        "reasoning_model": False
     },
     "o3-mini": {
         "id": "o3-mini",
