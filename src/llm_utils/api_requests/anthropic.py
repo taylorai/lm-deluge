@@ -2,6 +2,7 @@ import asyncio
 from aiohttp import ClientResponse
 import json
 import os
+import warnings
 import time
 from tqdm import tqdm
 from typing import Optional, Callable
@@ -30,8 +31,8 @@ class AnthropicRequest(APIRequestBase):
         callback: Optional[Callable] = None,
         debug: bool = False,
         # for retries
-        all_model_names: list[str] = None,
-        all_sampling_params: list[SamplingParams] = None,
+        all_model_names: list[str] | None = None,
+        all_sampling_params: list[SamplingParams] | None = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -66,17 +67,44 @@ class AnthropicRequest(APIRequestBase):
             "top_p": self.sampling_params.top_p,
             "max_tokens": self.sampling_params.max_new_tokens
         }
+        # handle thinking
+        if self.model.reasoning_model:
+            if sampling_params.reasoning_effort:
+                # translate reasoning effort of low, medium, high to budget tokens
+                budget = {
+                    "low": 1024,
+                    "medium": 4096,
+                    "high": 16384
+                }.get(sampling_params.reasoning_effort)
+                self.request_json["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": budget
+                }
+                self.request_json.pop("top_p")
+                self.request_json["temperature"] = 1.0
+                self.request_json["max_tokens"] += budget # assume max tokens is max completion tokens
+            else:
+                # no thinking
+                self.request_json["thinking"] = {
+                    "type": "disabled"
+                }
+        else:
+            if sampling_params.reasoning_effort:
+                warnings.warn(f"Ignoring reasoning_effort param for non-reasoning model: {model_name}")
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
 
-    async def handle_response(self, response: ClientResponse) -> APIResponse:
+        print("request data:", self.request_json)
+
+    async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
         error_message = None
+        thinking = None
         completion = None
         input_tokens = None
         output_tokens = None
-        status_code = response.status
-        mimetype = response.headers.get("Content-Type", None)
+        status_code = http_response.status
+        mimetype = http_response.headers.get("Content-Type", None)
         rate_limits = {}
         for header in [
             "anthropic-ratelimit-requests-limit",
@@ -86,26 +114,35 @@ class AnthropicRequest(APIRequestBase):
             "anthropic-ratelimit-tokens-remaining",
             "anthropic-ratelimit-tokens-reset"
         ]:
-            rate_limits[header] = response.headers.get(header, None)
+            rate_limits[header] = http_response.headers.get(header, None)
         if self.debug:
             print(f"Rate limits: {rate_limits}")
         if status_code >= 200 and status_code < 300:
             try:
-                data = await response.json()
-                completion = data["content"][0]["text"]
+                data = await http_response.json()
+                print("response data:", data)
+                content = data["content"] # [0]["text"]
+                print("content is length", len(content))
+                for item in content:
+                    if item['type'] == "text":
+                        completion = item['text']
+                    elif item['type'] == "thinking":
+                        thinking = item['thinking']
+                    elif item['type'] == "tool_use":
+                        continue # TODO: implement and report tool use
                 input_tokens = data["usage"]["input_tokens"]
                 output_tokens = data["usage"]["output_tokens"]
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}: {e}"
-        elif "json" in mimetype.lower():
+        elif mimetype and "json" in mimetype.lower():
             is_error = True # expected status is 200, otherwise it's an error
-            data = await response.json()
+            data = await http_response.json()
             error_message = json.dumps(data)
 
         else:
             is_error = True
-            text = await response.text()
+            text = await http_response.text()
             error_message = text
 
 
@@ -126,6 +163,7 @@ class AnthropicRequest(APIRequestBase):
             error_message=error_message,
             prompt=self.prompt,
             completion=completion,
+            thinking=thinking,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,

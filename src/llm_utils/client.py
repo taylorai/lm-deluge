@@ -171,6 +171,7 @@ class LLMClient:
         max_concurrent_requests: int = 1_000,
         temperature: float = 0.75,
         max_new_tokens: int = 1000,
+        reasoning_effort: Literal[None, "low", "medium", "high"] = None,
         model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
         logprobs: bool = False,
         top_logprobs: Optional[int] = None,
@@ -184,7 +185,11 @@ class LLMClient:
             max_requests_per_minute=max_requests_per_minute,
             max_tokens_per_minute=max_tokens_per_minute,
             max_concurrent_requests=max_concurrent_requests,
-            sampling_params=SamplingParams(temperature=temperature, max_new_tokens=max_new_tokens),
+            sampling_params=SamplingParams(
+                temperature=temperature,
+                max_new_tokens=max_new_tokens,
+                reasoning_effort=reasoning_effort
+            ),
             logprobs=logprobs,
             top_logprobs=top_logprobs,
             model_weights=model_weights,

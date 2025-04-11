@@ -47,7 +47,7 @@ def score_llm(
             raise ValueError("inputs must be a list of tuples, lists, or dicts.")
         scoring_prompts.append(scoring_prompt)
 
-    resps: list[APIResponse] = scoring_model.process_prompts_sync(
+    resps: list[APIResponse] = scoring_model.process_prompts_sync( # pyright: ignore
         prompts=scoring_prompts,
         show_progress=False,
     )

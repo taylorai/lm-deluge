@@ -32,6 +32,7 @@ class APIResponse:
     output_tokens: Optional[int]
 
     # optional or calculated automatically
+    thinking: Optional[str] = None # if model shows thinking tokens
     model_external: Optional[str] = None # the model tag used by the API
     region: Optional[str] = None
     logprobs: Optional[list] = None
