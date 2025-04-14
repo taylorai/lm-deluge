@@ -70,6 +70,45 @@ gemini_1_5_pro_limits = {
 
 registry = {
 
+#  .d8888b.                  888
+# d88P  Y88b                 888
+# 888    888                 888
+# 888        888d888 .d88b.  888  888
+# 888  88888 888P"  d88""88b 888 .88P
+# 888    888 888    888  888 888888K
+# Y88b  d88P 888    Y88..88P 888 "88b
+#  "Y8888P88 888     "Y88P"  888  888
+    "grok-3": {
+        "id": "grok-3",
+        "name": "grok-3-latest",
+        "api_base": "https://api.x.ai/v1",
+        "api_key_env_var": "GROK_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 2.,
+        "output_cost": 8.,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+
+    },
+    "grok-3-mini": {
+        "id": "grok-3-mini",
+        "name": "grok-3-mini-latest",
+        "api_base": "https://api.x.ai/v1",
+        "api_key_env_var": "GROK_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 2.,
+        "output_cost": 8.,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": True
+
+    },
+
 #   .oooooo.                                   oooo                  .o.       ooooo
 #  d8P'  `Y8b                                  `888                 .888.      `888'
 # 888            .ooooo.   .ooooo.   .oooooooo  888   .ooooo.      .8"888.      888
@@ -135,6 +174,48 @@ registry = {
 #                █████
 #               ░░░░░
 
+    "gpt-4.1": {
+        "id": "gpt-4.1",
+        "name": "gpt-4.1-2025-04-14",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 2.,
+        "output_cost": 8.,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+    },
+    "gpt-4.1-mini": {
+        "id": "gpt-4.1-mini",
+        "name": "gpt-4.1-mini-2025-04-14",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 0.4,
+        "output_cost": 1.6,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+    },
+    "gpt-4.1-nano": {
+        "id": "gpt-4.1-nano",
+        "name": "gpt-4.1-nano-2025-04-14",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": True,
+        "api_spec": "openai",
+        "input_cost": 0.1,
+        "output_cost": 0.4,
+        "requests_per_minute": 20,
+        "tokens_per_minute": 100_000,
+        "reasoning_model": False
+    },
     "gpt-4.5": {
         "id": "gpt-4.5",
         "name": "gpt-4.5-preview-2025-02-27",
