@@ -5,7 +5,7 @@ import numpy as np
 import time
 import yaml
 from dataclasses import dataclass
-from typing import Literal, Optional, Union, Any
+from typing import  overload, Literal, Optional, Union, Any
 from tqdm.auto import tqdm
 from .image import Image
 from .prompt import Prompt
@@ -15,7 +15,6 @@ from .models import registry
 from .api_requests.base import APIResponse, APIRequestBase
 from .api_requests import create_api_request
 # from .cache import LevelDBCache, SqliteCache
-
 
 # TODO: get completions as they finish, not all at once at the end.
 # relatedly, would be nice to cache them as they finish too.
@@ -212,6 +211,38 @@ class LLMClient:
             logprobs=self.logprobs,
             top_logprobs=self.top_logprobs,
         )
+
+    from typing import overload, Union, Literal
+
+    @overload
+    async def process_prompts_async(
+        self,
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        return_completions_only: bool = ...,
+        show_progress: bool = ...,
+        dry_run: Literal[True] = ...,
+        verbose: bool = ...
+    ) -> dict[str, int]: ...
+
+    @overload
+    async def process_prompts_async(
+        self,
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        return_completions_only: Literal[True],
+        show_progress: bool = ...,
+        dry_run: Literal[False] = ...,
+        verbose: bool = ...
+    ) -> list[str | None]: ...
+
+    @overload
+    async def process_prompts_async(
+        self,
+        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        return_completions_only: Literal[False] = ...,
+        show_progress: bool = ...,
+        dry_run: Literal[False] = ...,
+        verbose: bool = ...
+    ) -> list[APIResponse | None]: ...
 
     async def process_prompts_async(
         self,
