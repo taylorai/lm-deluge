@@ -9,6 +9,7 @@ import xxhash
 
 tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
+# https://github.com/googleapis/python-genai/blob/main/google/genai/types.py
 class Part:
     def __init__(self, type: str):
         self.type = type
