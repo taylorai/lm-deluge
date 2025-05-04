@@ -2,7 +2,7 @@ from __future__ import annotations
 import io, json, base64, mimetypes, tiktoken, xxhash
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any, List, Literal, Sequence
+from typing import Any, Literal, Sequence
 
 ###############################################################################
 # 1. Low-level content blocks – either text or an image                       #
@@ -81,7 +81,7 @@ class Image:
 @dataclass(slots=True)
 class Message:
     role: Role
-    parts: List[Text | Image]
+    parts: list[Text | Image]
 
     def add_text(self, content: str) -> "Message":
         """Append a text block and return self for chaining."""
@@ -151,7 +151,7 @@ class Message:
 
 @dataclass(slots=True)
 class Conversation:
-    messages: List[Message] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
 
     # ── convenience shorthands ------------------------------------------------
     @classmethod
@@ -173,23 +173,23 @@ class Conversation:
         return self
 
     # ── conversions -----------------------------------------------------------
-    def to_openai_chat(self) -> List[dict]:
+    def to_openai(self) -> list[dict]:
         return [m.oa_chat() for m in self.messages]
 
     def to_openai_responses(self) -> dict:
         # OpenAI Responses = single “input” array, role must be user/assistant
         return {"input": [m.oa_resp() for m in self.messages if m.role != "system"]}
 
-    def to_anthropic(self) -> tuple[str | None, List[dict]]:
+    def to_anthropic(self) -> tuple[str | None, list[dict]]:
         system_msg = next((m.parts[0].text for m in self.messages if m.role == "system" and isinstance(m.parts[0], Text)), None)
         other = [m.anthropic() for m in self.messages if m.role != "system"]
         return system_msg, other
 
     # ── misc helpers ----------------------------------------------------------
-    _tok = tiktoken.encoding_for_model("gpt-3.5-turbo")
+    _tok = tiktoken.encoding_for_model("gpt-4")
 
-    def token_count(self, img_tokens: int = 85) -> int:
-        n = 0
+    def count_tokens(self, max_new_tokens: int = 0, img_tokens: int = 85) -> int:
+        n = max_new_tokens
         for m in self.messages:
             for p in m.parts:
                 if isinstance(p, Text):
@@ -205,6 +205,25 @@ class Conversation:
         hasher = xxhash.xxh64()
         hasher.update(json.dumps([asdict(m) for m in self.messages]).encode())
         return hasher.hexdigest()
+
+    def to_log(self) -> dict:
+        """
+        Return a JSON-serialisable dict that fully captures the conversation.
+        """
+        serialized: list[dict] = []
+
+        for msg in self.messages:
+            content_blocks: list[dict] = []
+            for p in msg.parts:
+                if isinstance(p, Text):
+                    content_blocks.append({"type": "text", "text": p.text})
+                else:  # Image – redact the bytes, keep a hint
+                    w, h = getattr(p, "width", "??"), getattr(p, "height", "??")
+                    content_blocks.append({"type": "image", "tag": f"<Image ({w}×{h})>"})
+            serialized.append({"role": msg.role, "content": content_blocks})
+
+        return {"messages": serialized}
+
 
 ###############################################################################
 # --------------------------------------------------------------------------- #
