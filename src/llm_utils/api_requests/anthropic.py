@@ -7,6 +7,7 @@ import time
 from tqdm import tqdm
 from typing import Optional, Callable
 
+from llm_utils.prompt_beta import Conversation
 from .base import APIRequestBase, APIResponse
 from ..prompt import Prompt
 from ..tracker import StatusTracker
@@ -20,7 +21,7 @@ class AnthropicRequest(APIRequestBase):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str, # must correspond to registry
-        prompt: Prompt,
+        prompt: Prompt | Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
