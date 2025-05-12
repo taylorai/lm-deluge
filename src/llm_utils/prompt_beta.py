@@ -48,6 +48,45 @@ class Image:
                 return guess
         return "image/png"
 
+    def resize(self, max_size: int) -> None:
+        """
+        Resize the image so that the longer side equals max_size,
+        but only if the longer side is currently larger than max_size.
+        Uses Lanczos antialiasing for high quality resizing.
+        """
+        # We need to convert the image data to a PIL Image
+        from PIL import Image as PILImage
+        import io
+
+        # Convert bytes to PIL Image
+        img = PILImage.open(io.BytesIO(self._bytes()))
+
+        # Get current dimensions
+        width, height = img.size
+        longer_side = max(width, height)
+
+        # Only resize if the image is larger than max_size
+        if longer_side > max_size:
+            # Calculate the new dimensions
+            if width > height:
+                new_width = max_size
+                new_height = int(height * (max_size / width))
+            else:
+                new_height = max_size
+                new_width = int(width * (max_size / height))
+
+            # Resize with Lanczos antialiasing
+            img = img.resize((new_width, new_height), PILImage.Resampling.LANCZOS)
+
+            # Convert back to bytes
+            buffer = io.BytesIO()
+            img.save(buffer, format=self._mime().split('/')[-1].upper())
+
+            # Update the data attribute
+            self.data = buffer.getvalue()
+
+        del img
+
     # ── provider-specific emission ────────────────────────────────────────────
     def oa_chat(self) -> dict:
         b64 = base64.b64encode(self._bytes()).decode()
@@ -94,9 +133,22 @@ class Message:
         *,
         media_type: str | None = None,
         detail: Literal["low", "high", "auto"] = "auto",
+        max_size: int | None = None,
     ) -> "Message":
-        """Append an image block and return self for chaining."""
-        self.parts.append(Image(data, media_type=media_type, detail=detail))
+        """
+        Append an image block and return self for chaining.
+
+        If max_size is provided, the image will be resized so that its longer
+        dimension equals max_size, but only if the longer dimension is currently
+        larger than max_size.
+        """
+        img = Image(data, media_type=media_type, detail=detail)
+
+        # Resize if max_size is provided
+        if max_size is not None:
+            img.resize(max_size)
+
+        self.parts.append(img)
         return self
 
     # convenient constructors ­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­
