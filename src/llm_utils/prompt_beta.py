@@ -17,7 +17,7 @@ class Text:
 
     # ── provider-specific emission ────────────────────────────────────────────
     def oa_chat(self) -> dict | str:               # OpenAI Chat Completions
-        return self.text
+        return {"type": "text", "text": self.text}
     def oa_resp(self) -> dict: # OpenAI *Responses*  (new)
         return {"type": "input_text", "text": self.text}
     def anthropic(self) -> dict: # Anthropic Messages
@@ -122,10 +122,6 @@ class Message:
 
     # ── provider-specific emission ────────────────────────────────────────────
     def oa_chat(self) -> dict:
-        # Single-text shortcut if possible
-        if len(self.parts) == 1 and isinstance(self.parts[0], Text):
-            return {"role": self.role, "content": self.parts[0].oa_chat()}
-        # Otherwise build an array of blocks
         content = []
         for p in self.parts:
             content.append(p.oa_chat())
