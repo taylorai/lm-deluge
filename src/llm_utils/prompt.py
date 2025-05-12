@@ -9,13 +9,18 @@ import xxhash
 
 tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
+# https://github.com/googleapis/python-genai/blob/main/google/genai/types.py
+class Part:
+    def __init__(self, type: str):
+        self.type = type
+
 class Prompt:
     """
     A prompt contains a user message, optionally an image,
     optionally a system message. For now, not worrying about
     multi-turn conversations.
     """
-    def __init__(self, text: Union[str, list[dict]], image: Image = None):
+    def __init__(self, text: Union[str, list[dict]], image: Image | None = None):
         self.image = image
         if isinstance(text, str):
             self.user_message = text
@@ -46,7 +51,7 @@ class Prompt:
         - A BytesIO object containing a PDF file
         """
         try:
-            import pymupdf
+            import pymupdf # pyright: ignore
         except ImportError:
             raise ImportError("pymupdf is required to extract text from PDFs. Install llm_utils[pdf] or llm_utils[full].")
         if isinstance(pdf, str):
@@ -119,8 +124,10 @@ class Prompt:
         input_tokens = self.count_tokens(0, image_tokens)
         output_tokens = max_new_tokens
 
-        min_cost = model_obj.input_cost * input_tokens / 1e6
-        max_cost = min_cost + model_obj.output_cost * output_tokens / 1e6
+        min_cost, max_cost = None, None
+        if model_obj.input_cost and model_obj.output_cost:
+            min_cost = model_obj.input_cost * input_tokens / 1e6
+            max_cost = min_cost + model_obj.output_cost * output_tokens / 1e6
 
         return input_tokens, output_tokens, min_cost, max_cost
 
