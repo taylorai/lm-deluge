@@ -55,7 +55,7 @@ class Image:
         Uses Lanczos antialiasing for high quality resizing.
         """
         # We need to convert the image data to a PIL Image
-        from PIL import Image as PILImage
+        from PIL import Image as PILImage # type: ignore
         import io
 
         # Convert bytes to PIL Image
@@ -212,14 +212,14 @@ class Conversation:
     # ── convenience shorthands ------------------------------------------------
     @classmethod
     def system(cls, text: str) -> "Conversation":
-        return cls([Message.text("system", text)])
+        return cls([Message.system(text)])
 
     @classmethod
     def user(cls, text: str, *, image_path: str | Path | None = None) -> "Conversation":
         msg = (
-            Message.text("user", text)
+            Message.user(text)
             if image_path is None
-            else Message.with_image("user", text, Image(image_path))
+            else Message.user(text).add_image(image_path)
         )
         return cls([msg])
 

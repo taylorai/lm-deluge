@@ -7,6 +7,8 @@ import yaml
 from dataclasses import dataclass
 from typing import  overload, Literal, Optional, Union, Any
 from tqdm.auto import tqdm
+
+from llm_utils.prompt_beta import Conversation
 from .image import Image
 from .prompt import Prompt
 from .tracker import StatusTracker
@@ -217,7 +219,7 @@ class LLMClient:
     @overload
     async def process_prompts_async(
         self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        prompts: list[Prompt | str | list[dict] | Conversation],
         return_completions_only: bool = ...,
         show_progress: bool = ...,
         dry_run: Literal[True] = ...,
@@ -227,7 +229,7 @@ class LLMClient:
     @overload
     async def process_prompts_async(
         self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        prompts: list[Prompt | str | list[dict] | Conversation],
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         dry_run: Literal[False] = ...,
@@ -237,7 +239,7 @@ class LLMClient:
     @overload
     async def process_prompts_async(
         self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        prompts: list[Prompt | str | list[dict] | Conversation],
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         dry_run: Literal[False] = ...,
@@ -246,14 +248,18 @@ class LLMClient:
 
     async def process_prompts_async(
         self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        prompts: list[Prompt | str | list[dict] | Conversation],
         return_completions_only: bool = False,
         show_progress: bool = True,
         dry_run: bool = False,
         verbose: bool = False
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Prompts, convert them
-        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
+        prompts = [
+            Prompt(p) if (
+                not isinstance(p, Prompt) and not isinstance(p, Conversation)
+            ) else p for p in prompts
+        ]
         ids = np.arange(len(prompts))
 
         # if using cache, check for cached completions
@@ -288,7 +294,7 @@ class LLMClient:
             if dry_run:
                 dry_run_results = api_prompts_dry_run(
                     ids,
-                    prompts,
+                    prompts, # type: ignore -- fix later for dry running conversations
                     self.models,
                     self.model_weights,
                     self.sampling_params,
@@ -302,7 +308,7 @@ class LLMClient:
             api_task = asyncio.create_task(
                 process_api_prompts_async(
                     ids,
-                    prompts,
+                    prompts, # type: ignore -- fix later for dry running conversations
                     self.models,
                     self.model_weights,
                     self.sampling_params,
@@ -336,7 +342,7 @@ class LLMClient:
 
     def process_prompts_sync(
         self,
-        prompts: Union[list[Prompt], list[str], list[list[dict]]],
+        prompts: list[Prompt | str | list[dict] | Conversation],
         return_completions_only: bool = False,
         show_progress=True,
         dry_run: bool =False,
@@ -403,7 +409,7 @@ class LLMClient:
             print('Batch job failed to start')
             raise ValueError(f"Error starting batch job: {response.text}")
 
-    def submit_batch_job(self, prompts: Union[list[Prompt], list[str], list[list[dict]]]):
+    def submit_batch_job(self, prompts: list[Prompt | str | list[dict] | Conversation]):
         # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
         if len(self.models) != 1:
             raise ValueError("Batch jobs can only be submitted with a single model.")
@@ -412,12 +418,17 @@ class LLMClient:
             raise ValueError("Batch jobs can only be submitted with OpenAI models.")
 
         # if prompts are strings, convert them to message lists
-        prompts = [Prompt(p) if not isinstance(p, Prompt) else p for p in prompts]
+        prompts = [
+            Prompt(p) if (
+                not isinstance(p, Prompt) and not isinstance(p, Conversation)
+            ) else p for p in prompts
+        ]
         ids = np.arange(len(prompts))
 
         # create file with requests to send to batch api
         batch_requests = []
         for id, prompt in zip(ids, prompts):
+            assert isinstance(prompt, Prompt) or isinstance(prompt, Conversation)
             batch_requests.append({
                 "custom_id": str(id),
                 "method": "POST",
