@@ -153,24 +153,32 @@ class Message:
 
     # convenient constructors ­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­­
     @classmethod
-    def user(cls) -> "Message":
-        return cls("user", [])
+    def user(
+        cls,
+        text: str | None = None,
+        *,
+        image: str | bytes | Path | io.BytesIO | None = None,
+    ) -> "Message":
+        res = cls("user", [])
+        if text is not None:
+            res.add_text(text)
+        if image is not None:
+            res.add_image(image)
+        return res
 
     @classmethod
-    def system(cls) -> "Message":
-        return cls("system", [])
+    def system(cls, text: str | None = None) -> "Message":
+        res = cls("system", [])
+        if text is not None:
+            res.add_text(text)
+        return res
 
     @classmethod
-    def ai(cls) -> "Message":
-        return cls("assistant", [])
-
-    @classmethod
-    def text(cls, role: Role, content: str) -> "Message":
-        return cls(role, [Text(content)])
-
-    @classmethod
-    def with_image(cls, role: Role, text: str, img: Image) -> "Message":
-        return cls(role, [img, Text(text)])
+    def ai(cls, text: str | None = None) -> "Message":
+        res = cls("assistant", [])
+        if text is not None:
+            res.add_text(text)
+        return res
 
     # ── provider-specific emission ────────────────────────────────────────────
     def oa_chat(self) -> dict:
