@@ -1,6 +1,4 @@
-import io
 import json
-from dataclasses import dataclass
 import tiktoken
 from .models import APIModel
 from typing import Union
@@ -9,10 +7,12 @@ import xxhash
 
 tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
+
 # https://github.com/googleapis/python-genai/blob/main/google/genai/types.py
 class Part:
     def __init__(self, type: str):
         self.type = type
+
 
 class Prompt:
     """
@@ -20,6 +20,7 @@ class Prompt:
     optionally a system message. For now, not worrying about
     multi-turn conversations.
     """
+
     def __init__(self, text: Union[str, list[dict]], image: Image | None = None):
         self.image = image
         if isinstance(text, str):
@@ -38,50 +39,11 @@ class Prompt:
                     self.system_message = text[0]["content"]
                     self.user_message = text[1]["content"]
                 else:
-                    raise ValueError("First message must be system, second must be user.")
+                    raise ValueError(
+                        "First message must be system, second must be user."
+                    )
         else:
             raise ValueError("Prompt must be a string or a list of dictionaries.")
-
-    @staticmethod
-    def text_from_pdf(pdf: Union[str, bytes, io.BytesIO]):
-        """
-        Extract text from a PDF. The source can be:
-        - A file path (str)
-        - Bytes of a PDF file
-        - A BytesIO object containing a PDF file
-        """
-        try:
-            import pymupdf # pyright: ignore
-        except ImportError:
-            raise ImportError("pymupdf is required to extract text from PDFs. Install llm_utils[pdf] or llm_utils[full].")
-        if isinstance(pdf, str):
-            # It's a file path
-            doc = pymupdf.open(pdf)
-        elif isinstance(pdf, (bytes, io.BytesIO)):
-            # It's bytes or a BytesIO object
-            if isinstance(pdf, bytes):
-                pdf_source = io.BytesIO(pdf)
-            doc = pymupdf.open(stream=pdf, filetype="pdf")
-        else:
-            raise ValueError("Unsupported pdf_source type. Must be str, bytes, or BytesIO.")
-
-        text_content = []
-        for page in doc:
-            blocks = page.get_text("blocks", sort=True)
-            for block in blocks:
-                # block[4] contains the text content
-                text_content.append(block[4].strip())
-                text_content.append("\n")  # Add extra newlines between blocks
-
-        # Join all text content with newlines
-        full_text = "\n".join(text_content).strip()
-        # Replace multiple consecutive spaces with a single space
-        full_text = " ".join(full_text.split())
-        # Clean up any resulting double spaces or newlines
-        full_text = " ".join([x for x in full_text.split(" ") if x])
-        full_text = "\n".join([x for x in full_text.split("\n") if x])
-
-        return full_text
 
     @property
     def fingerprint(self):
@@ -91,7 +53,7 @@ class Prompt:
         content = {
             "user_message": self.user_message,
             "system_message": self.system_message,
-            "image": None if self.image is None else self.image.fingerprint
+            "image": None if self.image is None else self.image.fingerprint,
         }
         hasher = xxhash.xxh64()
         hasher.update(json.dumps(content).encode())
@@ -138,27 +100,20 @@ class Prompt:
         """
         messages = []
         if self.system_message is not None:
-            messages.append({
-                "role": "system",
-                "content": self.system_message
-            })
+            messages.append({"role": "system", "content": self.system_message})
 
         if self.image is not None:
-            messages.append({
-                "role": "user",
-                "content": [
-                    self.image.to_openai_input(),
-                    {
-                        "type": "text",
-                        "text": self.user_message
-                    }
-                ]
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        self.image.to_openai_input(),
+                        {"type": "text", "text": self.user_message},
+                    ],
+                }
+            )
         else:
-            messages.append({
-                "role": "user",
-                "content": self.user_message
-            })
+            messages.append({"role": "user", "content": self.user_message})
 
         return messages
 
@@ -180,13 +135,15 @@ class Prompt:
             system_instruction = self.system_message
 
         if self.image is not None:
-            contents.append({
-                "role": "user",
-                "parts": [
-                    self.image.to_gemini_input(),
-                    {"text": self.user_message}
-                ]
-            })
+            contents.append(
+                {
+                    "role": "user",
+                    "parts": [
+                        self.image.to_gemini_input(),
+                        {"text": self.user_message},
+                    ],
+                }
+            )
         else:
             contents.append({"role": "user", "parts": [{"text": self.user_message}]})
 
@@ -203,21 +160,17 @@ class Prompt:
             system_message = self.system_message
 
         if self.image is not None:
-            messages.append({
-                "role": "user",
-                "content": [
-                    self.image.to_anthropic_input(),
-                    {
-                        "type": "text",
-                        "text": self.user_message
-                    }
-                ]
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        self.image.to_anthropic_input(),
+                        {"type": "text", "text": self.user_message},
+                    ],
+                }
+            )
         else:
-            messages.append({
-                "role": "user",
-                "content": self.user_message
-            })
+            messages.append({"role": "user", "content": self.user_message})
 
         return system_message, messages
 
@@ -234,21 +187,15 @@ class Prompt:
         return {
             "user_message": self.user_message,
             "system_message": self.system_message,
-            "image": None if self.image is None else f"<Image ({self.image.num_pixels} pixels)>"
+            "image": None
+            if self.image is None
+            else f"<Image ({self.image.num_pixels} pixels)>",
         }
 
     @classmethod
     def from_log(cls, log):
         messages = []
         if log["system_message"] is not None:
-            messages.append({
-                "role": "system",
-                "content": log["system_message"]
-            })
-        messages.append({
-            "role": "user",
-            "content": log["user_message"]
-        })
-        return cls(
-            messages, image=None
-        )
+            messages.append({"role": "system", "content": log["system_message"]})
+        messages.append({"role": "user", "content": log["user_message"]})
+        return cls(messages, image=None)

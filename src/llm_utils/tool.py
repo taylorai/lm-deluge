@@ -1,7 +1,6 @@
-import os
-import random
 from typing import Any, Dict, Literal, Callable
 from pydantic import BaseModel, Field
+
 
 class ToolSpec(BaseModel):
     """
@@ -101,6 +100,7 @@ _COORD_OBJECT = {
     },
     "required": ["x", "y"],
 }
+
 
 def _coord_field(desc: str):
     return {"type": "integer", "description": desc}

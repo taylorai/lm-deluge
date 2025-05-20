@@ -2,11 +2,13 @@ import re
 import json
 import json5
 
+
 def extract_quoted_expressions(json_string: str):
     # This pattern matches double-quoted strings while handling escaped quotes
     pattern = r'"((?:\\.|[^"\\])*)"'
     expressions = re.findall(pattern, json_string, re.DOTALL)
     return expressions
+
 
 def string_list_to_dict(string_list: list[str]) -> dict:
     """
@@ -42,19 +44,17 @@ def strip_json(json_string: str | None) -> str | None:
     # Find the first opening bracket/brace
     start_idx = min(
         (json_string.find("{") if "{" in json_string else len(json_string)),
-        (json_string.find("[") if "[" in json_string else len(json_string))
+        (json_string.find("[") if "[" in json_string else len(json_string)),
     )
 
     # Find the last closing bracket/brace
-    end_idx = max(
-        json_string.rfind("}"),
-        json_string.rfind("]")
-    )
+    end_idx = max(json_string.rfind("}"), json_string.rfind("]"))
 
     if start_idx >= 0 and end_idx >= 0:
-        return json_string[start_idx:end_idx+1]
+        return json_string[start_idx : end_idx + 1]
 
     return None
+
 
 def heal_json(json_string: str) -> str:
     """
@@ -68,27 +68,27 @@ def heal_json(json_string: str) -> str:
         return json_string
 
     # Handle trailing commas before closing brackets
-    json_string = re.sub(r',\s*}', '}', json_string)
-    json_string = re.sub(r',\s*\]', ']', json_string)
+    json_string = re.sub(r",\s*}", "}", json_string)
+    json_string = re.sub(r",\s*\]", "]", json_string)
 
     # Use a stack to track opening brackets
     stack = []
     for char in json_string:
-        if char in '{[':
+        if char in "{[":
             stack.append(char)
-        elif char == '}' and stack and stack[-1] == '{':
+        elif char == "}" and stack and stack[-1] == "{":
             stack.pop()
-        elif char == ']' and stack and stack[-1] == '[':
+        elif char == "]" and stack and stack[-1] == "[":
             stack.pop()
 
     # Add missing closing braces/brackets in the correct order
-    closing = ''
+    closing = ""
     while stack:
         bracket = stack.pop()
-        if bracket == '{':
-            closing += '}'
-        elif bracket == '[':
-            closing += ']'
+        if bracket == "{":
+            closing += "}"
+        elif bracket == "[":
+            closing += "]"
 
     # Check for unclosed strings
     quote_count = json_string.count('"') - json_string.count('\\"')
@@ -97,7 +97,7 @@ def heal_json(json_string: str) -> str:
         last_pos = -1
         i = 0
         while i < len(json_string):
-            if json_string[i] == '"' and (i == 0 or json_string[i-1] != '\\'):
+            if json_string[i] == '"' and (i == 0 or json_string[i - 1] != "\\"):
                 last_pos = i
             i += 1
 
@@ -108,11 +108,12 @@ def heal_json(json_string: str) -> str:
 
     return json_string + closing
 
+
 def load_json(
     json_string: str | None,
     allow_json5: bool = True,
     allow_partial: bool = False,
-    allow_healing: bool = True
+    allow_healing: bool = True,
 ):
     """
     Loads a JSON string into a Python object.
@@ -124,9 +125,9 @@ def load_json(
     :return: The loaded Python object.
     """
     if json_string is None:
-        return None
+        raise ValueError("Invalid (None) json_string")
     json_string = strip_json(json_string)
-    assert json_string is not None, "json_string is None"
+    raise ValueError("Invalid (empty) json_string")
 
     # Try standard JSON parsing
     try:

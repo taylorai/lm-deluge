@@ -2,16 +2,19 @@ import re
 import numpy as np
 from typing import TypedDict, Optional, Callable
 
+
 class TopLogprob(TypedDict):
     token: str
     logprob: float
     bytes: list[int]
+
 
 class LogprobEntry(TypedDict):
     token: str
     logprob: float
     bytes: list[int]
     top_logprobs: list[TopLogprob]
+
 
 Logprobs = list[LogprobEntry]
 
@@ -379,6 +382,7 @@ Logprobs = list[LogprobEntry]
 def normalize_token(token: str):
     return re.sub(r"[^a-z]", "", token.lower())
 
+
 def is_match(token1: str, token2: str):
     token1 = normalize_token(token1)
     token2 = normalize_token(token2)
@@ -391,14 +395,15 @@ def is_match(token1: str, token2: str):
     else:
         return False
 
+
 def extract_prob(
     token: str,
     logprobs: Logprobs,
     use_top_logprobs: bool = False,
-    normalize_top_logprobs: bool = True, # if using top_logprobs, normalize by all the present tokens so they add up to 1
-    use_complement: bool = False, # if True, assume there's 2 choices, and return 1 - p if the top token doesn't match
-    token_index: int = 0, # get from the first token of the completion by default
-    token_match_fn: Optional[Callable[[str, str], bool]] = is_match
+    normalize_top_logprobs: bool = True,  # if using top_logprobs, normalize by all the present tokens so they add up to 1
+    use_complement: bool = False,  # if True, assume there's 2 choices, and return 1 - p if the top token doesn't match
+    token_index: int = 0,  # get from the first token of the completion by default
+    token_match_fn: Optional[Callable[[str, str], bool]] = is_match,
 ):
     """
     Extract the probability of the token from the logprobs object of a single
@@ -411,10 +416,14 @@ def extract_prob(
     # if using top_logprobs, ensure that at least one top_logprob is present
     if use_top_logprobs:
         if entry.get("top_logprobs", None) is None or len(entry["top_logprobs"]) == 0:
-            raise ValueError("top_logprobs must be present in logprobs to use top_logprobs=True.")
+            raise ValueError(
+                "top_logprobs must be present in logprobs to use top_logprobs=True."
+            )
         top_tokens = [t["token"] for t in entry["top_logprobs"]]
         top_probs = [np.exp(t["logprob"]) for t in entry["top_logprobs"]]
-        combined_prob = sum([p for t, p in zip(top_tokens, top_probs) if is_match(t, token)])
+        combined_prob = sum(
+            [p for t, p in zip(top_tokens, top_probs) if is_match(t, token)]
+        )
 
         if normalize_top_logprobs:
             # no point in using complement if normalizing; it will always be 0 if not present
@@ -424,7 +433,7 @@ def extract_prob(
         elif use_complement:
             return 1 - combined_prob
         else:
-            return 0.
+            return 0.0
 
     else:
         top_token = entry["token"]

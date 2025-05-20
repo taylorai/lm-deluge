@@ -14,13 +14,14 @@ from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
 
+
 class AnthropicRequest(APIRequestBase):
     def __init__(
         self,
         task_id: int,
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
-        model_name: str, # must correspond to registry
+        model_name: str,  # must correspond to registry
         prompt: Prompt | Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
@@ -49,7 +50,7 @@ class AnthropicRequest(APIRequestBase):
             callback=callback,
             debug=debug,
             all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params
+            all_sampling_params=all_sampling_params,
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/messages"
@@ -66,32 +67,32 @@ class AnthropicRequest(APIRequestBase):
             "messages": messages,
             "temperature": self.sampling_params.temperature,
             "top_p": self.sampling_params.top_p,
-            "max_tokens": self.sampling_params.max_new_tokens
+            "max_tokens": self.sampling_params.max_new_tokens,
         }
         # handle thinking
         if self.model.reasoning_model:
             if sampling_params.reasoning_effort:
                 # translate reasoning effort of low, medium, high to budget tokens
-                budget = {
-                    "low": 1024,
-                    "medium": 4096,
-                    "high": 16384
-                }.get(sampling_params.reasoning_effort)
+                budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
+                    sampling_params.reasoning_effort
+                )
                 self.request_json["thinking"] = {
                     "type": "enabled",
-                    "budget_tokens": budget
+                    "budget_tokens": budget,
                 }
                 self.request_json.pop("top_p")
                 self.request_json["temperature"] = 1.0
-                self.request_json["max_tokens"] += budget # assume max tokens is max completion tokens
+                self.request_json["max_tokens"] += (
+                    budget  # assume max tokens is max completion tokens
+                )
             else:
                 # no thinking
-                self.request_json["thinking"] = {
-                    "type": "disabled"
-                }
+                self.request_json["thinking"] = {"type": "disabled"}
         else:
             if sampling_params.reasoning_effort:
-                warnings.warn(f"Ignoring reasoning_effort param for non-reasoning model: {model_name}")
+                warnings.warn(
+                    f"Ignoring reasoning_effort param for non-reasoning model: {model_name}"
+                )
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
 
@@ -113,7 +114,7 @@ class AnthropicRequest(APIRequestBase):
             "anthropic-ratelimit-requests-reset",
             "anthropic-ratelimit-tokens-limit",
             "anthropic-ratelimit-tokens-remaining",
-            "anthropic-ratelimit-tokens-reset"
+            "anthropic-ratelimit-tokens-reset",
         ]:
             rate_limits[header] = http_response.headers.get(header, None)
         if self.debug:
@@ -122,22 +123,24 @@ class AnthropicRequest(APIRequestBase):
             try:
                 data = await http_response.json()
                 print("response data:", data)
-                content = data["content"] # [0]["text"]
+                content = data["content"]  # [0]["text"]
                 print("content is length", len(content))
                 for item in content:
-                    if item['type'] == "text":
-                        completion = item['text']
-                    elif item['type'] == "thinking":
-                        thinking = item['thinking']
-                    elif item['type'] == "tool_use":
-                        continue # TODO: implement and report tool use
+                    if item["type"] == "text":
+                        completion = item["text"]
+                    elif item["type"] == "thinking":
+                        thinking = item["thinking"]
+                    elif item["type"] == "tool_use":
+                        continue  # TODO: implement and report tool use
                 input_tokens = data["usage"]["input_tokens"]
                 output_tokens = data["usage"]["output_tokens"]
             except Exception as e:
                 is_error = True
-                error_message = f"Error calling .json() on response w/ status {status_code}: {e}"
+                error_message = (
+                    f"Error calling .json() on response w/ status {status_code}: {e}"
+                )
         elif mimetype and "json" in mimetype.lower():
-            is_error = True # expected status is 200, otherwise it's an error
+            is_error = True  # expected status is 200, otherwise it's an error
             data = await http_response.json()
             error_message = json.dumps(data)
 
@@ -146,10 +149,12 @@ class AnthropicRequest(APIRequestBase):
             text = await http_response.text()
             error_message = text
 
-
         # handle special kinds of errors. TODO: make sure these are correct for anthropic
         if is_error and error_message is not None:
-            if "rate limit" in error_message.lower() or "overloaded" in error_message.lower():
+            if (
+                "rate limit" in error_message.lower()
+                or "overloaded" in error_message.lower()
+            ):
                 error_message += " (Rate limit error, triggering cooldown.)"
                 self.status_tracker.time_of_last_rate_limit_error = time.time()
                 self.status_tracker.num_rate_limit_errors += 1

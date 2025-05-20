@@ -51,7 +51,6 @@
 #     ]
 
 
-
 # # split prompts between api and modal
 # modal_weight = sum([
 #     self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] == "modal"
@@ -71,3 +70,74 @@
 # api_models = [model for model in self.models if registry[model]["api_spec"] != "modal"]
 # api_weights = [self.model_weights[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
 # api_sampling_params = [self.sampling_params[i] for i, model in enumerate(self.models) if registry[model]["api_spec"] != "modal"]
+
+# old way of submitting batch job on modal
+# def submit_batch_job_modal(
+#     self,
+#     batch_job_name: str,
+#     prompts: list[Prompt] | list[str] | list[list[dict]] | None = None,
+#     prompt_template: Optional[str] = None,
+#     inputs: list[tuple] | list[dict] | None = None,
+#     batch_size=50_000,
+#     metadata: list[dict] | None = None,
+# ):
+#     import modal  # pyright: ignore
+
+#     if not prompts and (not inputs or not prompt_template):
+#         raise ValueError(
+#             "Either prompts or inputs and prompt_template must be provided."
+#         )
+#     batch_api = modal.Function.lookup("llm-utils-batch-jobs", "batch_job")
+#     num_chunks = (
+#         len(inputs) // batch_size + 1 if inputs else len(prompts) // batch_size + 1
+#     )  # pyright: ignore
+#     handles = []
+#     for i in range(num_chunks):
+#         obj = batch_api.spawn(
+#             output_file=f"{batch_job_name}_shard_{i}",
+#             client=self,
+#             prompts=prompts[i * batch_size : (i + 1) * batch_size]
+#             if prompts
+#             else None,
+#             prompt_template=prompt_template,
+#             inputs=inputs[i * batch_size : (i + 1) * batch_size]
+#             if inputs
+#             else None,
+#         )
+#         handles.append(obj)
+#     return handles
+
+# def submit_batch_job_modal(
+#     self,
+#     batch_job_name: str,
+#     prompts: list[Prompt] | list[str] | list[list[dict]] | None = None,
+#     prompt_template: Optional[str] = None,
+#     inputs: list[tuple] | list[dict] | None = None,
+#     batch_size=50_000,
+#     metadata: list[dict] | None = None,
+# ):
+#     import modal  # pyright: ignore
+
+#     if not prompts and (not inputs or not prompt_template):
+#         raise ValueError(
+#             "Either prompts or inputs and prompt_template must be provided."
+#         )
+#     batch_api = modal.Function.lookup("llm-utils-batch-jobs", "batch_job")
+#     num_chunks = (
+#         len(inputs) // batch_size + 1 if inputs else len(prompts) // batch_size + 1
+#     )  # pyright: ignore
+#     handles = []
+#     for i in range(num_chunks):
+#         obj = batch_api.spawn(
+#             output_file=f"{batch_job_name}_shard_{i}",
+#             client=self,
+#             prompts=prompts[i * batch_size : (i + 1) * batch_size]
+#             if prompts
+#             else None,
+#             prompt_template=prompt_template,
+#             inputs=inputs[i * batch_size : (i + 1) * batch_size]
+#             if inputs
+#             else None,
+#         )
+#         handles.append(obj)
+#     return handles

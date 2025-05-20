@@ -15,11 +15,12 @@ from ..models import APIModel
 from ..errors import raise_if_modal_exception
 from aiohttp import ClientResponse
 
+
 @dataclass
 class APIResponse:
     # request information
-    id: int # should be unique to the request within a given prompt-processing call
-    model_internal: str # our internal model tag
+    id: int  # should be unique to the request within a given prompt-processing call
+    model_internal: str  # our internal model tag
     prompt: Prompt | Conversation
     sampling_params: SamplingParams
 
@@ -34,12 +35,12 @@ class APIResponse:
     output_tokens: Optional[int]
 
     # optional or calculated automatically
-    thinking: Optional[str] = None # if model shows thinking tokens
-    model_external: Optional[str] = None # the model tag used by the API
+    thinking: Optional[str] = None  # if model shows thinking tokens
+    model_external: Optional[str] = None  # the model tag used by the API
     region: Optional[str] = None
     logprobs: Optional[list] = None
-    finish_reason: Optional[str] = None # make required later
-    cost: Optional[float] = None # calculated automatically
+    finish_reason: Optional[str] = None  # make required later
+    cost: Optional[float] = None  # calculated automatically
     # set to true if is_error and should be retried with a different model
     retry_with_different_model: Optional[bool] = False
     # set to true if should NOT retry with the same model (unrecoverable error)
@@ -51,14 +52,20 @@ class APIResponse:
         api_model = APIModel.from_registry(self.model_internal)
         self.model_external = api_model.name
         self.cost = None
-        if self.input_tokens is not None and self.output_tokens is not None and api_model.input_cost is not None and api_model.output_cost is not None:
+        if (
+            self.input_tokens is not None
+            and self.output_tokens is not None
+            and api_model.input_cost is not None
+            and api_model.output_cost is not None
+        ):
             self.cost = (
-                self.input_tokens * api_model.input_cost / 1e6 +
-                self.output_tokens * api_model.output_cost / 1e6
+                self.input_tokens * api_model.input_cost / 1e6
+                + self.output_tokens * api_model.output_cost / 1e6
             )
         elif self.completion is not None:
-            print(f"Warning: Completion provided without token counts for model {self.model_internal}.")
-
+            print(
+                f"Warning: Completion provided without token counts for model {self.model_internal}."
+            )
 
     def to_dict(self):
         return {
@@ -66,7 +73,7 @@ class APIResponse:
             "model_internal": self.model_internal,
             "model_external": self.model_external,
             "region": self.region,
-            "prompt": self.prompt.to_log(), # destroys image if present
+            "prompt": self.prompt.to_log(),  # destroys image if present
             "sampling_params": self.sampling_params.__dict__,
             "status_code": self.status_code,
             "is_error": self.is_error,
@@ -105,6 +112,7 @@ class APIResponse:
         with open(filename, "a") as f:
             f.write(json.dumps(self.to_dict()) + "\n")
 
+
 class APIRequestBase(ABC):
     """
     Class for handling API requests. All model/endpoint-specific logic should be
@@ -114,12 +122,13 @@ class APIRequestBase(ABC):
         - request_header
         - request_json
     """
+
     def __init__(
         self,
         task_id: int,
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
-        model_name: str, # must correspond to registry
+        model_name: str,  # must correspond to registry
         prompt: Prompt | Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
@@ -135,7 +144,6 @@ class APIRequestBase(ABC):
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
-
     ):
         if all_model_names is None:
             raise ValueError("all_model_names must be provided.")
@@ -148,7 +156,7 @@ class APIRequestBase(ABC):
         self.retry_queue = retry_queue
         self.request_timeout = request_timeout
         self.sampling_params = sampling_params
-        self.logprobs = logprobs # len(completion) logprobs
+        self.logprobs = logprobs  # len(completion) logprobs
         self.top_logprobs = top_logprobs
         self.pbar = pbar
         self.callback = callback
@@ -180,7 +188,7 @@ class APIRequestBase(ABC):
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
 
-    def handle_error(self, create_new_request = False, give_up_if_no_other_models = False):
+    def handle_error(self, create_new_request=False, give_up_if_no_other_models=False):
         """
         If create_new_request is True, will create a new API request (so that it
         has a chance of being sent to a different model). If false, will retry
@@ -188,7 +196,9 @@ class APIRequestBase(ABC):
         """
         last_result: APIResponse = self.result[-1]
         error_to_print = f"Error  task {self.task_id}. "
-        error_to_print += f"Model: {last_result.model_internal} Code: {last_result.status_code}, "
+        error_to_print += (
+            f"Model: {last_result.model_internal} Code: {last_result.status_code}, "
+        )
         if self.region is not None:
             error_to_print += f"Region: {self.region}, "
         error_to_print += f"Message: {last_result.error_message}."
@@ -202,11 +212,15 @@ class APIRequestBase(ABC):
                 # make sure we have another model to send it to besides the current one
                 if self.all_model_names is None or len(self.all_model_names) < 2:
                     if give_up_if_no_other_models:
-                        print(f"No other models to try for task {self.task_id}. Giving up.")
+                        print(
+                            f"No other models to try for task {self.task_id}. Giving up."
+                        )
                         self.status_tracker.num_tasks_in_progress -= 1
                         self.status_tracker.num_tasks_failed += 1
                     else:
-                        print(f"No other models to try for task {self.task_id}. Retrying with same model.")
+                        print(
+                            f"No other models to try for task {self.task_id}. Retrying with same model."
+                        )
                         self.retry_queue.put_nowait(self)
                 else:
                     # two things to change: model_name and sampling_params
@@ -269,48 +283,53 @@ class APIRequestBase(ABC):
             if response.is_error:
                 self.handle_error(
                     create_new_request=response.retry_with_different_model or False,
-                    give_up_if_no_other_models=response.give_up_if_no_other_models or False
+                    give_up_if_no_other_models=response.give_up_if_no_other_models
+                    or False,
                 )
             else:
                 self.handle_success(response)
 
         except asyncio.TimeoutError:
-            self.result.append(APIResponse(
-                id=self.task_id,
-                model_internal=self.model_name,
-                prompt=self.prompt,
-                sampling_params=self.sampling_params,
-                status_code=None,
-                is_error=True,
-                error_message="Request timed out (terminated by client).",
-                completion=None,
-                input_tokens=None,
-                output_tokens=None,
-            ))
+            self.result.append(
+                APIResponse(
+                    id=self.task_id,
+                    model_internal=self.model_name,
+                    prompt=self.prompt,
+                    sampling_params=self.sampling_params,
+                    status_code=None,
+                    is_error=True,
+                    error_message="Request timed out (terminated by client).",
+                    completion=None,
+                    input_tokens=None,
+                    output_tokens=None,
+                )
+            )
             self.handle_error(create_new_request=False)
 
         except Exception as e:
             raise_if_modal_exception(e)
             # print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
-            self.result.append(APIResponse(
-                id=self.task_id,
-                model_internal=self.model_name,
-                prompt=self.prompt,
-                sampling_params=self.sampling_params,
-                status_code=None,
-                is_error=True,
-                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
-                completion=None,
-                input_tokens=None,
-                output_tokens=None,
-            ))
+            self.result.append(
+                APIResponse(
+                    id=self.task_id,
+                    model_internal=self.model_name,
+                    prompt=self.prompt,
+                    sampling_params=self.sampling_params,
+                    status_code=None,
+                    is_error=True,
+                    error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                    completion=None,
+                    input_tokens=None,
+                    output_tokens=None,
+                )
+            )
             # maybe consider making True?
             self.handle_error(create_new_request=False)
-
 
     @abstractmethod
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         raise NotImplementedError
+
 
 def create_api_request(
     task_id: int,
@@ -329,12 +348,15 @@ def create_api_request(
     all_model_names: list[str] | None = None,
     all_sampling_params: list[SamplingParams] | None = None,
 ) -> APIRequestBase:
-    from .common import CLASSES # circular import so made it lazy, does this work?
+    from .common import CLASSES  # circular import so made it lazy, does this work?
+
     model_obj = APIModel.from_registry(model_name)
     request_class = CLASSES.get(model_obj.api_spec, None)
     if request_class is None:
         raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
-    kwargs = {} if not logprobs else {"logprobs": logprobs, "top_logprobs": top_logprobs}
+    kwargs = (
+        {} if not logprobs else {"logprobs": logprobs, "top_logprobs": top_logprobs}
+    )
     return request_class(
         task_id=task_id,
         model_name=model_name,
@@ -349,5 +371,5 @@ def create_api_request(
         callback=callback,
         all_model_names=all_model_names,
         all_sampling_params=all_sampling_params,
-        **kwargs
+        **kwargs,
     )

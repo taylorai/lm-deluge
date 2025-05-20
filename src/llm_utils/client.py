@@ -5,11 +5,10 @@ import numpy as np
 import time
 import yaml
 from dataclasses import dataclass
-from typing import  overload, Literal, Optional, Union, Any
+from typing import Sequence, overload, Literal, Optional, Union, Any
 from tqdm.auto import tqdm
 
 from llm_utils.prompt_beta import Conversation
-from .image import Image
 from .prompt import Prompt
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
@@ -22,6 +21,7 @@ from .api_requests import create_api_request
 # relatedly, would be nice to cache them as they finish too.
 
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
+
 
 @dataclass
 class ClientConfig:
@@ -44,7 +44,9 @@ class ClientConfig:
                 SamplingParams(**x) for x in config_dict["sampling_params"]
             ]
         else:
-            config_dict["sampling_params"] = SamplingParams(config_dict["sampling_params"])
+            config_dict["sampling_params"] = SamplingParams(
+                config_dict["sampling_params"]
+            )
 
         return cls(**config_dict)
 
@@ -55,9 +57,7 @@ class ClientConfig:
 
     def to_dict(self):
         if isinstance(self.sampling_params, list):
-            sp = [
-                x.__dict__ for x in self.sampling_params
-            ]
+            sp = [x.__dict__ for x in self.sampling_params]
         else:
             sp = self.sampling_params.__dict__
 
@@ -71,8 +71,9 @@ class ClientConfig:
             "sampling_params": sp,
             "model_weights": self.model_weights,
             "logprobs": self.logprobs,
-            "top_logprobs": self.top_logprobs
+            "top_logprobs": self.top_logprobs,
         }
+
 
 class LLMClient:
     """
@@ -80,7 +81,9 @@ class LLMClient:
     once and use it for more stuff without having to configure all the arguments.
     Handles models, sampling params for each model, model weights, rate limits, etc.
     """
+
     pass
+
     def __init__(
         self,
         model_names: list[str],
@@ -95,14 +98,16 @@ class LLMClient:
         top_logprobs: Optional[int] = None,
         use_qps: bool = False,
         debug: bool = False,
-        cache: Optional[Any] = None
+        cache: Optional[Any] = None,
     ):
         self.models = model_names
         if isinstance(sampling_params, SamplingParams):
             self.sampling_params = [sampling_params for _ in model_names]
         else:
             if len(sampling_params) != len(model_names):
-                raise ValueError("If sampling_params is a list, it must have the same length as model_names.")
+                raise ValueError(
+                    "If sampling_params is a list, it must have the same length as model_names."
+                )
             self.sampling_params = sampling_params
         if model_weights == "uniform":
             self.model_weights = [1 / len(model_names) for _ in model_names]
@@ -117,18 +122,22 @@ class LLMClient:
         self.logprobs = logprobs
         self.top_logprobs = top_logprobs
 
-         # logprobs and top_logprobs are only supported for OpenAI models
+        # logprobs and top_logprobs are only supported for OpenAI models
         if self.logprobs:
             for model in self.models:
                 if registry[model].get("supports_logprobs", False) is False:
-                    raise ValueError("logprobs can only be enabled if all models support it.")
+                    raise ValueError(
+                        "logprobs can only be enabled if all models support it."
+                    )
             if self.top_logprobs is None:
-                self.top_logprobs = 0 # will just return logprob of the chosen token
+                self.top_logprobs = 0  # will just return logprob of the chosen token
             elif self.top_logprobs > 20 or self.top_logprobs < 0:
                 raise ValueError("top_logprobs must be between 0 and 20.")
             for sp in self.sampling_params:
                 if sp.max_new_tokens > 10:
-                    print("WARNING: using logprobs with large max_new_tokens can result in very large outputs. you may want to avoid saving these outputs to disk/db.")
+                    print(
+                        "WARNING: using logprobs with large max_new_tokens can result in very large outputs. you may want to avoid saving these outputs to disk/db."
+                    )
                     break
         else:
             self.top_logprobs = None
@@ -139,7 +148,9 @@ class LLMClient:
         self.max_attempts = max_attempts
         self.request_timeout = request_timeout
         self.use_qps = use_qps
-        self.debug = debug # UNUSED/DEPRECATED i think? but dont want to break everything
+        self.debug = (
+            debug  # UNUSED/DEPRECATED i think? but dont want to break everything
+        )
         self.cache = cache
 
     @classmethod
@@ -153,15 +164,12 @@ class LLMClient:
             model_weights=config.model_weights,
             max_attempts=config.max_attempts,
             request_timeout=config.request_timeout,
-            cache=cache
+            cache=cache,
         )
 
     @classmethod
     def from_yaml(cls, file_path: str, cache: Optional[Any] = None):
-        return cls.from_config(
-            ClientConfig.from_yaml(file_path),
-            cache=cache
-        )
+        return cls.from_config(ClientConfig.from_yaml(file_path), cache=cache)
 
     @classmethod
     def basic(
@@ -178,7 +186,7 @@ class LLMClient:
         top_logprobs: Optional[int] = None,
         max_attempts: int = 5,
         request_timeout: int = 30,
-        cache: Optional[Any] = None
+        cache: Optional[Any] = None,
     ):
         model_names = model if isinstance(model, list) else [model]
         return cls(
@@ -189,14 +197,14 @@ class LLMClient:
             sampling_params=SamplingParams(
                 temperature=temperature,
                 max_new_tokens=max_new_tokens,
-                reasoning_effort=reasoning_effort
+                reasoning_effort=reasoning_effort,
             ),
             logprobs=logprobs,
             top_logprobs=top_logprobs,
             model_weights=model_weights,
             max_attempts=max_attempts,
             request_timeout=request_timeout,
-            cache=cache
+            cache=cache,
         )
 
     @property
@@ -214,62 +222,65 @@ class LLMClient:
             top_logprobs=self.top_logprobs,
         )
 
-    from typing import overload, Union, Literal
+    from typing import Union, Literal
 
     @overload
     async def process_prompts_async(
         self,
-        prompts: list[Prompt | str | list[dict] | Conversation],
-        return_completions_only: bool = ...,
+        prompts: Sequence[Prompt | str | list[dict] | Conversation],
+        return_completions_only: bool,
         show_progress: bool = ...,
         dry_run: Literal[True] = ...,
-        verbose: bool = ...
+        verbose: bool = ...,
     ) -> dict[str, int]: ...
 
     @overload
     async def process_prompts_async(
         self,
-        prompts: list[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[Prompt | str | list[dict] | Conversation],
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         dry_run: Literal[False] = ...,
-        verbose: bool = ...
+        verbose: bool = ...,
     ) -> list[str | None]: ...
 
     @overload
     async def process_prompts_async(
         self,
-        prompts: list[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[Prompt | str | list[dict] | Conversation],
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         dry_run: Literal[False] = ...,
-        verbose: bool = ...
+        verbose: bool = ...,
     ) -> list[APIResponse | None]: ...
 
     async def process_prompts_async(
         self,
-        prompts: list[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[Prompt | str | list[dict] | Conversation],
         return_completions_only: bool = False,
         show_progress: bool = True,
         dry_run: bool = False,
-        verbose: bool = False
+        verbose: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Prompts, convert them
         prompts = [
-            Prompt(p) if (
-                not isinstance(p, Prompt) and not isinstance(p, Conversation)
-            ) else p for p in prompts
+            Prompt(p)
+            if (not isinstance(p, Prompt) and not isinstance(p, Conversation))
+            else p
+            for p in prompts
         ]
         ids = np.arange(len(prompts))
 
         # if using cache, check for cached completions
         if self.cache:
-            cached_results = [
-                self.cache.get(prompt) for prompt in prompts
+            cached_results = [self.cache.get(prompt) for prompt in prompts]
+            cache_hit_ids = [
+                id for id, res in zip(ids, cached_results) if res is not None
             ]
-            cache_hit_ids = [id for id, res in zip(ids, cached_results) if res is not None]
             cache_hit_results = [res for res in cached_results if res is not None]
-            assert len(cache_hit_ids) == len(cache_hit_results), "Cache hit ids and results must be the same length."
+            assert len(cache_hit_ids) == len(
+                cache_hit_results
+            ), "Cache hit ids and results must be the same length."
             remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
             remaining_prompts = [prompts[i] for i in remaining_ids]
             if verbose:
@@ -294,7 +305,7 @@ class LLMClient:
             if dry_run:
                 dry_run_results = api_prompts_dry_run(
                     ids,
-                    prompts, # type: ignore -- fix later for dry running conversations
+                    prompts,  # type: ignore -- fix later for dry running conversations
                     self.models,
                     self.model_weights,
                     self.sampling_params,
@@ -308,7 +319,7 @@ class LLMClient:
             api_task = asyncio.create_task(
                 process_api_prompts_async(
                     ids,
-                    prompts, # type: ignore -- fix later for dry running conversations
+                    prompts,  # type: ignore -- fix later for dry running conversations
                     self.models,
                     self.model_weights,
                     self.sampling_params,
@@ -321,7 +332,7 @@ class LLMClient:
                     request_timeout=self.request_timeout,
                     progress_bar=pbar,
                     use_qps=self.use_qps,
-                    verbose=verbose
+                    verbose=verbose,
                 )
             )
             api_results: list[APIResponse] = await api_task
@@ -342,11 +353,11 @@ class LLMClient:
 
     def process_prompts_sync(
         self,
-        prompts: list[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[Prompt | str | list[dict] | Conversation],
         return_completions_only: bool = False,
         show_progress=True,
-        dry_run: bool =False,
-        verbose: bool =False
+        dry_run: bool = False,
+        verbose: bool = False,
     ):
         return asyncio.run(
             self.process_prompts_async(
@@ -354,13 +365,14 @@ class LLMClient:
                 return_completions_only=return_completions_only,
                 show_progress=show_progress,
                 dry_run=dry_run,
-                verbose=verbose
+                verbose=verbose,
             )
         )
 
     def _submit_one_batch(self, batch_requests: list):
         # save the file
         import pandas as pd
+
         pd.DataFrame(batch_requests).to_json(
             "openai_requests_temp.jsonl", orient="records", lines=True
         )
@@ -369,47 +381,52 @@ class LLMClient:
         api_key = os.environ.get("OPENAI_API_KEY", None)
         if api_key is None:
             raise ValueError("OPENAI_API_KEY environment variable must be set.")
-        url = 'https://api.openai.com/v1/files'
+        url = "https://api.openai.com/v1/files"
         files = {
-            'file': ("openai_requests_temp.jsonl", open("openai_requests_temp.jsonl", 'rb')),
+            "file": (
+                "openai_requests_temp.jsonl",
+                open("openai_requests_temp.jsonl", "rb"),
+            ),
         }
         data = {
-            'purpose': 'batch',
+            "purpose": "batch",
         }
         headers = {
-            'Authorization': f'Bearer {api_key}',
+            "Authorization": f"Bearer {api_key}",
         }
         response = requests.post(url, files=files, data=data, headers=headers)
 
         file_id = None
         if response.status_code == 200:
-            print('File uploaded successfully')
+            print("File uploaded successfully")
             data = response.json()
-            file_id = data['id']
+            file_id = data["id"]
 
         else:
-            print('File upload failed')
+            print("File upload failed")
             raise ValueError(f"Error uploading file: {response.text}")
 
-        url = 'https://api.openai.com/v1/batches'
+        url = "https://api.openai.com/v1/batches"
         data = {
-            'input_file_id': file_id,
-            'endpoint': '/v1/chat/completions',
-            'completion_window': '24h'
+            "input_file_id": file_id,
+            "endpoint": "/v1/chat/completions",
+            "completion_window": "24h",
         }
         response = requests.post(url, json=data, headers=headers)
 
         batch_id = None
         if response.status_code == 200:
             data = response.json()
-            batch_id = data['id']
-            print('Batch job started successfully: id = ', batch_id)
+            batch_id = data["id"]
+            print("Batch job started successfully: id = ", batch_id)
             return batch_id
         else:
-            print('Batch job failed to start')
+            print("Batch job failed to start")
             raise ValueError(f"Error starting batch job: {response.text}")
 
-    def submit_batch_job(self, prompts: list[Prompt | str | list[dict] | Conversation]):
+    def submit_batch_job(
+        self, prompts: Sequence[Prompt | str | list[dict] | Conversation]
+    ):
         # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
         if len(self.models) != 1:
             raise ValueError("Batch jobs can only be submitted with a single model.")
@@ -419,9 +436,10 @@ class LLMClient:
 
         # if prompts are strings, convert them to message lists
         prompts = [
-            Prompt(p) if (
-                not isinstance(p, Prompt) and not isinstance(p, Conversation)
-            ) else p for p in prompts
+            Prompt(p)
+            if (not isinstance(p, Prompt) and not isinstance(p, Conversation))
+            else p
+            for p in prompts
         ]
         ids = np.arange(len(prompts))
 
@@ -429,22 +447,27 @@ class LLMClient:
         batch_requests = []
         for id, prompt in zip(ids, prompts):
             assert isinstance(prompt, Prompt) or isinstance(prompt, Conversation)
-            batch_requests.append({
-                "custom_id": str(id),
-                "method": "POST",
-                "url": "/v1/chat/completions",
-                "body": {
-                    "model": self.models[0],
-                    "messages": prompt.to_openai(),
-                    "max_tokens": self.sampling_params[0].max_new_tokens,
-                    "temperature": self.sampling_params[0].temperature,
-                    "top_p": self.sampling_params[0].top_p,
+            batch_requests.append(
+                {
+                    "custom_id": str(id),
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": self.models[0],
+                        "messages": prompt.to_openai(),
+                        "max_tokens": self.sampling_params[0].max_new_tokens,
+                        "temperature": self.sampling_params[0].temperature,
+                        "top_p": self.sampling_params[0].top_p,
+                    },
                 }
-            })
+            )
 
         # since the api only accepts up to 50,000 requests per batch job, we chunk into 50k chunks
         BATCH_SIZE = 50_000
-        batches = [batch_requests[i:i+BATCH_SIZE] for i in range(0, len(batch_requests), BATCH_SIZE)]
+        batches = [
+            batch_requests[i : i + BATCH_SIZE]
+            for i in range(0, len(batch_requests), BATCH_SIZE)
+        ]
         batch_ids = []
         for batch in tqdm(batches):
             batch_id = self._submit_one_batch(batch)
@@ -453,31 +476,6 @@ class LLMClient:
         print(f"Submitted {len(batches)} batch jobs.")
         return batch_ids
 
-    def submit_batch_job_modal(
-        self,
-        batch_job_name: str,
-        prompts: list[Prompt] | list[str] | list[list[dict]] | None = None,
-        prompt_template: Optional[str] = None,
-        inputs: list[tuple] | list[dict] | None = None,
-        batch_size = 50_000,
-        metadata: list[dict] | None = None
-    ):
-        import modal # pyright: ignore
-        if not prompts and (not inputs or not prompt_template):
-            raise ValueError("Either prompts or inputs and prompt_template must be provided.")
-        batch_api = modal.Function.lookup("llm-utils-batch-jobs", "batch_job")
-        num_chunks = len(inputs) // batch_size + 1 if inputs else len(prompts) // batch_size + 1 # pyright: ignore
-        handles = []
-        for i in range(num_chunks):
-            obj = batch_api.spawn(
-                output_file=f"{batch_job_name}_shard_{i}",
-                client=self,
-                prompts=prompts[i*batch_size:(i+1)*batch_size] if prompts else None,
-                prompt_template=prompt_template,
-                inputs=inputs[i*batch_size:(i+1)*batch_size] if inputs else None
-            )
-            handles.append(obj)
-        return handles
 
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
@@ -486,7 +484,7 @@ def api_prompts_dry_run(
     model_weights: list[float],
     sampling_params: list[SamplingParams],
     max_tokens_per_minute: int = 500_000,
-    max_requests_per_minute: int = 1_000
+    max_requests_per_minute: int = 1_000,
 ):
     """
     Count tokens and estimate costs for a batch of prompts.
@@ -501,13 +499,15 @@ def api_prompts_dry_run(
         input_tokens, output_tokens, min_cost, max_cost = prompt.dry_run(
             model, sampling_params[model_idx].max_new_tokens
         )
-        results.append({
-            "id": i,
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "min_cost": min_cost,
-            "max_cost": max_cost
-        })
+        results.append(
+            {
+                "id": i,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "min_cost": min_cost,
+                "max_cost": max_cost,
+            }
+        )
 
     combined_results: dict[str, Any] = {
         "total_input_tokens": sum([r["input_tokens"] for r in results]),
@@ -516,7 +516,9 @@ def api_prompts_dry_run(
         "total_max_cost": sum([r["max_cost"] for r in results]),
     }
     minimum_time_tpm = combined_results["total_input_tokens"] / max_tokens_per_minute
-    maximum_time_tpm = (combined_results["total_input_tokens"] + combined_results["total_output_tokens"]) / max_tokens_per_minute
+    maximum_time_tpm = (
+        combined_results["total_input_tokens"] + combined_results["total_output_tokens"]
+    ) / max_tokens_per_minute
     minimum_time_rpm = len(prompts) / max_requests_per_minute
 
     combined_results["minimum_time"] = max(minimum_time_tpm, minimum_time_rpm)
@@ -531,6 +533,7 @@ def api_prompts_dry_run(
     combined_results["limiting_factor"] = limiting_factor
 
     return combined_results
+
 
 async def process_api_prompts_async(
     ids: Union[np.ndarray, list[int]],
@@ -547,12 +550,12 @@ async def process_api_prompts_async(
     request_timeout: int = 30,
     progress_bar: Optional[tqdm] = None,
     use_qps: bool = False,
-    verbose: bool = False
+    verbose: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
     if isinstance(ids, np.ndarray):
-        ids = ids.tolist() # pyright: ignore
+        ids = ids.tolist()  # pyright: ignore
 
     # normalize weights
     model_weights = [w / sum(model_weights) for w in model_weights]
@@ -596,7 +599,9 @@ async def process_api_prompts_async(
         # if not given, spread requests evenly across models
         model_weights = [1 / len(models) for _ in models]
     elif len(model_weights) != len(models):
-        raise ValueError("model_weights must be None or a list of the same length as models.")
+        raise ValueError(
+            "model_weights must be None or a list of the same length as models."
+        )
     elif sum(model_weights) != 1:
         model_weights = [w / sum(model_weights) for w in model_weights]
 
@@ -628,7 +633,7 @@ async def process_api_prompts_async(
                         top_logprobs=top_logprobs,
                         pbar=progress_bar,
                         all_model_names=models,
-                        all_sampling_params=sampling_params
+                        all_sampling_params=sampling_params,
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1
@@ -658,9 +663,11 @@ async def process_api_prompts_async(
         limiting_factor = None
         if next_request:
             next_request_tokens = next_request.num_tokens
-            request_available = (available_request_capacity >= 1)
-            tokens_available = (available_token_capacity >= next_request_tokens)
-            concurrent_request_available = (status_tracker.num_tasks_in_progress < max_concurrent_requests)
+            request_available = available_request_capacity >= 1
+            tokens_available = available_token_capacity >= next_request_tokens
+            concurrent_request_available = (
+                status_tracker.num_tasks_in_progress < max_concurrent_requests
+            )
             if request_available and tokens_available and concurrent_request_available:
                 # update counters
                 available_request_capacity -= 1
@@ -707,7 +714,9 @@ async def process_api_prompts_async(
             )
             await asyncio.sleep(remaining_seconds_to_pause)
             # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
-            print(f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}")
+            print(
+                f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}"
+            )
 
     # after finishing, log final status
     if status_tracker.num_tasks_failed > 0:
@@ -719,7 +728,9 @@ async def process_api_prompts_async(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
     if verbose:
-        print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
+        print(
+            f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates."
+        )
 
     # deduplicate results by id
     deduplicated = {}
@@ -729,7 +740,10 @@ async def process_api_prompts_async(
         else:
             current_response: APIResponse = deduplicated[request.task_id]
             # only replace if the current request has no completion and the new one does
-            if request.result[-1].completion is not None and current_response.completion is None:
+            if (
+                request.result[-1].completion is not None
+                and current_response.completion is None
+            ):
                 deduplicated[request.task_id] = request.result[-1]
 
     output = list(deduplicated.values())
