@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
+
 @dataclass
 class SamplingParams:
     temperature: float = 0.0
@@ -11,12 +12,14 @@ class SamplingParams:
 
     def to_vllm(self):
         try:
-            from vllm import SamplingParams as VLLMSamplingParams # pyright: ignore
+            from vllm import SamplingParams as VLLMSamplingParams  # pyright: ignore
         except ImportError as e:
-            print("Unable to import from vLLM. Make sure it's installed with `pip install vllm`.")
+            print(
+                "Unable to import from vLLM. Make sure it's installed with `pip install vllm`."
+            )
             raise e
         return VLLMSamplingParams(
             temperature=self.temperature,
             top_p=self.top_p,
-            max_tokens=self.max_new_tokens
+            max_tokens=self.max_new_tokens,
         )

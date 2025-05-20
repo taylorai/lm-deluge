@@ -5,6 +5,7 @@ import asyncio
 from ..client import LLMClient
 from typing import Optional, Any
 from ..util.json import load_json
+
 try:
     from PIL import Image as PILImage
 except ImportError:
@@ -18,7 +19,7 @@ async def extract_async(
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
     show_progress: bool = True,
-    return_prompts: bool = False
+    return_prompts: bool = False,
 ):
     if hasattr(schema, "model_json_schema"):
         schema_dict = schema.model_json_schema()
@@ -30,7 +31,9 @@ async def extract_async(
     # warn if json_mode is not True
     for sp in client.sampling_params:
         if sp.json_mode is False:
-            print("Warning: json_mode is False for one or more sampling params. You may get invalid output.")
+            print(
+                "Warning: json_mode is False for one or more sampling params. You may get invalid output."
+            )
             break
     # check_schema(schema_dict) -- figure out later
     if document_name is None:
@@ -47,7 +50,7 @@ async def extract_async(
         + "```\n\nHere is the {document_name}:\n\n```\n{<<__REPLACE_WITH_TEXT__>>}\n```"
         + "Return the extracted information as JSON, no explanation required. "
         + f"If the {document_name} seems to be totally irrelevant to the schema (not just incomplete), you may return a JSON object "
-        + "like `{\"error\": \"The document is not relevant to the schema.\"}`."
+        + 'like `{"error": "The document is not relevant to the schema."}`.'
     )
 
     image_only_prompt = (
@@ -56,13 +59,15 @@ async def extract_async(
         + json.dumps(schema_dict, indent=2)
         + "Return the extracted information as JSON, no explanation required. "
         + f"If the {document_name} seems to be totally irrelevant to the schema (not just incomplete), you may return a JSON object "
-        + "like `{\"error\": \"The document is not relevant to the schema.\"}`."
+        + 'like `{"error": "The document is not relevant to the schema."}`.'
     )
 
     prompts = []
     for input in inputs:
         if isinstance(input, str):
-            prompts.append(text_only_prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", input))
+            prompts.append(
+                text_only_prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", input)
+            )
         elif PILImage is not None and isinstance(input, PILImage.Image):
             prompts.append(Prompt(text=image_only_prompt, image=Image(input)))
         else:
@@ -72,9 +77,13 @@ async def extract_async(
         return prompts
 
     resps = await client.process_prompts_async(prompts, show_progress=show_progress)
-    completions = [load_json(resp.completion) for resp in resps]
+    completions = [
+        load_json(resp.completion) if (resp and resp.completion) else None
+        for resp in resps
+    ]
 
     return completions
+
 
 def extract(
     inputs: list[str | Any],
@@ -83,6 +92,16 @@ def extract(
     document_name: Optional[str] = None,
     object_name: Optional[str] = None,
     show_progress: bool = True,
-    return_prompts: bool = False
+    return_prompts: bool = False,
 ):
-    return asyncio.run(extract_async(inputs, schema, client, document_name, object_name, show_progress, return_prompts))
+    return asyncio.run(
+        extract_async(
+            inputs,
+            schema,
+            client,
+            document_name,
+            object_name,
+            show_progress,
+            return_prompts,
+        )
+    )

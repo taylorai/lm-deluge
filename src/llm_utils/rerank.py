@@ -11,9 +11,10 @@ from .tracker import StatusTracker
 registry = [
     "rerank-english-v3.0",
     "rerank-multilingual-v3.0",
-    "rerank-english-v2.0", 
-    "rerank-multilingual-v2.0"
+    "rerank-english-v2.0",
+    "rerank-multilingual-v2.0",
 ]
+
 
 class RerankingRequest:
     def __init__(
@@ -40,13 +41,13 @@ class RerankingRequest:
         self.request_timeout = request_timeout
         self.pbar = pbar
         self.result = []
-    
+
     def increment_pbar(self):
         if self.pbar is not None:
             self.pbar.update(1)
 
     def handle_success(self):
-        self.increment_pbar()    
+        self.increment_pbar()
         self.status_tracker.num_tasks_in_progress -= 1
         self.status_tracker.num_tasks_succeeded += 1
 
@@ -57,7 +58,9 @@ class RerankingRequest:
         the same request.
         """
         last_result: RerankingResponse = self.result[-1]
-        error_to_print = f"Error on task {self.task_id}, Code: {last_result.status_code}, "
+        error_to_print = (
+            f"Error on task {self.task_id}, Code: {last_result.status_code}, "
+        )
         error_to_print += f"Message: {last_result.error_message}."
         print(error_to_print)
         if self.attempts_left > 0:
@@ -67,7 +70,7 @@ class RerankingRequest:
         else:
             print(f"Task {self.task_id} out of tries.")
             self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_failed += 1 
+            self.status_tracker.num_tasks_failed += 1
 
     async def handle_response(self, response: aiohttp.ClientResponse):
         try:
@@ -82,7 +85,7 @@ class RerankingRequest:
                     query=self.query,
                     documents=self.documents,
                     top_k_indices=[doc["index"] for doc in result["results"]],
-                    top_k_scores=[doc["relevance_score"] for doc in result["results"]]
+                    top_k_scores=[doc["relevance_score"] for doc in result["results"]],
                 )
             else:
                 error_msg = await response.text()
@@ -94,7 +97,7 @@ class RerankingRequest:
                     query=self.query,
                     documents=[],
                     top_k_indices=[],
-                    top_k_scores=[]
+                    top_k_scores=[],
                 )
         except Exception as e:
             return RerankingResponse(
@@ -105,22 +108,21 @@ class RerankingRequest:
                 query=self.query,
                 documents=[],
                 top_k_indices=[],
-                top_k_scores=[]
+                top_k_scores=[],
             )
-
 
     async def call_api(self):
         url = "https://api.cohere.com/v1/rerank"
         headers = {
             "accept": "application/json",
             "content-type": "application/json",
-            "Authorization": f"Bearer {os.environ.get('COHERE_API_KEY')}"
+            "Authorization": f"Bearer {os.environ.get('COHERE_API_KEY')}",
         }
         data = {
             "model": self.model_name,
             "query": self.query,
             "top_n": self.top_k,
-            "documents": self.documents
+            "documents": self.documents,
         }
         try:
             self.status_tracker.total_requests += 1
@@ -129,44 +131,50 @@ class RerankingRequest:
                     url, headers=headers, json=data, timeout=self.request_timeout
                 ) as response:
                     # print("got response!!")
-                    response_obj: RerankingResponse = await self.handle_response(response)
+                    response_obj: RerankingResponse = await self.handle_response(
+                        response
+                    )
             self.result.append(response_obj)
             if response_obj.is_error:
-                self.handle_error()     
+                self.handle_error()
             else:
                 self.handle_success()
 
         except asyncio.TimeoutError:
-            self.result.append(RerankingResponse(
-                id=self.task_id,
-                status_code=None,
-                is_error=True,
-                error_message="Timeout",
-                query=self.query,
-                documents=[],
-                top_k_indices=[],
-                top_k_scores=[]
-            ))
+            self.result.append(
+                RerankingResponse(
+                    id=self.task_id,
+                    status_code=None,
+                    is_error=True,
+                    error_message="Timeout",
+                    query=self.query,
+                    documents=[],
+                    top_k_indices=[],
+                    top_k_scores=[],
+                )
+            )
             self.handle_error()
-               
+
         except Exception as e:
-            self.result.append(RerankingResponse(
-                id=self.task_id,
-                status_code=None,
-                is_error=True,
-                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
-                query=self.query,
-                documents=[],
-                top_k_indices=[],
-                top_k_scores=[]
-            ))
+            self.result.append(
+                RerankingResponse(
+                    id=self.task_id,
+                    status_code=None,
+                    is_error=True,
+                    error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                    query=self.query,
+                    documents=[],
+                    top_k_indices=[],
+                    top_k_scores=[],
+                )
+            )
             self.handle_error()
-        
-            
+
+
 @dataclass
 class RerankingResponse:
     id: int
-    status_code: int
+    status_code: int | None
     is_error: bool
     error_message: Optional[str]
     query: str
@@ -178,9 +186,10 @@ class RerankingResponse:
     def ranked_documents(self):
         return [self.documents[i] for i in self.top_k_indices]
 
+
 async def rerank_parallel_async(
     queries: list[str],
-    docs: list[list[str]], # one list per query
+    docs: list[list[str]],  # one list per query
     top_k: int = 3,
     model: str = "rerank-english-v3.0",
     max_attempts: int = 5,
@@ -221,12 +230,12 @@ async def rerank_parallel_async(
             elif prompts_not_finished:
                 try:
                     # get new request
-                    id, query, docs = next(prompts_iter)
+                    req_id, req_query, req_docs = next(prompts_iter)
                     next_request = RerankingRequest(
-                        task_id=id,
+                        task_id=req_id,
                         model_name=model,
-                        query=query,
-                        documents=docs,
+                        query=req_query,
+                        documents=req_docs,
                         top_k=top_k,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
@@ -263,12 +272,11 @@ async def rerank_parallel_async(
                     }
                 )
 
-
         # if enough capacity available, call API
         if next_request:
             if (
-                available_request_capacity >= 1 and
-                status_tracker.num_tasks_in_progress < max_concurrent_requests
+                available_request_capacity >= 1
+                and status_tracker.num_tasks_in_progress < max_concurrent_requests
             ):
                 # update counters
                 available_request_capacity -= 1
@@ -295,7 +303,9 @@ async def rerank_parallel_async(
             )
             await asyncio.sleep(remaining_seconds_to_pause)
             # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
-            print(f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}")
+            print(
+                f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}"
+            )
 
     # after finishing, log final status
     if status_tracker.num_tasks_failed > 0:
@@ -307,10 +317,12 @@ async def rerank_parallel_async(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
 
-    print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
-    
+    print(
+        f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates."
+    )
+
     # deduplicate results by id
-    deduplicated = {}    
+    deduplicated = {}
     for request in results:
         if request.task_id not in deduplicated:
             deduplicated[request.task_id] = request.result[-1]
@@ -324,4 +336,3 @@ async def rerank_parallel_async(
     print(f"Returning {len(output)} unique results.")
 
     return output
-

@@ -14,13 +14,14 @@ from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
 
+
 class CohereRequest(APIRequestBase):
     def __init__(
         self,
         task_id: int,
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
-        model_name: str, # must correspond to registry
+        model_name: str,  # must correspond to registry
         prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
@@ -48,7 +49,7 @@ class CohereRequest(APIRequestBase):
             callback=callback,
             debug=debug,
             all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params
+            all_sampling_params=all_sampling_params,
         )
         self.system_message = None
         self.last_user_message = None
@@ -60,7 +61,7 @@ class CohereRequest(APIRequestBase):
         self.request_header = {
             "Authorization": f"bearer {os.getenv(self.model.api_key_env_var)}",
             "content-type": "application/json",
-            "accept": "application/json"
+            "accept": "application/json",
         }
 
         self.request_json = {
@@ -69,7 +70,7 @@ class CohereRequest(APIRequestBase):
             "message": last_user_message,
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
-            "max_tokens": sampling_params.max_new_tokens
+            "max_tokens": sampling_params.max_new_tokens,
         }
 
         if self.system_message:
@@ -89,7 +90,9 @@ class CohereRequest(APIRequestBase):
             except Exception:
                 data = None
                 is_error = True
-                error_message = f"Error calling .json() on response w/ status {status_code}"
+                error_message = (
+                    f"Error calling .json() on response w/ status {status_code}"
+                )
             if not is_error and isinstance(data, dict):
                 try:
                     completion = data["text"]
@@ -99,7 +102,7 @@ class CohereRequest(APIRequestBase):
                     is_error = True
                     error_message = f"Error getting 'text' or 'meta' from {self.model.name} response."
         elif mimetype is not None and "json" in mimetype.lower():
-            is_error = True # expected status is 200, otherwise it's an error
+            is_error = True  # expected status is 200, otherwise it's an error
             data = await http_response.json()
             error_message = json.dumps(data)
 
@@ -110,7 +113,10 @@ class CohereRequest(APIRequestBase):
 
         # handle special kinds of errors. TODO: make sure these are correct for anthropic
         if is_error and error_message is not None:
-            if "rate limit" in error_message.lower() or "overloaded" in error_message.lower():
+            if (
+                "rate limit" in error_message.lower()
+                or "overloaded" in error_message.lower()
+            ):
                 error_message += " (Rate limit error, triggering cooldown.)"
                 self.status_tracker.time_of_last_rate_limit_error = time.time()
                 self.status_tracker.num_rate_limit_errors += 1

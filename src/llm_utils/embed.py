@@ -5,7 +5,7 @@ import aiohttp
 from tqdm.auto import tqdm
 import asyncio
 import time
-from typing import Optional
+from typing import Any, Optional
 from dataclasses import dataclass
 from .tracker import StatusTracker
 
@@ -13,37 +13,37 @@ registry = {
     "text-embedding-3-small": {
         "name": "text-embedding-3-small",
         "provider": "openai",
-        "cost": 0.02 # per million tokens
+        "cost": 0.02,  # per million tokens
     },
     "text-embedding-3-large": {
         "name": "text-embedding-3-large",
         "provider": "openai",
-        "cost": 0.13
+        "cost": 0.13,
     },
     "text-embedding-ada-002": {
         "name": "text-embedding-ada-002",
         "provider": "openai",
-        "cost": 1
+        "cost": 1,
     },
     "embed-english-v3.0": {
         "name": "embed-english-v3.0",
         "provider": "cohere",
-        "cost": 0.1
+        "cost": 0.1,
     },
     "embed-english-light-v3.0": {
         "name": "embed-english-light-v3.0",
         "provider": "cohere",
-        "cost": 0.1
+        "cost": 0.1,
     },
     "embed-multilingual-v3.0": {
         "name": "embed-multilingual-v3.0",
         "provider": "cohere",
-        "cost": 0.1
+        "cost": 0.1,
     },
     "embed-multilingual-light-v3.0": {
         "name": "embed-multilingual-light-v3.0",
         "provider": "cohere",
-        "cost": 0.1
+        "cost": 0.1,
     },
 }
 
@@ -59,7 +59,7 @@ class EmbeddingRequest:
         retry_queue: asyncio.Queue,
         request_timeout: int,
         pbar: Optional[tqdm] = None,
-        **kwargs # openai or cohere specific params
+        **kwargs,  # openai or cohere specific params
     ):
         self.task_id = task_id
         self.model_name = model_name
@@ -71,6 +71,7 @@ class EmbeddingRequest:
         self.pbar = pbar
         self.result = []
         self.kwargs = kwargs
+
     def increment_pbar(self):
         if self.pbar is not None:
             self.pbar.update(1)
@@ -82,7 +83,9 @@ class EmbeddingRequest:
 
     def handle_error(self):
         last_result: EmbeddingResponse = self.result[-1]
-        error_to_print = f"Error on task {self.task_id}, Code: {last_result.status_code}, "
+        error_to_print = (
+            f"Error on task {self.task_id}, Code: {last_result.status_code}, "
+        )
         error_to_print += f"Message: {last_result.error_message}."
         print(error_to_print)
         if self.attempts_left > 0:
@@ -99,10 +102,21 @@ class EmbeddingRequest:
             if response.status == 200:
                 result = await response.json()
                 # TODO: add cost calculation
-                if self.model_name in ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]:
-                    embeddings = [embedding['embedding'] for embedding in result['data']]
-                elif self.model_name in ["embed-english-v3.0", "embed-english-light-v3.0", "embed-multilingual-v3.0", "embed-multilingual-light-v3.0"]:
-                    embeddings = result['embeddings']
+                if self.model_name in [
+                    "text-embedding-3-small",
+                    "text-embedding-3-large",
+                    "text-embedding-ada-002",
+                ]:
+                    embeddings = [
+                        embedding["embedding"] for embedding in result["data"]
+                    ]
+                elif self.model_name in [
+                    "embed-english-v3.0",
+                    "embed-english-light-v3.0",
+                    "embed-multilingual-v3.0",
+                    "embed-multilingual-light-v3.0",
+                ]:
+                    embeddings = result["embeddings"]
                 else:
                     raise ValueError(f"Unsupported model {self.model_name}")
                 return EmbeddingResponse(
@@ -111,7 +125,7 @@ class EmbeddingRequest:
                     is_error=False,
                     error_message=None,
                     texts=self.texts,
-                    embeddings=embeddings
+                    embeddings=embeddings,
                 )
             else:
                 error_msg = await response.text()
@@ -121,8 +135,8 @@ class EmbeddingRequest:
                     is_error=True,
                     error_message=error_msg,
                     texts=[],
-                    embeddings=[]
-                    )
+                    embeddings=[],
+                )
         except Exception as e:
             return EmbeddingResponse(
                 id=self.task_id,
@@ -130,22 +144,27 @@ class EmbeddingRequest:
                 is_error=True,
                 error_message=str(e),
                 texts=[],
-                embeddings=[]
+                embeddings=[],
             )
 
-
     async def call_api(
-        self, session: aiohttp.ClientSession,
+        self,
+        session: aiohttp.ClientSession,
     ):
         if len(self.texts) > 96:
             raise ValueError("Embeddings only support up to 96 texts per request.")
         model_obj = registry[self.model_name]
-        url = "https://api.openai.com/v1/embeddings" if model_obj["provider"] == "openai" else "https://api.cohere.com/v1/embed"
+        url = (
+            "https://api.openai.com/v1/embeddings"
+            if model_obj["provider"] == "openai"
+            else "https://api.cohere.com/v1/embed"
+        )
         headers = {
-            "Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY')}" if model_obj["provider"] == "openai" else \
-                f"bearer {os.environ.get('COHERE_API_KEY')}"
+            "Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY')}"
+            if model_obj["provider"] == "openai"
+            else f"bearer {os.environ.get('COHERE_API_KEY')}"
         }
-        payload = {"model": self.model_name}
+        payload: dict[str, Any] = {"model": self.model_name}
         if model_obj["provider"] == "openai":
             payload["input"] = self.texts
             payload["encoding_format"] = "float"
@@ -167,36 +186,41 @@ class EmbeddingRequest:
                 self.handle_success()
 
         except asyncio.TimeoutError:
-            self.result.append(EmbeddingResponse(
-                id=self.task_id,
-                status_code=None,
-                is_error=True,
-                error_message="Timeout",
-                texts=[],
-                embeddings=[]
-            ))
+            self.result.append(
+                EmbeddingResponse(
+                    id=self.task_id,
+                    status_code=None,
+                    is_error=True,
+                    error_message="Timeout",
+                    texts=[],
+                    embeddings=[],
+                )
+            )
             self.handle_error()
 
         except Exception as e:
-            self.result.append(EmbeddingResponse(
-                id=self.task_id,
-                status_code=None,
-                is_error=True,
-                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
-                texts=[],
-                embeddings=[]
-            ))
+            self.result.append(
+                EmbeddingResponse(
+                    id=self.task_id,
+                    status_code=None,
+                    is_error=True,
+                    error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                    texts=[],
+                    embeddings=[],
+                )
+            )
             self.handle_error()
 
 
 @dataclass
 class EmbeddingResponse:
     id: int
-    status_code: int
+    status_code: int | None
     is_error: bool
     error_message: Optional[str]
     texts: list[str]
     embeddings: list[list[float]]
+
 
 async def embed_parallel_async(
     texts: list[str],
@@ -207,12 +231,12 @@ async def embed_parallel_async(
     request_timeout: int = 10,
     batch_size: int = 16,
     show_progress: bool = True,
-    **kwargs
+    **kwargs,
 ):
     """Processes embed requests in parallel, throttling to stay under rate limits."""
     if batch_size > 96:
         raise ValueError("Embeddings only support up to 96 texts per request.")
-    batches = [texts[i:i+batch_size] for i in range(0, len(texts), batch_size)]
+    batches = [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
     pbar = tqdm(total=len(batches), desc="Embedding") if show_progress else None
     ids = range(len(batches))
     # constants
@@ -256,7 +280,7 @@ async def embed_parallel_async(
                         retry_queue=retry_queue,
                         request_timeout=request_timeout,
                         pbar=pbar,
-                        **kwargs
+                        **kwargs,
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1
@@ -290,8 +314,8 @@ async def embed_parallel_async(
         # if enough capacity available, call API
         if next_request:
             if (
-                available_request_capacity >= 1 and
-                status_tracker.num_tasks_in_progress < max_concurrent_requests
+                available_request_capacity >= 1
+                and status_tracker.num_tasks_in_progress < max_concurrent_requests
             ):
                 # update counters
                 available_request_capacity -= 1
@@ -318,7 +342,9 @@ async def embed_parallel_async(
             )
             await asyncio.sleep(remaining_seconds_to_pause)
             # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
-            print(f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}")
+            print(
+                f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}"
+            )
 
     # after finishing, log final status
     if status_tracker.num_tasks_failed > 0:
@@ -330,7 +356,9 @@ async def embed_parallel_async(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
 
-    print(f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates.")
+    print(
+        f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates."
+    )
 
     # deduplicate results by id
     deduplicated = {}
@@ -340,7 +368,7 @@ async def embed_parallel_async(
         else:
             current_response: EmbeddingResponse = deduplicated[request.task_id]
             # only replace if the current request has no top_k_indexes and the new one does
-            if request.result[-1].top_k_indices and not current_response.top_k_indices:
+            if request.result[-1].embeddings and not current_response.embeddings:
                 deduplicated[request.task_id] = request.result[-1]
 
     output = list(deduplicated.values())
@@ -350,14 +378,14 @@ async def embed_parallel_async(
     await session.close()
     return output
 
+
 def stack_results(
-    results: list[EmbeddingResponse],
-    return_numpy: bool = True
+    results: list[EmbeddingResponse], return_numpy: bool = True
 ) -> list[list[float]] | np.ndarray:
     if not all(response.status_code == 200 for response in results):
         raise ValueError("Some responses were not successful; cannot coalesce results.")
     stacked = np.concatenate([response.embeddings for response in results], axis=0)
-    return stacked.tolist() if not return_numpy else stacked
+    return stacked.tolist() if not return_numpy else stacked  # type: ignore
 
 
 def submit_batch_request():

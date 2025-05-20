@@ -1,8 +1,13 @@
 from __future__ import annotations
-import io, json, base64, mimetypes, tiktoken, xxhash
+import io
+import json
+import base64
+import mimetypes
+import tiktoken
+import xxhash
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
-from typing import Any, Literal, Sequence
+from typing import Literal
 
 ###############################################################################
 # 1. Low-level content blocks – either text or an image                       #
@@ -10,23 +15,27 @@ from typing import Any, Literal, Sequence
 
 Role = Literal["system", "user", "assistant"]
 
+
 @dataclass(slots=True)
 class Text:
     text: str
     type: str = field(init=False, default="text")
 
     # ── provider-specific emission ────────────────────────────────────────────
-    def oa_chat(self) -> dict | str:               # OpenAI Chat Completions
+    def oa_chat(self) -> dict | str:  # OpenAI Chat Completions
         return {"type": "text", "text": self.text}
-    def oa_resp(self) -> dict: # OpenAI *Responses*  (new)
+
+    def oa_resp(self) -> dict:  # OpenAI *Responses*  (new)
         return {"type": "input_text", "text": self.text}
-    def anthropic(self) -> dict: # Anthropic Messages
+
+    def anthropic(self) -> dict:  # Anthropic Messages
         return {"type": "text", "text": self.text}
+
 
 @dataclass(slots=True)
 class Image:
-    data: bytes | Path | io.BytesIO | str         # raw bytes or a path-like
-    media_type: str | None = None           # inferred if None
+    data: bytes | Path | io.BytesIO | str  # raw bytes or a path-like
+    media_type: str | None = None  # inferred if None
     detail: Literal["low", "high", "auto"] = "auto"
 
     type: str = field(init=False, default="image")
@@ -55,7 +64,7 @@ class Image:
         Uses Lanczos antialiasing for high quality resizing.
         """
         # We need to convert the image data to a PIL Image
-        from PIL import Image as PILImage # type: ignore
+        from PIL import Image as PILImage  # type: ignore
         import io
 
         # Convert bytes to PIL Image
@@ -80,7 +89,7 @@ class Image:
 
             # Convert back to bytes
             buffer = io.BytesIO()
-            img.save(buffer, format=self._mime().split('/')[-1].upper())
+            img.save(buffer, format=self._mime().split("/")[-1].upper())
 
             # Update the data attribute
             self.data = buffer.getvalue()
@@ -113,9 +122,11 @@ class Image:
             },
         }
 
+
 ###############################################################################
 # 2. One conversational turn (role + parts)                                   #
 ###############################################################################
+
 
 @dataclass(slots=True)
 class Message:
@@ -201,9 +212,11 @@ class Message:
             content = content[0]["text"]
         return {"role": self.role, "content": content}
 
+
 ###############################################################################
 # 3. A whole conversation (ordered list of messages)                          #
 ###############################################################################
+
 
 @dataclass(slots=True)
 class Conversation:
@@ -237,7 +250,14 @@ class Conversation:
         return {"input": [m.oa_resp() for m in self.messages if m.role != "system"]}
 
     def to_anthropic(self) -> tuple[str | None, list[dict]]:
-        system_msg = next((m.parts[0].text for m in self.messages if m.role == "system" and isinstance(m.parts[0], Text)), None)
+        system_msg = next(
+            (
+                m.parts[0].text
+                for m in self.messages
+                if m.role == "system" and isinstance(m.parts[0], Text)
+            ),
+            None,
+        )
         other = [m.anthropic() for m in self.messages if m.role != "system"]
         return system_msg, other
 
@@ -250,7 +270,7 @@ class Conversation:
             for p in m.parts:
                 if isinstance(p, Text):
                     n += len(self._tok.encode(p.text))
-                else:                       # Image – crude flat cost per image
+                else:  # Image – crude flat cost per image
                     n += img_tokens
 
         # very rough BOS/EOS padding
@@ -275,7 +295,9 @@ class Conversation:
                     content_blocks.append({"type": "text", "text": p.text})
                 else:  # Image – redact the bytes, keep a hint
                     w, h = getattr(p, "width", "??"), getattr(p, "height", "??")
-                    content_blocks.append({"type": "image", "tag": f"<Image ({w}×{h})>"})
+                    content_blocks.append(
+                        {"type": "image", "tag": f"<Image ({w}×{h})>"}
+                    )
             serialized.append({"role": msg.role, "content": content_blocks})
 
         return {"messages": serialized}

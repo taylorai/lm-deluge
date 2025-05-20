@@ -2,22 +2,20 @@ from pydantic import BaseModel, ValidationError
 from .json import load_json
 from .xml import get_tag, xml_to_object
 
+
 def get_model_from_json(
     json_string: str,
     model_class: BaseModel,
 ) -> BaseModel:
     try:
         model_dict = load_json(json_string)
-        return model_class(**model_dict) # pyright: ignore
+        return model_class(**model_dict)  # pyright: ignore
     except ValidationError as ve:
         # Handle validation errors if necessary
         raise ve
 
-def get_model_from_xml(
-    xml_string: str,
-    model_class: BaseModel,
-    shallow: bool = True
-):
+
+def get_model_from_xml(xml_string: str, model_class: BaseModel, shallow: bool = True):
     """
     Convert an XML string to a Pydantic model.
     If shallow is True, we don't try to parse the whole XML tree
@@ -34,7 +32,7 @@ def get_model_from_xml(
                 model_dict[field_name] = val
 
         try:
-            return model_class(**model_dict) # pyright: ignore
+            return model_class(**model_dict)  # pyright: ignore
         except ValidationError as ve:
             # Handle validation errors if necessary
             raise ve
@@ -42,7 +40,7 @@ def get_model_from_xml(
         # use helper to parse the whole tree
         model_dict = xml_to_object(xml_string)
         try:
-            return model_class(**model_dict) # pyright: ignore
+            return model_class(**model_dict)  # pyright: ignore
         except ValidationError as ve:
             # Handle validation errors if necessary
             raise ve

@@ -1,5 +1,5 @@
 from ..client import LLMClient, APIResponse
-from ..util.logprobs import extract_prob, is_match
+from ..util.logprobs import extract_prob
 
 # def extract_prob_yes(logprobs: list[dict]):
 #     """
@@ -20,12 +20,13 @@ from ..util.logprobs import extract_prob, is_match
 #     else:
 #         return 0.5
 
+
 def score_llm(
     scoring_prompt_template: str,
-    inputs: list[tuple | list | dict], # to format the template
+    inputs: list[tuple | list | dict],  # to format the template
     scoring_model: LLMClient,
     return_probabilities: bool,
-    yes_token: str = "yes"
+    yes_token: str = "yes",
 ) -> list[bool | None] | list[float | None]:
     if return_probabilities:
         if not hasattr(scoring_model, "logprobs") or not scoring_model.logprobs:
@@ -47,7 +48,7 @@ def score_llm(
             raise ValueError("inputs must be a list of tuples, lists, or dicts.")
         scoring_prompts.append(scoring_prompt)
 
-    resps: list[APIResponse] = scoring_model.process_prompts_sync( # pyright: ignore
+    resps: list[APIResponse] = scoring_model.process_prompts_sync(  # pyright: ignore
         prompts=scoring_prompts,
         show_progress=False,
     )
@@ -56,15 +57,15 @@ def score_llm(
         logprobs_list = [resp.logprobs for resp in resps]
         scores = [
             extract_prob(yes_token, logprobs, use_complement=True)
-            if logprobs is not None else None
+            if logprobs is not None
+            else None
             for logprobs in logprobs_list
         ]
     else:
         completions = [resp.completion for resp in resps]
         scores = [
-            yes_token.lower().strip() in c.lower()
-            if c is not None else None
+            yes_token.lower().strip() in c.lower() if c is not None else None
             for c in completions
         ]
 
-    return scores # p(yes) or bool yes/no
+    return scores  # p(yes) or bool yes/no

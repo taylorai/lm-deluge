@@ -13,13 +13,14 @@ from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
 
+
 class OpenAIRequest(APIRequestBase):
     def __init__(
         self,
         task_id: int,
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
-        model_name: str, # must correspond to registry
+        model_name: str,  # must correspond to registry
         prompt: Prompt,
         attempts_left: int,
         status_tracker: StatusTracker,
@@ -51,7 +52,7 @@ class OpenAIRequest(APIRequestBase):
             callback=callback,
             debug=debug,
             all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params
+            all_sampling_params=all_sampling_params,
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat/completions"
@@ -63,7 +64,7 @@ class OpenAIRequest(APIRequestBase):
             "messages": prompt.to_openai(),
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
-            "max_completion_tokens": sampling_params.max_new_tokens
+            "max_completion_tokens": sampling_params.max_new_tokens,
         }
         if self.model.reasoning_model:
             self.request_json["temperature"] = 1.0
@@ -71,7 +72,9 @@ class OpenAIRequest(APIRequestBase):
             self.request_json["reasoning_effort"] = sampling_params.reasoning_effort
         else:
             if sampling_params.reasoning_effort:
-                warnings.warn(f"Ignoring reasoning_effort param for non-reasoning model: {model_name}")
+                warnings.warn(
+                    f"Ignoring reasoning_effort param for non-reasoning model: {model_name}"
+                )
         if logprobs:
             self.request_json["logprobs"] = True
             if top_logprobs is not None:
@@ -94,7 +97,9 @@ class OpenAIRequest(APIRequestBase):
                 data = await http_response.json()
             except Exception:
                 is_error = True
-                error_message = f"Error calling .json() on response w/ status {status_code}"
+                error_message = (
+                    f"Error calling .json() on response w/ status {status_code}"
+                )
             if not is_error:
                 assert data is not None, "data is None"
                 try:
@@ -107,7 +112,7 @@ class OpenAIRequest(APIRequestBase):
                     is_error = True
                     error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response."
         elif mimetype and "json" in mimetype.lower():
-            is_error = True # expected status is 200, otherwise it's an error
+            is_error = True  # expected status is 200, otherwise it's an error
             data = await http_response.json()
             error_message = json.dumps(data)
         else:

@@ -7,6 +7,7 @@ import base64
 if TYPE_CHECKING:
     from PIL.Image import Image as PILImageType
 
+
 class Image:
     def __init__(self, image: "PILImageType", url: Optional[str] = None):
         self.image = image
@@ -15,6 +16,7 @@ class Image:
     @classmethod
     def from_url(cls, url: str) -> "Image":
         from PIL import Image as PILImage
+
         response = requests.get(url)
         image = PILImage.open(BytesIO(response.content))
         return cls(image, url)
@@ -22,6 +24,7 @@ class Image:
     @classmethod
     def from_file(cls, file_path: str) -> "Image":
         from PIL import Image as PILImage
+
         with PILImage.open(file_path) as img:
             img_copy = img.copy()  # close the file
         return cls(img_copy)
@@ -29,15 +32,20 @@ class Image:
     @classmethod
     def from_base64(cls, base64_str: str) -> "Image":
         from PIL import Image as PILImage
+
         image = PILImage.open(BytesIO(base64.b64decode(base64_str)))
         return cls(image)
 
     @classmethod
-    def from_pdf(cls, pdf_path: str, dpi: int = 200, target_size: int = 1024) -> "Image":
+    def from_pdf(
+        cls, pdf_path: str, dpi: int = 200, target_size: int = 1024
+    ) -> "Image":
         try:
-            from pdf2image import convert_from_path
+            from pdf2image import convert_from_path  # type: ignore
         except ImportError:
-            raise RuntimeError("pdf2image is required for PDF conversion. Install with 'pip install pdf2image'")
+            raise RuntimeError(
+                "pdf2image is required for PDF conversion. Install with 'pip install pdf2image'"
+            )
 
         # Convert the first page of the PDF to an image
         pages = convert_from_path(pdf_path, dpi=dpi, first_page=1, last_page=1)
@@ -66,6 +74,7 @@ class Image:
 
     def resize(self, size: tuple[int, int]) -> None:
         from PIL import Image as PILImage
+
         self.image = self.image.resize(size, resample=PILImage.Resampling.LANCZOS)
 
     def resize_longer_side(self, size: int) -> None:
@@ -97,19 +106,17 @@ class Image:
         self.image.save(file_path)
 
     def to_gemini_input(self) -> dict:
-        return {
-            "inlineData": {
-                "mimeType": "image/png",
-                "data": self.to_base64()
-            }
-        }
+        return {"inlineData": {"mimeType": "image/png", "data": self.to_base64()}}
 
     def to_anthropic_input(self) -> dict:
         # image needs to be resized if it's > 1_200_000 pixels
         n_pixels = self.size[0] * self.size[1]
         if n_pixels > 1_200_000:
             resize_factor = (1_200_000 / n_pixels) ** 0.5
-            new_size = (int(self.size[0] * resize_factor), int(self.size[1] * resize_factor))
+            new_size = (
+                int(self.size[0] * resize_factor),
+                int(self.size[1] * resize_factor),
+            )
             self.resize(new_size)
 
         return {
@@ -117,7 +124,7 @@ class Image:
             "source": {
                 "type": "base64",
                 "media_type": "image/png",
-                "data": self.to_base64()
+                "data": self.to_base64(),
             },
         }
 
@@ -131,10 +138,4 @@ class Image:
             url = self.url
         else:
             url = f"data:image/png;base64,{self.to_base64()}"
-        return {
-            "type": "image_url",
-            "image_url": {
-                "url": url,
-                "detail": detail
-            }
-        }
+        return {"type": "image_url", "image_url": {"url": url, "detail": detail}}
