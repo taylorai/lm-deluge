@@ -1,6 +1,6 @@
+import io
 import json
-from ..image import Image
-from ..prompt import Prompt
+from ..prompt import Conversation
 import asyncio
 from ..client import LLMClient
 from typing import Optional, Any
@@ -69,7 +69,11 @@ async def extract_async(
                 text_only_prompt.replace("{<<__REPLACE_WITH_TEXT__>>}", input)
             )
         elif PILImage is not None and isinstance(input, PILImage.Image):
-            prompts.append(Prompt(text=image_only_prompt, image=Image(input)))
+            buffer = io.BytesIO()
+            input.save(buffer, format="PNG")
+            prompts.append(
+                Conversation.user(text=image_only_prompt, image=buffer.getvalue())
+            )
         else:
             raise ValueError("inputs must be a list of strings or PIL images.")
 

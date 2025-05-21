@@ -2,7 +2,7 @@ import tempfile
 import json
 import sqlite3
 from typing import Any
-from .prompt import Prompt
+from .prompt import Conversation
 from .api_requests.base import APIResponse
 
 try:
@@ -37,7 +37,7 @@ class DistributedDictCache:
         self.cache = cache
         self.cache_key = cache_key  # for namespacing
 
-    def get(self, prompt: Prompt) -> APIResponse | None:
+    def get(self, prompt: Conversation) -> APIResponse | None:
         """
         Get an API response from the cache.
         """
@@ -46,7 +46,7 @@ class DistributedDictCache:
             return decode_api_response(data)
         return None
 
-    def put(self, prompt: Prompt, response: APIResponse) -> None:
+    def put(self, prompt: Conversation, response: APIResponse) -> None:
         """
         Put an API response into the cache.
         """
@@ -73,7 +73,7 @@ class LevelDBCache:
             raise ImportError("plyvel not installed, cannot use LevelDBCache.")
         self.cache_key = cache_key  # for namespacing
 
-    def get(self, prompt: Prompt) -> APIResponse | None:
+    def get(self, prompt: Conversation) -> APIResponse | None:
         """
         Get an API response from the cache.
         """
@@ -83,7 +83,7 @@ class LevelDBCache:
             return decode_api_response(data)
         return None
 
-    def put(self, prompt: Prompt, response: APIResponse):
+    def put(self, prompt: Conversation, response: APIResponse):
         """
         Put an API response into the cache.
         """
@@ -115,7 +115,7 @@ class SqliteCache:
         )
         self.conn.commit()
 
-    def get(self, prompt: Prompt) -> APIResponse | None:
+    def get(self, prompt: Conversation) -> APIResponse | None:
         """
         Get an API response from the cache.
         """
@@ -126,7 +126,7 @@ class SqliteCache:
             return decode_api_response(data[0])
         return None
 
-    def put(self, prompt: Prompt, response: APIResponse):
+    def put(self, prompt: Conversation, response: APIResponse):
         """
         Put an API response into the cache.
         """
