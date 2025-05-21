@@ -61,7 +61,7 @@
 #         "torch==2.2.1",
 #         "mistral-common"
 #     ).pip_install_private_repos(
-#         "github.com/taylorai/llm_utils@9cac33e",
+#         "github.com/taylorai/lm_deluge@9cac33e",
 #         secrets=[Secret.from_name("my-github-secret")],
 #         git_user="andersonbcdefg",
 #     )
@@ -101,10 +101,10 @@
 #         self,
 #         ids: list[int],
 #         prompts: list[list[dict]],
-#         sampling_params: dict # should correspond to llm_utils sampling params spec
+#         sampling_params: dict # should correspond to lm_deluge sampling params spec
 #     ):
-#         from llm_utils.api_requests.base import APIResponse
-#         from llm_utils.sampling_params import SamplingParams
+#         from lm_deluge.api_requests.base import APIResponse
+#         from lm_deluge.sampling_params import SamplingParams
 #         sampling_params = SamplingParams(**sampling_params)
 #         vllm_sampling_params = sampling_params.to_vllm()
 #         # make sure prompts is a list of lists

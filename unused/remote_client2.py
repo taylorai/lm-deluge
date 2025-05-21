@@ -1,11 +1,11 @@
-# # basically a proxy to use Modal to run llm_utils
+# # basically a proxy to use Modal to run lm_deluge
 # # to avoid issues with local network
 # import os
 # import datetime
 # from modal import App, Image, Secret, Volume, method
 # from typing import Union
 
-# vol = Volume.from_name("llm_utils", create_if_missing=True)
+# vol = Volume.from_name("lm_deluge", create_if_missing=True)
 
 # image = (
 #     Image.debian_slim(python_version="3.10")
@@ -15,7 +15,7 @@
 #         "Faker"
 #     )
 #     .pip_install_private_repos(
-#         "github.com/taylorai/llm_utils@255ec8c",
+#         "github.com/taylorai/lm_deluge@255ec8c",
 #         secrets=[Secret.from_name("my-github-secret")],
 #         git_user="andersonbcdefg",
 #     )
@@ -37,14 +37,14 @@
 # )
 # class ModalLLMClient:
 #     def __init__(self, **kwargs):
-#         from llm_utils import LLMClient
+#         from lm_deluge import LLMClient
 #         self.client = LLMClient(**kwargs)
 
 #     @method()
 #     def process_prompts(self, prompts: Union[list[str], list[list[dict]]]):
 #         import json
 #         import pandas as pd
-#         from llm_utils import APIResponse
+#         from lm_deluge import APIResponse
 #         from faker import Faker
 #         fake = Faker()
 #         if os.getenv("SERVICE_ACCOUNT_JSON", None) is not None:

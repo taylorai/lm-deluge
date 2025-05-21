@@ -4,10 +4,9 @@ import asyncio
 from aiohttp import ClientResponse
 import json
 import os
-import time
 from tqdm import tqdm
-from typing import Optional, Callable
-from llm_utils.prompt import Conversation
+from typing import Callable
+from lm_deluge.prompt import Conversation
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
@@ -29,8 +28,8 @@ class CohereRequest(APIRequestBase):
         retry_queue: asyncio.Queue,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        pbar: Optional[tqdm] = None,
-        callback: Optional[Callable] = None,
+        pbar: tqdm | None = None,
+        callback: Callable | None = None,
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
@@ -118,8 +117,7 @@ class CohereRequest(APIRequestBase):
                 or "overloaded" in error_message.lower()
             ):
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
+                self.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.attempts_left = 0

@@ -6,15 +6,15 @@ import types
 from tests.helpers import import_module
 
 # Stub dependencies
-client_stub = types.ModuleType("llm_utils.client")
+client_stub = types.ModuleType("lm_deluge.client")
 client_stub.LLMClient = type("LLMClient", (), {})
-sys.modules.setdefault("llm_utils.client", client_stub)
+sys.modules.setdefault("lm_deluge.client", client_stub)
 
 pil_stub = types.ModuleType("PIL")
 pil_stub.Image = type("Image", (), {})
 sys.modules.setdefault("PIL", pil_stub)
 
-translate = import_module("src/llm_utils/llm_tools/translate.py", name="translate")
+translate = import_module("src/lm_deluge/llm_tools/translate.py", name="translate")
 
 
 def test_is_english_without_fasttext():

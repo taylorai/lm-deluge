@@ -3,9 +3,8 @@ import warnings
 from aiohttp import ClientResponse
 import json
 import os
-import time
 from tqdm.auto import tqdm
-from typing import Optional, Callable
+from typing import Callable
 
 from .base import APIRequestBase, APIResponse
 from ..prompt import Conversation
@@ -29,9 +28,9 @@ class OpenAIRequest(APIRequestBase):
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
         logprobs: bool = False,
-        top_logprobs: Optional[int] = None,
-        pbar: Optional[tqdm] = None,
-        callback: Optional[Callable] = None,
+        top_logprobs: int | None = None,
+        pbar: tqdm | None = None,
+        callback: Callable | None = None,
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
@@ -124,8 +123,7 @@ class OpenAIRequest(APIRequestBase):
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
+                self.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.attempts_left = 0

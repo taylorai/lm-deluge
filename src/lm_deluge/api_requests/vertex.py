@@ -5,9 +5,9 @@ import json
 import os
 import time
 from tqdm import tqdm
-from typing import Optional, Callable
+from typing import Callable
 
-from llm_utils.prompt import Conversation
+from lm_deluge.prompt import Conversation
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -57,8 +57,8 @@ class VertexAnthropicRequest(APIRequestBase):
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        pbar: Optional[tqdm] = None,
-        callback: Optional[Callable] = None,
+        pbar: tqdm | None = None,
+        callback: Callable | None = None,
         debug: bool = False,
     ):
         super().__init__(
@@ -141,8 +141,7 @@ class VertexAnthropicRequest(APIRequestBase):
                 or status_code == 429
             ):
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
+                self.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.attempts_left = 0
@@ -185,8 +184,8 @@ class GeminiRequest(APIRequestBase):
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        pbar: Optional[tqdm] = None,
-        callback: Optional[Callable] = None,
+        pbar: tqdm | None = None,
+        callback: Callable | None = None,
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
@@ -302,16 +301,14 @@ class GeminiRequest(APIRequestBase):
                         error_message = "Finish reason SAFETY."
                         retry_with_different_model = True
                     else:
-                        print("Actual structure of response:")
-                        print(data)
+                        print("Actual structure of response:", data)
                         is_error = True
                         error_message = "No content in response."
             except Exception as e:
                 is_error = True
                 error_message = f"Error calling .json() on response w/ status {status_code}: {e.__class__} {e}"
                 if isinstance(e, KeyError):
-                    print("Actual structure of response:")
-                    print(data)
+                    print("Actual structure of response:", data)
         elif "json" in (mimetype or "").lower():
             is_error = True
             data = await http_response.json()
@@ -332,8 +329,7 @@ class GeminiRequest(APIRequestBase):
                 status_code == 429
             ):
                 error_message += " (Rate limit error, triggering cooldown & retrying with different model.)"
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
+                self.status_tracker.rate_limit_exceeded()
                 retry_with_different_model = (
                     True  # if possible, retry with a different model
                 )

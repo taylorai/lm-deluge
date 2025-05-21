@@ -3,7 +3,7 @@ import json
 from ..prompt import Conversation
 import asyncio
 from ..client import LLMClient
-from typing import Optional, Any
+from typing import Any
 from ..util.json import load_json
 
 try:
@@ -16,8 +16,8 @@ async def extract_async(
     inputs: list[str | Any],
     schema: Any,
     client: LLMClient,
-    document_name: Optional[str] = None,
-    object_name: Optional[str] = None,
+    document_name: str | None = None,
+    object_name: str | None = None,
     show_progress: bool = True,
     return_prompts: bool = False,
 ):
@@ -93,8 +93,8 @@ def extract(
     inputs: list[str | Any],
     schema: Any,
     client: LLMClient,
-    document_name: Optional[str] = None,
-    object_name: Optional[str] = None,
+    document_name: str | None = None,
+    object_name: str | None = None,
     show_progress: bool = True,
     return_prompts: bool = False,
 ):

@@ -5,10 +5,10 @@ import numpy as np
 import time
 import yaml
 from dataclasses import dataclass
-from typing import Sequence, overload, Literal, Optional, Union, Any
+from typing import Sequence, overload, Literal, Any
 from tqdm.auto import tqdm
 
-from llm_utils.prompt import Conversation
+from lm_deluge.prompt import Conversation
 
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
@@ -31,11 +31,11 @@ class ClientConfig:
     max_concurrent_requests: int
     max_attempts: int
     request_timeout: int
-    sampling_params: Union[SamplingParams, list[SamplingParams]]
-    model_weights: Union[list[float], Literal["uniform", "rate_limit"]]
+    sampling_params: SamplingParams | list[SamplingParams]
+    model_weights: list[float] | Literal["uniform", "rate_limit"]
     logprobs: bool = False
-    top_logprobs: Optional[int] = None
-    cache: Optional[Any] = None
+    top_logprobs: int | None = None
+    cache: Any = None
 
     @classmethod
     def from_dict(cls, config_dict: dict):
@@ -82,23 +82,21 @@ class LLMClient:
     Handles models, sampling params for each model, model weights, rate limits, etc.
     """
 
-    pass
-
     def __init__(
         self,
         model_names: list[str],
         max_requests_per_minute: int,
         max_tokens_per_minute: int,
         max_concurrent_requests: int,
-        sampling_params: Union[SamplingParams, list[SamplingParams]] = SamplingParams(),
-        model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
+        sampling_params: SamplingParams | list[SamplingParams] = SamplingParams(),
+        model_weights: list[float] | Literal["uniform", "rate_limit"] = "uniform",
         max_attempts: int = 5,
         request_timeout: int = 30,
         logprobs: bool = False,
-        top_logprobs: Optional[int] = None,
+        top_logprobs: int | None = None,
         use_qps: bool = False,
         debug: bool = False,
-        cache: Optional[Any] = None,
+        cache: Any = None,
     ):
         self.models = model_names
         if isinstance(sampling_params, SamplingParams):
@@ -154,7 +152,7 @@ class LLMClient:
         self.cache = cache
 
     @classmethod
-    def from_config(cls, config: ClientConfig, cache: Optional[Any] = None):
+    def from_config(cls, config: ClientConfig, cache: Any = None):
         return cls(
             model_names=config.model_names,
             max_requests_per_minute=config.max_requests_per_minute,
@@ -168,25 +166,25 @@ class LLMClient:
         )
 
     @classmethod
-    def from_yaml(cls, file_path: str, cache: Optional[Any] = None):
+    def from_yaml(cls, file_path: str, cache: Any = None):
         return cls.from_config(ClientConfig.from_yaml(file_path), cache=cache)
 
     @classmethod
     def basic(
         cls,
-        model: Union[str, list[str]],
+        model: str | list[str],
         max_requests_per_minute: int = 5_000,
         max_tokens_per_minute: int = 1_000_000,
         max_concurrent_requests: int = 1_000,
         temperature: float = 0.75,
         max_new_tokens: int = 1000,
         reasoning_effort: Literal[None, "low", "medium", "high"] = None,
-        model_weights: Union[list[float], Literal["uniform", "rate_limit"]] = "uniform",
+        model_weights: list[float] | Literal["uniform", "rate_limit"] = "uniform",
         logprobs: bool = False,
-        top_logprobs: Optional[int] = None,
+        top_logprobs: int | None = None,
         max_attempts: int = 5,
         request_timeout: int = 30,
-        cache: Optional[Any] = None,
+        cache: Any = None,
     ):
         model_names = model if isinstance(model, list) else [model]
         return cls(
@@ -221,8 +219,6 @@ class LLMClient:
             logprobs=self.logprobs,
             top_logprobs=self.top_logprobs,
         )
-
-    from typing import Union, Literal
 
     @overload
     async def process_prompts_async(
@@ -485,9 +481,9 @@ class LLMClient:
 
 
 def api_prompts_dry_run(
-    ids: Union[np.ndarray, list[int]],
+    ids: np.ndarray | list[int],
     prompts: list[Conversation],
-    models: Union[str, list[str]],
+    models: str | list[str],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
     max_tokens_per_minute: int = 500_000,
@@ -543,19 +539,19 @@ def api_prompts_dry_run(
 
 
 async def process_api_prompts_async(
-    ids: Union[np.ndarray, list[int]],
+    ids: np.ndarray | list[int],
     prompts: list[Conversation],
-    models: Union[str, list[str]],
+    models: str | list[str],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
     logprobs: bool,
-    top_logprobs: Optional[int],
+    top_logprobs: int | None,
     max_attempts: int = 5,
     max_tokens_per_minute: int = 500_000,
     max_requests_per_minute: int = 1_000,
     max_concurrent_requests: int = 1_000,
     request_timeout: int = 30,
-    progress_bar: Optional[tqdm] = None,
+    progress_bar: tqdm | None = None,
     use_qps: bool = False,
     verbose: bool = False,
 ):
@@ -712,28 +708,17 @@ async def process_api_prompts_async(
         await asyncio.sleep(seconds_to_sleep_each_loop)
 
         # if a rate limit error was hit recently, pause to cool down
-        seconds_since_rate_limit_error = (
-            time.time() - status_tracker.time_of_last_rate_limit_error
+        remaining_seconds_to_pause = max(
+            0,
+            seconds_to_pause_after_rate_limit_error
+            - status_tracker.time_since_rate_limit_error,
         )
-        if seconds_since_rate_limit_error < seconds_to_pause_after_rate_limit_error:
-            remaining_seconds_to_pause = (
-                seconds_to_pause_after_rate_limit_error - seconds_since_rate_limit_error
-            )
+        if remaining_seconds_to_pause > 0:
             await asyncio.sleep(remaining_seconds_to_pause)
-            # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
-            print(
-                f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}"
-            )
+            print(f"Pausing {remaining_seconds_to_pause}s to cool down.")
 
     # after finishing, log final status
-    if status_tracker.num_tasks_failed > 0:
-        print(
-            f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed."
-        )
-    if status_tracker.num_rate_limit_errors > 0:
-        print(
-            f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
-        )
+    status_tracker.log_final_status()
     if verbose:
         print(
             f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates."

@@ -32,7 +32,7 @@ def score_llm(
         if not hasattr(scoring_model, "logprobs") or not scoring_model.logprobs:
             raise ValueError(
                 "return_probabilities=True requires scoring_model to have logprobs=True. "
-                "you may need to upgrade llm_utils to have access to this option."
+                "you may need to upgrade lm_deluge to have access to this option."
             )
 
     if scoring_prompt_template is None:

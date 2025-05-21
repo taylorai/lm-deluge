@@ -5,9 +5,9 @@ import random
 from tqdm import tqdm
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import Optional, Callable
+from typing import Callable
 
-from llm_utils.prompt import Conversation
+from lm_deluge.prompt import Conversation
 
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -26,25 +26,25 @@ class APIResponse:
 
     # http response information
     status_code: int | None
-    is_error: Optional[bool]
-    error_message: Optional[str]
+    is_error: bool | None
+    error_message: str | None
 
     # completion information
-    completion: Optional[str]
-    input_tokens: Optional[int]
-    output_tokens: Optional[int]
+    completion: str | None
+    input_tokens: int | None
+    output_tokens: int | None
 
     # optional or calculated automatically
-    thinking: Optional[str] = None  # if model shows thinking tokens
-    model_external: Optional[str] = None  # the model tag used by the API
-    region: Optional[str] = None
-    logprobs: Optional[list] = None
-    finish_reason: Optional[str] = None  # make required later
-    cost: Optional[float] = None  # calculated automatically
+    thinking: str | None = None  # if model shows thinking tokens
+    model_external: str | None = None  # the model tag used by the API
+    region: str | None = None
+    logprobs: list | None = None
+    finish_reason: str | None = None  # make required later
+    cost: float | None = None  # calculated automatically
     # set to true if is_error and should be retried with a different model
-    retry_with_different_model: Optional[bool] = False
+    retry_with_different_model: bool | None = False
     # set to true if should NOT retry with the same model (unrecoverable error)
-    give_up_if_no_other_models: Optional[bool] = False
+    give_up_if_no_other_models: bool | None = False
 
     def __post_init__(self):
         # calculate cost & get external model name
@@ -138,9 +138,9 @@ class APIRequestBase(ABC):
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
         logprobs: bool = False,
-        top_logprobs: Optional[int] = None,
-        pbar: Optional[tqdm] = None,
-        callback: Optional[Callable] = None,
+        top_logprobs: int | None = None,
+        pbar: tqdm | None = None,
+        callback: Callable | None = None,
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
@@ -185,8 +185,7 @@ class APIRequestBase(ABC):
     def handle_success(self, data):
         self.call_callback()
         self.increment_pbar()
-        self.status_tracker.num_tasks_in_progress -= 1
-        self.status_tracker.num_tasks_succeeded += 1
+        self.status_tracker.task_succeeded(self.task_id)
 
     def handle_error(self, create_new_request=False, give_up_if_no_other_models=False):
         """
@@ -215,8 +214,7 @@ class APIRequestBase(ABC):
                         print(
                             f"No other models to try for task {self.task_id}. Giving up."
                         )
-                        self.status_tracker.num_tasks_in_progress -= 1
-                        self.status_tracker.num_tasks_failed += 1
+                        self.status_tracker.task_failed(self.task_id)
                     else:
                         print(
                             f"No other models to try for task {self.task_id}. Retrying with same model."
@@ -263,8 +261,7 @@ class APIRequestBase(ABC):
                     self.results_arr.append(new_request)
         else:
             print(f"Task {self.task_id} out of tries.")
-            self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_failed += 1
+            self.status_tracker.task_failed(self.task_id)
 
     async def call_api(self):
         try:
@@ -308,7 +305,6 @@ class APIRequestBase(ABC):
 
         except Exception as e:
             raise_if_modal_exception(e)
-            # print(f"Unexpected error {type(e).__name__}: {str(e) or 'No message.'}")
             self.result.append(
                 APIResponse(
                     id=self.task_id,
@@ -342,9 +338,9 @@ def create_api_request(
     request_timeout: int = 30,
     sampling_params: SamplingParams = SamplingParams(),
     logprobs: bool = False,
-    top_logprobs: Optional[int] = None,
-    pbar: Optional[tqdm] = None,
-    callback: Optional[Callable] = None,
+    top_logprobs: int | None = None,
+    pbar: tqdm | None = None,
+    callback: Callable | None = None,
     all_model_names: list[str] | None = None,
     all_sampling_params: list[SamplingParams] | None = None,
 ) -> APIRequestBase:

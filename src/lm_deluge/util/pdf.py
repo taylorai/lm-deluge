@@ -13,7 +13,7 @@ def text_from_pdf(pdf: str | bytes | io.BytesIO):
         import pymupdf  # pyright: ignore
     except ImportError:
         raise ImportError(
-            "pymupdf is required to extract text from PDFs. Install llm_utils[pdf] or llm_utils[full]."
+            "pymupdf is required to extract text from PDFs. Install lm_deluge[pdf] or lm_deluge[full]."
         )
     if isinstance(pdf, str):
         # It's a file path

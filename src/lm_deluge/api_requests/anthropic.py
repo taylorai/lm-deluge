@@ -3,11 +3,10 @@ from aiohttp import ClientResponse
 import json
 import os
 import warnings
-import time
 from tqdm import tqdm
-from typing import Optional, Callable
+from typing import Callable
 
-from llm_utils.prompt import Conversation
+from lm_deluge.prompt import Conversation
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
@@ -29,8 +28,8 @@ class AnthropicRequest(APIRequestBase):
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        pbar: Optional[tqdm] = None,
-        callback: Optional[Callable] = None,
+        pbar: tqdm | None = None,
+        callback: Callable | None = None,
         debug: bool = False,
         # for retries
         all_model_names: list[str] | None = None,
@@ -96,8 +95,6 @@ class AnthropicRequest(APIRequestBase):
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
 
-        # print("request data:", self.request_json)
-
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
         error_message = None
@@ -156,8 +153,7 @@ class AnthropicRequest(APIRequestBase):
                 or "overloaded" in error_message.lower()
             ):
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.time_of_last_rate_limit_error = time.time()
-                self.status_tracker.num_rate_limit_errors += 1
+                self.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.attempts_left = 0

@@ -1,5 +1,5 @@
 import json
-from src.llm_utils.util.json import heal_json, load_json
+from src.lm_deluge.util.json import heal_json, load_json
 
 
 def test_healing():

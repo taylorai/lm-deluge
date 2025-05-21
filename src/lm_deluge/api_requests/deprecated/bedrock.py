@@ -8,7 +8,7 @@
 # import time
 # from tqdm import tqdm
 # from typing import Optional, Callable
-# from llm_utils.prompt import Conversation
+# from lm_deluge.prompt import Conversation
 # from .base import APIRequestBase, APIResponse
 # from ..tracker import StatusTracker
 # from ..sampling_params import SamplingParams
@@ -55,8 +55,8 @@
 #         retry_queue: asyncio.Queue,
 #         request_timeout: int = 30,
 #         sampling_params: SamplingParams = SamplingParams(),
-#         pbar: Optional[tqdm] = None,
-#         callback: Optional[Callable] = None,
+#         pbar: tqdm | None = None,
+#         callback: Callable | None = None,
 #         debug: bool = False,
 #         all_model_names: list[str] | None = None,
 #         all_sampling_params: list[SamplingParams] | None = None,
@@ -175,8 +175,8 @@
 #         results_arr: list,
 #         request_timeout: int = 30,
 #         sampling_params: SamplingParams = SamplingParams(),
-#         pbar: Optional[tqdm] = None,
-#         callback: Optional[Callable] = None,
+#         pbar: tqdm | None = None,
+#         callback: Callable | None = None,
 #         debug: bool = False,
 #         all_model_names: list[str] | None = None,
 #         all_sampling_params: list[SamplingParams] | None = None,

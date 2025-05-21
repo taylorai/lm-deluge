@@ -2,12 +2,12 @@
 requires = ["setuptools", "wheel"]
 
 [project]
-name = "llm_utils"
+name = "lm_deluge"
 version = "0.0.3"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = []
 license = { text = "" }
 classifiers = []

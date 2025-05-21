@@ -1,6 +1,5 @@
 import random
 from dataclasses import dataclass, field
-from typing import Optional
 from .gemini_limits import gemini_1_5_pro_limits, gemini_flash_limits
 
 registry = {
@@ -928,15 +927,15 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
-    input_cost: Optional[float] = 0  # $ per million input tokens
-    output_cost: Optional[float] = 0  # $ per million output tokens
+    input_cost: float | None = 0  # $ per million input tokens
+    output_cost: float | None = 0  # $ per million output tokens
     supports_json: bool = False
     supports_logprobs: bool = False
     reasoning_model: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
     tokens_per_minute: int | None = None
     requests_per_minute: int | None = None
-    gpus: Optional[list[str]] = None
+    gpus: list[str] | None = None
 
     @classmethod
     def from_registry(cls, name: str):
@@ -950,7 +949,7 @@ class APIModel:
             regions = self.regions
             weights = [1] * len(regions)
         elif isinstance(self.regions, dict):
-            regions = self.regions.keys()
+            regions = list(self.regions.keys())
             weights = self.regions.values()
         else:
             raise ValueError("no regions to sample")

@@ -11,7 +11,7 @@ pil_stub = types.ModuleType("PIL")
 pil_stub.Image = type("Image", (), {})
 sys.modules.setdefault("PIL", pil_stub)
 
-json_utils = import_module("src/llm_utils/util/json.py", name="json_utils")
+json_utils = import_module("src/lm_deluge/util/json.py", name="json_utils")
 
 
 def test_strip_json_removes_fences():

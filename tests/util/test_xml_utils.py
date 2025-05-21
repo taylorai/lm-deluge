@@ -10,7 +10,7 @@ pil_stub = types.ModuleType("PIL")
 pil_stub.Image = type("Image", (), {})
 sys.modules.setdefault("PIL", pil_stub)
 
-xml_utils = import_module("src/llm_utils/util/xml.py", name="xml_utils")
+xml_utils = import_module("src/lm_deluge/util/xml.py", name="xml_utils")
 
 
 def test_round_trip_object_to_xml():

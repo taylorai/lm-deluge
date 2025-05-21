@@ -11,7 +11,7 @@ pil_stub = types.ModuleType("PIL")
 pil_stub.Image = type("Image", (), {})
 sys.modules.setdefault("PIL", pil_stub)
 
-sp = import_module("src/llm_utils/sampling_params.py", name="sampling_params")
+sp = import_module("src/lm_deluge/sampling_params.py", name="sampling_params")
 
 
 def test_defaults():

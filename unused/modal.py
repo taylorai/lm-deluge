@@ -5,7 +5,7 @@
 #     model_weights: list[float],
 #     sampling_params: list[SamplingParams],
 #     batch_size: int = 1_000,
-#     progress_bar: Optional[tqdm] = None
+#     progress_bar: tqdm | None = None
 # ):
 #     # change ids to integer list
 #     if isinstance(ids, np.ndarray):
@@ -76,7 +76,7 @@
 #     self,
 #     batch_job_name: str,
 #     prompts: list[Prompt] | list[str] | list[list[dict]] | None = None,
-#     prompt_template: Optional[str] = None,
+#     prompt_template: str | None = None,
 #     inputs: list[tuple] | list[dict] | None = None,
 #     batch_size=50_000,
 #     metadata: list[dict] | None = None,
@@ -111,7 +111,7 @@
 #     self,
 #     batch_job_name: str,
 #     prompts: list[Prompt] | list[str] | list[list[dict]] | None = None,
-#     prompt_template: Optional[str] = None,
+#     prompt_template: str | None = None,
 #     inputs: list[tuple] | list[dict] | None = None,
 #     batch_size=50_000,
 #     metadata: list[dict] | None = None,

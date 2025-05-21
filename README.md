@@ -1,6 +1,6 @@
-# llm_utils
+# lm_deluge
 
-`llm_utils` is a lightweight helper library for talking to large language model APIs.  It wraps several providers under a single interface, handles rate limiting, and exposes a few useful utilities for common NLP tasks.
+`lm_deluge` is a lightweight helper library for talking to large language model APIs.  It wraps several providers under a single interface, handles rate limiting, and exposes a few useful utilities for common NLP tasks.
 
 ## Features
 
@@ -14,7 +14,7 @@
 ## Installation
 
 ```bash
-pip install llm_utils
+pip install lm_deluge
 ```
 
 The package relies on environment variables for API keys.  Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY` (for Llama) and `GOOGLE_APPLICATION_CREDENTIALS` for Vertex.
@@ -22,10 +22,10 @@ The package relies on environment variables for API keys.  Typical variables inc
 ## Quickstart
 
 ```python
-from llm_utils import LLMClient
+from lm_deluge import LLMClient
 
 client = LLMClient.basic(
-    model=["gpt-4o-mini"],    # any model id from llm_utils.models.registry
+    model=["gpt-4o-mini"],    # any model id from lm_deluge.models.registry
     temperature=0.2,
     max_new_tokens=256,
 )
@@ -70,11 +70,11 @@ client = LLMClient(
 - **Cohere** – set `COHERE_API_KEY`.  Models like `command-r` are available.
 - **Vertex Claude** – set `GOOGLE_APPLICATION_CREDENTIALS` and `PROJECT_ID`.  Use a model id such as `claude-sonnet-vertex`.
 
-The [models.py](src/llm_utils/models.py) file lists every supported model and the required environment variable.
+The [models.py](src/lm_deluge/models.py) file lists every supported model and the required environment variable.
 
 ## Built‑in tools
 
-The `llm_utils.llm_tools` package exposes a few helper functions:
+The `lm_deluge.llm_tools` package exposes a few helper functions:
 
 - `extract` – structure text or images into a Pydantic model based on a schema.
 - `translate` – translate a list of strings to English if needed.
@@ -84,9 +84,8 @@ Embeddings (`embed.embed_parallel_async`) and document reranking (`rerank.rerank
 
 ## Caching results
 
-`llm_utils.cache` includes LevelDB, SQLite and custom dictionary based caches.  Pass an instance via `LLMClient(..., cache=my_cache)` and previously seen prompts will not be re‑sent.
+`lm_deluge.cache` includes LevelDB, SQLite and custom dictionary based caches.  Pass an instance via `LLMClient(..., cache=my_cache)` and previously seen prompts will not be re‑sent.
 
 ## Development notes
 
-Models and costs are defined in [src/llm_utils/models.py](src/llm_utils/models.py).  Conversations are built using the `Conversation` and `Message` helpers in [src/llm_utils/prompt.py](src/llm_utils/prompt.py), which also support images.
-
+Models and costs are defined in [src/lm_deluge/models.py](src/lm_deluge/models.py).  Conversations are built using the `Conversation` and `Message` helpers in [src/lm_deluge/prompt.py](src/lm_deluge/prompt.py), which also support images.

@@ -11,7 +11,7 @@ pil_stub = types.ModuleType("PIL")
 pil_stub.Image = type("Image", (), {"open": lambda *a, **k: None})
 sys.modules.setdefault("PIL", pil_stub)
 
-image_mod = import_module("src/llm_utils/image.py", name="image")
+image_mod = import_module("src/lm_deluge/image.py", name="image")
 
 PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/Ps4TAAAAAElFTkSuQmCC"
 PNG_BYTES = base64.b64decode(PNG_B64)

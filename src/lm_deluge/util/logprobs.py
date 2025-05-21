@@ -1,6 +1,6 @@
 import re
 import numpy as np
-from typing import TypedDict, Optional, Callable
+from typing import TypedDict, Callable
 
 
 class TopLogprob(TypedDict):
@@ -403,7 +403,7 @@ def extract_prob(
     normalize_top_logprobs: bool = True,  # if using top_logprobs, normalize by all the present tokens so they add up to 1
     use_complement: bool = False,  # if True, assume there's 2 choices, and return 1 - p if the top token doesn't match
     token_index: int = 0,  # get from the first token of the completion by default
-    token_match_fn: Optional[Callable[[str, str], bool]] = is_match,
+    token_match_fn: Callable[[str, str], bool] | None = is_match,
 ):
     """
     Extract the probability of the token from the logprobs object of a single

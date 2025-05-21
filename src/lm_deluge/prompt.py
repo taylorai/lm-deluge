@@ -5,8 +5,8 @@ import xxhash
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Sequence
-from llm_utils.models import APIModel
-from llm_utils.image import Image
+from lm_deluge.models import APIModel
+from lm_deluge.image import Image
 
 ###############################################################################
 # 1. Low-level content blocks – either text or an image                       #

@@ -10,7 +10,7 @@ pil_stub = types.ModuleType("PIL")
 pil_stub.Image = type("Image", (), {})
 sys.modules.setdefault("PIL", pil_stub)
 
-models = import_module("src/llm_utils/models.py", name="models")
+models = import_module("src/lm_deluge/models.py", name="models")
 
 
 def test_model_present():

@@ -4,7 +4,6 @@ import aiohttp
 from tqdm.auto import tqdm
 import asyncio
 import time
-from typing import Optional
 from dataclasses import dataclass
 from .tracker import StatusTracker
 
@@ -28,7 +27,7 @@ class RerankingRequest:
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
         request_timeout: int,
-        pbar: Optional[tqdm] = None,
+        pbar: tqdm | None = None,
     ):
         self.task_id = task_id
         self.model_name = model_name
@@ -48,8 +47,7 @@ class RerankingRequest:
 
     def handle_success(self):
         self.increment_pbar()
-        self.status_tracker.num_tasks_in_progress -= 1
-        self.status_tracker.num_tasks_succeeded += 1
+        self.status_tracker.task_succeeded(self.task_id)
 
     def handle_error(self):
         """
@@ -69,8 +67,7 @@ class RerankingRequest:
             return
         else:
             print(f"Task {self.task_id} out of tries.")
-            self.status_tracker.num_tasks_in_progress -= 1
-            self.status_tracker.num_tasks_failed += 1
+            self.status_tracker.task_failed(self.task_id)
 
     async def handle_response(self, response: aiohttp.ClientResponse):
         try:
@@ -127,8 +124,9 @@ class RerankingRequest:
         try:
             self.status_tracker.total_requests += 1
             async with aiohttp.ClientSession() as session:
+                timeout = aiohttp.ClientTimeout(total=self.request_timeout)
                 async with session.post(
-                    url, headers=headers, json=data, timeout=self.request_timeout
+                    url, headers=headers, json=data, timeout=timeout
                 ) as response:
                     # print("got response!!")
                     response_obj: RerankingResponse = await self.handle_response(
@@ -176,7 +174,7 @@ class RerankingResponse:
     id: int
     status_code: int | None
     is_error: bool
-    error_message: Optional[str]
+    error_message: str | None
     query: str
     documents: list[str]
     top_k_indices: list[int]
@@ -196,7 +194,7 @@ async def rerank_parallel_async(
     max_requests_per_minute: int = 4_000,
     max_concurrent_requests: int = 500,
     request_timeout: int = 10,
-    progress_bar: Optional[tqdm] = None,
+    progress_bar: tqdm | None = None,
 ):
     """Processes rerank requests in parallel, throttling to stay under rate limits."""
     ids = range(len(queries))
@@ -243,8 +241,7 @@ async def rerank_parallel_async(
                         request_timeout=request_timeout,
                         pbar=progress_bar,
                     )
-                    status_tracker.num_tasks_started += 1
-                    status_tracker.num_tasks_in_progress += 1
+                    status_tracker.start_task(req_id)
                     results.append(next_request)
 
                 except StopIteration:
@@ -294,28 +291,17 @@ async def rerank_parallel_async(
         await asyncio.sleep(seconds_to_sleep_each_loop)
 
         # if a rate limit error was hit recently, pause to cool down
-        seconds_since_rate_limit_error = (
-            time.time() - status_tracker.time_of_last_rate_limit_error
+        remaining_seconds_to_pause = max(
+            0,
+            seconds_to_pause_after_rate_limit_error
+            - status_tracker.time_since_rate_limit_error,
         )
-        if seconds_since_rate_limit_error < seconds_to_pause_after_rate_limit_error:
-            remaining_seconds_to_pause = (
-                seconds_to_pause_after_rate_limit_error - seconds_since_rate_limit_error
-            )
+        if remaining_seconds_to_pause > 0:
             await asyncio.sleep(remaining_seconds_to_pause)
-            # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
-            print(
-                f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}"
-            )
+            print(f"Pausing {remaining_seconds_to_pause}s to cool down.")
 
     # after finishing, log final status
-    if status_tracker.num_tasks_failed > 0:
-        print(
-            f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed."
-        )
-    if status_tracker.num_rate_limit_errors > 0:
-        print(
-            f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
-        )
+    status_tracker.log_final_status()
 
     print(
         f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates."
