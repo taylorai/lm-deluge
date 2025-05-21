@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+# gitleaks
+gitleaks.json
+replacements.txt
+
 # Distribution / packaging
 .Python
 build/
