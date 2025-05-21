@@ -119,9 +119,7 @@ class AnthropicRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
-                print("response data:", data)
                 content = data["content"]  # [0]["text"]
-                print("content is length", len(content))
                 for item in content:
                     if item["type"] == "text":
                         completion = item["text"]

@@ -55,7 +55,7 @@ class CohereRequest(APIRequestBase):
 
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat"
-        self.system_message, chat_history, last_user_message = prompt.to_cohere()
+        messages = prompt.to_cohere()
 
         self.request_header = {
             "Authorization": f"bearer {os.getenv(self.model.api_key_env_var)}",
@@ -65,15 +65,11 @@ class CohereRequest(APIRequestBase):
 
         self.request_json = {
             "model": self.model.name,
-            "chat_history": chat_history,
-            "message": last_user_message,
+            "messages": messages,
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
             "max_tokens": sampling_params.max_new_tokens,
         }
-
-        if self.system_message:
-            self.request_json["preamble"] = self.system_message
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
