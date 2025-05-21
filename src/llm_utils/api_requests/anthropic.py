@@ -96,7 +96,7 @@ class AnthropicRequest(APIRequestBase):
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
 
-        print("request data:", self.request_json)
+        # print("request data:", self.request_json)
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
