@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 from typing import Optional, Callable
 
 from .base import APIRequestBase, APIResponse
-from ..prompt import Prompt
+from ..prompt import Conversation
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -21,7 +21,7 @@ class OpenAIRequest(APIRequestBase):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str,  # must correspond to registry
-        prompt: Prompt,
+        prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
