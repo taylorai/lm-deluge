@@ -1,4 +1,7 @@
 {
   "venv": ".venv",
-  "venvPath": "."
+  "venvPath": ".",
+  "exclude": [
+    "tests"
+  ]
 }
