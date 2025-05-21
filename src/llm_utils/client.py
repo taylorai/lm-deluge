@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from typing import Sequence, overload, Literal, Optional, Union, Any
 from tqdm.auto import tqdm
 
-from llm_utils.prompt_beta import Conversation
-from .prompt import Prompt
+from llm_utils.prompt import Conversation
+
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
 from .models import registry
@@ -227,7 +227,7 @@ class LLMClient:
     @overload
     async def process_prompts_async(
         self,
-        prompts: Sequence[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[str | list[dict] | Conversation],
         return_completions_only: bool,
         show_progress: bool = ...,
         dry_run: Literal[True] = ...,
@@ -237,7 +237,7 @@ class LLMClient:
     @overload
     async def process_prompts_async(
         self,
-        prompts: Sequence[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[str | list[dict] | Conversation],
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         dry_run: Literal[False] = ...,
@@ -247,7 +247,7 @@ class LLMClient:
     @overload
     async def process_prompts_async(
         self,
-        prompts: Sequence[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[str | list[dict] | Conversation],
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         dry_run: Literal[False] = ...,
@@ -256,19 +256,24 @@ class LLMClient:
 
     async def process_prompts_async(
         self,
-        prompts: Sequence[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[str | list[dict] | Conversation],
         return_completions_only: bool = False,
         show_progress: bool = True,
         dry_run: bool = False,
         verbose: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
-        # if prompts are not Prompts, convert them
-        prompts = [
-            Prompt(p)
-            if (not isinstance(p, Prompt) and not isinstance(p, Conversation))
-            else p
+        # if prompts are not Conversations, convert them.
+        # can only handle strings for now
+        prompts = [  # type: ignore
+            p
+            if isinstance(p, Conversation)
+            else Conversation.user(p)
+            if isinstance(p, str)
+            else None
             for p in prompts
         ]
+        if any(p is None for p in prompts):
+            raise ValueError("All prompts must be valid.")
         ids = np.arange(len(prompts))
 
         # if using cache, check for cached completions
@@ -353,7 +358,7 @@ class LLMClient:
 
     def process_prompts_sync(
         self,
-        prompts: Sequence[Prompt | str | list[dict] | Conversation],
+        prompts: Sequence[str | list[dict] | Conversation],
         return_completions_only: bool = False,
         show_progress=True,
         dry_run: bool = False,
@@ -424,9 +429,7 @@ class LLMClient:
             print("Batch job failed to start")
             raise ValueError(f"Error starting batch job: {response.text}")
 
-    def submit_batch_job(
-        self, prompts: Sequence[Prompt | str | list[dict] | Conversation]
-    ):
+    def submit_batch_job(self, prompts: Sequence[str | list[dict] | Conversation]):
         # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
         if len(self.models) != 1:
             raise ValueError("Batch jobs can only be submitted with a single model.")
@@ -435,18 +438,22 @@ class LLMClient:
             raise ValueError("Batch jobs can only be submitted with OpenAI models.")
 
         # if prompts are strings, convert them to message lists
-        prompts = [
-            Prompt(p)
-            if (not isinstance(p, Prompt) and not isinstance(p, Conversation))
-            else p
+        prompts = [  # type: ignore
+            p
+            if isinstance(p, Conversation)
+            else Conversation.user(p)
+            if isinstance(p, str)
+            else None
             for p in prompts
         ]
+        if any(p is None for p in prompts):
+            raise ValueError("All prompts must be valid.")
         ids = np.arange(len(prompts))
 
         # create file with requests to send to batch api
         batch_requests = []
         for id, prompt in zip(ids, prompts):
-            assert isinstance(prompt, Prompt) or isinstance(prompt, Conversation)
+            assert isinstance(prompt, Conversation)
             batch_requests.append(
                 {
                     "custom_id": str(id),
@@ -479,7 +486,7 @@ class LLMClient:
 
 def api_prompts_dry_run(
     ids: Union[np.ndarray, list[int]],
-    prompts: list[Prompt],
+    prompts: list[Conversation],
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],
@@ -537,7 +544,7 @@ def api_prompts_dry_run(
 
 async def process_api_prompts_async(
     ids: Union[np.ndarray, list[int]],
-    prompts: list[Prompt],
+    prompts: list[Conversation],
     models: Union[str, list[str]],
     model_weights: list[float],
     sampling_params: list[SamplingParams],

@@ -1,81 +1,264 @@
+import io
 import json
 import tiktoken
-from .models import APIModel
-from typing import Union
-from .image import Image
 import xxhash
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal, Sequence
+from llm_utils.models import APIModel
+from llm_utils.image import Image
 
-tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo")
+###############################################################################
+# 1. Low-level content blocks – either text or an image                       #
+###############################################################################
+Role = Literal["system", "user", "assistant"]
 
 
-# https://github.com/googleapis/python-genai/blob/main/google/genai/types.py
-class Part:
-    def __init__(self, type: str):
-        self.type = type
-
-
-class Prompt:
-    """
-    A prompt contains a user message, optionally an image,
-    optionally a system message. For now, not worrying about
-    multi-turn conversations.
-    """
-
-    def __init__(self, text: Union[str, list[dict]], image: Image | None = None):
-        self.image = image
-        if isinstance(text, str):
-            self.user_message = text
-            self.system_message = None
-        elif isinstance(text, list):
-            if len(text) > 2:
-                raise ValueError("Prompt can only have 2 messages.")
-            elif len(text) == 1:
-                if text[0]["role"] != "user":
-                    raise ValueError("Must have a user message.")
-                self.user_message = text[0]["content"]
-                self.system_message = None
-            else:
-                if text[0]["role"] == "system" and text[1]["role"] == "user":
-                    self.system_message = text[0]["content"]
-                    self.user_message = text[1]["content"]
-                else:
-                    raise ValueError(
-                        "First message must be system, second must be user."
-                    )
-        else:
-            raise ValueError("Prompt must be a string or a list of dictionaries.")
+@dataclass(slots=True)
+class Text:
+    text: str
+    type: str = field(init=False, default="text")
 
     @property
-    def fingerprint(self):
-        """
-        A unique identifier for the prompt.
-        """
-        content = {
-            "user_message": self.user_message,
-            "system_message": self.system_message,
-            "image": None if self.image is None else self.image.fingerprint,
-        }
-        hasher = xxhash.xxh64()
-        hasher.update(json.dumps(content).encode())
-        return hasher.hexdigest()
+    def fingerprint(self) -> str:
+        return xxhash.xxh64(self.text.encode()).hexdigest()
 
-    def count_tokens(self, max_new_tokens: int = 0, image_tokens: int = 0):
-        text = self.user_message
-        if self.system_message is not None:
-            text = self.system_message + " " + text
-        tokens = tokenizer.encode(text)
-        num_tokens = 10 + len(tokens)
+    # ── provider-specific emission ────────────────────────────────────────────
+    def oa_chat(self) -> dict | str:  # OpenAI Chat Completions
+        return {"type": "text", "text": self.text}
 
-        if self.image is not None:
-            num_tokens += image_tokens
+    def oa_resp(self) -> dict:  # OpenAI *Responses*  (new)
+        return {"type": "input_text", "text": self.text}
 
-        return num_tokens + max_new_tokens
+    def anthropic(self) -> dict:  # Anthropic Messages
+        return {"type": "text", "text": self.text}
 
-    def dry_run(
+    def gemini(self) -> dict:
+        return {"text": self.text}
+
+
+###############################################################################
+# 2. One conversational turn (role + parts)                                   #
+###############################################################################
+@dataclass(slots=True)
+class Message:
+    role: Role
+    parts: list[Text | Image]
+
+    @property
+    def fingerprint(self) -> str:
+        return self.role + "," + ",".join(part.fingerprint for part in self.parts)
+
+    def add_text(self, content: str) -> "Message":
+        """Append a text block and return self for chaining."""
+        self.parts.append(Text(content))
+        return self
+
+    def add_image(
         self,
-        model_name: str,
-        max_new_tokens: int,
-    ):
+        data: bytes | str | Path | io.BytesIO,
+        *,
+        media_type: str | None = None,
+        detail: Literal["low", "high", "auto"] = "auto",
+        max_size: int | None = None,
+    ) -> "Message":
+        """
+        Append an image block and return self for chaining.
+
+        If max_size is provided, the image will be resized so that its longer
+        dimension equals max_size, but only if the longer dimension is currently
+        larger than max_size.
+        """
+        img = Image(data, media_type=media_type, detail=detail)
+
+        # Resize if max_size is provided
+        if max_size is not None:
+            img.resize(max_size)
+
+        self.parts.append(img)
+        return self
+
+    # -------- convenient constructors --------
+    @classmethod
+    def user(
+        cls,
+        text: str | None = None,
+        *,
+        image: str | bytes | Path | io.BytesIO | None = None,
+    ) -> "Message":
+        res = cls("user", [])
+        if text is not None:
+            res.add_text(text)
+        if image is not None:
+            res.add_image(image)
+        return res
+
+    @classmethod
+    def system(cls, text: str | None = None) -> "Message":
+        res = cls("system", [])
+        if text is not None:
+            res.add_text(text)
+        return res
+
+    @classmethod
+    def ai(cls, text: str | None = None) -> "Message":
+        res = cls("assistant", [])
+        if text is not None:
+            res.add_text(text)
+        return res
+
+    # ──── provider-specific constructors ───
+    @classmethod
+    def from_oa(cls, msg: dict):
+        role = (
+            "system"
+            if msg["role"] in ["developer", "system"]
+            else ("user" if msg["role"] == "user" else "assistant")
+        )
+        parts: Sequence[Text | Image] = []
+        content = msg["content"]
+        if isinstance(content, str):
+            parts.append(Text(content))
+        else:
+            for item in content:
+                if item["type"] == "text":
+                    parts.append(Text(item["text"]))
+                elif item["type"] == "image_url":
+                    parts.append(Image(data=item["image_url"]["url"]))
+        return cls(role, parts)
+
+    @classmethod
+    def from_oa_resp(cls, msg: dict):
+        raise NotImplementedError("not implemented")
+
+    @classmethod
+    def from_anthropic(cls, msg: dict):
+        pass
+
+    # ───── provider-specific emission ─────
+    def oa_chat(self) -> dict:
+        content = []
+        for p in self.parts:
+            content.append(p.oa_chat())
+        return {"role": self.role, "content": content}
+
+    def oa_resp(self) -> dict:
+        content = [p.oa_resp() for p in self.parts]
+        return {"role": self.role, "content": content}
+
+    def anthropic(self) -> dict:
+        # Anthropic: system message is *not* in the list
+        if self.role == "system":
+            raise ValueError("Anthropic keeps system outside message list")
+        content = [p.anthropic() for p in self.parts]
+        # Shortcut: single text becomes a bare string
+        if len(content) == 1 and content[0]["type"] == "text":
+            content = content[0]["text"]
+        return {"role": self.role, "content": content}
+
+    def gemini(self) -> dict:
+        parts = [p.gemini() for p in self.parts]
+        # Shortcut: single text becomes a bare string
+        role = "user" if self.role == "user" else "model"
+        return {"role": role, "parts": parts}
+
+
+###############################################################################
+# 3. A whole conversation (ordered list of messages)                          #
+###############################################################################
+
+
+@dataclass(slots=True)
+class Conversation:
+    messages: list[Message] = field(default_factory=list)
+
+    # ── convenience shorthands ------------------------------------------------
+    @classmethod
+    def system(cls, text: str) -> "Conversation":
+        return cls([Message.system(text)])
+
+    @classmethod
+    def user(
+        cls, text: str, *, image: bytes | str | Path | None = None
+    ) -> "Conversation":
+        msg = (
+            Message.user(text) if image is None else Message.user(text).add_image(image)
+        )
+        return cls([msg])
+
+    @classmethod
+    def from_openai(cls, messages: list[dict]):
+        """Compatibility with openai-formatted messages"""
+        pass
+
+    @classmethod
+    def from_anthropic(cls, messages: list[dict], system: str | None = None):
+        """Compatibility with anthropic-formatted messages"""
+        pass
+
+    # fluent additions
+    def add(self, msg: Message) -> "Conversation":
+        self.messages.append(msg)
+        return self
+
+    # ── conversions -----------------------------------------------------------
+    def to_openai(self) -> list[dict]:
+        return [m.oa_chat() for m in self.messages]
+
+    def to_openai_responses(self) -> dict:
+        # OpenAI Responses = single “input” array, role must be user/assistant
+        return {"input": [m.oa_resp() for m in self.messages if m.role != "system"]}
+
+    def to_anthropic(self) -> tuple[str | None, list[dict]]:
+        system_msg = next(
+            (
+                m.parts[0].text
+                for m in self.messages
+                if m.role == "system" and isinstance(m.parts[0], Text)
+            ),
+            None,
+        )
+        other = [m.anthropic() for m in self.messages if m.role != "system"]
+        return system_msg, other
+
+    def to_gemini(self) -> tuple[str | None, list[dict]]:
+        system_msg = next(
+            (
+                m.parts[0].text
+                for m in self.messages
+                if m.role == "system" and isinstance(m.parts[0], Text)
+            ),
+            None,
+        )
+        other = [m.gemini() for m in self.messages if m.role != "system"]
+        return system_msg, other
+
+    def to_cohere(self) -> list[dict]:
+        messages = []
+        for m in self.messages:
+            if len(m.parts) > 1:
+                raise ValueError("Cohere does not support multi-part messages")
+            if isinstance(m.parts[0], Image):
+                raise ValueError("Cohere does not support images")
+            messages.append({"role": m.role, "text": m.parts[0].text})
+        return messages
+
+    # ── misc helpers ----------------------------------------------------------
+    _tok = tiktoken.encoding_for_model("gpt-4")
+
+    def count_tokens(self, max_new_tokens: int = 0, img_tokens: int = 85) -> int:
+        n = max_new_tokens
+        for m in self.messages:
+            for p in m.parts:
+                if isinstance(p, Text):
+                    n += len(self._tok.encode(p.text))
+                else:  # Image – crude flat cost per image
+                    n += img_tokens
+
+        # very rough BOS/EOS padding
+        return n + 6 * len(self.messages)
+
+    def dry_run(self, model_name: str, max_new_tokens: int):
         model_obj = APIModel.from_registry(model_name)
         if model_obj.api_spec == "openai":
             image_tokens = 85
@@ -93,109 +276,80 @@ class Prompt:
 
         return input_tokens, output_tokens, min_cost, max_cost
 
-    def to_openai(self):
+    @property
+    def fingerprint(self) -> str:
+        hasher = xxhash.xxh64()
+        hasher.update(json.dumps([m.fingerprint for m in self.messages]).encode())
+        return hasher.hexdigest()
+
+    def to_log(self) -> dict:
         """
-        Convert the prompt to a format that can be sent to the
-        OpenAI API.
+        Return a JSON-serialisable dict that fully captures the conversation.
         """
-        messages = []
-        if self.system_message is not None:
-            messages.append({"role": "system", "content": self.system_message})
+        serialized: list[dict] = []
 
-        if self.image is not None:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        self.image.to_openai_input(),
-                        {"type": "text", "text": self.user_message},
-                    ],
-                }
-            )
-        else:
-            messages.append({"role": "user", "content": self.user_message})
+        for msg in self.messages:
+            content_blocks: list[dict] = []
+            for p in msg.parts:
+                if isinstance(p, Text):
+                    content_blocks.append({"type": "text", "text": p.text})
+                else:  # Image – redact the bytes, keep a hint
+                    w, h = p.size
+                    content_blocks.append(
+                        {"type": "image", "tag": f"<Image ({w}×{h})>"}
+                    )
+            serialized.append({"role": msg.role, "content": content_blocks})
 
-        return messages
-
-    def to_cohere(self):
-        # {
-        #     "role": "USER" if message["role"] == "user" else "CHATBOT",
-        #     "message": message["content"]
-        # }
-        if self.image is not None:
-            raise ValueError("Cohere does not support images.")
-        # for multi-turn, we'd fill this in
-        chat_history = []
-        return self.system_message, chat_history, self.user_message
-
-    def to_gemini(self):
-        system_instruction = None
-        contents = []
-        if self.system_message is not None:
-            system_instruction = self.system_message
-
-        if self.image is not None:
-            contents.append(
-                {
-                    "role": "user",
-                    "parts": [
-                        self.image.to_gemini_input(),
-                        {"text": self.user_message},
-                    ],
-                }
-            )
-        else:
-            contents.append({"role": "user", "parts": [{"text": self.user_message}]})
-
-        return system_instruction, contents
-
-    def to_anthropic(self):
-        """
-        Convert the prompt to a format that can be sent to the
-        Anthropic API.
-        """
-        system_message = None
-        messages = []
-        if self.system_message is not None:
-            system_message = self.system_message
-
-        if self.image is not None:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": [
-                        self.image.to_anthropic_input(),
-                        {"type": "text", "text": self.user_message},
-                    ],
-                }
-            )
-        else:
-            messages.append({"role": "user", "content": self.user_message})
-
-        return system_message, messages
-
-    def to_mistral_bedrock(self, bos_token="<s>", eos_token="</s>"):
-        """
-        Convert the prompt to a format that can be sent to the
-        Mistral API.
-        """
-        formatted_conversation = bos_token
-        formatted_conversation += f"[INST] {self.user_message} [/INST]"
-        return formatted_conversation
-
-    def to_log(self):
-        return {
-            "user_message": self.user_message,
-            "system_message": self.system_message,
-            "image": None
-            if self.image is None
-            else f"<Image ({self.image.num_pixels} pixels)>",
-        }
+        return {"messages": serialized}
 
     @classmethod
-    def from_log(cls, log):
-        messages = []
-        if log["system_message"] is not None:
-            messages.append({"role": "system", "content": log["system_message"]})
-        messages.append({"role": "user", "content": log["user_message"]})
-        return cls(messages, image=None)
+    def from_log(cls, payload: dict) -> "Conversation":
+        """Re-hydrate a Conversation previously produced by `to_log()`."""
+        msgs: list[Message] = []
+
+        for m in payload.get("messages", []):
+            role: Role = m["role"]  # 'system' | 'user' | 'assistant'
+            parts: list[Text | Image] = []
+
+            for p in m["content"]:
+                if p["type"] == "text":
+                    parts.append(Text(p["text"]))
+                elif p["type"] == "image":
+                    # We only stored a placeholder tag, so keep that placeholder.
+                    # You could raise instead if real image bytes are required.
+                    parts.append(Image(p["tag"], detail="low"))
+                else:
+                    raise ValueError(f"Unknown part type {p['type']!r}")
+
+            msgs.append(Message(role, parts))
+
+        return cls(msgs)
+
+
+###############################################################################
+# --------------------------------------------------------------------------- #
+# Basic usage examples                                                        #
+# --------------------------------------------------------------------------- #
+
+# 1️⃣  trivial single-turn (text only)  ---------------------------------------
+# conv = Conversation.user("Hi Claude, who won the 2018 World Cup?")
+# client.messages.create(model="claude-3-7-sonnet", **conv.to_anthropic())
+
+# # 2️⃣  system + vision + follow-up for OpenAI Chat Completions  ---------------
+# conv = (
+#     Conversation.system("You are a visual assistant.")
+#     .add(
+#         Message.with_image(
+#             "user",
+#             "What's in this photo?",
+#             Image("boardwalk.jpg", detail="low"),
+#         )
+#     )
+#     .add(Message.text("assistant", "Looks like a lakeside boardwalk."))
+#     .add(Message.text("user", "Great, write a haiku about it."))
+# )
+
+# openai.chat.completions.create(model="gpt-4o-mini", messages=conv.to_openai_chat())
+
+# # 3️⃣  Same conversation sent through new Responses API -----------------------
+# openai.responses.create(model="gpt-4o-mini", **conv.to_openai_responses())

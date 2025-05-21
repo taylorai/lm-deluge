@@ -7,7 +7,7 @@ import time
 from tqdm import tqdm
 from typing import Optional, Callable
 
-from ..prompt import Prompt
+from llm_utils.prompt import Conversation
 from .base import APIRequestBase, APIResponse
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -50,7 +50,7 @@ class VertexAnthropicRequest(APIRequestBase):
         self,
         task_id: int,
         model_name: str,  # must correspond to registry
-        prompt: Prompt,
+        prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -178,7 +178,7 @@ class GeminiRequest(APIRequestBase):
         self,
         task_id: int,
         model_name: str,  # must correspond to registry
-        prompt: Prompt,
+        prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,

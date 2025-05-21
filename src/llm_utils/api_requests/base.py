@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Optional, Callable
 
-from llm_utils.prompt_beta import Conversation
-from ..prompt import Prompt
+from llm_utils.prompt import Conversation
+
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -21,7 +21,7 @@ class APIResponse:
     # request information
     id: int  # should be unique to the request within a given prompt-processing call
     model_internal: str  # our internal model tag
-    prompt: Prompt | Conversation
+    prompt: Conversation
     sampling_params: SamplingParams
 
     # http response information
@@ -92,7 +92,7 @@ class APIResponse:
             model_internal=data["model_internal"],
             model_external=data["model_external"],
             region=data["region"],
-            prompt=Prompt.from_log(data["prompt"]),
+            prompt=Conversation.from_log(data["prompt"]),
             sampling_params=SamplingParams(**data["sampling_params"]),
             status_code=data["status_code"],
             is_error=data["is_error"],
@@ -129,7 +129,7 @@ class APIRequestBase(ABC):
         # should always be 'role', 'content' keys.
         # internal logic should handle translating to specific API format
         model_name: str,  # must correspond to registry
-        prompt: Prompt | Conversation,
+        prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
         retry_queue: asyncio.Queue,
@@ -334,7 +334,7 @@ class APIRequestBase(ABC):
 def create_api_request(
     task_id: int,
     model_name: str,
-    prompt: Prompt | Conversation,
+    prompt: Conversation,
     attempts_left: int,
     status_tracker: StatusTracker,
     retry_queue: asyncio.Queue,
