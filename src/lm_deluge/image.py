@@ -191,6 +191,12 @@ class Image:
             },
         }
 
+    def mistral(self) -> dict:
+        return {
+            "type": "image_url",
+            "image_url": self._base64(),
+        }
+
     def gemini(self) -> dict:
         return {
             "inlineData": {

@@ -36,6 +36,9 @@ class Text:
     def gemini(self) -> dict:
         return {"text": self.text}
 
+    def mistral(self) -> dict:
+        return {"type": "text", "text": self.text}
+
 
 ###############################################################################
 # 2. One conversational turn (role + parts)                                   #
@@ -162,6 +165,12 @@ class Message:
         role = "user" if self.role == "user" else "model"
         return {"role": role, "parts": parts}
 
+    def mistral(self) -> dict:
+        parts = [p.mistral() for p in self.parts]
+        # Shortcut: single text becomes a bare string
+        role = self.role
+        return {"role": role, "content": parts}
+
 
 ###############################################################################
 # 3. A whole conversation (ordered list of messages)                          #
@@ -233,15 +242,8 @@ class Conversation:
         other = [m.gemini() for m in self.messages if m.role != "system"]
         return system_msg, other
 
-    def to_cohere(self) -> list[dict]:
-        messages = []
-        for m in self.messages:
-            if len(m.parts) > 1:
-                raise ValueError("Cohere does not support multi-part messages")
-            if isinstance(m.parts[0], Image):
-                raise ValueError("Cohere does not support images")
-            messages.append({"role": m.role, "text": m.parts[0].text})
-        return messages
+    def to_mistral(self) -> list[dict]:
+        return [m.mistral() for m in self.messages]
 
     # ── misc helpers ----------------------------------------------------------
     _tok = tiktoken.encoding_for_model("gpt-4")

@@ -41,6 +41,7 @@ class APIResponse:
     logprobs: list | None = None
     finish_reason: str | None = None  # make required later
     cost: float | None = None  # calculated automatically
+    cache_hit: bool = False  # manually set if true
     # set to true if is_error and should be retried with a different model
     retry_with_different_model: bool | None = False
     # set to true if should NOT retry with the same model (unrecoverable error)

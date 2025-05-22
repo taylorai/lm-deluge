@@ -31,8 +31,8 @@ def strip_json(json_string: str | None) -> str | None:
     if json_string is None:
         return None
     json_string = json_string.strip()
-    if json_string.startswith("```json"):
-        json_string = json_string.split("```json", 1)[1]
+    json_string = json_string.removeprefix("```json")
+    json_string = json_string.removesuffix("```")
     if "```json\n" in json_string:
         json_string = json_string.split("```json\n", 1)[1]
     json_string = json_string.strip("`").strip()
@@ -127,7 +127,8 @@ def load_json(
     if json_string is None:
         raise ValueError("Invalid (None) json_string")
     json_string = strip_json(json_string)
-    raise ValueError("Invalid (empty) json_string")
+    if json_string is None or len(json_string) == 0:
+        raise ValueError("Invalid (empty) json_string")
 
     # Try standard JSON parsing
     try:

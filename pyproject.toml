@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "lm_deluge"
-version = "0.0.4"
+version = "0.0.6"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
@@ -25,15 +25,12 @@ dependencies = [
     "pydantic",
     "bs4",
     "lxml",
+    "pdf2image",
+    "pillow"
 ]
 
 [project.optional-dependencies]
-image = ["pdf2image", "pillow"]
-pdf = ["pdf2image", "pymupdf"]
-translate = ["fasttext-wheel", "fasttext-langdetect"]
 full = [
-    "pillow",
-    "pdf2image",
     "pymupdf",
     "fasttext-wheel",
     "fasttext-langdetect",

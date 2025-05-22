@@ -1,5 +1,5 @@
 import json
-from src.lm_deluge.util.json import heal_json, load_json
+from lm_deluge.util.json import heal_json, load_json, strip_json
 
 
 def test_healing():
@@ -61,5 +61,18 @@ def test_healing():
         print(f"load_json failed: {e}")
 
 
+def test_strip_json_removes_fences():
+    raw = '```json\n{"a":1}\n```'
+    assert strip_json(raw) == '{"a":1}'
+
+
+def test_heal_json_adds_missing_brackets():
+    broken = '{"a": [1, 2}'
+    healed = heal_json(broken)
+    assert healed.endswith("]}")
+
+
 if __name__ == "__main__":
     test_healing()
+    test_strip_json_removes_fences()
+    test_heal_json_adds_missing_brackets()

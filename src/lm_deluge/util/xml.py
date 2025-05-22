@@ -66,26 +66,25 @@ def get_tags(html_string: str, tag: str, return_attributes: bool = False) -> lis
         return []
 
     try:
-        # Regex pattern to match all instances of the tag and capture attributes and content
+        # 1. find the tag + inner HTML exactly as before
         pattern = re.compile(rf"<{tag}([^>]*)>(.*?)</{tag}>", re.DOTALL)
         matches = pattern.findall(html_string)
 
+        # 2. only parse attributes if the caller asked for them
         if not return_attributes:
-            return [
-                match[1] for match in matches
-            ]  # Return just the content inside the tags
+            return [m[1] for m in matches]
 
-        # Parse attributes if return_attributes is True
-        attributes_pattern = re.compile(r'(\w+)\s*=\s*"([^"]*)"')  # Matches key="value"
+        # --- new bits ---------------------------------------------------------------
+        # key  = (\w+)
+        # quote = (['"])          ← remembers whether it was ' or "
+        # value = (.*?)\2         ← capture up to the *same* quote (back-ref \2)
+        attributes_pattern = re.compile(r'(\w+)\s*=\s*([\'"])(.*?)\2')
 
         results = []
-        for match in matches:
-            tag_attributes = match[0]  # The attributes portion of the tag
-            tag_contents = match[1]  # The content portion of the tag
+        for tag_attrs, tag_contents in matches:
+            attrs = {key: val for key, _, val in attributes_pattern.findall(tag_attrs)}
+            results.append({"content": tag_contents, "attributes": attrs})
 
-            # Parse attributes into a dictionary
-            attributes = dict(attributes_pattern.findall(tag_attributes))
-            results.append({"content": tag_contents, "attributes": attributes})
         return results
     except re.error:
         print(f"Failed to compile regular expression for HTML tag '{tag}'")

@@ -58,13 +58,18 @@ class OpenAIRequest(APIRequestBase):
         self.request_header = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
+
         self.request_json = {
             "model": self.model.name,
             "messages": prompt.to_openai(),
             "temperature": sampling_params.temperature,
             "top_p": sampling_params.top_p,
-            "max_completion_tokens": sampling_params.max_new_tokens,
         }
+        # set max_tokens or max_completion_tokens dep. on provider
+        if "cohere" in self.model.api_base:
+            self.request_json["max_tokens"] = sampling_params.max_new_tokens
+        elif "openai" in self.model.api_base:
+            self.request_json["max_completion_tokens"] = sampling_params.max_new_tokens
         if self.model.reasoning_model:
             self.request_json["temperature"] = 1.0
             self.request_json["top_p"] = 1.0
@@ -84,6 +89,7 @@ class OpenAIRequest(APIRequestBase):
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
         error_message = None
+        thinking = None
         completion = None
         input_tokens = None
         output_tokens = None
@@ -103,6 +109,8 @@ class OpenAIRequest(APIRequestBase):
                 assert data is not None, "data is None"
                 try:
                     completion = data["choices"][0]["message"]["content"]
+                    if "reasoning_content" in data["choices"][0]["message"]:
+                        thinking = data["choices"][0]["message"]["reasoning_content"]
                     input_tokens = data["usage"]["prompt_tokens"]
                     output_tokens = data["usage"]["completion_tokens"]
                     if self.logprobs and "logprobs" in data["choices"][0]:
@@ -135,6 +143,7 @@ class OpenAIRequest(APIRequestBase):
             error_message=error_message,
             prompt=self.prompt,
             logprobs=logprobs,
+            thinking=thinking,
             completion=completion,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,

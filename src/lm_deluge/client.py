@@ -345,6 +345,7 @@ class LLMClient:
 
         # add cache hits back in
         for id, res in zip(cache_hit_ids, cache_hit_results):
+            res.cache_hit = True
             results[id] = res
 
         if return_completions_only:
