@@ -17,11 +17,6 @@
 pip install lm-deluge
 ```
 
-There are optional goodies. If you want support for PDFs and language-detection via FastText:
-```bash
-pip install "lm-deluge[full]"
-```
-
 The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GOOGLE_API_KEY`. `LLMClient` will automatically load the `.env` file when imported; we recommend using that to set the environment variables.
 
 ## Quickstart
