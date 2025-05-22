@@ -85,6 +85,7 @@ class LLMClient:
     def __init__(
         self,
         model_names: list[str],
+        *,
         max_requests_per_minute: int,
         max_tokens_per_minute: int,
         max_concurrent_requests: int,

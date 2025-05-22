@@ -2,14 +2,12 @@
 
 `lm_deluge` is a lightweight helper library for maxing out your rate limits with LLM providers. It provides the following:
 
-- **Unified client** – Send prompts to OpenAI‑compatible models (including Gemini, Grok, Together AI, Deepseek, Meta, and Cohere), Anthropic models, and Mistral models with a single client.
-- **Massive concurrency with throttling** – Set `max_tokens_per_minute` and `max_requests_per_minute` and let it fly. The client will process as many requests as possible while respecting rate limits, pausing to cool down when rate limits are exceeded, and retrying failed requests.
-- **Spray across models/providers** – Configure a client with multiple models, including from different providers, and sampling weights. The client will sample a model for each request according to the weights you provide.
-- **Caching** – Save completions in a local or distributed cache (Sqlite, LevelDB, or any cache that implements `get` and `put`) to avoid repeated LLM calls to process the same input.
-- **Convenient message constructor** – No more looking up how to build an Anthropic messages list with images. Our `Conversation` and `Message` classes work great with our client, but you can also use them with `openai` and `anthropic` packages.
-- **Sync and async APIs** – Use the client from sync or async code. The async client API works great in Jupyter notebooks.
-- **Embeddings and reranking** – (Experimental) utilities for embedding text and reranking documents via Cohere/OpenAI endpoints.
-- **Built‑in tools** – simple `extract`, `translate` and `score_llm` helper tools for common patterns.
+- **Unified client** – Send prompts to all relevant models with a single client.
+- **Massive concurrency with throttling** – Set `max_tokens_per_minute` and `max_requests_per_minute` and let it fly. The client will process as many requests as possible while respecting rate limits and retrying failures.
+- **Spray across models/providers** – Configure a client with multiple models from any provider(s), and sampling weights. The client samples a model for each request.
+- **Caching** – Save completions in a local or distributed cache to avoid repeated LLM calls to process the same input.
+- **Convenient message constructor** – No more looking up how to build an Anthropic messages list with images. Our `Conversation` and `Message` classes work great with our client or with the `openai` and `anthropic` packages.
+- **Sync and async APIs** – Use the client from sync or async code.
 
 **STREAMING IS NOT IN SCOPE.** There are plenty of packages that let you stream chat completions across providers. The sole purpose of this package is to do very fast batch inference using APIs. Sorry!
 
@@ -59,13 +57,37 @@ print(resp[0].completion)
 
 API calls can be customized in a few ways.
 
-1. **Sampling Parameters.** This determines things like structured outputs, maximum completion tokens, nucleus sampling, etc. Provide a custom `SamplingParams` to the `LLMClient` to set temperature, top_p, json_mode, max_new_tokens, and/or reasoning_effort. You can pass 1 `SamplingParams` to use for all models, or a list of `SamplingParams` that's the same length as the list of models.
+1. **Sampling Parameters.** This determines things like structured outputs, maximum completion tokens, nucleus sampling, etc. Provide a custom `SamplingParams` to the `LLMClient` to set temperature, top_p, json_mode, max_new_tokens, and/or reasoning_effort.
+
+You can pass 1 `SamplingParams` to use for all models, or a list of `SamplingParams` that's the same length as the list of models. You can also pass many of these arguments directly to `LLMClient.basic` so you don't have to construct an entire `SamplingParams` object.
+
+
 2. **Arguments to LLMClient.** This is where you set request timeout, rate limits, model name(s), model weight(s) for distributing requests across models, retries, and caching.
 3. **Arguments to process_prompts.** Per-call, you can set verbosity, whether to display progress, and whether to return just completions (rather than the full APIResponse object).
 
+Putting it all together:
+
+```python
+from lm_deluge import LLMClient, SamplingParams
+
+client = LLMClient(
+    "gpt-4",
+    max_requests_per_minute=100,
+    max_tokens_per_minute=100_000,
+    max_concurrent_requests=500,
+    sampling_params=SamplingParams(temperature=0.5, max_new_tokens=30)
+)
+
+await client.process_prompts_async(
+    ["What is the capital of Mars?"],
+    show_progress=False,
+    return_completions_only=True
+)
+```
+
 ## Multi-Turn Conversations
 
-Construction conversations to pass to models is notoriously annoying. Each provider has a slightly different way of defining a list of messages, and with the introduction of images/multi-part messages it's only gotten worse. We provide convenience constructors so you don't have to remember all that stuff.
+Constructing conversations to pass to models is notoriously annoying. Each provider has a slightly different way of defining a list of messages, and with the introduction of images/multi-part messages it's only gotten worse. We provide convenience constructors so you don't have to remember all that stuff.
 
 ```python
 from lm_deluge import Message, Conversation
@@ -78,7 +100,7 @@ client = LLMClient.basic("gpt-4.1-mini")
 resps = client.process_prompts_sync([prompt])
 ```
 
-This just works. Images can be local images on disk, URLs, bytes, base64 data URLs... go wild. You can use `Conversation.to_openai` or `Conversation.to_anthropic` to format your messages, even if you are using the OpenAI or Anthropic clients directly.
+This just works. Images can be local images on disk, URLs, bytes, base64 data URLs... go wild. You can use `Conversation.to_openai` or `Conversation.to_anthropic` to format your messages for the OpenAI or Anthropic clients directly.
 
 ## Caching
 
