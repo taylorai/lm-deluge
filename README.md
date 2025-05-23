@@ -5,6 +5,8 @@
 - **Unified client** – Send prompts to all relevant models with a single client.
 - **Massive concurrency with throttling** – Set `max_tokens_per_minute` and `max_requests_per_minute` and let it fly. The client will process as many requests as possible while respecting rate limits and retrying failures.
 - **Spray across models/providers** – Configure a client with multiple models from any provider(s), and sampling weights. The client samples a model for each request.
+- **Tool Use** – Unified API for defining tools for all providers, and creating tools automatically from python functions.
+- **MCP Support** – Instantiate a `Tool` from a local or remote MCP server so that any LLM can use it, whether or not that provider natively supports MCP.
 - **Caching** – Save completions in a local or distributed cache to avoid repeated LLM calls to process the same input.
 - **Convenient message constructor** – No more looking up how to build an Anthropic messages list with images. Our `Conversation` and `Message` classes work great with our client or with the `openai` and `anthropic` packages.
 - **Sync and async APIs** – Use the client from sync or async code.

@@ -146,11 +146,12 @@ class Tool(BaseModel):
     @classmethod
     async def from_mcp(
         cls,
+        server_name: str,
         *,
-        tool_name: str | None = None,
+        tool_name: str,
         timeout: float | None = None,
         **server_spec,  # url="…"  OR  command="…" args=[…]
-    ) -> "Tool" | list["Tool"]:
+    ) -> Any:  # Tool | list[Tool]
         """
         Thin wrapper for one server.  Example uses:
 
@@ -161,9 +162,8 @@ class Tool(BaseModel):
         if not (server_spec.get("url") or server_spec.get("command")):
             raise ValueError("most provide url or command")
         # build a one-server desktop-style dict
-        cfg = {"single": server_spec}
+        cfg = {server_name: server_spec}
         tools = await cls.from_mcp_config(cfg, timeout=timeout)
-
         if tool_name is None:
             return tools
         for t in tools:
