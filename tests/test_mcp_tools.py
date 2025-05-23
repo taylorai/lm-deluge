@@ -123,12 +123,34 @@ async def use_exa_tool_with_llm():
     print("✅ Confirmed model response successfully called tool.")
 
 
+async def test_multi_server_config():
+    config = {
+        "mcpServers": {
+            "exa": {
+                "url": f"https://mcp.exa.ai/mcp?exaApiKey={os.getenv('EXA_API_KEY')}"
+            },
+            "zapier": {
+                "url": f"https://mcp.zapier.com/api/mcp/s/{os.getenv('ZAPIER_MCP_SECRET')}/mcp"
+            },
+        }
+    }
+
+    # Load all tools from all configured servers
+    tools = await Tool.from_mcp_config(config, timeout=30)
+
+    print(f"Loaded {len(tools)} tools from MCP servers:")
+    for tool in tools:
+        print(f"  - {tool.name}: {tool.description}")
+    print("✅ Loaded tools from multiple servers.")
+
+
 async def main():
     await test_zapier_fastmcp_client()
     await run_zapier_tool()  # WARNING: FLAKY if bad internet
     await use_zapier_tool_with_llm()
     await test_exa_fastmcp_client()
     await use_exa_tool_with_llm()
+    await test_multi_server_config()
 
 
 if __name__ == "__main__":
