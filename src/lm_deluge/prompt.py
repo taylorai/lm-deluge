@@ -4,14 +4,14 @@ import tiktoken
 import xxhash
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal
 from lm_deluge.models import APIModel
 from lm_deluge.image import Image
 
 ###############################################################################
 # 1. Low-level content blocks – either text or an image                       #
 ###############################################################################
-Role = Literal["system", "user", "assistant"]
+Role = Literal["system", "user", "assistant", "tool"]
 
 
 @dataclass(slots=True)
@@ -40,17 +40,234 @@ class Text:
         return {"type": "text", "text": self.text}
 
 
+@dataclass(slots=True)
+class ToolCall:
+    id: str  # unique identifier
+    name: str  # function name
+    arguments: dict  # parsed arguments
+    type: str = field(init=False, default="tool_call")
+
+    @property
+    def fingerprint(self) -> str:
+        return xxhash.xxh64(
+            f"{self.id}:{self.name}:{json.dumps(self.arguments, sort_keys=True)}".encode()
+        ).hexdigest()
+
+    # ── provider-specific emission ────────────────────────────────────────────
+    def oa_chat(self) -> dict:  # OpenAI Chat Completions
+        return {
+            "id": self.id,
+            "type": "function",
+            "function": {"name": self.name, "arguments": json.dumps(self.arguments)},
+        }
+
+    def oa_resp(self) -> dict:  # OpenAI Responses
+        return {
+            "type": "function_call",
+            "id": self.id,
+            "name": self.name,
+            "arguments": self.arguments,
+        }
+
+    def anthropic(self) -> dict:  # Anthropic Messages
+        return {
+            "type": "tool_use",
+            "id": self.id,
+            "name": self.name,
+            "input": self.arguments,
+        }
+
+    def gemini(self) -> dict:
+        return {"functionCall": {"name": self.name, "args": self.arguments}}
+
+    def mistral(self) -> dict:
+        return {
+            "type": "tool_call",
+            "id": self.id,
+            "function": {"name": self.name, "arguments": json.dumps(self.arguments)},
+        }
+
+
+@dataclass(slots=True)
+class ToolResult:
+    tool_call_id: str  # references the ToolCall.id
+    result: str  # tool execution result
+    type: str = field(init=False, default="tool_result")
+
+    @property
+    def fingerprint(self) -> str:
+        return xxhash.xxh64(f"{self.tool_call_id}:{self.result}".encode()).hexdigest()
+
+    # ── provider-specific emission ────────────────────────────────────────────
+    def oa_chat(
+        self,
+    ) -> dict:  # OpenAI Chat Completions - tool results are separate messages
+        return {"tool_call_id": self.tool_call_id, "content": self.result}
+
+    def oa_resp(self) -> dict:  # OpenAI Responses
+        return {
+            "type": "function_result",
+            "call_id": self.tool_call_id,
+            "result": self.result,
+        }
+
+    def anthropic(self) -> dict:  # Anthropic Messages
+        return {
+            "type": "tool_result",
+            "tool_use_id": self.tool_call_id,
+            "content": self.result,
+        }
+
+    def gemini(self) -> dict:
+        return {
+            "functionResponse": {
+                "name": self.tool_call_id,  # Gemini uses name field for ID
+                "response": {"result": self.result},
+            }
+        }
+
+    def mistral(self) -> dict:
+        return {
+            "type": "tool_result",
+            "tool_call_id": self.tool_call_id,
+            "content": self.result,
+        }
+
+
+@dataclass(slots=True)
+class Thinking:
+    content: str  # reasoning content (o1, Claude thinking, etc.)
+    type: str = field(init=False, default="thinking")
+
+    @property
+    def fingerprint(self) -> str:
+        return xxhash.xxh64(self.content.encode()).hexdigest()
+
+    # ── provider-specific emission ────────────────────────────────────────────
+    def oa_chat(self) -> dict:  # OpenAI Chat Completions
+        # Thinking is typically not emitted back, but if needed:
+        return {"type": "text", "text": f"[Thinking: {self.content}]"}
+
+    def oa_resp(self) -> dict:  # OpenAI Responses
+        return {"type": "reasoning", "content": self.content}
+
+    def anthropic(self) -> dict:  # Anthropic Messages
+        return {"type": "thinking", "thinking": self.content}
+
+    def gemini(self) -> dict:
+        return {"text": f"[Thinking: {self.content}]"}
+
+    def mistral(self) -> dict:
+        return {"type": "text", "text": f"[Thinking: {self.content}]"}
+
+
+Part = Text | Image | ToolCall | ToolResult | Thinking
+
+
 ###############################################################################
 # 2. One conversational turn (role + parts)                                   #
 ###############################################################################
 @dataclass(slots=True)
 class Message:
     role: Role
-    parts: list[Text | Image]
+    parts: list[Part]
 
     @property
     def fingerprint(self) -> str:
         return self.role + "," + ",".join(part.fingerprint for part in self.parts)
+
+    @property
+    def completion(self) -> str | None:
+        """Extract text content from the first Text part, for backward compatibility."""
+        for part in self.parts:
+            if isinstance(part, Text):
+                return part.text
+        return None
+
+    @property
+    def tool_calls(self) -> list["ToolCall"]:
+        """Get all tool call parts with proper typing."""
+        return [part for part in self.parts if part.type == "tool_call"]  # type: ignore
+
+    @property
+    def tool_results(self) -> list["ToolResult"]:
+        """Get all tool result parts with proper typing."""
+        return [part for part in self.parts if part.type == "tool_result"]  # type: ignore
+
+    @property
+    def text_parts(self) -> list["Text"]:
+        """Get all text parts with proper typing."""
+        return [part for part in self.parts if part.type == "text"]  # type: ignore
+
+    @property
+    def images(self) -> list[Image]:
+        """Get all image parts with proper typing."""
+        return [part for part in self.parts if part.type == "image"]  # type: ignore
+
+    @property
+    def thinking_parts(self) -> list["Thinking"]:
+        """Get all thinking parts with proper typing."""
+        return [part for part in self.parts if part.type == "thinking"]  # type: ignore
+
+    def to_log(self) -> dict:
+        """
+        Return a JSON-serialisable dict that fully captures the message.
+        """
+        content_blocks: list[dict] = []
+        for p in self.parts:
+            if isinstance(p, Text):
+                content_blocks.append({"type": "text", "text": p.text})
+            elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
+                w, h = p.size
+                content_blocks.append({"type": "image", "tag": f"<Image ({w}×{h})>"})
+            elif isinstance(p, ToolCall):
+                content_blocks.append(
+                    {
+                        "type": "tool_call",
+                        "id": p.id,
+                        "name": p.name,
+                        "arguments": p.arguments,
+                    }
+                )
+            elif isinstance(p, ToolResult):
+                content_blocks.append(
+                    {
+                        "type": "tool_result",
+                        "tool_call_id": p.tool_call_id,
+                        "result": p.result,
+                    }
+                )
+            elif isinstance(p, Thinking):
+                content_blocks.append({"type": "thinking", "content": p.content})
+
+        return {"role": self.role, "content": content_blocks}
+
+    @classmethod
+    def from_log(cls, data: dict) -> "Message":
+        """Re-hydrate a Message previously produced by `to_log()`."""
+        role: Role = data["role"]
+        parts: list[Part] = []
+
+        for p in data["content"]:
+            if p["type"] == "text":
+                parts.append(Text(p["text"]))
+            elif p["type"] == "image":
+                # We only stored a placeholder tag, so keep that placeholder.
+                parts.append(Image(p["tag"], detail="low"))
+            elif p["type"] == "tool_call":
+                parts.append(
+                    ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
+                )
+            elif p["type"] == "tool_result":
+                parts.append(
+                    ToolResult(tool_call_id=p["tool_call_id"], result=p["result"])
+                )
+            elif p["type"] == "thinking":
+                parts.append(Thinking(content=p["content"]))
+            else:
+                raise ValueError(f"Unknown part type {p['type']!r}")
+
+        return cls(role, parts)
 
     def add_text(self, content: str) -> "Message":
         """Append a text block and return self for chaining."""
@@ -79,6 +296,21 @@ class Message:
             img.resize(max_size)
 
         self.parts.append(img)
+        return self
+
+    def add_tool_call(self, id: str, name: str, arguments: dict) -> "Message":
+        """Append a tool call block and return self for chaining."""
+        self.parts.append(ToolCall(id=id, name=name, arguments=arguments))
+        return self
+
+    def add_tool_result(self, tool_call_id: str, result: str) -> "Message":
+        """Append a tool result block and return self for chaining."""
+        self.parts.append(ToolResult(tool_call_id=tool_call_id, result=result))
+        return self
+
+    def add_thinking(self, content: str) -> "Message":
+        """Append a thinking block and return self for chaining."""
+        self.parts.append(Thinking(content=content))
         return self
 
     # -------- convenient constructors --------
@@ -118,16 +350,32 @@ class Message:
             if msg["role"] in ["developer", "system"]
             else ("user" if msg["role"] == "user" else "assistant")
         )
-        parts: Sequence[Text | Image] = []
+        parts: list[Part] = []
         content = msg["content"]
         if isinstance(content, str):
-            parts.append(Text(content))
+            parts = [Text(content)]
         else:
+            part_list = []
             for item in content:
                 if item["type"] == "text":
-                    parts.append(Text(item["text"]))
+                    part_list.append(Text(item["text"]))
                 elif item["type"] == "image_url":
-                    parts.append(Image(data=item["image_url"]["url"]))
+                    part_list.append(Image(data=item["image_url"]["url"]))
+            parts = part_list
+
+        # Handle tool calls (assistant messages)
+        if "tool_calls" in msg:
+            part_list = list(parts) if parts else []
+            for tool_call in msg["tool_calls"]:
+                part_list.append(
+                    ToolCall(
+                        id=tool_call["id"],
+                        name=tool_call["function"]["name"],
+                        arguments=json.loads(tool_call["function"]["arguments"]),
+                    )
+                )
+            parts = part_list
+
         return cls(role, parts)
 
     @classmethod
@@ -140,10 +388,35 @@ class Message:
 
     # ───── provider-specific emission ─────
     def oa_chat(self) -> dict:
-        content = []
-        for p in self.parts:
-            content.append(p.oa_chat())
-        return {"role": self.role, "content": content}
+        if self.role == "tool":
+            # For tool messages, we expect a single ToolResult part (after splitting in to_openai)
+            tool_results = [p for p in self.parts if isinstance(p, ToolResult)]
+            if len(tool_results) == 1:
+                tool_result = tool_results[0]
+                return {
+                    "role": "tool",
+                    "tool_call_id": tool_result.tool_call_id,
+                    "content": tool_result.result,
+                }
+            else:
+                raise ValueError(
+                    f"Tool role messages must contain exactly one ToolResult part for OpenAI, got {len(tool_results)}"
+                )
+        else:
+            content = []
+            tool_calls = []
+
+            for p in self.parts:
+                if isinstance(p, ToolCall):
+                    tool_calls.append(p.oa_chat())
+                else:
+                    content.append(p.oa_chat())
+
+            result = {"role": self.role, "content": content}
+            if tool_calls:
+                result["tool_calls"] = tool_calls
+
+            return result
 
     def oa_resp(self) -> dict:
         content = [p.oa_resp() for p in self.parts]
@@ -155,7 +428,7 @@ class Message:
             raise ValueError("Anthropic keeps system outside message list")
         content = [p.anthropic() for p in self.parts]
         # Shortcut: single text becomes a bare string
-        if len(content) == 1 and content[0]["type"] == "text":
+        if len(content) == 1 and content[0].get("type") == "text":
             content = content[0]["text"]
         return {"role": self.role, "content": content}
 
@@ -210,9 +483,34 @@ class Conversation:
         self.messages.append(msg)
         return self
 
+    def add_tool_result(self, tool_call_id: str, result: str) -> "Conversation":
+        """Add a tool result to the conversation.
+
+        If the conversation ends with a tool message, append to it (for parallel tool calls).
+        Otherwise, create a new tool message.
+        """
+        if self.messages and self.messages[-1].role == "tool":
+            # Append to existing tool message (parallel tool calls)
+            self.messages[-1].add_tool_result(tool_call_id, result)
+        else:
+            # Create new tool message
+            tool_msg = Message("tool", [])
+            tool_msg.add_tool_result(tool_call_id, result)
+            self.messages.append(tool_msg)
+        return self
+
     # ── conversions -----------------------------------------------------------
     def to_openai(self) -> list[dict]:
-        return [m.oa_chat() for m in self.messages]
+        result = []
+        for m in self.messages:
+            if m.role == "tool" and len(m.tool_results) > 1:
+                # Split tool messages with multiple results into separate messages for OpenAI
+                for tool_result in m.tool_results:
+                    tool_msg = Message("tool", [tool_result])
+                    result.append(tool_msg.oa_chat())
+            else:
+                result.append(m.oa_chat())
+        return result
 
     def to_openai_responses(self) -> dict:
         # OpenAI Responses = single “input” array, role must be user/assistant
@@ -227,7 +525,16 @@ class Conversation:
             ),
             None,
         )
-        other = [m.anthropic() for m in self.messages if m.role != "system"]
+        other = []
+        for m in self.messages:
+            if m.role == "system":
+                continue
+            elif m.role == "tool":
+                # Convert tool messages to user messages for Anthropic
+                user_msg = Message("user", m.parts)
+                other.append(user_msg.anthropic())
+            else:
+                other.append(m.anthropic())
         return system_msg, other
 
     def to_gemini(self) -> tuple[str | None, list[dict]]:
@@ -295,11 +602,30 @@ class Conversation:
             for p in msg.parts:
                 if isinstance(p, Text):
                     content_blocks.append({"type": "text", "text": p.text})
-                else:  # Image – redact the bytes, keep a hint
+                elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
                     w, h = p.size
                     content_blocks.append(
                         {"type": "image", "tag": f"<Image ({w}×{h})>"}
                     )
+                elif isinstance(p, ToolCall):
+                    content_blocks.append(
+                        {
+                            "type": "tool_call",
+                            "id": p.id,
+                            "name": p.name,
+                            "arguments": p.arguments,
+                        }
+                    )
+                elif isinstance(p, ToolResult):
+                    content_blocks.append(
+                        {
+                            "type": "tool_result",
+                            "tool_call_id": p.tool_call_id,
+                            "result": p.result,
+                        }
+                    )
+                elif isinstance(p, Thinking):
+                    content_blocks.append({"type": "thinking", "content": p.content})
             serialized.append({"role": msg.role, "content": content_blocks})
 
         return {"messages": serialized}
@@ -311,7 +637,7 @@ class Conversation:
 
         for m in payload.get("messages", []):
             role: Role = m["role"]  # 'system' | 'user' | 'assistant'
-            parts: list[Text | Image] = []
+            parts: list[Text | Image | ToolCall | ToolResult | Thinking] = []
 
             for p in m["content"]:
                 if p["type"] == "text":
@@ -320,6 +646,16 @@ class Conversation:
                     # We only stored a placeholder tag, so keep that placeholder.
                     # You could raise instead if real image bytes are required.
                     parts.append(Image(p["tag"], detail="low"))
+                elif p["type"] == "tool_call":
+                    parts.append(
+                        ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
+                    )
+                elif p["type"] == "tool_result":
+                    parts.append(
+                        ToolResult(tool_call_id=p["tool_call_id"], result=p["result"])
+                    )
+                elif p["type"] == "thinking":
+                    parts.append(Thinking(content=p["content"]))
                 else:
                     raise ValueError(f"Unknown part type {p['type']!r}")
 

@@ -9,6 +9,7 @@ from typing import Sequence, overload, Literal, Any
 from tqdm.auto import tqdm
 
 from lm_deluge.prompt import Conversation
+from lm_deluge.tool import ToolSpec
 
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
@@ -225,39 +226,47 @@ class LLMClient:
     async def process_prompts_async(
         self,
         prompts: Sequence[str | list[dict] | Conversation],
+        *,
         return_completions_only: bool,
         show_progress: bool = ...,
-        dry_run: Literal[True] = ...,
+        dry_run: Literal[True],
         verbose: bool = ...,
+        tools: list[ToolSpec] | None = ...,
     ) -> dict[str, int]: ...
 
     @overload
     async def process_prompts_async(
         self,
         prompts: Sequence[str | list[dict] | Conversation],
+        *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
-        dry_run: Literal[False] = ...,
+        dry_run: bool = ...,
         verbose: bool = ...,
+        tools: list[ToolSpec] | None = ...,
     ) -> list[str | None]: ...
 
     @overload
     async def process_prompts_async(
         self,
         prompts: Sequence[str | list[dict] | Conversation],
+        *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
-        dry_run: Literal[False] = ...,
+        dry_run: bool = ...,
         verbose: bool = ...,
+        tools: list[ToolSpec] | None = ...,
     ) -> list[APIResponse | None]: ...
 
     async def process_prompts_async(
         self,
         prompts: Sequence[str | list[dict] | Conversation],
+        *,
         return_completions_only: bool = False,
         show_progress: bool = True,
         dry_run: bool = False,
         verbose: bool = False,
+        tools: list[ToolSpec] | None = None,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Conversations, convert them.
         # can only handle strings for now
@@ -335,6 +344,7 @@ class LLMClient:
                     progress_bar=pbar,
                     use_qps=self.use_qps,
                     verbose=verbose,
+                    tools=tools,
                 )
             )
             api_results: list[APIResponse] = await api_task
@@ -357,10 +367,12 @@ class LLMClient:
     def process_prompts_sync(
         self,
         prompts: Sequence[str | list[dict] | Conversation],
+        *,
         return_completions_only: bool = False,
         show_progress=True,
         dry_run: bool = False,
         verbose: bool = False,
+        tools: list[ToolSpec] | None = None,
     ):
         return asyncio.run(
             self.process_prompts_async(
@@ -369,6 +381,7 @@ class LLMClient:
                 show_progress=show_progress,
                 dry_run=dry_run,
                 verbose=verbose,
+                tools=tools,
             )
         )
 
@@ -556,6 +569,7 @@ async def process_api_prompts_async(
     progress_bar: tqdm | None = None,
     use_qps: bool = False,
     verbose: bool = False,
+    tools: list[ToolSpec] | None = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
@@ -639,6 +653,7 @@ async def process_api_prompts_async(
                         pbar=progress_bar,
                         all_model_names=models,
                         all_sampling_params=sampling_params,
+                        tools=tools,
                     )
                     status_tracker.num_tasks_started += 1
                     status_tracker.num_tasks_in_progress += 1

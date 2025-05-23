@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from typing import Callable
 
 from .base import APIRequestBase, APIResponse
-from ..prompt import Conversation
+from ..prompt import Conversation, Message
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -130,7 +130,7 @@ class MistralRequest(APIRequestBase):
             error_message=error_message,
             prompt=self.prompt,
             logprobs=logprobs,
-            completion=completion,
+            content=Message.ai(completion),
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,

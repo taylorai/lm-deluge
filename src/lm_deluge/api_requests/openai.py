@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 from typing import Callable
 
 from .base import APIRequestBase, APIResponse
-from ..prompt import Conversation
+from ..prompt import Conversation, Message, Text, ToolCall, Thinking
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -34,6 +34,7 @@ class OpenAIRequest(APIRequestBase):
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
+        tools: list | None = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -52,6 +53,7 @@ class OpenAIRequest(APIRequestBase):
             debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
+            tools=tools,
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat/completions"
@@ -85,12 +87,16 @@ class OpenAIRequest(APIRequestBase):
                 self.request_json["top_logprobs"] = top_logprobs
         if sampling_params.json_mode and self.model.supports_json:
             self.request_json["response_format"] = {"type": "json_object"}
+        if tools:
+            self.request_json["tools"] = [
+                tool.dump_for("openai-completions") for tool in tools
+            ]
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
         error_message = None
         thinking = None
-        completion = None
+        content = None
         input_tokens = None
         output_tokens = None
         logprobs = None
@@ -108,9 +114,34 @@ class OpenAIRequest(APIRequestBase):
             if not is_error:
                 assert data is not None, "data is None"
                 try:
-                    completion = data["choices"][0]["message"]["content"]
-                    if "reasoning_content" in data["choices"][0]["message"]:
-                        thinking = data["choices"][0]["message"]["reasoning_content"]
+                    # Parse response into Message with parts
+                    parts = []
+                    message = data["choices"][0]["message"]
+
+                    # Add text content if present
+                    if message.get("content"):
+                        parts.append(Text(message["content"]))
+
+                    # Add thinking content if present (reasoning models)
+                    if "reasoning_content" in message:
+                        thinking = message["reasoning_content"]
+                        parts.append(Thinking(thinking))
+
+                    # Add tool calls if present
+                    if "tool_calls" in message:
+                        for tool_call in message["tool_calls"]:
+                            parts.append(
+                                ToolCall(
+                                    id=tool_call["id"],
+                                    name=tool_call["function"]["name"],
+                                    arguments=json.loads(
+                                        tool_call["function"]["arguments"]
+                                    ),
+                                )
+                            )
+
+                    content = Message("assistant", parts)
+
                     input_tokens = data["usage"]["prompt_tokens"]
                     output_tokens = data["usage"]["completion_tokens"]
                     if self.logprobs and "logprobs" in data["choices"][0]:
@@ -144,7 +175,7 @@ class OpenAIRequest(APIRequestBase):
             prompt=self.prompt,
             logprobs=logprobs,
             thinking=thinking,
-            completion=completion,
+            content=content,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
             input_tokens=input_tokens,

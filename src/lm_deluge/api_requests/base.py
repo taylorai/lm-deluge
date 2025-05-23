@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Callable
 
-from lm_deluge.prompt import Conversation
+from lm_deluge.prompt import Conversation, Message
 
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -30,9 +30,11 @@ class APIResponse:
     error_message: str | None
 
     # completion information
-    completion: str | None
     input_tokens: int | None
     output_tokens: int | None
+
+    # response content - structured format
+    content: Message | None = None
 
     # optional or calculated automatically
     thinking: str | None = None  # if model shows thinking tokens
@@ -46,6 +48,13 @@ class APIResponse:
     retry_with_different_model: bool | None = False
     # set to true if should NOT retry with the same model (unrecoverable error)
     give_up_if_no_other_models: bool | None = False
+
+    @property
+    def completion(self) -> str | None:
+        """Backward compatibility: extract text from content Message."""
+        if self.content is not None:
+            return self.content.completion
+        return None
 
     def __post_init__(self):
         # calculate cost & get external model name
@@ -63,7 +72,7 @@ class APIResponse:
                 self.input_tokens * api_model.input_cost / 1e6
                 + self.output_tokens * api_model.output_cost / 1e6
             )
-        elif self.completion is not None:
+        elif self.content is not None and self.completion is not None:
             print(
                 f"Warning: Completion provided without token counts for model {self.model_internal}."
             )
@@ -79,7 +88,8 @@ class APIResponse:
             "status_code": self.status_code,
             "is_error": self.is_error,
             "error_message": self.error_message,
-            "completion": self.completion,
+            "completion": self.completion,  # computed property
+            "content": self.content.to_log() if self.content else None,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "finish_reason": self.finish_reason,
@@ -88,11 +98,18 @@ class APIResponse:
 
     @classmethod
     def from_dict(cls, data: dict):
+        # Handle backward compatibility for content/completion
+        content = None
+        if "content" in data and data["content"] is not None:
+            # Reconstruct message from log format
+            content = Message.from_log(data["content"])
+        elif "completion" in data and data["completion"] is not None:
+            # Backward compatibility: create a Message with just text
+            content = Message.ai(data["completion"])
+
         return cls(
             id=data.get("id", random.randint(0, 1_000_000_000)),
             model_internal=data["model_internal"],
-            model_external=data["model_external"],
-            region=data["region"],
             prompt=Conversation.from_log(data["prompt"]),
             sampling_params=SamplingParams(**data["sampling_params"]),
             status_code=data["status_code"],
@@ -100,9 +117,14 @@ class APIResponse:
             error_message=data["error_message"],
             input_tokens=data["input_tokens"],
             output_tokens=data["output_tokens"],
-            completion=data["completion"],
-            finish_reason=data["finish_reason"],
-            cost=data["cost"],
+            content=content,
+            thinking=data.get("thinking"),
+            model_external=data.get("model_external"),
+            region=data.get("region"),
+            logprobs=data.get("logprobs"),
+            finish_reason=data.get("finish_reason"),
+            cost=data.get("cost"),
+            cache_hit=data.get("cache_hit", False),
         )
 
     def write_to_file(self, filename):
@@ -145,6 +167,7 @@ class APIRequestBase(ABC):
         debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
+        tools: list | None = None,
     ):
         if all_model_names is None:
             raise ValueError("all_model_names must be provided.")
@@ -166,6 +189,7 @@ class APIRequestBase(ABC):
         self.debug = debug
         self.all_model_names = all_model_names
         self.all_sampling_params = all_sampling_params
+        self.tools = tools
         self.result = []  # list of APIResponse objects from each attempt
 
         # these should be set in the __init__ of the subclass
@@ -255,6 +279,7 @@ class APIRequestBase(ABC):
                         callback=self.callback,
                         all_model_names=self.all_model_names,
                         all_sampling_params=self.all_sampling_params,
+                        tools=self.tools,
                     )
                     # PROBLEM: new request is never put into results array, so we can't get the result.
                     self.retry_queue.put_nowait(new_request)
@@ -297,7 +322,7 @@ class APIRequestBase(ABC):
                     status_code=None,
                     is_error=True,
                     error_message="Request timed out (terminated by client).",
-                    completion=None,
+                    content=None,
                     input_tokens=None,
                     output_tokens=None,
                 )
@@ -315,7 +340,7 @@ class APIRequestBase(ABC):
                     status_code=None,
                     is_error=True,
                     error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
-                    completion=None,
+                    content=None,
                     input_tokens=None,
                     output_tokens=None,
                 )
@@ -344,6 +369,7 @@ def create_api_request(
     callback: Callable | None = None,
     all_model_names: list[str] | None = None,
     all_sampling_params: list[SamplingParams] | None = None,
+    tools: list | None = None,
 ) -> APIRequestBase:
     from .common import CLASSES  # circular import so made it lazy, does this work?
 
@@ -368,5 +394,6 @@ def create_api_request(
         callback=callback,
         all_model_names=all_model_names,
         all_sampling_params=all_sampling_params,
+        tools=tools,
         **kwargs,
     )

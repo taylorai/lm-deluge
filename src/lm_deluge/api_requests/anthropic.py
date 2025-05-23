@@ -6,7 +6,7 @@ import warnings
 from tqdm import tqdm
 from typing import Callable
 
-from lm_deluge.prompt import Conversation
+from lm_deluge.prompt import Conversation, Message, Text, ToolCall, Thinking
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
@@ -34,6 +34,7 @@ class AnthropicRequest(APIRequestBase):
         # for retries
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
+        tools: list | None = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -50,6 +51,7 @@ class AnthropicRequest(APIRequestBase):
             debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
+            tools=tools,
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/messages"
@@ -94,12 +96,14 @@ class AnthropicRequest(APIRequestBase):
                 )
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
+        if tools:
+            self.request_json["tools"] = [tool.dump_for("anthropic") for tool in tools]
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
         error_message = None
         thinking = None
-        completion = None
+        content = None
         input_tokens = None
         output_tokens = None
         status_code = http_response.status
@@ -119,14 +123,26 @@ class AnthropicRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
-                content = data["content"]  # [0]["text"]
-                for item in content:
+                response_content = data["content"]
+
+                # Parse response into Message with parts
+                parts = []
+                for item in response_content:
                     if item["type"] == "text":
-                        completion = item["text"]
+                        parts.append(Text(item["text"]))
                     elif item["type"] == "thinking":
                         thinking = item["thinking"]
+                        parts.append(Thinking(item["thinking"]))
                     elif item["type"] == "tool_use":
-                        continue  # TODO: implement and report tool use
+                        parts.append(
+                            ToolCall(
+                                id=item["id"],
+                                name=item["name"],
+                                arguments=item["input"],
+                            )
+                        )
+
+                content = Message("assistant", parts)
                 input_tokens = data["usage"]["input_tokens"]
                 output_tokens = data["usage"]["output_tokens"]
             except Exception as e:
@@ -162,7 +178,7 @@ class AnthropicRequest(APIRequestBase):
             is_error=is_error,
             error_message=error_message,
             prompt=self.prompt,
-            completion=completion,
+            content=content,
             thinking=thinking,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,

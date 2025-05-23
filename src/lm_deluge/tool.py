@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Callable
+from typing import Any, Literal, Callable
 from pydantic import BaseModel, Field
 
 
@@ -9,7 +9,7 @@ class ToolSpec(BaseModel):
 
     name: str
     description: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     required: list[str] = Field(default_factory=list)
     additionalProperties: bool | None = None  # only
     # if desired, can provide a callable to run the tool
@@ -20,21 +20,20 @@ class ToolSpec(BaseModel):
             raise ValueError("No run function provided")
         return self.run(**kwargs)
 
-    def _json_schema(self, include_additional_properties=False) -> Dict[str, Any]:
-        return {
+    def _json_schema(self, include_additional_properties=False) -> dict[str, Any]:
+        res = {
             "type": "object",
             "properties": self.parameters,
-            "required": self.required or [],
-            **(
-                {"additionalProperties": self.additionalProperties}
-                if self.additionalProperties is not None
-                and include_additional_properties
-                else {}
-            ),
+            # for openai all must be required
+            "required": list(self.parameters.keys()),
         }
+        if include_additional_properties:
+            res["additionalProperties"] = False
+
+        return res
 
     # ---------- dumpers ----------
-    def for_openai_responses(self) -> Dict[str, Any]:
+    def for_openai_responses(self) -> dict[str, Any]:
         return {
             "type": "function",
             "name": self.name,
@@ -42,25 +41,25 @@ class ToolSpec(BaseModel):
             "parameters": self._json_schema(include_additional_properties=True),
         }
 
-    def for_openai_completions(self, *, strict: bool = True) -> Dict[str, Any]:
+    def for_openai_completions(self, *, strict: bool = True) -> dict[str, Any]:
         return {
             "type": "function",
             "function": {
                 "name": self.name,
                 "description": self.description,
-                "parameters": self._json_schema(),
+                "parameters": self._json_schema(include_additional_properties=True),
                 "strict": strict,
             },
         }
 
-    def for_anthropic(self) -> Dict[str, Any]:
+    def for_anthropic(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "description": self.description,
             "input_schema": self._json_schema(),
         }
 
-    def for_google(self) -> Dict[str, Any]:
+    def for_google(self) -> dict[str, Any]:
         """
         Shape used by google.genai docs.
         """
@@ -76,7 +75,7 @@ class ToolSpec(BaseModel):
             "openai-responses", "openai-completions", "anthropic", "google"
         ],
         **kw,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if provider == "openai-responses":
             return self.for_openai_responses()
         if provider == "openai-completions":
@@ -86,21 +85,3 @@ class ToolSpec(BaseModel):
         if provider == "google":
             return self.for_google()
         raise ValueError(provider)
-
-
-# ---- computer tools (for non-CUA models) ----
-_BUTTONS = ["left", "right", "wheel", "back", "forward"]
-
-# --- helpers ----
-_COORD_OBJECT = {
-    "type": "object",
-    "properties": {
-        "x": {"type": "integer", "description": "X-coordinate in pixels"},
-        "y": {"type": "integer", "description": "Y-coordinate in pixels"},
-    },
-    "required": ["x", "y"],
-}
-
-
-def _coord_field(desc: str):
-    return {"type": "integer", "description": desc}
