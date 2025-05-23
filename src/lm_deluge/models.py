@@ -664,7 +664,7 @@ registry = {
         "output_cost": 15.0,
         "requests_per_minute": 4_000,
         "tokens_per_minute": 400_000,
-        "reasoning_model": True,
+        "reasoning_model": False,
     },
     "claude-3.6-sonnet-bedrock": {
         "id": "claude-3.6-sonnet-bedrock",
@@ -677,10 +677,10 @@ registry = {
         "output_cost": 15.0,
         "requests_per_minute": 4_000,
         "tokens_per_minute": 400_000,
-        "reasoning_model": True,
+        "reasoning_model": False,
     },
-    "claude-sonnet-3.7-bedrock": {
-        "id": "claude-sonnet-3.7-bedrock",
+    "claude-3.7-sonnet-bedrock": {
+        "id": "claude-3.7-sonnet-bedrock",
         "name": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
         "regions": ["us-east-1", "us-west-2", "eu-west-1"],
         "api_base": "",
@@ -692,8 +692,8 @@ registry = {
         "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
-    "claude-sonnet-4-bedrock": {
-        "id": "claude-sonnet-4-bedrock",
+    "claude-4-sonnet-bedrock": {
+        "id": "claude-4-sonnet-bedrock",
         "name": "us.anthropic.claude-sonnet-4-20250514-v1:0",
         "regions": ["us-east-1", "us-west-2", "us-east-2"],
         "api_base": "",
@@ -703,10 +703,10 @@ registry = {
         "output_cost": 15.0,
         "requests_per_minute": 4_000,
         "tokens_per_minute": 400_000,
-        "reasoning_model": False,
+        "reasoning_model": True,
     },
-    "claude-opus-4-bedrock": {
-        "id": "claude-opus-4-bedrock",
+    "claude-4-opus-bedrock": {
+        "id": "claude-4-opus-bedrock",
         "name": "us.anthropic.claude-opus-4-20250514-v1:0",
         "regions": ["us-east-1", "us-west-2", "us-east-2"],
         "api_base": "",

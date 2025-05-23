@@ -1,5 +1,5 @@
 import random
-from lm_deluge.tool import ToolSpec
+from lm_deluge.tool import Tool
 from lm_deluge import LLMClient
 
 
@@ -15,7 +15,7 @@ def run_rng(kind: str, n: int | None = None, p: float | None = 0.5) -> str:
         raise ValueError(f"Invalid kind: {kind}")
 
 
-rng_tool = ToolSpec(
+rng_tool = Tool(
     name="random_choice",
     run=run_rng,
     description=(
@@ -255,7 +255,7 @@ async def test_tool_execution_error_handling():
             raise ValueError("Tool execution failed")
         return "success"
 
-    error_tool = ToolSpec(
+    error_tool = Tool(
         name="error_test",
         run=failing_tool,
         description="A tool that can fail for testing error handling",

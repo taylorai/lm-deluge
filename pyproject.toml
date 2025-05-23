@@ -27,6 +27,7 @@ dependencies = [
     "lxml",
     "pdf2image",
     "pillow",
+    "fastmcp>=2.4",
     "fasttext-wheel",
     "fasttext-langdetect",
 ]

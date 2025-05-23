@@ -2,13 +2,141 @@
 
 This guide demonstrates how to use tool calling with the LM Deluge library to enable AI models to execute functions and interact with external systems.
 
-## Basic Tool Definition
+## Tool Definition Methods
+
+LM Deluge provides two ways to create tools: manual definition and automatic creation from functions.
+
+### Method 1: Automatic Tool Creation with `Tool.from_function()`
+
+The easiest way to create tools is using `Tool.from_function()`, which automatically extracts function metadata:
+
+```python
+from lm_deluge.tool import Tool
+from lm_deluge import LLMClient
+from lm_deluge.prompt import Conversation, Message
+
+def add_numbers(a: int, b: int) -> int:
+    """Add two numbers together."""
+    return a + b
+
+def greet_user(name: str, greeting: str = "Hello") -> str:
+    """Greet a user with a customizable greeting."""
+    return f"{greeting}, {name}!"
+
+def get_weather(city: str, units: str = "celsius") -> str:
+    """Get weather information for a city (mock implementation)."""
+    import random
+    temp = random.randint(15, 30)
+    conditions = ["sunny", "cloudy", "rainy", "partly cloudy"]
+    condition = random.choice(conditions)
+    unit_symbol = "°C" if units == "celsius" else "°F"
+    return f"The weather in {city} is {condition} with a temperature of {temp}{unit_symbol}"
+
+# Create tools automatically - function signature and docstring are used
+add_tool = Tool.from_function(add_numbers)
+greet_tool = Tool.from_function(greet_user)
+weather_tool = Tool.from_function(get_weather)
+
+# The tools automatically have:
+# - name: function name
+# - description: function docstring
+# - parameters: extracted from type hints
+# - required: parameters without defaults
+print(f"Add tool: {add_tool.name}, required: {add_tool.required}")
+print(f"Greet tool: {greet_tool.name}, required: {greet_tool.required}")
+print(f"Weather tool: {weather_tool.name}, required: {weather_tool.required}")
+```
+
+#### Complete Example with `Tool.from_function()`
+
+```python
+async def from_function_example():
+    """Complete example using Tool.from_function()"""
+    
+    def calculate_tip(bill_amount: float, tip_percentage: float = 15.0) -> str:
+        """Calculate tip amount and total bill."""
+        tip = bill_amount * (tip_percentage / 100)
+        total = bill_amount + tip
+        return f"Tip: ${tip:.2f}, Total: ${total:.2f}"
+    
+    def flip_coin(num_flips: int = 1) -> str:
+        """Flip a coin one or more times."""
+        import random
+        results = ["Heads" if random.random() < 0.5 else "Tails" for _ in range(num_flips)]
+        return ", ".join(results)
+    
+    # Create tools automatically
+    tip_tool = Tool.from_function(calculate_tip)
+    coin_tool = Tool.from_function(flip_coin)
+    
+    client = LLMClient.basic("gpt-4o-mini")  # or "claude-3-haiku"
+    
+    prompt = """
+    I had dinner and the bill was $47.50. Can you:
+    1. Calculate a 20% tip and total
+    2. Flip a coin to decide if I should round up to the nearest dollar
+    """
+    
+    # Start conversation
+    conversation = Conversation.user(prompt)
+    tools = [tip_tool, coin_tool]
+    
+    for round_num in range(3):  # Allow multiple rounds
+        print(f"\n--- Round {round_num + 1} ---")
+        
+        responses = await client.process_prompts_async(
+            [conversation],
+            tools=tools,
+            return_completions_only=False
+        )
+        
+        response = responses[0]
+        print(f"Model: {response.content.completion}")
+        
+        tool_calls = response.content.tool_calls
+        if not tool_calls:
+            break
+            
+        # Add assistant response to conversation
+        conversation.add(response.content)
+        
+        # Execute tools
+        for tool_call in tool_calls:
+            print(f"Executing: {tool_call.name}({tool_call.arguments})")
+            
+            # Find the right tool and execute it
+            for tool in tools:
+                if tool.name == tool_call.name:
+                    try:
+                        result = tool.call(**tool_call.arguments)
+                        print(f"Result: {result}")
+                        conversation.add_tool_result(tool_call.id, result)
+                    except Exception as e:
+                        error_msg = f"Error: {str(e)}"
+                        print(f"Tool error: {error_msg}")
+                        conversation.add_tool_result(tool_call.id, error_msg)
+                    break
+
+# Run the example
+import asyncio
+asyncio.run(from_function_example())
+```
+
+**Advantages of `Tool.from_function()`:**
+- ✅ Automatic parameter extraction from type hints
+- ✅ Automatic description from docstring
+- ✅ Automatic required/optional detection from defaults
+- ✅ Less boilerplate code
+- ✅ Keeps function and tool definition in sync
+- ✅ Supports all Python basic types (int, float, str, bool, list, dict)
+
+### Method 2: Manual Tool Definition
 
 First, let's create a simple tool that generates random numbers:
 
 ```python
 import random
-from lm_deluge.tool import ToolSpec
+from lm_deluge.tool import Tool
 from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, Message
 
@@ -28,7 +156,7 @@ def random_generator(kind: str, n: int | None = None, p: float | None = 0.5) -> 
         raise ValueError(f"Invalid kind: {kind}")
 
 # Define the tool specification
-random_tool = ToolSpec(
+random_tool = Tool(
     name="random_generator",
     run=random_generator,
     description="Generate random values like integers, coin flips, or dice rolls",
@@ -59,22 +187,22 @@ Here's how to use the tool with a simple request:
 async def simple_tool_example():
     # Create a client
     client = LLMClient.basic("gpt-4.1-mini")  # or "claude-3-haiku"
-    
+
     # Make a request that will trigger tool usage
     prompt = "I need a random number between 0 and 10. Please use the random_generator tool."
-    
+
     # Send the request with tools available
     responses = await client.process_prompts_async(
         [prompt],
         tools=[random_tool],
         return_completions_only=False
     )
-    
+
     response = responses[0]
     print(f"Model response: {response.content.completion}")
-    
+
     # Check if the model made any tool calls
-    tool_calls = [part for part in response.content.parts if part.type == "tool_call"]
+    tool_calls = response.content.tool_calls
     if tool_calls:
         print(f"Tool calls made: {len(tool_calls)}")
         for tool_call in tool_calls:
@@ -92,44 +220,44 @@ For a full conversation where the model uses tools and receives results:
 ```python
 async def complete_tool_flow():
     client = LLMClient.basic("gpt-4.1-mini")
-    
+
     # Step 1: Initial request
     prompt = "Please flip 3 coins with 60% chance of heads and tell me the results."
-    
+
     responses = await client.process_prompts_async(
         [prompt],
         tools=[random_tool],
         return_completions_only=False
     )
-    
+
     response = responses[0]
     print(f"Initial response: {response.content.completion}")
-    
+
     # Step 2: Execute any tool calls
-    tool_calls = [part for part in response.content.parts if part.type == "tool_call"]
-    
+    tool_calls = response.content.tool_calls
+
     if tool_calls:
         # Build conversation history
         conversation = Conversation.user(prompt)
         conversation.add(response.content)  # Add assistant's response with tool calls
-        
+
         # Execute tools and add results
         for tool_call in tool_calls:
             print(f"Executing: {tool_call.name}({tool_call.arguments})")
-            
+
             # Execute the tool
             tool_result = random_tool.call(**tool_call.arguments)
             print(f"Tool result: {tool_result}")
-            
-            # Add tool result to conversation - handles all providers automatically  
+
+            # Add tool result to conversation - handles all providers automatically
             conversation.add_tool_result(tool_call.id, tool_result)
-        
+
         # Step 3: Get model's response to the tool results
         final_responses = await client.process_prompts_async(
             [conversation],
             return_completions_only=False
         )
-        
+
         final_response = final_responses[0]
         print(f"Final response: {final_response.content.completion}")
 
@@ -150,7 +278,7 @@ def weather_tool(city: str) -> str:
     import random
     temperatures = [15, 18, 22, 25, 28, 32]
     conditions = ["sunny", "cloudy", "rainy", "partly cloudy"]
-    
+
     temp = random.choice(temperatures)
     condition = random.choice(conditions)
     return f"The weather in {city} is {condition} with a temperature of {temp}°C"
@@ -171,7 +299,7 @@ def calculator_tool(operation: str, a: float, b: float) -> str:
         return f"Error: Unknown operation {operation}"
 
 # Tool specifications
-weather_spec = ToolSpec(
+weather_spec = Tool(
     name="get_weather",
     run=weather_tool,
     description="Get current weather information for a city",
@@ -184,7 +312,7 @@ weather_spec = ToolSpec(
     required=["city"],
 )
 
-calculator_spec = ToolSpec(
+calculator_spec = Tool(
     name="calculator",
     run=calculator_tool,
     description="Perform basic arithmetic operations",
@@ -208,66 +336,66 @@ calculator_spec = ToolSpec(
 
 async def multi_tool_example():
     client = LLMClient.basic("claude-3-haiku")
-    
+
     prompt = """
     I'm planning a trip to Paris. Can you:
     1. Check the weather in Paris
     2. Calculate the total cost if I spend 150 euros per day for 5 days
     3. Flip a coin to decide if I should pack an umbrella
     """
-    
+
     tools = [weather_spec, calculator_spec, random_tool]
-    
+
     # This might require multiple rounds of tool calls
     conversation = Conversation.user(prompt)
     max_rounds = 5  # Prevent infinite loops
-    
+
     for round_num in range(max_rounds):
         print(f"\n--- Round {round_num + 1} ---")
-        
+
         responses = await client.process_prompts_async(
             [conversation],
             tools=tools,
             return_completions_only=False
         )
-        
+
         response = responses[0]
         print(f"Model response: {response.content.completion}")
-        
+
         # Check for tool calls
-        tool_calls = [part for part in response.content.parts if part.type == "tool_call"]
-        
+        tool_calls = response.content.tool_calls
+
         if not tool_calls:
             print("No more tool calls needed.")
             break
-        
+
         # Add assistant response to conversation
         conversation.add(response.content)
-        
+
         # Execute all tool calls
         for tool_call in tool_calls:
             print(f"Executing: {tool_call.name}({tool_call.arguments})")
-            
+
             # Find and execute the appropriate tool
             tool_to_use = None
             for tool in tools:
                 if tool.name == tool_call.name:
                     tool_to_use = tool
                     break
-            
+
             if tool_to_use:
                 try:
                     tool_result = tool_to_use.call(**tool_call.arguments)
                     print(f"Tool result: {tool_result}")
-                    
+
                     # Add tool result using unified method
                     conversation.add_tool_result(tool_call.id, tool_result)
-                    
+
                 except Exception as e:
                     print(f"Tool execution error: {e}")
                     # Add error as tool result
                     conversation.add_tool_result(tool_call.id, f"Error: {str(e)}")
-    
+
     print("\n--- Final Conversation ---")
     for i, msg in enumerate(conversation.messages):
         print(f"Message {i}: {msg.role}")
@@ -288,7 +416,7 @@ def risky_tool(should_fail: bool = False) -> str:
         raise ValueError("Something went wrong!")
     return "Success!"
 
-risky_spec = ToolSpec(
+risky_spec = Tool(
     name="risky_operation",
     run=risky_tool,
     description="An operation that might fail",
@@ -303,22 +431,22 @@ risky_spec = ToolSpec(
 
 async def error_handling_example():
     client = LLMClient.basic("gpt-4.1-mini")
-    
+
     prompt = "Please try the risky operation with should_fail=true"
-    
+
     responses = await client.process_prompts_async(
         [prompt],
         tools=[risky_spec],
         return_completions_only=False
     )
-    
+
     response = responses[0]
-    tool_calls = [part for part in response.content.parts if part.type == "tool_call"]
-    
+    tool_calls = response.content.tool_calls
+
     if tool_calls:
         conversation = Conversation.user(prompt)
         conversation.add(response.content)
-        
+
         for tool_call in tool_calls:
             try:
                 tool_result = risky_spec.call(**tool_call.arguments)
@@ -326,16 +454,16 @@ async def error_handling_example():
             except Exception as e:
                 result_text = f"Error: {str(e)}"
                 print(f"Tool execution failed: {e}")
-            
+
             # Send result/error back to model
             conversation.add_tool_result(tool_call.id, result_text)
-        
+
         # Get model's response to the error
         final_responses = await client.process_prompts_async(
             [conversation],
             return_completions_only=False
         )
-        
+
         final_response = final_responses[0]
         print(f"Model's response to error: {final_response.content.completion}")
 
@@ -358,7 +486,7 @@ for tool_call in tool_calls:
 ```
 
 **How it works:**
-- Internally uses "tool" role messages for consistency  
+- Internally uses "tool" role messages for consistency
 - `to_openai()` splits tool messages into separate messages (OpenAI requirement: one message per result)
 - `to_anthropic()` converts tool messages to user messages (Anthropic requirement)
 - Automatically handles parallel tool calls - just call `add_tool_result()` multiple times

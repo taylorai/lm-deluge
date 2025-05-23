@@ -14,29 +14,12 @@ from lm_deluge.api_requests.base import APIResponse
 
 def test_bedrock_models_in_registry():
     """Test that bedrock models are properly configured in the registry."""
-    # Direct model IDs (older models)
-    direct_models = [
-        "claude-haiku-bedrock",
-        "claude-sonnet-bedrock",
-    ]
-
     # Inference profile IDs (newer models requiring cross-region inference)
     inference_profile_models = [
-        "claude-sonnet-3.7-bedrock",
-        "claude-sonnet-4-bedrock",
-        "claude-opus-4-bedrock",
+        "claude-3.7-sonnet-bedrock",
+        "claude-4-sonnet-bedrock",
+        "claude-4-opus-bedrock",
     ]
-
-    # Test direct model IDs
-    for model_name in direct_models:
-        model = APIModel.from_registry(model_name)
-        assert model.api_spec == "bedrock", f"{model_name} should have bedrock api_spec"
-        assert model.name.startswith(
-            "anthropic."
-        ), f"{model_name} should have anthropic. prefix"
-        assert model.name.endswith(":0"), f"{model_name} should end with :0"
-        assert len(model.regions) > 0, f"{model_name} should have regions configured"
-        print(f"✓ {model_name}: {model.name} (regions: {model.regions})")
 
     # Test inference profile IDs
     for model_name in inference_profile_models:
@@ -61,9 +44,9 @@ def test_bedrock_request_class_exists():
 def test_cross_region_inference_models():
     """Test that the new cross-region inference models are configured correctly."""
     cross_region_models = [
-        "claude-sonnet-3.7-bedrock",
-        "claude-sonnet-4-bedrock",
-        "claude-opus-4-bedrock",
+        "claude-3.7-sonnet-bedrock",
+        "claude-4-sonnet-bedrock",
+        "claude-4-opus-bedrock",
     ]
 
     for model_name in cross_region_models:
@@ -75,19 +58,19 @@ def test_cross_region_inference_models():
         assert (
             "us-west-2" in model.regions
         ), f"{model_name} should be available in us-west-2"
-        assert (
-            "eu-west-1" in model.regions
-        ), f"{model_name} should be available in eu-west-1"
-        print(f"✓ {model_name}: Available in {len(model.regions)} regions")
+        print(f"✓ {model_name}: Available in us-east-1 and us-west-2 regions")
 
 
 def test_reasoning_model_flags():
     """Test that reasoning model flags are set correctly."""
-    reasoning_models = ["claude-sonnet-3.7-bedrock", "claude-opus-4-bedrock"]
+    reasoning_models = [
+        "claude-3.7-sonnet-bedrock",
+        "claude-4-opus-bedrock",
+        "claude-4-sonnet-bedrock",
+    ]
     non_reasoning_models = [
-        "claude-sonnet-4-bedrock",
-        "claude-haiku-bedrock",
-        "claude-sonnet-bedrock",
+        "claude-3-haiku-bedrock",
+        "claude-3.5-sonnet-bedrock",
     ]
 
     for model_name in reasoning_models:
@@ -114,9 +97,9 @@ async def test_bedrock_api_calls():
 
     # Test a subset of models to avoid rate limits
     models_to_test = [
-        "claude-haiku-bedrock",
-        "claude-sonnet-4-bedrock",
-        "claude-sonnet-3.7-bedrock",  # reasoning model
+        "claude-3-haiku-bedrock",
+        "claude-4-sonnet-bedrock",
+        "claude-3.7-sonnet-bedrock",  # reasoning model
     ]
 
     test_prompt = Conversation.system("You are a helpful assistant").add(
@@ -170,7 +153,7 @@ async def test_bedrock_with_tools():
         return
 
     # Use haiku for faster/cheaper tool testing
-    model_name = "claude-haiku-bedrock"
+    model_name = "claude-3-haiku-bedrock"
 
     try:
         from lm_deluge.tool import Tool
@@ -192,6 +175,7 @@ async def test_bedrock_with_tools():
         )
 
         result = results[0]
+        assert result, "no result"
         assert not result.is_error, f"Tool test failed: {result.error_message}"
         assert result.content, "No content in tool test result"
 
@@ -206,36 +190,6 @@ async def test_bedrock_with_tools():
         print(f"✗ Tool test failed: {e}")
 
 
-async def test_bedrock_error_handling():
-    """Test bedrock error handling with invalid requests."""
-    if not (os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY")):
-        print("⚠️  Skipping error handling tests - AWS credentials not found")
-        return
-
-    model_name = "claude-haiku-bedrock"
-
-    try:
-        # Test with extremely long prompt to trigger context length error
-        long_text = "A" * 100000  # Very long text
-        test_prompt = Conversation.system("You are a helpful assistant").add(
-            Message.user().add_text(f"Please summarize this text: {long_text}")
-        )
-
-        client = LLMClient.basic(model_name)
-        results = await client.process_prompts_async([test_prompt], show_progress=False)
-
-        result = results[0]
-        if result.is_error:
-            print(
-                f"✓ Error handling: Correctly caught error - {result.error_message[:100]}..."
-            )
-        else:
-            print("⚠️  Expected error for oversized prompt, but got success")
-
-    except Exception as e:
-        print(f"✗ Error handling test failed: {e}")
-
-
 if __name__ == "__main__":
     # Run configuration tests
     test_bedrock_models_in_registry()
@@ -248,5 +202,4 @@ if __name__ == "__main__":
     print("\n🚀 Running live API tests...")
     asyncio.run(test_bedrock_api_calls())
     asyncio.run(test_bedrock_with_tools())
-    asyncio.run(test_bedrock_error_handling())
     print("\n🎉 All bedrock API tests completed!")

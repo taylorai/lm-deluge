@@ -9,7 +9,7 @@ from typing import Sequence, overload, Literal, Any
 from tqdm.auto import tqdm
 
 from lm_deluge.prompt import Conversation
-from lm_deluge.tool import ToolSpec
+from lm_deluge.tool import Tool
 
 from .tracker import StatusTracker
 from .sampling_params import SamplingParams
@@ -231,7 +231,7 @@ class LLMClient:
         show_progress: bool = ...,
         dry_run: Literal[True],
         verbose: bool = ...,
-        tools: list[ToolSpec] | None = ...,
+        tools: list[Tool] | None = ...,
     ) -> dict[str, int]: ...
 
     @overload
@@ -243,7 +243,7 @@ class LLMClient:
         show_progress: bool = ...,
         dry_run: bool = ...,
         verbose: bool = ...,
-        tools: list[ToolSpec] | None = ...,
+        tools: list[Tool] | None = ...,
     ) -> list[str | None]: ...
 
     @overload
@@ -255,7 +255,7 @@ class LLMClient:
         show_progress: bool = ...,
         dry_run: bool = ...,
         verbose: bool = ...,
-        tools: list[ToolSpec] | None = ...,
+        tools: list[Tool] | None = ...,
     ) -> list[APIResponse | None]: ...
 
     async def process_prompts_async(
@@ -266,7 +266,7 @@ class LLMClient:
         show_progress: bool = True,
         dry_run: bool = False,
         verbose: bool = False,
-        tools: list[ToolSpec] | None = None,
+        tools: list[Tool] | None = None,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Conversations, convert them.
         # can only handle strings for now
@@ -372,7 +372,7 @@ class LLMClient:
         show_progress=True,
         dry_run: bool = False,
         verbose: bool = False,
-        tools: list[ToolSpec] | None = None,
+        tools: list[Tool] | None = None,
     ):
         return asyncio.run(
             self.process_prompts_async(
@@ -569,7 +569,7 @@ async def process_api_prompts_async(
     progress_bar: tqdm | None = None,
     use_qps: bool = False,
     verbose: bool = False,
-    tools: list[ToolSpec] | None = None,
+    tools: list[Tool] | None = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
