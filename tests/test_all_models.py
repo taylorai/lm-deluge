@@ -15,6 +15,10 @@ models_to_test = [
     "claude-sonnet-anthropic",
     "claude-haiku-anthropic-expensive",
     "claude-haiku-anthropic",
+    # anthropic bedrock
+    "claude-sonnet-3.7-bedrock",
+    "claude-sonnet-4-bedrock",
+    "claude-opus-4-bedrock",
     # openai
     "gpt-4o",
     "gpt-4o-mini",
