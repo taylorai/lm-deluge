@@ -16,6 +16,60 @@ if not ZAPIER_MCP_SECRET:
     raise ValueError("need ZAPIER_MCP_SECRET to test mcps")
 
 
+async def test_local_fastmcp_client():
+    # test with the filesystem MCP server
+    config = {
+        "mcpServers": {
+            "filesystem": {
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "@modelcontextprotocol/server-filesystem",
+                    f"{os.getenv('HOME')}/Desktop",
+                ],
+            }
+        }
+    }
+    async with Client(config, timeout=45) as client:
+        tools = await client.list_tools()
+    assert len(tools) > 0, "no tools found"
+    print(
+        "✅ Successfully instantiated FastMCP client connected to stdio filesystem MCP."
+    )
+
+
+async def use_local_tool_with_llm():
+    # test with the filesystem MCP server
+    config = {
+        "mcpServers": {
+            "filesystem": {
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "@modelcontextprotocol/server-filesystem",
+                    f"{os.getenv('HOME')}/Desktop",
+                ],
+            }
+        }
+    }
+    tools = await Tool.from_mcp_config(config, timeout=20)
+    assert len(tools) > 0, "no tools"
+    print("✅ Successfully instantiated Tools from server-filesystem.")
+    client = LLMClient.basic("gpt-4.1-mini")
+    res = await client.process_prompts_async(
+        ["Use the tool to list files in the current directory."],
+        tools=tools,
+    )
+    print("✅ Got model response.")
+    assert res[0] and res[0].content
+    # print(res[0].content)
+    for tool_call in res[0].content.tool_calls:
+        print("=> Tool call:", tool_call.name)
+
+    assert len(res[0].content.tool_calls) == 1, "expected 1 tool call"
+    print("✅ Confirmed model response successfully called tool.")
+
+
 async def test_zapier_fastmcp_client():
     # make sure we can instantiate a basic fastmcp client before doing anything fancy
     config = {
@@ -74,7 +128,7 @@ async def use_zapier_tool_with_llm():
     for tool_call in res[0].content.tool_calls:
         if tool_call.name == sms_tool.name:
             tool_result = await sms_tool.acall(**tool_call.arguments)
-            print("tool call result:", tool_result)
+            # print("tool call result:", tool_result)
             tool_results.append(tool_result)
 
     assert len(tool_results) == 1, "expected 1 tool call"
@@ -116,7 +170,7 @@ async def use_exa_tool_with_llm():
     for tool_call in res[0].content.tool_calls:
         if tool_call.name == tool.name:
             tool_result = await tool.acall(**tool_call.arguments)
-            print("tool call result:", tool_result)
+            # print("tool call result:", tool_result)
             tool_results.append(tool_result)
 
     assert len(tool_results) == 1, "expected 1 tool call"
@@ -132,19 +186,29 @@ async def test_multi_server_config():
             "zapier": {
                 "url": f"https://mcp.zapier.com/api/mcp/s/{os.getenv('ZAPIER_MCP_SECRET')}/mcp"
             },
+            "filesystem": {
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "@modelcontextprotocol/server-filesystem",
+                    f"{os.getenv('HOME')}/Desktop",
+                ],
+            },
         }
     }
 
     # Load all tools from all configured servers
     tools = await Tool.from_mcp_config(config, timeout=30)
 
-    print(f"Loaded {len(tools)} tools from MCP servers:")
-    for tool in tools:
-        print(f"  - {tool.name}: {tool.description}")
-    print("✅ Loaded tools from multiple servers.")
+    print(":")
+    # for tool in tools:
+    #     print(f"  - {tool.name}: {tool.description}")
+    print(f"✅ Loaded {len(tools)} tools from multiple MCP servers.")
 
 
 async def main():
+    await test_local_fastmcp_client()
+    await use_local_tool_with_llm()
     await test_zapier_fastmcp_client()
     await run_zapier_tool()  # WARNING: FLAKY if bad internet
     await use_zapier_tool_with_llm()

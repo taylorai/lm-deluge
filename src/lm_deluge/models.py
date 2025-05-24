@@ -445,30 +445,6 @@ registry = {
         "requests_per_minute": 4_000,
         "tokens_per_minute": 400_000,
     },
-    "claude-3-haiku": {
-        "id": "claude-3-haiku",
-        "name": "claude-3-haiku-20240307",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 0.25,
-        "output_cost": 1.25,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 4_000_000,  # supposed to be this but they fucked up
-    },
-    "claude-3.5-haiku": {
-        "id": "claude-3.5-haiku",
-        "name": "claude-3-5-haiku-20241022",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 1.00,
-        "output_cost": 5.00,
-        "requests_per_minute": 20_000,
-        "tokens_per_minute": 4_000_000,  # supposed to be this but they fucked up
-    },
     "claude-3.7-sonnet": {
         "id": "claude-3.7-sonnet",
         "name": "claude-3-7-sonnet-20250219",
@@ -517,6 +493,42 @@ registry = {
         "output_cost": 75.0,
         "requests_per_minute": 4_000,
         "tokens_per_minute": 400_000,
+    },
+    "claude-3-sonnet": {
+        "id": "claude-3-sonnet",
+        "name": "claude-3-sonnet-20240229",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 15.0,
+        "output_cost": 75.0,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000,
+    },
+    "claude-3.5-haiku": {
+        "id": "claude-3.5-haiku",
+        "name": "claude-3-5-haiku-20241022",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 1.00,
+        "output_cost": 5.00,
+        "requests_per_minute": 20_000,
+        "tokens_per_minute": 4_000_000,  # supposed to be this but they fucked up
+    },
+    "claude-3-haiku": {
+        "id": "claude-3-haiku",
+        "name": "claude-3-haiku-20240307",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 0.25,
+        "output_cost": 1.25,
+        "requests_per_minute": 10_000,
+        "tokens_per_minute": 4_000_000,  # supposed to be this but they fucked up
     },
     #  █████   █████                     █████
     # ░░███   ░░███                     ░░███

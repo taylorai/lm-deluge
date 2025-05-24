@@ -41,7 +41,7 @@ To distribute your requests across models, just provide a list of more than one 
 from lm_deluge import LLMClient
 
 client = LLMClient.basic(
-    ["gpt-4o-mini", "claude-haiku-anthropic"],
+    ["gpt-4o-mini", "claude-3-haiku"],
     max_requests_per_minute=10_000
 )
 resps = client.process_prompts_sync(
@@ -94,6 +94,34 @@ resps = client.process_prompts_sync([prompt])
 ```
 
 This just works. Images can be local images on disk, URLs, bytes, base64 data URLs... go wild. You can use `Conversation.to_openai` or `Conversation.to_anthropic` to format your messages for the OpenAI or Anthropic clients directly.
+
+## Basic Tool Use
+
+Define tools from Python functions and use them with any model:
+
+```python
+from lm_deluge import LLMClient, Tool
+
+def get_weather(city: str) -> str:
+    return f"The weather in {city} is sunny and 72°F"
+
+tool = Tool.from_function(get_weather)
+client = LLMClient.basic("claude-3-haiku")
+resp = client.process_prompts_sync(["What's the weather in Paris?"], tools=[tool])
+```
+
+## MCP Integration
+
+Connect to MCP servers to extend your models with external tools:
+
+```python
+from lm_deluge import LLMClient, Tool
+
+# Connect to a local MCP server
+mcp_tool = Tool.from_mcp("filesystem", command="npx -y @modelcontextprotocol/server-filesystem", args=["/path/to/directory"])
+client = LLMClient.basic("gpt-4o-mini", tools=[mcp_tool])
+resp = client.process_prompts_sync(["List the files in the current directory"])
+```
 
 ## Caching
 

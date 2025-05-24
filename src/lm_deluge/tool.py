@@ -148,7 +148,7 @@ class Tool(BaseModel):
         cls,
         server_name: str,
         *,
-        tool_name: str,
+        tool_name: str | None = None,
         timeout: float | None = None,
         **server_spec,  # url="…"  OR  command="…" args=[…]
     ) -> Any:  # Tool | list[Tool]

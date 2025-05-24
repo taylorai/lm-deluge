@@ -11,14 +11,14 @@ models_to_test = [
     "grok-3-mini",
     "grok-3",
     # anthropic
-    "claude-opus-anthropic",
-    "claude-sonnet-anthropic",
-    "claude-haiku-anthropic-expensive",
-    "claude-haiku-anthropic",
+    "claude-3-opus",
+    "claude-3-sonnet",
+    "claude-3-haiku",
+    "claude-4-sonnet",
+    "claude-4-opus",
     # anthropic bedrock
-    "claude-sonnet-3.7-bedrock",
-    "claude-sonnet-4-bedrock",
-    "claude-opus-4-bedrock",
+    "claude-4-sonnet-bedrock",
+    "claude-4-opus-bedrock",
     # openai
     "gpt-4o",
     "gpt-4o-mini",
