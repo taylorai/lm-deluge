@@ -19,7 +19,7 @@
 pip install lm-deluge
 ```
 
-The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GOOGLE_API_KEY`. `LLMClient` will automatically load the `.env` file when imported; we recommend using that to set the environment variables.
+The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GOOGLE_API_KEY`. `LLMClient` will automatically load the `.env` file when imported; we recommend using that to set the environment variables. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 ## Quickstart
 
@@ -35,7 +35,7 @@ print(resp[0].completion)
 
 ## Spraying Across Models
 
-To distribute your requests across models, just provide a list of more than one model to the constructor. The rate limits for the client apply to the client as a whole, not per-model, so you may want to increase them:
+To distribute your requests across models, just provide a list of more than one model to the constructor. See all available models in `models.py`. The rate limits for the client apply to the client as a whole, not per-model, so you may want to increase them:
 
 ```python
 from lm_deluge import LLMClient
@@ -56,7 +56,7 @@ API calls can be customized in a few ways.
 
 1. **Sampling Parameters.** This determines things like structured outputs, maximum completion tokens, nucleus sampling, etc. Provide a custom `SamplingParams` to the `LLMClient` to set temperature, top_p, json_mode, max_new_tokens, and/or reasoning_effort. You can pass 1 `SamplingParams` to use for all models, or a list of `SamplingParams` that's the same length as the list of models. You can also pass many of these arguments directly to `LLMClient.basic` so you don't have to construct an entire `SamplingParams` object.
 2. **Arguments to LLMClient.** This is where you set request timeout, rate limits, model name(s), model weight(s) for distributing requests across models, retries, and caching.
-3. **Arguments to process_prompts.** Per-call, you can set verbosity, whether to display progress, and whether to return just completions (rather than the full APIResponse object).
+3. **Arguments to process_prompts.** Per-call, you can set verbosity, whether to display progress, and whether to return just completions (rather than the full APIResponse object). This is also where you provide tools.
 
 Putting it all together:
 
@@ -95,7 +95,9 @@ resps = client.process_prompts_sync([prompt])
 
 This just works. Images can be local images on disk, URLs, bytes, base64 data URLs... go wild. You can use `Conversation.to_openai` or `Conversation.to_anthropic` to format your messages for the OpenAI or Anthropic clients directly.
 
-## Basic Tool Use
+See a full multi-turn chat example in `examples/multiturn.md`.
+
+## Tool Use
 
 Define tools from Python functions and use them with any model:
 
@@ -107,20 +109,53 @@ def get_weather(city: str) -> str:
 
 tool = Tool.from_function(get_weather)
 client = LLMClient.basic("claude-3-haiku")
-resp = client.process_prompts_sync(["What's the weather in Paris?"], tools=[tool])
+resps = client.process_prompts_sync(
+    ["What's the weather in Paris?"],
+    tools=[tool]
+)
+
+# you can iterate over the tool calls in the response automatically
+for tool_call in resps[0].tool_calls:
+    print(tool_call.name, tool_call.arguments)
 ```
 
-## MCP Integration
-
-Connect to MCP servers to extend your models with external tools:
+You can also automatically instantiate tools from MCP servers. Under the hood, the the constructor connects to the server, asks it what tools it has, and then creates a `Tool` from each of them, *with a built-in `call` and `acall` interface*.
 
 ```python
 from lm_deluge import LLMClient, Tool
 
-# Connect to a local MCP server
-mcp_tool = Tool.from_mcp("filesystem", command="npx -y @modelcontextprotocol/server-filesystem", args=["/path/to/directory"])
-client = LLMClient.basic("gpt-4o-mini", tools=[mcp_tool])
-resp = client.process_prompts_sync(["List the files in the current directory"])
+# Connect to a local MCP server and get all of its tools
+filesystem_tools = Tool.from_mcp(
+    "filesystem",
+    command="npx",
+    args=["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"]
+)
+
+# or load ALL the tools from a Claude Desktop like config
+config = {
+    "mcpServers": {
+        "exa": {
+            "url": f"https://mcp.exa.ai/mcp?exaApiKey={os.getenv('EXA_API_KEY')}"
+        },
+        "zapier": {
+            "url": f"https://mcp.zapier.com/api/mcp/s/{os.getenv('ZAPIER_MCP_SECRET')}/mcp"
+        }
+    }
+}
+all_tools = Tool.from_mcp_config(config)
+
+# let the model use the tools
+client = LLMClient.basic("gpt-4o-mini")
+resps = client.process_prompts_sync(
+    ["List the files in the current directory"],
+    tools=tools
+)
+
+# call the tools
+for tool_call in resps[0].tool_calls:
+    # this is dumb sorry will make it better
+    tool_to_call = [x for x in tools if x.name == tool_call.name][0]
+    tool_to_call.call(**tool_call.arguments) # in async code, use .acall()
 ```
 
 ## Caching
