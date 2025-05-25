@@ -6,7 +6,14 @@ import warnings
 from tqdm import tqdm
 from typing import Callable
 
-from lm_deluge.prompt import Conversation, Message, Text, ToolCall, Thinking
+from lm_deluge.prompt import (
+    Conversation,
+    Message,
+    Text,
+    ToolCall,
+    Thinking,
+    CachePattern,
+)
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
@@ -35,6 +42,7 @@ class AnthropicRequest(APIRequestBase):
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
+        cache: CachePattern | None = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -52,11 +60,16 @@ class AnthropicRequest(APIRequestBase):
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,
+            cache=cache,
         )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/messages"
 
-        self.system_message, messages = prompt.to_anthropic()
+        # Lock images as bytes if caching is enabled
+        if cache is not None:
+            prompt.lock_images_as_bytes()
+
+        self.system_message, messages = prompt.to_anthropic(cache_pattern=cache)
         self.request_header = {
             "x-api-key": os.getenv(self.model.api_key_env_var),
             "anthropic-version": "2023-06-01",
@@ -97,7 +110,11 @@ class AnthropicRequest(APIRequestBase):
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
         if tools:
-            self.request_json["tools"] = [tool.dump_for("anthropic") for tool in tools]
+            tool_definitions = [tool.dump_for("anthropic") for tool in tools]
+            # Add cache control to last tool if tools_only caching is specified
+            if cache == "tools_only" and tool_definitions:
+                tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
+            self.request_json["tools"] = tool_definitions
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False

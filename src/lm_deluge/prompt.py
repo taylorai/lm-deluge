@@ -8,6 +8,14 @@ from typing import Literal
 from lm_deluge.models import APIModel
 from lm_deluge.image import Image
 
+CachePattern = Literal[
+    "tools_only",
+    "system_and_tools",
+    "last_user_message",
+    "last_2_user_messages",
+    "last_3_user_messages",
+]
+
 ###############################################################################
 # 1. Low-level content blocks – either text or an image                       #
 ###############################################################################
@@ -516,7 +524,9 @@ class Conversation:
         # OpenAI Responses = single “input” array, role must be user/assistant
         return {"input": [m.oa_resp() for m in self.messages if m.role != "system"]}
 
-    def to_anthropic(self) -> tuple[str | None, list[dict]]:
+    def to_anthropic(
+        self, cache_pattern: CachePattern | None = None
+    ) -> tuple[str | list[dict] | None, list[dict]]:
         system_msg = next(
             (
                 m.parts[0].text
@@ -535,7 +545,80 @@ class Conversation:
                 other.append(user_msg.anthropic())
             else:
                 other.append(m.anthropic())
+
+        # Apply cache control if specified
+        if cache_pattern is not None:
+            system_msg, other = self._apply_cache_control(
+                system_msg, other, cache_pattern
+            )
+
         return system_msg, other
+
+    def _apply_cache_control(
+        self, system_msg: str | None, messages: list[dict], cache_pattern: CachePattern
+    ) -> tuple[str | list[dict] | None, list[dict]]:
+        """Apply cache control to system message and/or messages based on the pattern."""
+
+        if cache_pattern == "system_and_tools" and system_msg is not None:
+            # Convert system message to structured format with cache control
+            # This caches tools+system prefix (since system comes after tools)
+            system_msg = [
+                {
+                    "type": "text",
+                    "text": system_msg,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+
+        if cache_pattern == "last_user_message":
+            # Cache the last user message
+            user_messages = [i for i, m in enumerate(messages) if m["role"] == "user"]
+            if user_messages:
+                last_user_idx = user_messages[-1]
+                self._add_cache_control_to_message(messages[last_user_idx])
+
+        elif cache_pattern == "last_2_user_messages":
+            # Cache the last 2 user messages
+            user_messages = [i for i, m in enumerate(messages) if m["role"] == "user"]
+            for idx in user_messages[-2:]:
+                self._add_cache_control_to_message(messages[idx])
+
+        elif cache_pattern == "last_3_user_messages":
+            # Cache the last 3 user messages
+            user_messages = [i for i, m in enumerate(messages) if m["role"] == "user"]
+            for idx in user_messages[-3:]:
+                self._add_cache_control_to_message(messages[idx])
+
+        return system_msg, messages
+
+    def lock_images_as_bytes(self) -> "Conversation":
+        """
+        Convert all images to bytes format to ensure they remain unchanged for caching.
+        This should be called when caching is enabled to prevent cache invalidation
+        from image reference changes.
+        """
+        for message in self.messages:
+            for part in message.parts:
+                if isinstance(part, Image):
+                    # Force conversion to bytes if not already
+                    part.data = part._bytes()
+        return self
+
+    def _add_cache_control_to_message(self, message: dict) -> None:
+        """Add cache control to a message's content."""
+        content = message["content"]
+        if isinstance(content, str):
+            # Convert string content to structured format with cache control
+            message["content"] = [
+                {
+                    "type": "text",
+                    "text": content,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ]
+        elif isinstance(content, list) and content:
+            # Add cache control to the last content block
+            content[-1]["cache_control"] = {"type": "ephemeral"}
 
     def to_gemini(self) -> tuple[str | None, list[dict]]:
         system_msg = next(

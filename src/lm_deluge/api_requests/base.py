@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Callable
 
-from lm_deluge.prompt import Conversation, Message
+from lm_deluge.prompt import Conversation, Message, CachePattern
 
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -168,6 +168,7 @@ class APIRequestBase(ABC):
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
+        cache: CachePattern | None = None,
     ):
         if all_model_names is None:
             raise ValueError("all_model_names must be provided.")
@@ -190,6 +191,7 @@ class APIRequestBase(ABC):
         self.all_model_names = all_model_names
         self.all_sampling_params = all_sampling_params
         self.tools = tools
+        self.cache = cache
         self.result = []  # list of APIResponse objects from each attempt
 
         # these should be set in the __init__ of the subclass
@@ -280,6 +282,7 @@ class APIRequestBase(ABC):
                         all_model_names=self.all_model_names,
                         all_sampling_params=self.all_sampling_params,
                         tools=self.tools,
+                        cache=self.cache,
                     )
                     # PROBLEM: new request is never put into results array, so we can't get the result.
                     self.retry_queue.put_nowait(new_request)
@@ -370,6 +373,7 @@ def create_api_request(
     all_model_names: list[str] | None = None,
     all_sampling_params: list[SamplingParams] | None = None,
     tools: list | None = None,
+    cache: CachePattern | None = None,
 ) -> APIRequestBase:
     from .common import CLASSES  # circular import so made it lazy, does this work?
 
@@ -395,5 +399,6 @@ def create_api_request(
         all_model_names=all_model_names,
         all_sampling_params=all_sampling_params,
         tools=tools,
+        cache=cache,
         **kwargs,
     )
