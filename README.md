@@ -7,6 +7,7 @@
 - **Spray across models/providers** – Configure a client with multiple models from any provider(s), and sampling weights. The client samples a model for each request.
 - **Tool Use** – Unified API for defining tools for all providers, and creating tools automatically from python functions.
 - **MCP Support** – Instantiate a `Tool` from a local or remote MCP server so that any LLM can use it, whether or not that provider natively supports MCP.
+- **Computer Use** – We support Claude Computer Use via the computer_use argument to process_prompts_sync/async. It works with Anthropic's API; Bedrock's API is broken right now and rejects the tool definitions, but in principle this will work there too when Bedrock gets their sh*t together.
 - **Caching** – Save completions in a local or distributed cache to avoid repeated LLM calls to process the same input.
 - **Convenient message constructor** – No more looking up how to build an Anthropic messages list with images. Our `Conversation` and `Message` classes work great with our client or with the `openai` and `anthropic` packages.
 - **Sync and async APIs** – Use the client from sync or async code.
@@ -205,11 +206,11 @@ asyncio.run(main())
 
 ## Available Models
 
-We support all models in `src/lm_deluge/models.py`. An older version of this client supported Bedrock and Vertex. We plan to re-implement Bedrock support (our previous support was spotty and we need to figure out cross-region inference in order to support the newest Claude models). Vertex support is not currently planned, since Google allows you to connect your Vertex account to AI Studio, and Vertex authentication is a huge pain (requires service account credentials, etc.)
+We support all models in `src/lm_deluge/models.py`. Vertex support is not planned in the short term, since Google allows you to connect your Vertex account to AI Studio, and Vertex authentication is a huge pain (requires service account credentials, etc.)
 
 ## Feature Support
 
-We support structured outputs via `json_mode` parameter provided to `SamplingParams`. Structured outputs with a schema are planned. Reasoning models are supported via the `reasoning_effort` parameter, which is translated to a thinking budget for Claude/Gemini. Image models are supported. We don't support tool use yet, but support is planned (keep an eye out for a unified tool definition spec that works for all models!). We support logprobs for OpenAI models that return them via the `logprobs` argument to the `LLMClient`.
+We support structured outputs via `json_mode` parameter provided to `SamplingParams`. Structured outputs with a schema are planned. Reasoning models are supported via the `reasoning_effort` parameter, which is translated to a thinking budget for Claude/Gemini. Image models are supported. We support tool use as documented above. We support logprobs for OpenAI models that return them via the `logprobs` argument to the `LLMClient`.
 
 ## Built‑in tools
 
