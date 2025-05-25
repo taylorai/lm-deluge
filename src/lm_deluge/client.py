@@ -233,6 +233,9 @@ class LLMClient:
         verbose: bool = ...,
         tools: list[Tool] | None = ...,
         cache: CachePattern | None = ...,
+        computer_use: bool = ...,
+        display_width: int = ...,
+        display_height: int = ...,
     ) -> dict[str, int]: ...
 
     @overload
@@ -246,6 +249,9 @@ class LLMClient:
         verbose: bool = ...,
         tools: list[Tool] | None = ...,
         cache: CachePattern | None = ...,
+        computer_use: bool = ...,
+        display_width: int = ...,
+        display_height: int = ...,
     ) -> list[str | None]: ...
 
     @overload
@@ -259,6 +265,9 @@ class LLMClient:
         verbose: bool = ...,
         tools: list[Tool] | None = ...,
         cache: CachePattern | None = ...,
+        computer_use: bool = ...,
+        display_width: int = ...,
+        display_height: int = ...,
     ) -> list[APIResponse | None]: ...
 
     async def process_prompts_async(
@@ -271,6 +280,9 @@ class LLMClient:
         verbose: bool = False,
         tools: list[Tool] | None = None,
         cache: CachePattern | None = None,
+        computer_use: bool = False,
+        display_width: int = 1024,
+        display_height: int = 768,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Conversations, convert them.
         # can only handle strings for now
@@ -350,6 +362,9 @@ class LLMClient:
                     verbose=verbose,
                     tools=tools,
                     cache=cache,
+                    computer_use=computer_use,
+                    display_width=display_width,
+                    display_height=display_height,
                 )
             )
             api_results: list[APIResponse] = await api_task
@@ -578,6 +593,9 @@ async def process_api_prompts_async(
     verbose: bool = False,
     tools: list[Tool] | None = None,
     cache: CachePattern | None = None,
+    computer_use: bool = False,
+    display_width: int = 1024,
+    display_height: int = 768,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
@@ -663,9 +681,11 @@ async def process_api_prompts_async(
                         all_sampling_params=sampling_params,
                         tools=tools,
                         cache=cache,
+                        computer_use=computer_use,
+                        display_width=display_width,
+                        display_height=display_height,
                     )
                     status_tracker.num_tasks_started += 1
-                    status_tracker.num_tasks_in_progress += 1
                     results.append(next_request)
 
                 except StopIteration:
@@ -702,6 +722,7 @@ async def process_api_prompts_async(
                 available_request_capacity -= 1
                 available_token_capacity -= next_request_tokens
                 next_request.attempts_left -= 1
+                status_tracker.num_tasks_in_progress += 1
 
                 # call API
                 asyncio.create_task(next_request.call_api())

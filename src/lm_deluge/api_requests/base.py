@@ -304,6 +304,9 @@ class APIRequestBase(ABC):
                         all_sampling_params=self.all_sampling_params,
                         tools=self.tools,
                         cache=self.cache,
+                        computer_use=getattr(self, "computer_use", False),
+                        display_width=getattr(self, "display_width", 1024),
+                        display_height=getattr(self, "display_height", 768),
                     )
                     # PROBLEM: new request is never put into results array, so we can't get the result.
                     self.retry_queue.put_nowait(new_request)
@@ -393,6 +396,9 @@ def create_api_request(
     all_sampling_params: list[SamplingParams] | None = None,
     tools: list | None = None,
     cache: CachePattern | None = None,
+    computer_use: bool = False,
+    display_width: int = 1024,
+    display_height: int = 768,
 ) -> APIRequestBase:
     from .common import CLASSES  # circular import so made it lazy, does this work?
 
@@ -403,6 +409,17 @@ def create_api_request(
     kwargs = (
         {} if not logprobs else {"logprobs": logprobs, "top_logprobs": top_logprobs}
     )
+    # Add computer_use to kwargs if the request class supports it
+    model_obj = APIModel.from_registry(model_name)
+    if computer_use and model_obj.api_spec in ["anthropic", "bedrock"]:
+        kwargs.update(
+            {
+                "computer_use": computer_use,
+                "display_width": display_width,
+                "display_height": display_height,
+            }
+        )
+
     return request_class(
         task_id=task_id,
         model_name=model_name,

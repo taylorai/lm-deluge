@@ -99,24 +99,35 @@ class ToolCall:
 @dataclass(slots=True)
 class ToolResult:
     tool_call_id: str  # references the ToolCall.id
-    result: str  # tool execution result
+    result: str | list[dict]  # tool execution result - can be string or list for images
     type: str = field(init=False, default="tool_result")
 
     @property
     def fingerprint(self) -> str:
-        return xxhash.xxh64(f"{self.tool_call_id}:{self.result}".encode()).hexdigest()
+        result_str = (
+            json.dumps(self.result, sort_keys=True)
+            if isinstance(self.result, list)
+            else str(self.result)
+        )
+        return xxhash.xxh64(f"{self.tool_call_id}:{result_str}".encode()).hexdigest()
 
     # ── provider-specific emission ────────────────────────────────────────────
     def oa_chat(
         self,
     ) -> dict:  # OpenAI Chat Completions - tool results are separate messages
-        return {"tool_call_id": self.tool_call_id, "content": self.result}
+        content = (
+            json.dumps(self.result) if isinstance(self.result, list) else self.result
+        )
+        return {"tool_call_id": self.tool_call_id, "content": content}
 
     def oa_resp(self) -> dict:  # OpenAI Responses
+        result = (
+            json.dumps(self.result) if isinstance(self.result, list) else self.result
+        )
         return {
             "type": "function_result",
             "call_id": self.tool_call_id,
-            "result": self.result,
+            "result": result,
         }
 
     def anthropic(self) -> dict:  # Anthropic Messages

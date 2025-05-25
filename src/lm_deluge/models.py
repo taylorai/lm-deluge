@@ -178,6 +178,7 @@ registry = {
     #                ░███
     #                █████
     #               ░░░░░
+    "openai-computer-use-preview": {},
     "o3": {
         "id": "o3",
         "name": "o3-2025-04-16",

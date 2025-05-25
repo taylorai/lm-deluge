@@ -44,6 +44,10 @@ class AnthropicRequest(APIRequestBase):
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
         cache: CachePattern | None = None,
+        # Computer Use support
+        computer_use: bool = False,
+        display_width: int = 1024,
+        display_height: int = 768,
     ):
         super().__init__(
             task_id=task_id,
@@ -63,6 +67,9 @@ class AnthropicRequest(APIRequestBase):
             tools=tools,
             cache=cache,
         )
+        self.computer_use = computer_use
+        self.display_width = display_width
+        self.display_height = display_height
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/messages"
 
@@ -76,6 +83,10 @@ class AnthropicRequest(APIRequestBase):
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
+
+        # Add beta header for Computer Use
+        if self.computer_use:
+            self.request_header["anthropic-beta"] = "computer-use-2025-01-24"
 
         self.request_json = {
             "model": self.model.name,
@@ -110,11 +121,28 @@ class AnthropicRequest(APIRequestBase):
                 )
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
-        if tools:
-            tool_definitions = [tool.dump_for("anthropic") for tool in tools]
+        if tools or self.computer_use:
+            tool_definitions = []
+
+            # Add Computer Use tools at the beginning if enabled
+            if self.computer_use:
+                from ..computer_use.anthropic_tools import get_anthropic_cu_tools
+
+                cu_tools = get_anthropic_cu_tools(
+                    model=self.model.id,
+                    display_width=self.display_width,
+                    display_height=self.display_height,
+                )
+                tool_definitions.extend(cu_tools)
+
+            # Add user-provided tools
+            if tools:
+                tool_definitions.extend([tool.dump_for("anthropic") for tool in tools])
+
             # Add cache control to last tool if tools_only caching is specified
             if cache == "tools_only" and tool_definitions:
                 tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
+
             self.request_json["tools"] = tool_definitions
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:

@@ -47,6 +47,10 @@ class BedrockRequest(APIRequestBase):
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
         cache: CachePattern | None = None,
+        # Computer Use support
+        computer_use: bool = False,
+        display_width: int = 1024,
+        display_height: int = 768,
     ):
         super().__init__(
             task_id=task_id,
@@ -66,6 +70,10 @@ class BedrockRequest(APIRequestBase):
             tools=tools,
             cache=cache,
         )
+
+        self.computer_use = computer_use
+        self.display_width = display_width
+        self.display_height = display_height
 
         # Lock images as bytes if caching is enabled
         if cache is not None:
@@ -115,11 +123,34 @@ class BedrockRequest(APIRequestBase):
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
 
-        if tools:
-            tool_definitions = [tool.dump_for("anthropic") for tool in tools]
+        if tools or self.computer_use:
+            tool_definitions = []
+
+            # Add Computer Use tools at the beginning if enabled
+            if self.computer_use:
+                from ..computer_use.anthropic_tools import get_anthropic_cu_tools
+
+                cu_tools = get_anthropic_cu_tools(
+                    model=self.model.id,
+                    display_width=self.display_width,
+                    display_height=self.display_height,
+                )
+                tool_definitions.extend(cu_tools)
+
+                # Add computer use display parameters to the request
+                self.request_json["computer_use_display_width_px"] = self.display_width
+                self.request_json["computer_use_display_height_px"] = (
+                    self.display_height
+                )
+
+            # Add user-provided tools
+            if tools:
+                tool_definitions.extend([tool.dump_for("anthropic") for tool in tools])
+
             # Add cache control to last tool if tools_only caching is specified
             if cache == "tools_only" and tool_definitions:
                 tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
+
             self.request_json["tools"] = tool_definitions
 
         # Setup AWS4Auth for signing
