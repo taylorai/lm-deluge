@@ -1,1 +1,2 @@
 - whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. ephemeral tests are always worse than permanent tests.
+- don't use == True and == False as these always lead to ruff errors

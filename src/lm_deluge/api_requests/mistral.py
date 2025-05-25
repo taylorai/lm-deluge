@@ -7,7 +7,8 @@ from tqdm.auto import tqdm
 from typing import Callable
 
 from .base import APIRequestBase, APIResponse
-from ..prompt import Conversation, Message
+from ..prompt import Conversation, Message, CachePattern
+from ..usage import Usage
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
 from ..models import APIModel
@@ -35,6 +36,7 @@ class MistralRequest(APIRequestBase):
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
+        cache: CachePattern | None = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -53,7 +55,15 @@ class MistralRequest(APIRequestBase):
             debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
+            tools=tools,
+            cache=cache,
         )
+
+        # Warn if cache is specified for non-Anthropic model
+        if cache is not None:
+            warnings.warn(
+                f"Cache parameter '{cache}' is only supported for Anthropic models, ignoring for {model_name}"
+            )
         self.model = APIModel.from_registry(model_name)
         self.url = f"{self.model.api_base}/chat/completions"
         self.request_header = {
@@ -81,8 +91,7 @@ class MistralRequest(APIRequestBase):
         is_error = False
         error_message = None
         completion = None
-        input_tokens = None
-        output_tokens = None
+        usage = None
         logprobs = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
@@ -99,8 +108,7 @@ class MistralRequest(APIRequestBase):
                 assert data is not None, "data is None"
                 try:
                     completion = data["choices"][0]["message"]["content"]
-                    input_tokens = data["usage"]["prompt_tokens"]
-                    output_tokens = data["usage"]["completion_tokens"]
+                    usage = Usage.from_mistral_usage(data["usage"])
                     if self.logprobs and "logprobs" in data["choices"][0]:
                         logprobs = data["choices"][0]["logprobs"]["content"]
                 except Exception:
@@ -134,6 +142,5 @@ class MistralRequest(APIRequestBase):
             content=Message.ai(completion),
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            usage=usage,
         )

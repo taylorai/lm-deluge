@@ -555,7 +555,10 @@ class Conversation:
         return system_msg, other
 
     def _apply_cache_control(
-        self, system_msg: str | None, messages: list[dict], cache_pattern: CachePattern
+        self,
+        system_msg: str | None | list[dict],
+        messages: list[dict],
+        cache_pattern: CachePattern,
     ) -> tuple[str | list[dict] | None, list[dict]]:
         """Apply cache control to system message and/or messages based on the pattern."""
 

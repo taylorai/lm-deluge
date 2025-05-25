@@ -14,6 +14,7 @@ from lm_deluge.prompt import (
     Thinking,
     CachePattern,
 )
+from lm_deluge.usage import Usage
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
@@ -121,8 +122,7 @@ class AnthropicRequest(APIRequestBase):
         error_message = None
         thinking = None
         content = None
-        input_tokens = None
-        output_tokens = None
+        usage = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         rate_limits = {}
@@ -160,8 +160,7 @@ class AnthropicRequest(APIRequestBase):
                         )
 
                 content = Message("assistant", parts)
-                input_tokens = data["usage"]["input_tokens"]
-                output_tokens = data["usage"]["output_tokens"]
+                usage = Usage.from_anthropic_usage(data["usage"])
             except Exception as e:
                 is_error = True
                 error_message = (
@@ -199,6 +198,5 @@ class AnthropicRequest(APIRequestBase):
             thinking=thinking,
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            usage=usage,
         )

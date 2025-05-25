@@ -12,7 +12,15 @@ except ImportError:
         "aws4auth is required for bedrock support. Install with: pip install requests-aws4auth"
     )
 
-from lm_deluge.prompt import Conversation, Message, Text, ToolCall, Thinking
+from lm_deluge.prompt import (
+    Conversation,
+    Message,
+    Text,
+    ToolCall,
+    Thinking,
+    CachePattern,
+)
+from lm_deluge.usage import Usage
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
@@ -38,6 +46,7 @@ class BedrockRequest(APIRequestBase):
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
+        cache: CachePattern | None = None,
     ):
         super().__init__(
             task_id=task_id,
@@ -55,7 +64,17 @@ class BedrockRequest(APIRequestBase):
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,
+            cache=cache,
         )
+
+        # Warn if cache is specified for non-Anthropic model
+        if cache is not None:
+            # Bedrock Anthropic models could potentially support caching but not implemented yet
+            import warnings
+
+            warnings.warn(
+                f"Cache parameter '{cache}' is not yet implemented for Bedrock models, ignoring for {model_name}"
+            )
 
         self.model = APIModel.from_registry(model_name)
 
@@ -179,8 +198,7 @@ class BedrockRequest(APIRequestBase):
                     is_error=True,
                     error_message="Request timed out (terminated by client).",
                     content=None,
-                    input_tokens=None,
-                    output_tokens=None,
+                    usage=None,
                 )
             )
             self.handle_error(create_new_request=False)
@@ -199,8 +217,7 @@ class BedrockRequest(APIRequestBase):
                     is_error=True,
                     error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
                     content=None,
-                    input_tokens=None,
-                    output_tokens=None,
+                    usage=None,
                 )
             )
             self.handle_error(create_new_request=False)
@@ -210,8 +227,7 @@ class BedrockRequest(APIRequestBase):
         error_message = None
         thinking = None
         content = None
-        input_tokens = None
-        output_tokens = None
+        usage = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
 
@@ -238,8 +254,7 @@ class BedrockRequest(APIRequestBase):
                         )
 
                 content = Message("assistant", parts)
-                input_tokens = data["usage"]["input_tokens"]
-                output_tokens = data["usage"]["output_tokens"]
+                usage = Usage.from_anthropic_usage(data["usage"])
             except Exception as e:
                 is_error = True
                 error_message = (
@@ -278,6 +293,5 @@ class BedrockRequest(APIRequestBase):
             model_internal=self.model_name,
             region=self.region,
             sampling_params=self.sampling_params,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
+            usage=usage,
         )

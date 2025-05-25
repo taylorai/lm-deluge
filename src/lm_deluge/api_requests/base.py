@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Callable
 
 from lm_deluge.prompt import Conversation, Message, CachePattern
+from lm_deluge.usage import Usage
 
 from ..tracker import StatusTracker
 from ..sampling_params import SamplingParams
@@ -29,9 +30,8 @@ class APIResponse:
     is_error: bool | None
     error_message: str | None
 
-    # completion information
-    input_tokens: int | None
-    output_tokens: int | None
+    # completion information - unified usage tracking
+    usage: Usage | None = None
 
     # response content - structured format
     content: Message | None = None
@@ -56,6 +56,26 @@ class APIResponse:
             return self.content.completion
         return None
 
+    @property
+    def input_tokens(self) -> int | None:
+        """Get input tokens from usage object."""
+        return self.usage.input_tokens if self.usage else None
+
+    @property
+    def output_tokens(self) -> int | None:
+        """Get output tokens from usage object."""
+        return self.usage.output_tokens if self.usage else None
+
+    @property
+    def cache_read_tokens(self) -> int | None:
+        """Get cache read tokens from usage object."""
+        return self.usage.cache_read_tokens if self.usage else None
+
+    @property
+    def cache_write_tokens(self) -> int | None:
+        """Get cache write tokens from usage object."""
+        return self.usage.cache_write_tokens if self.usage else None
+
     def __post_init__(self):
         # calculate cost & get external model name
         self.id = int(self.id)
@@ -63,14 +83,13 @@ class APIResponse:
         self.model_external = api_model.name
         self.cost = None
         if (
-            self.input_tokens is not None
-            and self.output_tokens is not None
+            self.usage is not None
             and api_model.input_cost is not None
             and api_model.output_cost is not None
         ):
             self.cost = (
-                self.input_tokens * api_model.input_cost / 1e6
-                + self.output_tokens * api_model.output_cost / 1e6
+                self.usage.input_tokens * api_model.input_cost / 1e6
+                + self.usage.output_tokens * api_model.output_cost / 1e6
             )
         elif self.content is not None and self.completion is not None:
             print(
@@ -90,8 +109,7 @@ class APIResponse:
             "error_message": self.error_message,
             "completion": self.completion,  # computed property
             "content": self.content.to_log() if self.content else None,
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
+            "usage": self.usage.to_dict() if self.usage else None,
             "finish_reason": self.finish_reason,
             "cost": self.cost,
         }
@@ -107,6 +125,10 @@ class APIResponse:
             # Backward compatibility: create a Message with just text
             content = Message.ai(data["completion"])
 
+        usage = None
+        if "usage" in data and data["usage"] is not None:
+            usage = Usage.from_dict(data["usage"])
+
         return cls(
             id=data.get("id", random.randint(0, 1_000_000_000)),
             model_internal=data["model_internal"],
@@ -115,8 +137,7 @@ class APIResponse:
             status_code=data["status_code"],
             is_error=data["is_error"],
             error_message=data["error_message"],
-            input_tokens=data["input_tokens"],
-            output_tokens=data["output_tokens"],
+            usage=usage,
             content=content,
             thinking=data.get("thinking"),
             model_external=data.get("model_external"),
@@ -191,7 +212,7 @@ class APIRequestBase(ABC):
         self.all_model_names = all_model_names
         self.all_sampling_params = all_sampling_params
         self.tools = tools
-        self.cache = cache
+        self.cache: CachePattern | None = cache
         self.result = []  # list of APIResponse objects from each attempt
 
         # these should be set in the __init__ of the subclass
@@ -326,8 +347,7 @@ class APIRequestBase(ABC):
                     is_error=True,
                     error_message="Request timed out (terminated by client).",
                     content=None,
-                    input_tokens=None,
-                    output_tokens=None,
+                    usage=None,
                 )
             )
             self.handle_error(create_new_request=False)
@@ -344,8 +364,7 @@ class APIRequestBase(ABC):
                     is_error=True,
                     error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
                     content=None,
-                    input_tokens=None,
-                    output_tokens=None,
+                    usage=None,
                 )
             )
             # maybe consider making True?
