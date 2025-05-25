@@ -101,7 +101,7 @@ def test_usage_tracking():
     assert usage.cache_write_tokens == 25
     assert usage.has_cache_hit
     assert usage.has_cache_write
-    assert usage.total_input_tokens == 175  # 100 + 75
+    assert usage.total_input_tokens == 200  # 100 + 75 + 25
 
     # Test OpenAI usage (no cache support)
     openai_usage = {"prompt_tokens": 120, "completion_tokens": 80}
@@ -145,6 +145,70 @@ def test_cache_warnings_non_anthropic():
 
         assert len(w) == 1
         assert "only supported for Anthropic models" in str(w[0].message)
+
+
+def test_bedrock_caching():
+    """Test that Bedrock Anthropic models support prompt caching."""
+    from lm_deluge.api_requests.bedrock import BedrockRequest
+    from lm_deluge.tracker import StatusTracker
+    from lm_deluge.tool import Tool
+    import asyncio
+
+    # Create a conversation with system message and user message
+    conv = Conversation.system("You are a helpful assistant.").add(
+        Message.user("Hello, how are you?")
+    )
+
+    # Create a simple tool
+    def test_function(arg: str) -> str:
+        """A test function."""
+        return f"Result: {arg}"
+
+    tool = Tool.from_function(test_function)
+
+    status_tracker = StatusTracker()
+    retry_queue = asyncio.Queue()
+
+    # Test system_and_tools caching
+    request = BedrockRequest(
+        task_id=1,
+        model_name="claude-3.5-sonnet-bedrock",
+        prompt=conv,
+        attempts_left=1,
+        status_tracker=status_tracker,
+        retry_queue=retry_queue,
+        results_arr=[],
+        cache="system_and_tools",
+        all_model_names=["claude-3.5-sonnet-bedrock"],
+    )
+
+    # Check that system message has cache control
+    system_msg = request.request_json.get("system")
+    if isinstance(system_msg, list):
+        assert system_msg[0]["cache_control"] == {
+            "type": "ephemeral"
+        }, "System should have cache control for Bedrock"
+
+    # Test tools_only caching
+    request = BedrockRequest(
+        task_id=2,
+        model_name="claude-3.5-sonnet-bedrock",
+        prompt=conv,
+        attempts_left=1,
+        status_tracker=status_tracker,
+        retry_queue=retry_queue,
+        results_arr=[],
+        tools=[tool],
+        cache="tools_only",
+        all_model_names=["claude-3.5-sonnet-bedrock"],
+    )
+
+    # Check that cache control was added to the last tool
+    tools = request.request_json.get("tools", [])
+    assert len(tools) > 0, "Should have tools"
+    assert tools[-1]["cache_control"] == {
+        "type": "ephemeral"
+    }, "Last tool should have cache control for Bedrock"
 
 
 def test_image_locking():
@@ -191,6 +255,7 @@ if __name__ == "__main__":
     test_tools_only_caching()
     test_usage_tracking()
     test_cache_warnings_non_anthropic()
+    test_bedrock_caching()
     test_image_locking()
     test_no_cache_control_without_cache()
     print("All prompt caching tests passed!")

@@ -67,14 +67,9 @@ class BedrockRequest(APIRequestBase):
             cache=cache,
         )
 
-        # Warn if cache is specified for non-Anthropic model
+        # Lock images as bytes if caching is enabled
         if cache is not None:
-            # Bedrock Anthropic models could potentially support caching but not implemented yet
-            import warnings
-
-            warnings.warn(
-                f"Cache parameter '{cache}' is not yet implemented for Bedrock models, ignoring for {model_name}"
-            )
+            prompt.lock_images_as_bytes()
 
         self.model = APIModel.from_registry(model_name)
 
@@ -106,7 +101,7 @@ class BedrockRequest(APIRequestBase):
         self.url = f"https://bedrock-runtime.{self.region}.amazonaws.com/model/{self.model.name}/invoke"
 
         # Convert prompt to Anthropic format for bedrock
-        self.system_message, messages = prompt.to_anthropic()
+        self.system_message, messages = prompt.to_anthropic(cache_pattern=cache)
 
         # Prepare request body in Anthropic's bedrock format
         self.request_json = {
@@ -121,7 +116,11 @@ class BedrockRequest(APIRequestBase):
             self.request_json["system"] = self.system_message
 
         if tools:
-            self.request_json["tools"] = [tool.dump_for("anthropic") for tool in tools]
+            tool_definitions = [tool.dump_for("anthropic") for tool in tools]
+            # Add cache control to last tool if tools_only caching is specified
+            if cache == "tools_only" and tool_definitions:
+                tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
+            self.request_json["tools"] = tool_definitions
 
         # Setup AWS4Auth for signing
         self.auth = AWS4Auth(
