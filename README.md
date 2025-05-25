@@ -158,11 +158,34 @@ for tool_call in resps[0].tool_calls:
     tool_to_call.call(**tool_call.arguments) # in async code, use .acall()
 ```
 
-## Caching
+### Prompt Caching (Anthropic)
 
-`lm_deluge.cache` includes LevelDB, SQLite and custom dictionary based caches.  Pass an instance via `LLMClient(..., cache=my_cache)` and previously seen prompts will not be re‑sent across different `process_prompts_[...]` calls.
+For Anthropic models, you can use prompt caching to reduce costs and latency for repeated context. This uses Anthropic's server-side prompt caching. Other providers like OpenAI and Google do this automatically, but Anthropic requires you to manually set cache-control on messages. You can do this in lm-deluge with a simple "cache" argument to `process_prompts_sync` or `process_prompts_async`:
 
-**IMPORTANT:** Caching does not currently work for prompts in the SAME batch. That is, if you call `process_prompts_sync` with the same prompt 100 times, there will be 0 cache hits. If you call `process_prompts_sync` a *second* time with those same 100 prompts, all 100 will be cache hits. The cache is intended to be persistent and help you save costs across many invocations, but it can't help with a single batch-inference session (yet!).
+```python
+from lm_deluge import LLMClient, Conversation, Message
+
+# Create a conversation with system message
+conv = (
+    Conversation.system("You are an expert Python developer with deep knowledge of async programming.")
+    .add(Message.user("How do I use asyncio.gather?"))
+)
+
+# Use prompt caching to cache system message and tools
+client = LLMClient.basic("claude-3-5-sonnet")
+resps = client.process_prompts_sync(
+    [conv],
+    cache="system_and_tools"  # Cache system message and any tools
+)
+```
+
+Available cache patterns: `"system_and_tools"`, `"tools_only"`, `"last_user_message"`, `"last_2_user_messages"`, `"last_3_user_messages"`.
+
+## Local Caching
+
+Besides caching from model providers (which provides cache reads at a discount, but not for free) `lm_deluge.cache` includes LevelDB, SQLite and custom dictionary based caches to cache prompts locally. Pass an instance via `LLMClient(..., cache=my_cache)` and previously seen prompts will not be re‑sent across different `process_prompts_[...]` calls.
+
+**IMPORTANT:** Caching does not currently work for prompts in the SAME batch. That is, if you call `process_prompts_sync` with the same prompt 100 times, there will be 0 cache hits. If you call `process_prompts_sync` a *second* time with those same 100 prompts, all 100 will be cache hits. The local cache is intended to be persistent and help you save costs across many invocations, but it can't help with a single batch-inference session (yet!).
 
 ## Asynchronous Client
 Use this in asynchronous code, or in a Jupyter notebook. If you try to use the sync client in a Jupyter notebook, you'll have to use `nest-asyncio`, because internally the sync client uses async code. Don't do it! Just use the async client!
