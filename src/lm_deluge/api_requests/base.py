@@ -48,6 +48,8 @@ class APIResponse:
     retry_with_different_model: bool | None = False
     # set to true if should NOT retry with the same model (unrecoverable error)
     give_up_if_no_other_models: bool | None = False
+    # OpenAI Responses API specific - used for computer use continuation
+    response_id: str | None = None
 
     @property
     def completion(self) -> str | None:
@@ -399,19 +401,26 @@ def create_api_request(
     computer_use: bool = False,
     display_width: int = 1024,
     display_height: int = 768,
+    use_responses_api: bool = False,
 ) -> APIRequestBase:
     from .common import CLASSES  # circular import so made it lazy, does this work?
 
     model_obj = APIModel.from_registry(model_name)
-    request_class = CLASSES.get(model_obj.api_spec, None)
+
+    # Choose API spec based on use_responses_api flag and model support
+    api_spec = model_obj.api_spec
+    if use_responses_api and model_obj.supports_responses and api_spec == "openai":
+        api_spec = "openai-responses"
+
+    request_class = CLASSES.get(api_spec, None)
     if request_class is None:
-        raise ValueError(f"Unsupported API spec: {model_obj.api_spec}")
+        raise ValueError(f"Unsupported API spec: {api_spec}")
     kwargs = (
         {} if not logprobs else {"logprobs": logprobs, "top_logprobs": top_logprobs}
     )
     # Add computer_use to kwargs if the request class supports it
     model_obj = APIModel.from_registry(model_name)
-    if computer_use and model_obj.api_spec in ["anthropic", "bedrock"]:
+    if computer_use and api_spec in ["anthropic", "bedrock", "openai-responses"]:
         kwargs.update(
             {
                 "computer_use": computer_use,

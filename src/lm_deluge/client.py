@@ -236,6 +236,7 @@ class LLMClient:
         computer_use: bool = ...,
         display_width: int = ...,
         display_height: int = ...,
+        use_responses_api: bool = ...,
     ) -> dict[str, int]: ...
 
     @overload
@@ -252,6 +253,7 @@ class LLMClient:
         computer_use: bool = ...,
         display_width: int = ...,
         display_height: int = ...,
+        use_responses_api: bool = ...,
     ) -> list[str | None]: ...
 
     @overload
@@ -268,6 +270,7 @@ class LLMClient:
         computer_use: bool = ...,
         display_width: int = ...,
         display_height: int = ...,
+        use_responses_api: bool = ...,
     ) -> list[APIResponse | None]: ...
 
     async def process_prompts_async(
@@ -283,6 +286,7 @@ class LLMClient:
         computer_use: bool = False,
         display_width: int = 1024,
         display_height: int = 768,
+        use_responses_api: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # if prompts are not Conversations, convert them.
         # can only handle strings for now
@@ -365,6 +369,7 @@ class LLMClient:
                     computer_use=computer_use,
                     display_width=display_width,
                     display_height=display_height,
+                    use_responses_api=use_responses_api,
                 )
             )
             api_results: list[APIResponse] = await api_task
@@ -596,6 +601,7 @@ async def process_api_prompts_async(
     computer_use: bool = False,
     display_width: int = 1024,
     display_height: int = 768,
+    use_responses_api: bool = False,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # change ids to integer list
@@ -684,6 +690,7 @@ async def process_api_prompts_async(
                         computer_use=computer_use,
                         display_width=display_width,
                         display_height=display_height,
+                        use_responses_api=use_responses_api,
                     )
                     status_tracker.num_tasks_started += 1
                     results.append(next_request)

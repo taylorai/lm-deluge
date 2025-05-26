@@ -99,14 +99,16 @@ class ToolCall:
 @dataclass(slots=True)
 class ToolResult:
     tool_call_id: str  # references the ToolCall.id
-    result: str | list[dict]  # tool execution result - can be string or list for images
+    result: (
+        str | dict | list[dict]
+    )  # tool execution result - can be string or list for images
     type: str = field(init=False, default="tool_result")
 
     @property
     def fingerprint(self) -> str:
         result_str = (
             json.dumps(self.result, sort_keys=True)
-            if isinstance(self.result, list)
+            if isinstance(self.result, list) or isinstance(self.result, dict)
             else str(self.result)
         )
         return xxhash.xxh64(f"{self.tool_call_id}:{result_str}".encode()).hexdigest()
@@ -121,6 +123,27 @@ class ToolResult:
         return {"tool_call_id": self.tool_call_id, "content": content}
 
     def oa_resp(self) -> dict:  # OpenAI Responses
+        # Check if this is a computer use output (special case)
+        if isinstance(self.result, dict) and self.result.get("_computer_use_output"):
+            # This is a computer use output, emit it properly
+            output_data = self.result.copy()
+            output_data.pop("_computer_use_output")  # Remove marker
+
+            result = {
+                "type": "computer_call_output",
+                "call_id": self.tool_call_id,
+                "output": output_data.get("output", {}),
+            }
+
+            # Add acknowledged safety checks if present
+            if "acknowledged_safety_checks" in output_data:
+                result["acknowledged_safety_checks"] = output_data[
+                    "acknowledged_safety_checks"
+                ]
+
+            return result
+
+        # Regular function result
         result = (
             json.dumps(self.result) if isinstance(self.result, list) else self.result
         )
@@ -439,6 +462,14 @@ class Message:
 
     def oa_resp(self) -> dict:
         content = [p.oa_resp() for p in self.parts]
+        # For OpenAI Responses API, handle tool results specially
+        if self.role == "tool" or (
+            self.role == "user" and any(isinstance(p, ToolResult) for p in self.parts)
+        ):
+            # Tool results are returned directly, not wrapped in a message
+            # This handles computer_call_output when stored as ToolResult
+            if len(self.parts) == 1 and isinstance(self.parts[0], ToolResult):
+                return self.parts[0].oa_resp()
         return {"role": self.role, "content": content}
 
     def anthropic(self) -> dict:
@@ -533,7 +564,37 @@ class Conversation:
 
     def to_openai_responses(self) -> dict:
         # OpenAI Responses = single “input” array, role must be user/assistant
-        return {"input": [m.oa_resp() for m in self.messages if m.role != "system"]}
+        input_items = []
+
+        for m in self.messages:
+            if m.role == "system":
+                continue
+            elif m.role == "assistant":
+                # For assistant messages, extract computer calls as separate items
+                text_parts = []
+                for p in m.parts:
+                    if isinstance(p, ToolCall) and p.name.startswith("_computer_"):
+                        # Computer calls become separate items in the input array
+                        action_type = p.name.replace("_computer_", "")
+                        input_items.append(
+                            {
+                                "type": "computer_call",
+                                "call_id": p.id,
+                                "action": {"type": action_type, **p.arguments},
+                            }
+                        )
+                    elif isinstance(p, Text):
+                        text_parts.append({"type": "output_text", "text": p.text})
+                    # TODO: Handle other part types as needed
+
+                # Add message if it has text content
+                if text_parts:
+                    input_items.append({"role": m.role, "content": text_parts})
+            else:
+                # User and tool messages use normal format
+                input_items.append(m.oa_resp())
+
+        return {"input": input_items}
 
     def to_anthropic(
         self, cache_pattern: CachePattern | None = None

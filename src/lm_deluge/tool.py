@@ -4,7 +4,7 @@ import asyncio
 
 from fastmcp import Client  # pip install fastmcp >= 2.0
 from mcp.types import Tool as MCPTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
@@ -45,6 +45,16 @@ class Tool(BaseModel):
     additionalProperties: bool | None = None  # only
     # if desired, can provide a callable to run the tool
     run: Callable | None = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if v.startswith("_computer_"):
+            raise ValueError(
+                f"Tool name '{v}' uses reserved prefix '_computer_'. "
+                "This prefix is reserved for computer use actions."
+            )
+        return v
 
     def _is_async(self) -> bool:
         return inspect.iscoroutinefunction(self.run)
