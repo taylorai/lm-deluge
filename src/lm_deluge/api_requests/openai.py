@@ -186,6 +186,7 @@ class OpenAIRequest(APIRequestBase):
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
             usage=usage,
+            raw_response=data,
         )
 
 
@@ -417,4 +418,5 @@ class OpenAIResponsesRequest(APIRequestBase):
             model_internal=self.model_name,
             sampling_params=self.sampling_params,
             usage=usage,
+            raw_response=data,
         )

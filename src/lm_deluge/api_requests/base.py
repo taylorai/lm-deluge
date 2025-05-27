@@ -50,6 +50,8 @@ class APIResponse:
     give_up_if_no_other_models: bool | None = False
     # OpenAI Responses API specific - used for computer use continuation
     response_id: str | None = None
+    # Raw API response for debugging
+    raw_response: dict | None = None
 
     @property
     def completion(self) -> str | None:
