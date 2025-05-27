@@ -1,12 +1,19 @@
 import os
 import requests
 import asyncio
+import aiohttp
 import numpy as np
 import time
 import yaml
+import json
 from dataclasses import dataclass
 from typing import Sequence, overload, Literal, Any
 from tqdm.auto import tqdm
+from rich.console import Console
+from rich.live import Live
+from rich.spinner import Spinner
+from rich.table import Table
+from rich.text import Text
 
 from lm_deluge.prompt import Conversation, CachePattern
 from lm_deluge.tool import Tool
@@ -412,7 +419,8 @@ class LLMClient:
             )
         )
 
-    def _submit_one_batch(self, batch_requests: list):
+    async def _submit_one_batch_async(self, batch_requests: list):
+        """Submit one batch asynchronously."""
         # save the file
         import pandas as pd
 
@@ -424,50 +432,61 @@ class LLMClient:
         api_key = os.environ.get("OPENAI_API_KEY", None)
         if api_key is None:
             raise ValueError("OPENAI_API_KEY environment variable must be set.")
-        url = "https://api.openai.com/v1/files"
-        files = {
-            "file": (
-                "openai_requests_temp.jsonl",
-                open("openai_requests_temp.jsonl", "rb"),
-            ),
-        }
-        data = {
-            "purpose": "batch",
-        }
+
         headers = {
             "Authorization": f"Bearer {api_key}",
         }
-        response = requests.post(url, files=files, data=data, headers=headers)
 
-        file_id = None
-        if response.status_code == 200:
-            print("File uploaded successfully")
-            data = response.json()
-            file_id = data["id"]
+        async with aiohttp.ClientSession() as session:
+            # Upload file
+            url = "https://api.openai.com/v1/files"
+            data = aiohttp.FormData()
+            data.add_field("purpose", "batch")
+            data.add_field(
+                "file",
+                open("openai_requests_temp.jsonl", "rb"),
+                filename="openai_requests_temp.jsonl",
+                content_type="application/json",
+            )
 
-        else:
-            print("File upload failed")
-            raise ValueError(f"Error uploading file: {response.text}")
+            async with session.post(url, data=data, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error uploading file: {text}")
 
-        url = "https://api.openai.com/v1/batches"
-        data = {
-            "input_file_id": file_id,
-            "endpoint": "/v1/chat/completions",
-            "completion_window": "24h",
-        }
-        response = requests.post(url, json=data, headers=headers)
+                print("File uploaded successfully")
+                response_data = await response.json()
+                file_id = response_data["id"]
 
-        batch_id = None
-        if response.status_code == 200:
-            data = response.json()
-            batch_id = data["id"]
-            print("Batch job started successfully: id = ", batch_id)
-            return batch_id
-        else:
-            print("Batch job failed to start")
-            raise ValueError(f"Error starting batch job: {response.text}")
+            # Create batch
+            url = "https://api.openai.com/v1/batches"
+            batch_data = {
+                "input_file_id": file_id,
+                "endpoint": "/v1/chat/completions",
+                "completion_window": "24h",
+            }
 
-    def submit_batch_job(self, prompts: Sequence[str | list[dict] | Conversation]):
+            async with session.post(url, json=batch_data, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error starting batch job: {text}")
+
+                response_data = await response.json()
+                batch_id = response_data["id"]
+                print("Batch job started successfully: id = ", batch_id)
+                return batch_id
+
+    def _submit_one_batch(self, batch_requests: list):
+        """Synchronous wrapper for submit one batch."""
+        return asyncio.run(self._submit_one_batch_async(batch_requests))
+
+    def submit_batch_job_openai(
+        self,
+        prompts: Sequence[str | list[dict] | Conversation],
+        *,
+        wait_for_completion: bool = False,
+        poll_interval: int = 30,
+    ):
         # make sure 1) only 1 model is used, 2) it's an openai model, 3) it supports json mode
         if len(self.models) != 1:
             raise ValueError("Batch jobs can only be submitted with a single model.")
@@ -519,7 +538,771 @@ class LLMClient:
             batch_ids.append(batch_id)
 
         print(f"Submitted {len(batches)} batch jobs.")
+
+        if wait_for_completion:
+            results = self.wait_for_batch_completion(batch_ids, "openai", poll_interval)
+            # Flatten results from multiple batches into single list
+            flattened = []
+            for batch_results in results:
+                flattened.extend(batch_results)
+            return flattened
+
         return batch_ids
+
+    async def submit_batch_job_openai_async(
+        self,
+        prompts: Sequence[str | list[dict] | Conversation],
+        *,
+        wait_for_completion: bool = False,
+        poll_interval: int = 30,
+    ):
+        """Submit batch job to OpenAI asynchronously."""
+        # make sure 1) only 1 model is used, 2) it's an openai model
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+        model = self.models[0]
+        if registry[model].get("api_spec", None) != "openai":
+            raise ValueError("Batch jobs can only be submitted with OpenAI models.")
+
+        # if prompts are strings, convert them to message lists
+        prompts = [  # type: ignore
+            p
+            if isinstance(p, Conversation)
+            else Conversation.user(p)
+            if isinstance(p, str)
+            else None
+            for p in prompts
+        ]
+        if any(p is None for p in prompts):
+            raise ValueError("All prompts must be valid.")
+        ids = np.arange(len(prompts))
+
+        # create file with requests to send to batch api
+        batch_requests = []
+        for id, prompt in zip(ids, prompts):
+            assert isinstance(prompt, Conversation)
+            batch_requests.append(
+                {
+                    "custom_id": str(id),
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": {
+                        "model": self.models[0],
+                        "messages": prompt.to_openai(),
+                        "max_tokens": self.sampling_params[0].max_new_tokens,
+                        "temperature": self.sampling_params[0].temperature,
+                        "top_p": self.sampling_params[0].top_p,
+                    },
+                }
+            )
+
+        # since the api only accepts up to 50,000 requests per batch job, we chunk into 50k chunks
+        BATCH_SIZE = 50_000
+        batches = [
+            batch_requests[i : i + BATCH_SIZE]
+            for i in range(0, len(batch_requests), BATCH_SIZE)
+        ]
+
+        # Submit all batches concurrently
+        batch_tasks = [self._submit_one_batch_async(batch) for batch in batches]
+        batch_ids = await asyncio.gather(*batch_tasks)
+
+        print(f"Submitted {len(batches)} batch jobs.")
+
+        if wait_for_completion:
+            results = await self.wait_for_batch_completion_async(
+                batch_ids, "openai", poll_interval
+            )
+            # Flatten results from multiple batches into single list
+            flattened = []
+            for batch_results in results:
+                flattened.extend(batch_results)
+            return flattened
+
+        return batch_ids
+
+    def submit_batch_job_anthropic(
+        self,
+        prompts: Sequence[str | list[dict] | Conversation],
+        *,
+        wait_for_completion: bool = False,
+        poll_interval: int = 30,
+        tools: list[Tool] | None = None,
+        cache: CachePattern | None = None,
+    ):
+        """Submit a batch job to Anthropic's Message Batches API.
+
+        Args:
+            prompts: List of prompts to process
+            wait_for_completion: If True, poll until completion and return results
+            poll_interval: Seconds to wait between status checks when polling
+            tools: Optional tools to include in requests
+            cache: Optional cache pattern for requests
+
+        Returns:
+            If wait_for_completion=False: batch_ids (list[str])
+            If wait_for_completion=True: list of results
+        """
+        # Validate single Anthropic model
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+        model = self.models[0]
+        if registry[model].get("api_spec", None) != "anthropic":
+            raise ValueError("This method only supports Anthropic models.")
+
+        # Convert prompts to Conversations
+        prompts = [  # type: ignore
+            p
+            if isinstance(p, Conversation)
+            else Conversation.user(p)
+            if isinstance(p, str)
+            else None
+            for p in prompts
+        ]
+        if any(p is None for p in prompts):
+            raise ValueError("All prompts must be valid.")
+
+        # Create batch requests
+        batch_requests = []
+        for i, prompt in enumerate(prompts):
+            assert isinstance(prompt, Conversation)
+
+            # Convert prompt to Anthropic format
+            system_message, messages = prompt.to_anthropic(cache_pattern=cache)
+
+            # Build request body
+            request_body = {
+                "model": registry[model]["name"],
+                "messages": messages,
+                "temperature": self.sampling_params[0].temperature,
+                "top_p": self.sampling_params[0].top_p,
+                "max_tokens": self.sampling_params[0].max_new_tokens,
+            }
+
+            if system_message is not None:
+                request_body["system"] = system_message
+
+            # Add tools if provided
+            if tools:
+                request_body["tools"] = [tool.dump_for("anthropic") for tool in tools]
+
+            batch_requests.append({"custom_id": str(i), "params": request_body})
+
+        # Chunk into batches of 100k requests (Anthropic's limit)
+        BATCH_SIZE = 100_000
+        batches = [
+            batch_requests[i : i + BATCH_SIZE]
+            for i in range(0, len(batch_requests), BATCH_SIZE)
+        ]
+        batch_ids = []
+
+        # Submit batch(es) to Anthropic
+        api_key = os.getenv(registry[model]["api_key_env_var"])
+        if api_key is None:
+            raise ValueError(
+                f"{registry[model]['api_key_env_var']} environment variable must be set."
+            )
+
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+
+        for batch in tqdm(batches):
+            url = f"{registry[model]['api_base']}/messages/batches"
+            data = {"requests": batch}
+
+            response = requests.post(url, json=data, headers=headers)
+
+            if response.status_code != 200:
+                raise ValueError(f"Error creating batch: {response.text}")
+
+            batch_data = response.json()
+            batch_id = batch_data["id"]
+            batch_ids.append(batch_id)
+            print(f"Anthropic batch job started successfully: id = {batch_id}")
+
+        print(f"Submitted {len(batches)} batch jobs.")
+
+        if wait_for_completion:
+            results = self.wait_for_batch_completion(
+                batch_ids, "anthropic", poll_interval
+            )
+            # Flatten results from multiple batches into single list
+            flattened = []
+            for batch_results in results:
+                flattened.extend(batch_results)
+            return flattened
+
+        return batch_ids
+
+    async def submit_batch_job_anthropic_async(
+        self,
+        prompts: Sequence[str | list[dict] | Conversation],
+        *,
+        wait_for_completion: bool = False,
+        poll_interval: int = 30,
+        tools: list[Tool] | None = None,
+        cache: CachePattern | None = None,
+    ):
+        """Submit a batch job to Anthropic's Message Batches API asynchronously."""
+        # Validate single Anthropic model
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+        model = self.models[0]
+        if registry[model].get("api_spec", None) != "anthropic":
+            raise ValueError("This method only supports Anthropic models.")
+
+        # Convert prompts to Conversations
+        prompts = [  # type: ignore
+            p
+            if isinstance(p, Conversation)
+            else Conversation.user(p)
+            if isinstance(p, str)
+            else None
+            for p in prompts
+        ]
+        if any(p is None for p in prompts):
+            raise ValueError("All prompts must be valid.")
+
+        # Create batch requests
+        batch_requests = []
+        for i, prompt in enumerate(prompts):
+            assert isinstance(prompt, Conversation)
+
+            # Convert prompt to Anthropic format
+            system_message, messages = prompt.to_anthropic(cache_pattern=cache)
+
+            # Build request body
+            request_body = {
+                "model": registry[model]["name"],
+                "messages": messages,
+                "temperature": self.sampling_params[0].temperature,
+                "top_p": self.sampling_params[0].top_p,
+                "max_tokens": self.sampling_params[0].max_new_tokens,
+            }
+
+            if system_message is not None:
+                request_body["system"] = system_message
+
+            # Add tools if provided
+            if tools:
+                request_body["tools"] = [tool.dump_for("anthropic") for tool in tools]
+
+            batch_requests.append({"custom_id": str(i), "params": request_body})
+
+        # Chunk into batches of 100k requests (Anthropic's limit)
+        BATCH_SIZE = 100_000
+        batches = [
+            batch_requests[i : i + BATCH_SIZE]
+            for i in range(0, len(batch_requests), BATCH_SIZE)
+        ]
+
+        # Submit batch(es) to Anthropic
+        api_key = os.getenv(registry[model]["api_key_env_var"])
+        if api_key is None:
+            raise ValueError(
+                f"{registry[model]['api_key_env_var']} environment variable must be set."
+            )
+
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            batch_tasks = []
+            for batch in batches:
+                url = f"{registry[model]['api_base']}/messages/batches"
+                data = {"requests": batch}
+
+                async def submit_batch(data, url, headers):
+                    async with session.post(
+                        url, json=data, headers=headers
+                    ) as response:
+                        if response.status != 200:
+                            text = await response.text()
+                            raise ValueError(f"Error creating batch: {text}")
+
+                        batch_data = await response.json()
+                        batch_id = batch_data["id"]
+                        print(
+                            f"Anthropic batch job started successfully: id = {batch_id}"
+                        )
+                        return batch_id
+
+                batch_tasks.append(submit_batch(data, url, headers))
+
+            batch_ids = await asyncio.gather(*batch_tasks)
+
+        print(f"Submitted {len(batches)} batch jobs.")
+
+        if wait_for_completion:
+            results = await self.wait_for_batch_completion_async(
+                batch_ids, "anthropic", poll_interval
+            )
+            # Flatten results from multiple batches into single list
+            flattened = []
+            for batch_results in results:
+                flattened.extend(batch_results)
+            return flattened
+
+        return batch_ids
+
+    def _create_batch_status_display(
+        self,
+        batch_id: str,
+        status: str,
+        elapsed: float,
+        counts: dict | None,
+        provider: str,
+    ):
+        """Create a unified status display for batch jobs."""
+        # Format elapsed time
+        hours = int(elapsed // 3600)
+        minutes = int((elapsed % 3600) // 60)
+        seconds = int(elapsed % 60)
+
+        if hours > 0:
+            elapsed_str = f"{hours}h {minutes}m {seconds}s"
+        elif minutes > 0:
+            elapsed_str = f"{minutes}m {seconds}s"
+        else:
+            elapsed_str = f"{seconds}s"
+
+        # Build progress text based on provider
+        progress_text = ""
+        if counts:
+            if provider == "openai":
+                total = counts.get("total", 0)
+                completed = counts.get("completed", 0)
+                failed = counts.get("failed", 0)
+                progress_text = f" • {completed}/{total} done"
+                if failed > 0:
+                    progress_text += f", {failed} failed"
+            elif provider == "anthropic":
+                total = (
+                    counts.get("processing", 0)
+                    + counts.get("succeeded", 0)
+                    + counts.get("errored", 0)
+                )
+                succeeded = counts.get("succeeded", 0)
+                errored = counts.get("errored", 0)
+                progress_text = f" • {succeeded}/{total} done"
+                if errored > 0:
+                    progress_text += f", {errored} errors"
+
+        # Choose spinner color based on provider
+        spinner_style = "green" if provider == "openai" else "blue"
+        spinner = Spinner("dots", style=spinner_style, text="")
+
+        grid = Table.grid()
+        grid.add_column()
+        grid.add_column()
+        grid.add_row(
+            spinner,
+            Text(
+                f" Batch {batch_id} • {status} • {elapsed_str}{progress_text}",
+                style="white",
+            ),
+        )
+        return grid
+
+    async def _wait_for_anthropic_batch_completion_async(
+        self, batch_id: str, poll_interval: int = 30
+    ):
+        """Poll Anthropic batch until completion and return results asynchronously."""
+        model = self.models[0]
+        api_key = os.getenv(registry[model]["api_key_env_var"])
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+
+        url = f"{registry[model]['api_base']}/messages/batches/{batch_id}"
+        console = Console()
+        start_time = time.time()
+
+        # Event to signal when to stop the display updater
+        stop_display_event = asyncio.Event()
+        current_status = {"status": "processing", "counts": None}
+
+        async def display_updater():
+            """Update display independently of polling."""
+            with Live(console=console, refresh_per_second=10) as live:
+                while not stop_display_event.is_set():
+                    elapsed = time.time() - start_time
+                    display = self._create_batch_status_display(
+                        batch_id,
+                        current_status["status"],
+                        elapsed,
+                        current_status["counts"],
+                        "anthropic",
+                    )
+                    live.update(display)
+                    await asyncio.sleep(0.1)  # Update every 100ms
+
+        # Start display updater
+        display_task = asyncio.create_task(display_updater())
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                while True:
+                    async with session.get(url, headers=headers) as response:
+                        if response.status != 200:
+                            text = await response.text()
+                            raise ValueError(f"Error checking batch status: {text}")
+
+                        batch_data = await response.json()
+                        current_status["status"] = batch_data["processing_status"]
+                        current_status["counts"] = batch_data.get("request_counts", {})
+
+                        if current_status["status"] == "ended":
+                            stop_display_event.set()
+                            await display_task
+                            console.print(
+                                f"✅ Batch {batch_id} completed!", style="green bold"
+                            )
+                            return await self._retrieve_anthropic_batch_results_async(
+                                batch_id
+                            )
+                        elif current_status["status"] in ["canceled", "expired"]:
+                            stop_display_event.set()
+                            await display_task
+                            raise ValueError(
+                                f"Batch {batch_id} failed with status: {current_status['status']}"
+                            )
+
+                        await asyncio.sleep(poll_interval)
+        finally:
+            stop_display_event.set()
+            await display_task
+
+    async def _retrieve_anthropic_batch_results_async(self, batch_id: str):
+        """Retrieve results from completed Anthropic batch asynchronously."""
+        model = self.models[0]
+        api_key = os.getenv(registry[model]["api_key_env_var"])
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+        }
+
+        url = f"{registry[model]['api_base']}/messages/batches/{batch_id}/results"
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error retrieving batch results: {text}")
+
+                # Parse JSONL results
+                results = []
+                text = await response.text()
+                for line in text.strip().split("\n"):
+                    if line:
+                        result = json.loads(line)
+                        results.append(result)
+
+                # Sort by custom_id to maintain order
+                results.sort(key=lambda x: int(x["custom_id"]))
+
+                return results
+
+    def _retrieve_anthropic_batch_results(self, batch_id: str):
+        """Synchronous wrapper for retrieve Anthropic batch results."""
+        return asyncio.run(self._retrieve_anthropic_batch_results_async(batch_id))
+
+    def retrieve_batch_jobs(
+        self, batch_ids: list[str], provider: Literal["openai", "anthropic"]
+    ):
+        """Retrieve results from multiple batch jobs.
+
+        Args:
+            batch_ids: List of batch IDs to retrieve
+            provider: Which provider the batches are from
+
+        Returns:
+            List of results for each batch
+        """
+        if provider == "openai":
+            return [
+                self._retrieve_openai_batch_results(batch_id) for batch_id in batch_ids
+            ]
+        elif provider == "anthropic":
+            return [
+                self._retrieve_anthropic_batch_results(batch_id)
+                for batch_id in batch_ids
+            ]
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+
+    async def _retrieve_openai_batch_results_async(self, batch_id: str):
+        """Retrieve results from OpenAI batch asynchronously."""
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key is None:
+            raise ValueError("OPENAI_API_KEY environment variable must be set.")
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            # Get batch info
+            url = f"https://api.openai.com/v1/batches/{batch_id}"
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error retrieving batch: {text}")
+
+                batch_data = await response.json()
+
+                if batch_data["status"] != "completed":
+                    raise ValueError(
+                        f"Batch {batch_id} is not completed. Status: {batch_data['status']}"
+                    )
+
+                # Get output file
+                output_file_id = batch_data["output_file_id"]
+                if not output_file_id:
+                    raise ValueError(f"No output file available for batch {batch_id}")
+
+            url = f"https://api.openai.com/v1/files/{output_file_id}/content"
+            async with session.get(url, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error retrieving batch results: {text}")
+
+                # Parse JSONL results
+                results = []
+                text = await response.text()
+                for line in text.strip().split("\n"):
+                    if line:
+                        result = json.loads(line)
+                        results.append(result)
+
+                # Sort by custom_id to maintain order
+                results.sort(key=lambda x: int(x["custom_id"]))
+
+                return results
+
+    def _retrieve_openai_batch_results(self, batch_id: str):
+        """Synchronous wrapper for retrieve OpenAI batch results."""
+        return asyncio.run(self._retrieve_openai_batch_results_async(batch_id))
+
+    async def wait_for_batch_completion_async(
+        self,
+        batch_ids: list[str],
+        provider: Literal["openai", "anthropic"],
+        poll_interval: int = 30,
+    ):
+        """Wait for multiple batches to complete and return results asynchronously.
+
+        Args:
+            batch_ids: List of batch IDs to wait for
+            provider: Which provider the batches are from
+            poll_interval: Seconds to wait between status checks
+
+        Returns:
+            List of results for each batch
+        """
+        tasks = []
+        for batch_id in batch_ids:
+            if provider == "openai":
+                task = self._wait_for_openai_batch_completion_async(
+                    batch_id, poll_interval
+                )
+            elif provider == "anthropic":
+                task = self._wait_for_anthropic_batch_completion_async(
+                    batch_id, poll_interval
+                )
+            else:
+                raise ValueError(f"Unsupported provider: {provider}")
+            tasks.append(task)
+
+        # Wait for all batches concurrently
+        results = await asyncio.gather(*tasks)
+        return results
+
+    def wait_for_batch_completion(
+        self,
+        batch_ids: list[str],
+        provider: Literal["openai", "anthropic"],
+        poll_interval: int = 30,
+    ):
+        """Synchronous wrapper for wait_for_batch_completion_async."""
+        return asyncio.run(
+            self.wait_for_batch_completion_async(batch_ids, provider, poll_interval)
+        )
+
+    async def _wait_for_openai_batch_completion_async(
+        self, batch_id: str, poll_interval: int = 30
+    ):
+        """Poll OpenAI batch until completion and return results asynchronously."""
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key is None:
+            raise ValueError("OPENAI_API_KEY environment variable must be set.")
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        url = f"https://api.openai.com/v1/batches/{batch_id}"
+        console = Console()
+        start_time = time.time()
+
+        # Event to signal when to stop the display updater
+        stop_display_event = asyncio.Event()
+        current_status = {"status": "pending", "counts": None}
+
+        async def display_updater():
+            """Update display independently of polling."""
+            with Live(console=console, refresh_per_second=10) as live:
+                while not stop_display_event.is_set():
+                    elapsed = time.time() - start_time
+                    display = self._create_batch_status_display(
+                        batch_id,
+                        current_status["status"],
+                        elapsed,
+                        current_status["counts"],
+                        "openai",
+                    )
+                    live.update(display)
+                    await asyncio.sleep(0.1)  # Update every 100ms
+
+        # Start display updater
+        display_task = asyncio.create_task(display_updater())
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                while True:
+                    async with session.get(url, headers=headers) as response:
+                        if response.status != 200:
+                            text = await response.text()
+                            raise ValueError(f"Error checking batch status: {text}")
+
+                        batch_data = await response.json()
+                        current_status["status"] = batch_data["status"]
+                        current_status["counts"] = batch_data.get("request_counts", {})
+
+                        if current_status["status"] == "completed":
+                            stop_display_event.set()
+                            await display_task
+                            console.print(
+                                f"✅ Batch {batch_id} completed!", style="green bold"
+                            )
+                            return await self._retrieve_openai_batch_results_async(
+                                batch_id
+                            )
+                        elif current_status["status"] in [
+                            "failed",
+                            "expired",
+                            "cancelled",
+                        ]:
+                            stop_display_event.set()
+                            await display_task
+                            raise ValueError(
+                                f"Batch {batch_id} failed with status: {current_status['status']}"
+                            )
+
+                        await asyncio.sleep(poll_interval)
+        finally:
+            stop_display_event.set()
+            await display_task
+
+    def submit_batch_job(
+        self,
+        prompts: Sequence[str | list[dict] | Conversation],
+        *,
+        wait_for_completion: bool = False,
+        poll_interval: int = 30,
+        tools: list[Tool] | None = None,
+        cache: CachePattern | None = None,
+    ):
+        """Submit a batch job, automatically detecting the provider based on model.
+
+        Args:
+            prompts: List of prompts to process
+            wait_for_completion: If True, poll until completion and return results
+            poll_interval: Seconds to wait between status checks when polling
+            tools: Optional tools to include in requests (Anthropic only)
+            cache: Optional cache pattern for requests (Anthropic only)
+
+        Returns:
+            If wait_for_completion=False: batch_id(s)
+            If wait_for_completion=True: list of results
+        """
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+
+        model = self.models[0]
+        api_spec = registry[model].get("api_spec", None)
+
+        if api_spec == "openai":
+            return self.submit_batch_job_openai(
+                prompts,
+                wait_for_completion=wait_for_completion,
+                poll_interval=poll_interval,
+            )
+        elif api_spec == "anthropic":
+            return self.submit_batch_job_anthropic(
+                prompts,
+                wait_for_completion=wait_for_completion,
+                poll_interval=poll_interval,
+                tools=tools,
+                cache=cache,
+            )
+        else:
+            raise ValueError(f"Batch processing not supported for API spec: {api_spec}")
+
+    async def submit_batch_job_async(
+        self,
+        prompts: Sequence[str | list[dict] | Conversation],
+        *,
+        wait_for_completion: bool = False,
+        poll_interval: int = 30,
+        tools: list[Tool] | None = None,
+        cache: CachePattern | None = None,
+    ):
+        """Submit a batch job asynchronously, automatically detecting the provider based on model.
+
+        Args:
+            prompts: List of prompts to process
+            wait_for_completion: If True, poll until completion and return results
+            poll_interval: Seconds to wait between status checks when polling
+            tools: Optional tools to include in requests (Anthropic only)
+            cache: Optional cache pattern for requests (Anthropic only)
+
+        Returns:
+            If wait_for_completion=False: batch_id(s)
+            If wait_for_completion=True: list of results
+        """
+        if len(self.models) != 1:
+            raise ValueError("Batch jobs can only be submitted with a single model.")
+
+        model = self.models[0]
+        api_spec = registry[model].get("api_spec", None)
+
+        if api_spec == "openai":
+            return await self.submit_batch_job_openai_async(
+                prompts,
+                wait_for_completion=wait_for_completion,
+                poll_interval=poll_interval,
+            )
+        elif api_spec == "anthropic":
+            return await self.submit_batch_job_anthropic_async(
+                prompts,
+                wait_for_completion=wait_for_completion,
+                poll_interval=poll_interval,
+                tools=tools,
+                cache=cache,
+            )
+        else:
+            raise ValueError(f"Batch processing not supported for API spec: {api_spec}")
 
 
 def api_prompts_dry_run(
