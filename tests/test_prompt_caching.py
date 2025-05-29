@@ -45,7 +45,6 @@ def test_tools_only_caching():
     """Test that tools_only caching works at the API request level."""
     from lm_deluge.api_requests.anthropic import AnthropicRequest
     from lm_deluge.tracker import StatusTracker
-    import asyncio
 
     # Create a simple conversation
     conv = Conversation.user("Hello")
@@ -58,8 +57,9 @@ def test_tools_only_caching():
     tool = Tool.from_function(test_function)
 
     # Create request with tools_only caching
-    status_tracker = StatusTracker()
-    retry_queue = asyncio.Queue()
+    status_tracker = StatusTracker(
+        max_requests_per_minute=10, max_tokens_per_minute=10_000
+    )
 
     request = AnthropicRequest(
         task_id=1,
@@ -67,7 +67,6 @@ def test_tools_only_caching():
         prompt=conv,
         attempts_left=1,
         status_tracker=status_tracker,
-        retry_queue=retry_queue,
         results_arr=[],
         tools=[tool],
         cache="tools_only",
@@ -120,12 +119,12 @@ def test_cache_warnings_non_anthropic():
     """Test that non-Anthropic models warn when cache is specified."""
     from lm_deluge.api_requests.openai import OpenAIRequest
     from lm_deluge.tracker import StatusTracker
-    import asyncio
     import warnings
 
     conv = Conversation.user("Hello")
-    status_tracker = StatusTracker()
-    retry_queue = asyncio.Queue()
+    status_tracker = StatusTracker(
+        max_requests_per_minute=10, max_tokens_per_minute=10_000
+    )
 
     # Should warn when cache is specified for OpenAI
     with warnings.catch_warnings(record=True) as w:
@@ -136,7 +135,6 @@ def test_cache_warnings_non_anthropic():
             prompt=conv,
             attempts_left=1,
             status_tracker=status_tracker,
-            retry_queue=retry_queue,
             results_arr=[],
             cache="system_and_tools",
             all_model_names=["gpt-4-turbo"],
@@ -152,7 +150,6 @@ def test_bedrock_caching():
     from lm_deluge.api_requests.bedrock import BedrockRequest
     from lm_deluge.tracker import StatusTracker
     from lm_deluge.tool import Tool
-    import asyncio
 
     # Create a conversation with system message and user message
     conv = Conversation.system("You are a helpful assistant.").add(
@@ -166,8 +163,9 @@ def test_bedrock_caching():
 
     tool = Tool.from_function(test_function)
 
-    status_tracker = StatusTracker()
-    retry_queue = asyncio.Queue()
+    status_tracker = StatusTracker(
+        max_requests_per_minute=10, max_tokens_per_minute=10_000
+    )
 
     # Test system_and_tools caching
     request = BedrockRequest(
@@ -176,7 +174,6 @@ def test_bedrock_caching():
         prompt=conv,
         attempts_left=1,
         status_tracker=status_tracker,
-        retry_queue=retry_queue,
         results_arr=[],
         cache="system_and_tools",
         all_model_names=["claude-3.5-sonnet-bedrock"],
@@ -196,7 +193,6 @@ def test_bedrock_caching():
         prompt=conv,
         attempts_left=1,
         status_tracker=status_tracker,
-        retry_queue=retry_queue,
         results_arr=[],
         tools=[tool],
         cache="tools_only",

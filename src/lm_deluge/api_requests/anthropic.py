@@ -1,9 +1,6 @@
-import asyncio
 from aiohttp import ClientResponse
 import json
 import os
-import warnings
-from tqdm import tqdm
 from typing import Callable
 
 from lm_deluge.prompt import (
@@ -14,12 +11,84 @@ from lm_deluge.prompt import (
     Thinking,
     CachePattern,
 )
+from lm_deluge.tool import Tool
 from lm_deluge.usage import Usage
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
-from ..sampling_params import SamplingParams
+from ..config import SamplingParams
 from ..models import APIModel
+from ..computer_use.anthropic_tools import get_anthropic_cu_tools
+
+
+def _build_anthropic_request(
+    model: APIModel,
+    prompt: Conversation,
+    tools: list[Tool] | None,
+    sampling_params: SamplingParams,
+    cache_pattern: CachePattern | None = None,
+    computer_use: bool = False,
+    display_width: int = 1024,
+    display_height: int = 768,
+):
+    system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
+    request_header = {
+        "x-api-key": os.getenv(model.api_key_env_var),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+
+    # Add beta header for Computer Use
+    if computer_use:
+        request_header["anthropic-beta"] = "computer-use-2025-01-24"
+
+    request_json = {
+        "model": model.name,
+        "messages": messages,
+        "temperature": sampling_params.temperature,
+        "top_p": sampling_params.top_p,
+        "max_tokens": sampling_params.max_new_tokens,
+    }
+
+    # handle thinking
+    if model.reasoning_model and sampling_params.reasoning_effort:
+        # translate reasoning effort of low, medium, high to budget tokens
+        budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
+            sampling_params.reasoning_effort
+        )
+        request_json["thinking"] = {
+            "type": "enabled",
+            "budget_tokens": budget,
+        }
+        request_json.pop("top_p")
+        request_json["temperature"] = 1.0
+        request_json["max_tokens"] += budget
+    else:
+        request_json["thinking"] = {"type": "disabled"}
+        if sampling_params.reasoning_effort:
+            print("ignoring reasoning_effort for non-reasoning model")
+    if system_message is not None:
+        request_json["system"] = system_message
+    if tools or computer_use:
+        tool_definitions = []
+        if tools:
+            tool_definitions.extend([tool.dump_for("anthropic") for tool in tools])
+        # Add Computer Use tools
+        if computer_use:
+            cu_tools = get_anthropic_cu_tools(
+                model=model.id,
+                display_width=display_width,  # todo: set from ComputerUseParams
+                display_height=display_height,
+            )
+            tool_definitions.extend(cu_tools)
+
+        # Add cache control to last tool if tools_only caching is specified
+        if cache_pattern == "tools_only" and tool_definitions:
+            tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
+
+        request_json["tools"] = tool_definitions
+
+    return request_json, request_header
 
 
 class AnthropicRequest(APIRequestBase):
@@ -32,13 +101,10 @@ class AnthropicRequest(APIRequestBase):
         prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        pbar: tqdm | None = None,
         callback: Callable | None = None,
-        debug: bool = False,
         # for retries
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
@@ -55,13 +121,10 @@ class AnthropicRequest(APIRequestBase):
             prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
-            retry_queue=retry_queue,
             results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            pbar=pbar,
             callback=callback,
-            debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,
@@ -77,73 +140,16 @@ class AnthropicRequest(APIRequestBase):
         if cache is not None:
             prompt.lock_images_as_bytes()
 
-        self.system_message, messages = prompt.to_anthropic(cache_pattern=cache)
-        self.request_header = {
-            "x-api-key": os.getenv(self.model.api_key_env_var),
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-        }
-
-        # Add beta header for Computer Use
-        if self.computer_use:
-            self.request_header["anthropic-beta"] = "computer-use-2025-01-24"
-
-        self.request_json = {
-            "model": self.model.name,
-            "messages": messages,
-            "temperature": self.sampling_params.temperature,
-            "top_p": self.sampling_params.top_p,
-            "max_tokens": self.sampling_params.max_new_tokens,
-        }
-        # handle thinking
-        if self.model.reasoning_model:
-            if sampling_params.reasoning_effort:
-                # translate reasoning effort of low, medium, high to budget tokens
-                budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
-                    sampling_params.reasoning_effort
-                )
-                self.request_json["thinking"] = {
-                    "type": "enabled",
-                    "budget_tokens": budget,
-                }
-                self.request_json.pop("top_p")
-                self.request_json["temperature"] = 1.0
-                self.request_json["max_tokens"] += (
-                    budget  # assume max tokens is max completion tokens
-                )
-            else:
-                # no thinking
-                self.request_json["thinking"] = {"type": "disabled"}
-        else:
-            if sampling_params.reasoning_effort:
-                warnings.warn(
-                    f"Ignoring reasoning_effort param for non-reasoning model: {model_name}"
-                )
-        if self.system_message is not None:
-            self.request_json["system"] = self.system_message
-        if tools or self.computer_use:
-            tool_definitions = []
-
-            # Add Computer Use tools at the beginning if enabled
-            if self.computer_use:
-                from ..computer_use.anthropic_tools import get_anthropic_cu_tools
-
-                cu_tools = get_anthropic_cu_tools(
-                    model=self.model.id,
-                    display_width=self.display_width,
-                    display_height=self.display_height,
-                )
-                tool_definitions.extend(cu_tools)
-
-            # Add user-provided tools
-            if tools:
-                tool_definitions.extend([tool.dump_for("anthropic") for tool in tools])
-
-            # Add cache control to last tool if tools_only caching is specified
-            if cache == "tools_only" and tool_definitions:
-                tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
-
-            self.request_json["tools"] = tool_definitions
+        self.request_header, self.request_json = _build_anthropic_request(
+            self.model,
+            prompt,
+            tools,
+            sampling_params,
+            cache,
+            computer_use,
+            display_width,
+            display_height,
+        )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
@@ -163,8 +169,6 @@ class AnthropicRequest(APIRequestBase):
             "anthropic-ratelimit-tokens-reset",
         ]:
             rate_limits[header] = http_response.headers.get(header, None)
-        if self.debug:
-            print(f"Rate limits: {rate_limits}")
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()

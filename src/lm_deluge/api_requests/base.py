@@ -2,7 +2,6 @@ import aiohttp
 import asyncio
 import json
 import random
-from tqdm import tqdm
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from typing import Callable
@@ -11,7 +10,7 @@ from lm_deluge.prompt import Conversation, Message, CachePattern
 from lm_deluge.usage import Usage
 
 from ..tracker import StatusTracker
-from ..sampling_params import SamplingParams
+from ..config import SamplingParams
 from ..models import APIModel
 from ..errors import raise_if_modal_exception
 from aiohttp import ClientResponse
@@ -180,16 +179,11 @@ class APIRequestBase(ABC):
         prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         # needed in order to retry with a different model and not throw the output away
         results_arr: list["APIRequestBase"],
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        logprobs: bool = False,
-        top_logprobs: int | None = None,
-        pbar: tqdm | None = None,
         callback: Callable | None = None,
-        debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
@@ -203,16 +197,11 @@ class APIRequestBase(ABC):
         self.prompt = prompt
         self.attempts_left = attempts_left
         self.status_tracker = status_tracker
-        self.retry_queue = retry_queue
         self.request_timeout = request_timeout
         self.sampling_params = sampling_params
-        self.logprobs = logprobs  # len(completion) logprobs
-        self.top_logprobs = top_logprobs
-        self.pbar = pbar
         self.callback = callback
         self.num_tokens = prompt.count_tokens(sampling_params.max_new_tokens)
         self.results_arr = results_arr
-        self.debug = debug
         self.all_model_names = all_model_names
         self.all_sampling_params = all_sampling_params
         self.tools = tools
@@ -226,8 +215,7 @@ class APIRequestBase(ABC):
         self.region = None
 
     def increment_pbar(self):
-        if self.pbar is not None:
-            self.pbar.update(1)
+        self.status_tracker.increment_pbar()
 
     def call_callback(self):
         if self.callback is not None:
@@ -236,7 +224,6 @@ class APIRequestBase(ABC):
 
     def handle_success(self, data):
         self.call_callback()
-        self.increment_pbar()
         self.status_tracker.task_succeeded(self.task_id)
 
     def handle_error(self, create_new_request=False, give_up_if_no_other_models=False):
@@ -257,7 +244,8 @@ class APIRequestBase(ABC):
         if self.attempts_left > 0:
             self.attempts_left -= 1
             if not create_new_request:
-                self.retry_queue.put_nowait(self)
+                assert self.status_tracker.retry_queue
+                self.status_tracker.retry_queue.put_nowait(self)
                 return
             else:
                 # make sure we have another model to send it to besides the current one
@@ -271,7 +259,8 @@ class APIRequestBase(ABC):
                         print(
                             f"No other models to try for task {self.task_id}. Retrying with same model."
                         )
-                        self.retry_queue.put_nowait(self)
+                        assert self.status_tracker.retry_queue
+                        self.status_tracker.retry_queue.put_nowait(self)
                 else:
                     # two things to change: model_name and sampling_params
                     new_model_name = self.model_name
@@ -296,13 +285,9 @@ class APIRequestBase(ABC):
                         prompt=self.prompt,
                         attempts_left=self.attempts_left,
                         status_tracker=self.status_tracker,
-                        retry_queue=self.retry_queue,
                         results_arr=self.results_arr,
                         request_timeout=self.request_timeout,
                         sampling_params=new_sampling_params,
-                        logprobs=self.logprobs,
-                        top_logprobs=self.top_logprobs,
-                        pbar=self.pbar,
                         callback=self.callback,
                         all_model_names=self.all_model_names,
                         all_sampling_params=self.all_sampling_params,
@@ -313,7 +298,8 @@ class APIRequestBase(ABC):
                         display_height=getattr(self, "display_height", 768),
                     )
                     # PROBLEM: new request is never put into results array, so we can't get the result.
-                    self.retry_queue.put_nowait(new_request)
+                    assert self.status_tracker.retry_queue
+                    self.status_tracker.retry_queue.put_nowait(self)
                     # SOLUTION: just need to make sure it's deduplicated by task_id later.
                     self.results_arr.append(new_request)
         else:
@@ -388,13 +374,9 @@ def create_api_request(
     prompt: Conversation,
     attempts_left: int,
     status_tracker: StatusTracker,
-    retry_queue: asyncio.Queue,
     results_arr: list["APIRequestBase"],
     request_timeout: int = 30,
     sampling_params: SamplingParams = SamplingParams(),
-    logprobs: bool = False,
-    top_logprobs: int | None = None,
-    pbar: tqdm | None = None,
     callback: Callable | None = None,
     all_model_names: list[str] | None = None,
     all_sampling_params: list[SamplingParams] | None = None,
@@ -417,9 +399,7 @@ def create_api_request(
     request_class = CLASSES.get(api_spec, None)
     if request_class is None:
         raise ValueError(f"Unsupported API spec: {api_spec}")
-    kwargs = (
-        {} if not logprobs else {"logprobs": logprobs, "top_logprobs": top_logprobs}
-    )
+    kwargs = {}
     # Add computer_use to kwargs if the request class supports it
     model_obj = APIModel.from_registry(model_name)
     if computer_use and api_spec in ["anthropic", "bedrock", "openai-responses"]:
@@ -437,11 +417,9 @@ def create_api_request(
         prompt=prompt,
         attempts_left=attempts_left,
         status_tracker=status_tracker,
-        retry_queue=retry_queue,
         results_arr=results_arr,
         request_timeout=request_timeout,
         sampling_params=sampling_params,
-        pbar=pbar,
         callback=callback,
         all_model_names=all_model_names,
         all_sampling_params=all_sampling_params,

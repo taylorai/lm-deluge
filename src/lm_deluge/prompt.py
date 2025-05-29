@@ -4,7 +4,7 @@ import tiktoken
 import xxhash
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Sequence
 from lm_deluge.models import APIModel
 from lm_deluge.image import Image
 
@@ -820,6 +820,14 @@ class Conversation:
             msgs.append(Message(role, parts))
 
         return cls(msgs)
+
+
+def prompts_to_conversations(prompts: Sequence[str | list[dict] | Conversation]):
+    if any(isinstance(x, list) for x in prompts):
+        raise ValueError("can't convert list[dict] to conversation yet")
+    return [  # type: ignore
+        Conversation.user(p) if isinstance(p, str) else p for p in prompts
+    ]
 
 
 ###############################################################################

@@ -2,7 +2,6 @@ import asyncio
 import json
 import os
 from aiohttp import ClientResponse
-from tqdm import tqdm
 from typing import Callable
 
 try:
@@ -24,7 +23,7 @@ from lm_deluge.usage import Usage
 from .base import APIRequestBase, APIResponse
 
 from ..tracker import StatusTracker
-from ..sampling_params import SamplingParams
+from ..config import SamplingParams
 from ..models import APIModel
 
 
@@ -36,13 +35,10 @@ class BedrockRequest(APIRequestBase):
         prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        pbar: tqdm | None = None,
         callback: Callable | None = None,
-        debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
@@ -58,13 +54,10 @@ class BedrockRequest(APIRequestBase):
             prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
-            retry_queue=retry_queue,
             results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            pbar=pbar,
             callback=callback,
-            debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,

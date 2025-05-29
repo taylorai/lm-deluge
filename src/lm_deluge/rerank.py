@@ -25,7 +25,6 @@ class RerankingRequest:
         top_k: int,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         request_timeout: int,
         pbar: tqdm | None = None,
     ):
@@ -36,7 +35,6 @@ class RerankingRequest:
         self.top_k = top_k
         self.attempts_left = attempts_left
         self.status_tracker = status_tracker
-        self.retry_queue = retry_queue
         self.request_timeout = request_timeout
         self.pbar = pbar
         self.result = []
@@ -63,7 +61,8 @@ class RerankingRequest:
         print(error_to_print)
         if self.attempts_left > 0:
             self.attempts_left -= 1
-            self.retry_queue.put_nowait(self)
+            assert self.status_tracker.retry_queue
+            self.status_tracker.retry_queue.put_nowait(self)
             return
         else:
             print(f"Task {self.task_id} out of tries.")
@@ -203,8 +202,11 @@ async def rerank_parallel_async(
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
 
     # initialize trackers
-    retry_queue = asyncio.Queue()
-    status_tracker = StatusTracker()
+    # retry_queue = asyncio.Queue()
+    status_tracker = StatusTracker(
+        max_tokens_per_minute=10_000_000,
+        max_requests_per_minute=max_requests_per_minute,
+    )
     next_request = None  # variable to hold the next request to call
 
     # initialize available capacity counts
@@ -222,8 +224,10 @@ async def rerank_parallel_async(
     while True:
         # get next request (if one is not already waiting for capacity)
         if next_request is None:
-            if not retry_queue.empty():
-                next_request = retry_queue.get_nowait()
+            assert status_tracker.retry_queue
+
+            if not status_tracker.retry_queue.empty():
+                next_request = status_tracker.retry_queue.get_nowait()
                 print(f"Retrying request {next_request.task_id}.")
             elif prompts_not_finished:
                 try:
@@ -237,7 +241,6 @@ async def rerank_parallel_async(
                         top_k=top_k,
                         attempts_left=max_attempts,
                         status_tracker=status_tracker,
-                        retry_queue=retry_queue,
                         request_timeout=request_timeout,
                         pbar=progress_bar,
                     )

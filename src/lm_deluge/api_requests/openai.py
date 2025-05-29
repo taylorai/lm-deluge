@@ -1,17 +1,54 @@
-import asyncio
 import warnings
 from aiohttp import ClientResponse
 import json
 import os
-from tqdm.auto import tqdm
 from typing import Callable
+
+from lm_deluge.tool import Tool
 
 from .base import APIRequestBase, APIResponse
 from ..prompt import Conversation, Message, Text, ToolCall, Thinking, CachePattern
 from ..usage import Usage
 from ..tracker import StatusTracker
-from ..sampling_params import SamplingParams
+from ..config import SamplingParams
 from ..models import APIModel
+
+
+def _build_oa_chat_request(
+    model: APIModel,
+    prompt: Conversation,
+    tools: list[Tool] | None,
+    sampling_params: SamplingParams,
+) -> dict:
+    request_json = {
+        "model": model.name,
+        "messages": prompt.to_openai(),
+        "temperature": sampling_params.temperature,
+        "top_p": sampling_params.top_p,
+    }
+    # set max_tokens or max_completion_tokens dep. on provider
+    if "cohere" in model.api_base:
+        request_json["max_tokens"] = sampling_params.max_new_tokens
+    else:
+        request_json["max_completion_tokens"] = sampling_params.max_new_tokens
+    if model.reasoning_model:
+        request_json["temperature"] = 1.0
+        request_json["top_p"] = 1.0
+        request_json["reasoning_effort"] = sampling_params.reasoning_effort
+    else:
+        if sampling_params.reasoning_effort:
+            warnings.warn(
+                f"Ignoring reasoning_effort param for non-reasoning model: {model.name}"
+            )
+    if sampling_params.logprobs:
+        request_json["logprobs"] = True
+        if sampling_params.top_logprobs is not None:
+            request_json["top_logprobs"] = sampling_params.top_logprobs
+    if sampling_params.json_mode and model.supports_json:
+        request_json["response_format"] = {"type": "json_object"}
+    if tools:
+        request_json["tools"] = [tool.dump_for("openai-completions") for tool in tools]
+    return request_json
 
 
 class OpenAIRequest(APIRequestBase):
@@ -24,15 +61,10 @@ class OpenAIRequest(APIRequestBase):
         prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        logprobs: bool = False,
-        top_logprobs: int | None = None,
-        pbar: tqdm | None = None,
         callback: Callable | None = None,
-        debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
@@ -44,15 +76,10 @@ class OpenAIRequest(APIRequestBase):
             prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
-            retry_queue=retry_queue,
             results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            logprobs=logprobs,
-            top_logprobs=top_logprobs,
-            pbar=pbar,
             callback=callback,
-            debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,
@@ -70,36 +97,9 @@ class OpenAIRequest(APIRequestBase):
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
 
-        self.request_json = {
-            "model": self.model.name,
-            "messages": prompt.to_openai(),
-            "temperature": sampling_params.temperature,
-            "top_p": sampling_params.top_p,
-        }
-        # set max_tokens or max_completion_tokens dep. on provider
-        if "cohere" in self.model.api_base:
-            self.request_json["max_tokens"] = sampling_params.max_new_tokens
-        elif "openai" in self.model.api_base:
-            self.request_json["max_completion_tokens"] = sampling_params.max_new_tokens
-        if self.model.reasoning_model:
-            self.request_json["temperature"] = 1.0
-            self.request_json["top_p"] = 1.0
-            self.request_json["reasoning_effort"] = sampling_params.reasoning_effort
-        else:
-            if sampling_params.reasoning_effort:
-                warnings.warn(
-                    f"Ignoring reasoning_effort param for non-reasoning model: {model_name}"
-                )
-        if logprobs:
-            self.request_json["logprobs"] = True
-            if top_logprobs is not None:
-                self.request_json["top_logprobs"] = top_logprobs
-        if sampling_params.json_mode and self.model.supports_json:
-            self.request_json["response_format"] = {"type": "json_object"}
-        if tools:
-            self.request_json["tools"] = [
-                tool.dump_for("openai-completions") for tool in tools
-            ]
+        self.request_json = _build_oa_chat_request(
+            self.model, prompt, tools, sampling_params
+        )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
@@ -151,7 +151,10 @@ class OpenAIRequest(APIRequestBase):
                     content = Message("assistant", parts)
 
                     usage = Usage.from_openai_usage(data["usage"])
-                    if self.logprobs and "logprobs" in data["choices"][0]:
+                    if (
+                        self.sampling_params.logprobs
+                        and "logprobs" in data["choices"][0]
+                    ):
                         logprobs = data["choices"][0]["logprobs"]["content"]
                 except Exception:
                     is_error = True
@@ -198,15 +201,10 @@ class OpenAIResponsesRequest(APIRequestBase):
         prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        logprobs: bool = False,
-        top_logprobs: int | None = None,
-        pbar: tqdm | None = None,
         callback: Callable | None = None,
-        debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
@@ -221,15 +219,10 @@ class OpenAIResponsesRequest(APIRequestBase):
             prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
-            retry_queue=retry_queue,
             results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            logprobs=logprobs,
-            top_logprobs=top_logprobs,
-            pbar=pbar,
             callback=callback,
-            debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,

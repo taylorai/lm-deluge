@@ -1,5 +1,6 @@
-import re
 import json
+import re
+
 import json5
 
 
@@ -166,3 +167,19 @@ def load_json(
             pass
 
     raise ValueError(f"Invalid JSON string: {json_string}")
+
+
+def try_load_json(
+    json_string: str | None,
+    allow_json5: bool = True,
+    allow_partial: bool = False,
+    allow_healing: bool = True,
+):
+    """
+    Like the above, except it returns None instead of raising an error.
+    """
+    try:
+        return load_json(json_string, allow_json5, allow_partial, allow_healing)
+    except Exception as e:
+        print(f"Failed to load json: {e}. Returning None.")
+        return None

@@ -1,16 +1,14 @@
-import asyncio
 import warnings
 from aiohttp import ClientResponse
 import json
 import os
-from tqdm.auto import tqdm
 from typing import Callable
 
 from .base import APIRequestBase, APIResponse
 from ..prompt import Conversation, Message, CachePattern
 from ..usage import Usage
 from ..tracker import StatusTracker
-from ..sampling_params import SamplingParams
+from ..config import SamplingParams
 from ..models import APIModel
 
 
@@ -24,15 +22,10 @@ class MistralRequest(APIRequestBase):
         prompt: Conversation,
         attempts_left: int,
         status_tracker: StatusTracker,
-        retry_queue: asyncio.Queue,
         results_arr: list,
         request_timeout: int = 30,
         sampling_params: SamplingParams = SamplingParams(),
-        logprobs: bool = False,
-        top_logprobs: int | None = None,
-        pbar: tqdm | None = None,
         callback: Callable | None = None,
-        debug: bool = False,
         all_model_names: list[str] | None = None,
         all_sampling_params: list[SamplingParams] | None = None,
         tools: list | None = None,
@@ -44,15 +37,10 @@ class MistralRequest(APIRequestBase):
             prompt=prompt,
             attempts_left=attempts_left,
             status_tracker=status_tracker,
-            retry_queue=retry_queue,
             results_arr=results_arr,
             request_timeout=request_timeout,
             sampling_params=sampling_params,
-            logprobs=logprobs,
-            top_logprobs=top_logprobs,
-            pbar=pbar,
             callback=callback,
-            debug=debug,
             all_model_names=all_model_names,
             all_sampling_params=all_sampling_params,
             tools=tools,
@@ -80,7 +68,7 @@ class MistralRequest(APIRequestBase):
             warnings.warn(
                 f"Ignoring reasoning_effort param for non-reasoning model: {model_name}"
             )
-        if logprobs:
+        if sampling_params.logprobs:
             warnings.warn(
                 f"Ignoring logprobs param for non-logprobs model: {model_name}"
             )
@@ -109,7 +97,10 @@ class MistralRequest(APIRequestBase):
                 try:
                     completion = data["choices"][0]["message"]["content"]
                     usage = Usage.from_mistral_usage(data["usage"])
-                    if self.logprobs and "logprobs" in data["choices"][0]:
+                    if (
+                        self.sampling_params.logprobs
+                        and "logprobs" in data["choices"][0]
+                    ):
                         logprobs = data["choices"][0]["logprobs"]["content"]
                 except Exception:
                     is_error = True

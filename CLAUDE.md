@@ -2,7 +2,6 @@
 - don't use == True and == False as these always lead to ruff errors
 - we currently run tests in this repo by just doing python tests/path_to_test.py, not pytest
 - computer use info:
-Great! To summarize what we've implemented:
 
   1. OpenAI computer calls are stored as ToolCall objects with
   names like _computer_click, _computer_type, etc.
