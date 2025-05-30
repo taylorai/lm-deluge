@@ -6,7 +6,8 @@ Test Bedrock Computer Use functionality.
 
 import asyncio
 import os
-from lm_deluge import LLMClient, Conversation
+
+from lm_deluge import Conversation, LLMClient
 from lm_deluge.computer_use.anthropic_tools import (
     get_anthropic_cu_tools,
     model_to_version,
@@ -103,7 +104,6 @@ async def test_bedrock_computer_use_integration():
             display_width=1024,
             display_height=768,
             cache="tools_only",
-            verbose=True,
         )
 
         response = results[0]
@@ -152,8 +152,8 @@ async def test_bedrock_computer_use_integration():
         # Test 2: Verify tool versions are correct for Bedrock
         print("\n🔧 Test 2: Verifying tool versions for Bedrock...")
         from lm_deluge.computer_use.anthropic_tools import (
-            model_to_version,
             get_anthropic_cu_tools,
+            model_to_version,
         )
 
         version = model_to_version("claude-3.7-sonnet-bedrock")
@@ -195,7 +195,7 @@ async def test_bedrock_computer_use_integration():
         ]
 
         # Add tool result to conversation
-        from lm_deluge.prompt import Message, ToolResult, Text
+        from lm_deluge.prompt import Message, Text, ToolResult
 
         tool_result_message = Message(
             "user", [ToolResult(screenshot_calls[0].id, fake_screenshot)]
@@ -208,7 +208,7 @@ async def test_bedrock_computer_use_integration():
 
         # Get Claude's analysis
         results2 = await client.process_prompts_async(
-            [conversation], computer_use=True, cache="tools_only", verbose=True
+            [conversation], computer_use=True, cache="tools_only"
         )
 
         response2 = results2[0]
@@ -276,7 +276,6 @@ async def test_bedrock_tool_combinations():
             tools=[custom_tool],  # Custom tool should be added after CU tools
             display_width=1024,
             display_height=768,
-            verbose=True,
         )
 
         response = results[0]

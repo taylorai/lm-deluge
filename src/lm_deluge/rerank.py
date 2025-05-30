@@ -1,10 +1,12 @@
 ### specific utility for cohere rerank api
-import os
-import aiohttp
-from tqdm.auto import tqdm
 import asyncio
+import os
 import time
 from dataclasses import dataclass
+
+import aiohttp
+from tqdm.auto import tqdm
+
 from .tracker import StatusTracker
 
 registry = [
@@ -206,6 +208,7 @@ async def rerank_parallel_async(
     status_tracker = StatusTracker(
         max_tokens_per_minute=10_000_000,
         max_requests_per_minute=max_requests_per_minute,
+        max_concurrent_requests=1_000,
     )
     next_request = None  # variable to hold the next request to call
 
@@ -249,7 +252,7 @@ async def rerank_parallel_async(
 
                 except StopIteration:
                     prompts_not_finished = False
-                    print("API requests finished, only retries remain.")
+                    # print("API requests finished, only retries remain.")
 
         # update available capacity
         current_time = time.time()

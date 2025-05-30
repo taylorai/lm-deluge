@@ -1,19 +1,21 @@
-import aiohttp
 import asyncio
 import json
 import random
-from dataclasses import dataclass
+import traceback
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Callable
 
-from lm_deluge.prompt import Conversation, Message, CachePattern
+import aiohttp
+from aiohttp import ClientResponse
+
+from lm_deluge.prompt import CachePattern, Conversation, Message
 from lm_deluge.usage import Usage
 
-from ..tracker import StatusTracker
 from ..config import SamplingParams
-from ..models import APIModel
 from ..errors import raise_if_modal_exception
-from aiohttp import ClientResponse
+from ..models import APIModel
+from ..tracker import StatusTracker
 
 
 @dataclass
@@ -347,6 +349,8 @@ class APIRequestBase(ABC):
 
         except Exception as e:
             raise_if_modal_exception(e)
+            tb = traceback.format_exc()
+            print(tb)
             self.result.append(
                 APIResponse(
                     id=self.task_id,
@@ -427,3 +431,22 @@ def create_api_request(
         cache=cache,
         **kwargs,
     )
+
+
+def deduplicate_responses(results: list[APIRequestBase]) -> list[APIResponse]:
+    deduplicated = {}
+    for request in results:
+        if request.task_id not in deduplicated:
+            deduplicated[request.task_id] = request.result[-1]
+        else:
+            current_response: APIResponse = deduplicated[request.task_id]
+            # only replace if the current request has no completion and the new one does
+            if (
+                request.result[-1].completion is not None
+                and current_response.completion is None
+            ):
+                deduplicated[request.task_id] = request.result[-1]
+
+    output = [deduplicated[request.task_id] for request in results]
+
+    return output

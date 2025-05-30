@@ -1,6 +1,7 @@
 import time
+
 from lm_deluge import LLMClient
-from lm_deluge.cache import SqliteCache, DistributedDictCache, LevelDBCache
+from lm_deluge.cache import DistributedDictCache, LevelDBCache, SqliteCache
 
 
 class FakeDistributedDict(dict):
@@ -13,7 +14,7 @@ def test_sqlite_cache():
     client = LLMClient.basic("gpt-4.1-mini", cache=cache)
     res1 = client.process_prompts_sync(["Hello there!"], show_progress=False)
     res2 = client.process_prompts_sync(
-        ["Hello there!"], show_progress=False, verbose=True
+        ["Hello there!"], show_progress=False
     )  # should print that it was a cache hit
     assert res1[0].completion == res2[0].completion, "completions don't match"  # type: ignore
     assert res1[0].cache_hit is False, "res1 should not be a cache hit"  # type: ignore
@@ -26,7 +27,7 @@ def test_dict_cache():
     client = LLMClient.basic("gpt-4.1-mini", cache=cache)
     res1 = client.process_prompts_sync(["Hello there!"], show_progress=False)
     res2 = client.process_prompts_sync(
-        ["Hello there!"], show_progress=False, verbose=True
+        ["Hello there!"], show_progress=False
     )  # should print that it was a cache hit
     assert res1[0].completion == res2[0].completion, "completions don't match"  # type: ignore
     assert res1[0].cache_hit is False, "res1 should not be a cache hit"  # type: ignore
@@ -42,7 +43,7 @@ def test_leveldb_cache():
     client = LLMClient.basic("gpt-4.1-mini", cache=cache)
     res1 = client.process_prompts_sync(["Hello there!"], show_progress=False)
     res2 = client.process_prompts_sync(
-        ["Hello there!"], show_progress=False, verbose=True
+        ["Hello there!"], show_progress=False
     )  # should print that it was a cache hit
     assert res1[0].completion == res2[0].completion, "completions don't match"  # type: ignore
     assert res1[0].cache_hit is False, "res1 should not be a cache hit"  # type: ignore

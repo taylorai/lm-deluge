@@ -7,8 +7,9 @@ Requires ANTHROPIC_API_KEY environment variable.
 
 import asyncio
 import os
-from lm_deluge import LLMClient, Conversation
-from lm_deluge.prompt import Message, ToolResult, Text
+
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.prompt import Message, Text, ToolResult
 
 
 async def test_computer_use_integration():
@@ -45,7 +46,6 @@ async def test_computer_use_integration():
             display_width=1024,
             display_height=768,
             cache="tools_only",
-            verbose=True,
         )
 
         response = results[0]
@@ -94,8 +94,8 @@ async def test_computer_use_integration():
         # Test 2: Verify tool versions are correct for Claude 4
         print("\n🔧 Test 2: Verifying tool versions for Claude 4...")
         from lm_deluge.computer_use.anthropic_tools import (
-            model_to_version,
             get_anthropic_cu_tools,
+            model_to_version,
         )
 
         version = model_to_version("claude-4-sonnet")
@@ -148,7 +148,9 @@ async def test_computer_use_integration():
 
         # Get Claude's analysis
         results2 = await client.process_prompts_async(
-            [conversation], computer_use=True, cache="tools_only", verbose=True
+            [conversation],
+            computer_use=True,
+            cache="tools_only",
         )
 
         response2 = results2[0]
@@ -216,7 +218,6 @@ async def test_tool_combinations():
             tools=[custom_tool],  # Custom tool should be added after CU tools
             display_width=1024,
             display_height=768,
-            verbose=True,
         )
 
         response = results[0]

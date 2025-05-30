@@ -140,7 +140,7 @@ class AnthropicRequest(APIRequestBase):
         if cache is not None:
             prompt.lock_images_as_bytes()
 
-        self.request_header, self.request_json = _build_anthropic_request(
+        self.request_json, self.request_header = _build_anthropic_request(
             self.model,
             prompt,
             tools,

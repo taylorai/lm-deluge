@@ -1,6 +1,7 @@
 """Test that max_concurrent_requests=1 works correctly."""
 
 import time
+
 from lm_deluge.client import LLMClient
 
 
@@ -18,7 +19,7 @@ def test_max_concurrent_requests_one():
     prompts = ["Hello world"] * 3
 
     start_time = time.time()
-    results = client.process_prompts_sync(prompts, show_progress=False, verbose=True)
+    results = client.process_prompts_sync(prompts, show_progress=False)
     end_time = time.time()
 
     # Should complete successfully without hanging

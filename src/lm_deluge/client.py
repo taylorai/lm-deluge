@@ -15,7 +15,7 @@ from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversation
 from lm_deluge.tool import Tool
 
 from .api_requests import create_api_request
-from .api_requests.base import APIRequestBase, APIResponse
+from .api_requests.base import APIRequestBase, APIResponse, deduplicate_responses
 from .config import SamplingParams
 from .models import registry
 from .tracker import StatusTracker
@@ -33,7 +33,7 @@ class LLMClient(BaseModel):
     Handles models, sampling params for each model, model weights, rate limits, etc.
     """
 
-    model_names: list[str]
+    model_names: list[str] = ["gpt-4.1-mini"]
     max_requests_per_minute: int = 1_000
     max_tokens_per_minute: int = 100_000
     max_concurrent_requests: int = 225
@@ -51,6 +51,28 @@ class LLMClient(BaseModel):
     reasoning_effort: Literal["low", "medium", "high", None] = None
     logprobs: bool = False
     top_logprobs: int | None = None
+
+    # NEW! Builder methods
+    def with_model(self, model: str):
+        self.model_names = [model]
+        return self
+
+    def with_models(self, models: list[str]):
+        self.model_names = models
+        return self
+
+    def with_limits(
+        self,
+        max_requests_per_minute: int | None = None,
+        max_tokens_per_minute: int | None = None,
+        max_concurrent_requests: int | None = None,
+    ):
+        if max_requests_per_minute:
+            self.max_requests_per_minute = max_requests_per_minute
+        if max_tokens_per_minute:
+            self.max_tokens_per_minute = max_tokens_per_minute
+        if max_concurrent_requests:
+            self.max_concurrent_requests = max_concurrent_requests
 
     @property
     def models(self):
@@ -79,6 +101,8 @@ class LLMClient(BaseModel):
     def validate_client(self) -> Self:
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
+        if any(m not in registry for m in self.model_names):
+            raise ValueError("all model_names must be in registry")
         if isinstance(self.sampling_params, SamplingParams):
             self.sampling_params = [self.sampling_params for _ in self.model_names]
         elif len(self.sampling_params) != len(self.model_names):
@@ -145,7 +169,6 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
-        verbose: bool = ...,
         tools: list[Tool] | None = ...,
         cache: CachePattern | None = ...,
         computer_use: bool = ...,
@@ -161,7 +184,6 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
-        verbose: bool = ...,
         tools: list[Tool] | None = ...,
         cache: CachePattern | None = ...,
         computer_use: bool = ...,
@@ -176,7 +198,6 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress: bool = True,
-        verbose: bool = False,
         tools: list[Tool] | None = None,
         cache: CachePattern | None = None,
         computer_use: bool = False,
@@ -200,10 +221,9 @@ class LLMClient(BaseModel):
             ), "Cache hit ids and results must be the same length."
             remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
             remaining_prompts = [prompts[i] for i in remaining_ids]
-            if verbose:
-                print(f"{len(cache_hit_ids)} cache hits from previous completions.")
-                print(f"{len(remaining_ids)} prompts remaining after cache hits.")
-                print(f"Processing {len(remaining_prompts)} prompts.")
+            print(
+                f"{len(cache_hit_ids)} cache hits; {len(remaining_ids)} prompts remaining."
+            )
 
         else:
             cache_hit_ids = []
@@ -217,6 +237,7 @@ class LLMClient(BaseModel):
             tracker = StatusTracker(
                 max_requests_per_minute=self.max_requests_per_minute,
                 max_tokens_per_minute=self.max_tokens_per_minute,
+                max_concurrent_requests=self.max_concurrent_requests,
                 use_progress_bar=show_progress,
                 progress_bar_total=len(prompts),
                 progress_bar_disable=not show_progress,
@@ -228,27 +249,121 @@ class LLMClient(BaseModel):
             if len(cache_hit_ids) > 0:
                 tracker.update_pbar(len(cache_hit_ids))
 
-            api_task = asyncio.create_task(
-                process_api_prompts_async(
-                    ids,
-                    prompts,  # type: ignore -- fix later for dry running conversations
-                    self.models,
-                    self.model_weights,  # type: ignore
-                    self.sampling_params,  # type: ignore
-                    max_attempts=self.max_attempts,
-                    max_concurrent_requests=self.max_concurrent_requests,
-                    request_timeout=self.request_timeout,
-                    status_tracker=tracker,
-                    verbose=verbose,
-                    tools=tools,
-                    cache=cache,
-                    computer_use=computer_use,
-                    display_width=display_width,
-                    display_height=display_height,
-                    use_responses_api=use_responses_api,
-                )
-            )
-            api_results: list[APIResponse] = await api_task
+            # api_task = asyncio.create_task(
+            #     process_api_prompts_async(
+            #         ids,
+            #         prompts,  # type: ignore -- fix later for dry running conversations
+            #         self.models,
+            #         self.model_weights,  # type: ignore
+            #         self.sampling_params,  # type: ignore
+            #         max_attempts=self.max_attempts,
+            #         max_concurrent_requests=self.max_concurrent_requests,
+            #         request_timeout=self.request_timeout,
+            #         status_tracker=tracker,
+            #         tools=tools,
+            #         cache=cache,
+            #         computer_use=computer_use,
+            #         display_width=display_width,
+            #         display_height=display_height,
+            #         use_responses_api=use_responses_api,
+            #     )
+            # )
+            # async def process_api_prompts_async(
+
+            #     models: str | list[str],
+            #     model_weights: list[float],
+            #     sampling_params: list[SamplingParams],
+            #     max_attempts: int = 5,
+            #     max_concurrent_requests: int = 1_000,
+            #     request_timeout: int = 30,
+            #     status_tracker: StatusTracker | None = None,
+            #     tools: list[Tool] | None = None,
+            #     cache: CachePattern | None = None,
+            #     computer_use: bool = False,
+            #     display_width: int = 1024,
+            #     display_height: int = 768,
+            #     use_responses_api: bool = False,
+            # ):
+            if isinstance(ids, np.ndarray):
+                ids = ids.tolist()  # pyright: ignore
+
+            # calculate dynamically so we don't throttle RPM
+            seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
+            next_request = None  # variable to hold the next request to call
+            prompts_not_finished = True
+            prompts_iter = iter(zip(ids, prompts))
+            requests: list[APIRequestBase] = []
+            assert tracker.retry_queue, "retry queue not initialized"
+            while True:
+                # get next request (if one is not already waiting for capacity)
+                if next_request is None:
+                    if not tracker.retry_queue.empty():
+                        next_request = tracker.retry_queue.get_nowait()
+                        print(f"Retrying request {next_request.task_id}.")
+                    elif prompts_not_finished:
+                        try:
+                            # get new request
+                            id, prompt = next(prompts_iter)
+                            # select model
+                            assert isinstance(self.model_weights, list)
+                            model_idx = np.random.choice(
+                                range(len(self.models)), p=self.model_weights
+                            )
+                            next_request = create_api_request(
+                                task_id=id,
+                                model_name=self.models[model_idx],
+                                prompt=prompt,  # type: ignore
+                                request_timeout=self.request_timeout,
+                                attempts_left=self.max_attempts,
+                                status_tracker=tracker,
+                                results_arr=requests,
+                                sampling_params=self.sampling_params[model_idx],
+                                all_model_names=self.models,
+                                all_sampling_params=self.sampling_params,
+                                tools=tools,
+                                cache=cache,
+                                computer_use=computer_use,
+                                display_width=display_width,
+                                display_height=display_height,
+                                use_responses_api=use_responses_api,
+                            )
+                            requests.append(next_request)
+
+                        except StopIteration:
+                            prompts_not_finished = False
+                            # print("API requests finished, only retries remain.")
+
+                # update available capacity
+                tracker.update_capacity()
+
+                # if enough capacity available, call API
+                if next_request:
+                    next_request_tokens = next_request.num_tokens
+                    if tracker.check_capacity(next_request_tokens):
+                        tracker.set_limiting_factor(None)
+                        next_request.attempts_left -= 1
+                        # call API
+                        asyncio.create_task(next_request.call_api())
+                        next_request = None  # reset next_request to empty
+                # update pbar status
+                tracker.update_pbar()
+
+                # if all tasks are finished, break
+                if tracker.num_tasks_in_progress == 0:
+                    break
+
+                # main loop sleeps briefly so concurrent tasks can run
+                await asyncio.sleep(seconds_to_sleep_each_loop)
+
+                # if a rate limit error was hit recently, pause to cool down
+                if tracker.seconds_to_pause > 0:
+                    await asyncio.sleep(tracker.seconds_to_pause)
+                    print(f"Pausing {tracker.seconds_to_pause}s to cool down.")
+
+                # after finishing, log final status
+                tracker.log_final_status()
+                # deduplicate results by id
+            api_results = deduplicate_responses(requests)
             for res in api_results:
                 results[res.id] = res
                 # set to cache if result has a completion
@@ -271,7 +386,6 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress=True,
-        verbose: bool = False,
         tools: list[Tool] | None = None,
         cache: CachePattern | None = None,
     ):
@@ -280,7 +394,6 @@ class LLMClient(BaseModel):
                 prompts=prompts,
                 return_completions_only=return_completions_only,
                 show_progress=show_progress,
-                verbose=verbose,
                 tools=tools,
                 cache=cache,
             )
@@ -386,167 +499,3 @@ class LLMClient(BaseModel):
 #     combined_results["limiting_factor"] = limiting_factor
 
 #     return combined_results
-
-
-async def process_api_prompts_async(
-    ids: np.ndarray | list[int],
-    prompts: list[Conversation],
-    models: str | list[str],
-    model_weights: list[float],
-    sampling_params: list[SamplingParams],
-    max_attempts: int = 5,
-    max_concurrent_requests: int = 1_000,
-    request_timeout: int = 30,
-    status_tracker: StatusTracker | None = None,
-    verbose: bool = False,
-    tools: list[Tool] | None = None,
-    cache: CachePattern | None = None,
-    computer_use: bool = False,
-    display_width: int = 1024,
-    display_height: int = 768,
-    use_responses_api: bool = False,
-):
-    """Processes API requests in parallel, throttling to stay under rate limits."""
-    # change ids to integer list
-    if isinstance(ids, np.ndarray):
-        ids = ids.tolist()  # pyright: ignore
-
-    # normalize weights
-    model_weights = [w / sum(model_weights) for w in model_weights]
-
-    # Use provided tracker or create a minimal one if not provided
-    if status_tracker is None:
-        raise ValueError("StatusTracker must be provided")
-
-    tracker = status_tracker
-
-    # seconds_to_sleep_each_loop
-    # calculate dynamically so we don't throttle RPM
-    seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
-    next_request = None  # variable to hold the next request to call
-    prompts_not_finished = True
-
-    # checks
-    if not isinstance(models, list):
-        raise ValueError("models must be a list of model strings.")
-    for model in models:
-        if model not in registry:
-            raise ValueError(f"Model {model} not found in registry.")
-    if model_weights is None:
-        model_weights = [1 / len(models) for _ in models]
-    if len(model_weights) != len(models):
-        raise ValueError("model_weights must be the same length as models.")
-
-    prompts_iter = iter(zip(ids, prompts))
-    results: list[APIRequestBase] = []
-    assert tracker.retry_queue, "retry queue not initialized"
-    while True:
-        # get next request (if one is not already waiting for capacity)
-        if next_request is None:
-            if not tracker.retry_queue.empty():
-                next_request = tracker.retry_queue.get_nowait()
-                print(f"Retrying request {next_request.task_id}.")
-            elif prompts_not_finished:
-                try:
-                    # get new request
-                    id, prompt = next(prompts_iter)
-                    # select model
-                    model_idx = np.random.choice(range(len(models)), p=model_weights)
-                    next_request = create_api_request(
-                        task_id=id,
-                        model_name=models[model_idx],
-                        prompt=prompt,
-                        request_timeout=request_timeout,
-                        attempts_left=max_attempts,
-                        status_tracker=tracker,
-                        results_arr=results,
-                        sampling_params=sampling_params[model_idx],
-                        all_model_names=models,
-                        all_sampling_params=sampling_params,
-                        tools=tools,
-                        cache=cache,
-                        computer_use=computer_use,
-                        display_width=display_width,
-                        display_height=display_height,
-                        use_responses_api=use_responses_api,
-                    )
-                    tracker.num_tasks_started += 1
-                    results.append(next_request)
-
-                except StopIteration:
-                    prompts_not_finished = False
-                    if verbose:
-                        print("API requests finished, only retries remain.")
-
-        # update available capacity
-        tracker.update_capacity()
-
-        # if enough capacity available, call API
-        if next_request:
-            next_request_tokens = next_request.num_tokens
-            request_available = tracker.available_request_capacity >= 1
-            tokens_available = tracker.available_token_capacity >= next_request_tokens
-            concurrent_request_available = (
-                tracker.num_tasks_in_progress < max_concurrent_requests
-            )
-            if request_available and tokens_available and concurrent_request_available:
-                # update counters
-                # tracker.start_task()
-                tracker.available_request_capacity -= 1
-                tracker.available_token_capacity -= next_request_tokens
-                next_request.attempts_left -= 1
-                tracker.num_tasks_in_progress += 1
-                tracker.set_limiting_factor(None)
-
-                # call API
-                asyncio.create_task(next_request.call_api())
-                next_request = None  # reset next_request to empty
-            else:
-                if not request_available:
-                    tracker.set_limiting_factor("Requests")
-                elif not concurrent_request_available:
-                    tracker.set_limiting_factor("Concurrent Requests")
-                elif not tokens_available:
-                    tracker.set_limiting_factor("Tokens")
-
-        # update pbar status
-        tracker.update_pbar()
-
-        # if all tasks are finished, break
-        if tracker.num_tasks_in_progress == 0:
-            break
-
-        # main loop sleeps briefly so concurrent tasks can run
-        await asyncio.sleep(seconds_to_sleep_each_loop)
-
-        # if a rate limit error was hit recently, pause to cool down
-        if tracker.seconds_to_pause > 0:
-            await asyncio.sleep(tracker.seconds_to_pause)
-            print(f"Pausing {tracker.seconds_to_pause}s to cool down.")
-
-    # after finishing, log final status
-    tracker.log_final_status()
-    if verbose:
-        print(
-            f"After processing, got {len(results)} results for {len(ids)} inputs. Removing duplicates."
-        )
-
-    # deduplicate results by id
-    deduplicated = {}
-    for request in results:
-        if request.task_id not in deduplicated:
-            deduplicated[request.task_id] = request.result[-1]
-        else:
-            current_response: APIResponse = deduplicated[request.task_id]
-            # only replace if the current request has no completion and the new one does
-            if (
-                request.result[-1].completion is not None
-                and current_response.completion is None
-            ):
-                deduplicated[request.task_id] = request.result[-1]
-
-    output = list(deduplicated.values())
-    if verbose:
-        print(f"Returning {len(output)} unique results.")
-
-    return output

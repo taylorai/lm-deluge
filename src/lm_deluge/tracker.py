@@ -21,6 +21,7 @@ SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR = 5
 class StatusTracker:
     max_requests_per_minute: int
     max_tokens_per_minute: int
+    max_concurrent_requests: int
     num_tasks_started: int = 0
     num_tasks_in_progress: int = 0
     num_tasks_succeeded: int = 0
@@ -65,6 +66,73 @@ class StatusTracker:
 
     def set_limiting_factor(self, factor):
         self.limiting_factor = factor
+
+    def check_capacity(self, num_tokens: int):
+        request_available = self.available_request_capacity >= 1
+        tokens_available = self.available_token_capacity >= num_tokens
+        concurrent_request_available = (
+            self.num_tasks_in_progress < self.max_concurrent_requests
+        )
+        if request_available and tokens_available and concurrent_request_available:
+            self.available_request_capacity -= 1
+            self.available_token_capacity -= num_tokens
+            self.num_tasks_started += 1
+            self.num_tasks_in_progress += 1
+            self.set_limiting_factor(None)
+            return True
+        else:
+            # update reason why
+            if not request_available:
+                self.set_limiting_factor("Requests")
+            elif not concurrent_request_available:
+                self.set_limiting_factor("Concurrent Requests")
+            elif not tokens_available:
+                self.set_limiting_factor("Tokens")
+
+    def update_capacity(self):
+        current_time = time.time()
+        seconds_since_update = current_time - self.last_update_time
+        self.available_request_capacity = min(
+            self.available_request_capacity
+            + self.max_requests_per_minute * seconds_since_update / 60.0,
+            self.max_requests_per_minute,
+        )
+        self.available_token_capacity = min(
+            self.available_token_capacity
+            + self.max_tokens_per_minute * seconds_since_update / 60.0,
+            self.max_tokens_per_minute,
+        )
+        self.last_update_time = current_time
+
+    def start_task(self, task_id):
+        self.num_tasks_started += 1
+        self.num_tasks_in_progress += 1
+
+    def rate_limit_exceeded(self):
+        self.time_of_last_rate_limit_error = time.time()
+        self.num_rate_limit_errors += 1
+
+    def task_succeeded(self, task_id):
+        self.num_tasks_in_progress -= 1
+        self.num_tasks_succeeded += 1
+        self.increment_pbar()
+
+    def task_failed(self, task_id):
+        self.num_tasks_in_progress -= 1
+        self.num_tasks_failed += 1
+
+    def log_final_status(self):
+        # Close progress bar before printing final status
+        self.close_progress_bar()
+
+        if self.num_tasks_failed > 0:
+            print(
+                f"{self.num_tasks_failed} / {self.num_tasks_started} requests failed."
+            )
+        if self.num_rate_limit_errors > 0:
+            print(
+                f"{self.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
+            )
 
     @property
     def pbar(self) -> tqdm | None:
@@ -183,48 +251,3 @@ class StatusTracker:
             pass
         elif self._pbar:
             self._pbar.update(1)
-
-    def update_capacity(self):
-        current_time = time.time()
-        seconds_since_update = current_time - self.last_update_time
-        self.available_request_capacity = min(
-            self.available_request_capacity
-            + self.max_requests_per_minute * seconds_since_update / 60.0,
-            self.max_requests_per_minute,
-        )
-        self.available_token_capacity = min(
-            self.available_token_capacity
-            + self.max_tokens_per_minute * seconds_since_update / 60.0,
-            self.max_tokens_per_minute,
-        )
-        self.last_update_time = current_time
-
-    def start_task(self, task_id):
-        self.num_tasks_started += 1
-        self.num_tasks_in_progress += 1
-
-    def rate_limit_exceeded(self):
-        self.time_of_last_rate_limit_error = time.time()
-        self.num_rate_limit_errors += 1
-
-    def task_succeeded(self, task_id):
-        self.num_tasks_in_progress -= 1
-        self.num_tasks_succeeded += 1
-        self.increment_pbar()
-
-    def task_failed(self, task_id):
-        self.num_tasks_in_progress -= 1
-        self.num_tasks_failed += 1
-
-    def log_final_status(self):
-        # Close progress bar before printing final status
-        self.close_progress_bar()
-
-        if self.num_tasks_failed > 0:
-            print(
-                f"{self.num_tasks_failed} / {self.num_tasks_started} requests failed."
-            )
-        if self.num_rate_limit_errors > 0:
-            print(
-                f"{self.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
-            )

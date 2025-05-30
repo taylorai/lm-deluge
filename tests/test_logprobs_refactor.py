@@ -1,3 +1,6 @@
+import asyncio
+import os
+
 import pytest
 
 from lm_deluge import Conversation, LLMClient
@@ -175,6 +178,97 @@ def test_multiple_sampling_params_with_different_logprobs():
     assert client.sampling_params[1].top_logprobs == 10
 
 
+def test_integration_logprobs_openai():
+    """Integration test that calls OpenAI API with logprobs enabled and verifies logprobs are returned."""
+    # Skip if no API key is available
+    if not os.getenv("OPENAI_API_KEY"):
+        print("⚠️  Skipping integration test - OPENAI_API_KEY not set")
+        return
+
+    async def run_test():
+        # Create client with logprobs enabled
+        client = LLMClient(
+            model_names=["gpt-4o-mini"],
+            max_requests_per_minute=100,
+            max_tokens_per_minute=10000,
+            max_concurrent_requests=10,
+            sampling_params=[
+                SamplingParams(
+                    logprobs=True,
+                    top_logprobs=5,
+                    max_new_tokens=10,  # Keep response short to save costs
+                    temperature=0.0,  # Make it deterministic
+                )
+            ],
+        )
+
+        # Simple prompt
+        prompt = Conversation.user("Say 'Hello world!'")
+
+        try:
+            # Process the prompt
+            results = await client.process_prompts_async([prompt], show_progress=False)
+
+            # Verify we got a result
+            assert len(results) == 1
+            result = results[0]
+            assert result is not None
+            assert isinstance(result, APIResponse)
+
+            # Verify the response has content
+            assert result.content is not None
+            assert result.content
+
+            # Verify logprobs are present
+            assert (
+                result.logprobs is not None
+            ), "Logprobs should be present in the response"
+            assert (
+                len(result.logprobs) > 0
+            ), "Logprobs should contain at least one entry"
+
+            # Verify logprob entry structure
+            first_logprob = result.logprobs[0]
+            assert "token" in first_logprob, "Logprob entry should have 'token' field"
+            assert (
+                "logprob" in first_logprob
+            ), "Logprob entry should have 'logprob' field"
+            assert (
+                "top_logprobs" in first_logprob
+            ), "Logprob entry should have 'top_logprobs' field"
+
+            # Verify top_logprobs structure
+            top_logprobs = first_logprob["top_logprobs"]
+            assert isinstance(top_logprobs, list), "top_logprobs should be a list"
+            assert len(top_logprobs) <= 5, "Should have at most 5 top logprobs"
+            assert len(top_logprobs) > 0, "Should have at least 1 top logprob"
+
+            # Verify top logprob structure
+            first_top_logprob = top_logprobs[0]
+            assert "token" in first_top_logprob, "Top logprob should have 'token' field"
+            assert (
+                "logprob" in first_top_logprob
+            ), "Top logprob should have 'logprob' field"
+            assert isinstance(
+                first_top_logprob["logprob"], (int, float)
+            ), "Logprob should be numeric"
+
+            print(
+                f"✓ Integration test passed! Got logprobs for {len(result.logprobs)} tokens"
+            )
+            print(
+                f"  First token: '{first_logprob['token']}' (logprob: {first_logprob['logprob']:.3f})"
+            )
+            print(f"  Top alternatives: {[t['token'] for t in top_logprobs[:3]]}")
+
+        except Exception as e:
+            print(f"❌ Integration test failed: {e}")
+            raise
+
+    # Run the async test
+    asyncio.run(run_test())
+
+
 if __name__ == "__main__":
     # Run tests
     print("Running test_sampling_params_logprobs...")
@@ -205,6 +299,8 @@ if __name__ == "__main__":
     test_multiple_sampling_params_with_different_logprobs()
     print("✓ Passed")
 
+    print("\nRunning test_integration_logprobs_openai...")
+    test_integration_logprobs_openai()
     print("✓ Passed")
 
     print("\n✅ All tests passed!")

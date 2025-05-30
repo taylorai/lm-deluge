@@ -34,10 +34,10 @@ async def computer_use_example():
         max_tokens_per_minute=50000,  # Higher limits recommended for CU
         max_concurrent_requests=1
     )
-    
+
     # Create conversation requesting a screenshot
     conversation = Conversation.user("Take a screenshot of the current screen")
-    
+
     # Process with Computer Use enabled
     results = await client.process_prompts_async(
         [conversation],
@@ -47,13 +47,13 @@ async def computer_use_example():
         cache="tools_only",      # Recommended for Computer Use
         show_progress=True
     )
-    
+
     # Handle the response
     response = results[0]
     if response and response.content:
         print("Claude's response:")
         print(response.completion)
-        
+
         # Check for tool calls
         tool_calls = response.content.tool_calls
         if tool_calls:
@@ -77,7 +77,7 @@ async def bedrock_computer_use_example():
     os.environ["AWS_ACCESS_KEY_ID"] = "your-access-key"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "your-secret-key"
     # os.environ["AWS_SESSION_TOKEN"] = "your-session-token"  # if using temporary credentials
-    
+
     # Create client with Bedrock Claude model
     client = LLMClient(
         model_names=["claude-3.7-sonnet-bedrock"],  # lm-deluge internal Bedrock model name
@@ -85,10 +85,10 @@ async def bedrock_computer_use_example():
         max_tokens_per_minute=50000,
         max_concurrent_requests=1
     )
-    
+
     # Create conversation requesting a screenshot
     conversation = Conversation.user("Take a screenshot of the current screen")
-    
+
     # Process with Computer Use enabled
     results = await client.process_prompts_async(
         [conversation],
@@ -98,13 +98,13 @@ async def bedrock_computer_use_example():
         cache="tools_only",      # Recommended for Computer Use
         show_progress=True
     )
-    
+
     # Handle the response
     response = results[0]
     if response and response.content:
         print("Claude's response:")
         print(response.completion)
-        
+
         # Check for tool calls
         tool_calls = response.content.tool_calls
         if tool_calls:
@@ -161,7 +161,7 @@ AWS Bedrock uses the same built-in Anthropic Computer Use tools, with automatic 
 
 **lm-deluge internal Bedrock model names:**
 - `claude-3-5-sonnet-bedrock` → Tool version 2024-10-22
-- `claude-3.7-sonnet-bedrock` → Tool version 2025-01-24  
+- `claude-3.7-sonnet-bedrock` → Tool version 2025-01-24
 - `claude-4-sonnet-bedrock` → Tool version 2025-04-29
 - `claude-4-opus-bedrock` → Tool version 2025-04-29
 
@@ -196,14 +196,14 @@ async def multi_turn_computer_use():
         max_tokens_per_minute=100000,  # Higher for long conversations
         max_concurrent_requests=1
     )
-    
+
     # Start conversation
     conversation = Conversation.user("Open a text editor and write a Python hello world script")
-    
+
     max_turns = 10
     for turn in range(max_turns):
         print(f"\\n--- Turn {turn + 1} ---")
-        
+
         # Get Claude's response
         results = await client.process_prompts_async(
             [conversation],
@@ -211,27 +211,27 @@ async def multi_turn_computer_use():
             cache="tools_only",  # Critical for performance
             show_progress=True
         )
-        
+
         response = results[0]
         if not response or not response.content:
             print("No response received")
             break
-            
+
         print(f"Claude: {response.completion}")
-        
+
         # Check for tool calls
         tool_calls = response.content.tool_calls
         if not tool_calls:
             print("Task completed - no more tool calls")
             break
-            
+
         # Add Claude's response to conversation
         conversation.messages.append(response.content)
-        
+
         # Simulate tool execution and add results
         for call in tool_calls:
             print(f"Executing: {call.name}({call.arguments})")
-            
+
             # In real usage, you'd execute the tool and get actual results
             # For this example, we'll simulate responses
             if call.name == "computer" and call.arguments.get("action") == "screenshot":
@@ -249,17 +249,17 @@ async def multi_turn_computer_use():
             else:
                 # Simulate other tool results
                 tool_result = f"Tool {call.name} executed successfully"
-            
+
             # Add tool result to conversation
             from lm_deluge.prompt import Message, ToolResult
             tool_message = Message("user", [ToolResult(call.id, tool_result)])
             conversation.messages.append(tool_message)
-        
+
         # Get user input for next turn (in real usage)
         user_input = input("\\nYour message (or 'quit' to exit): ")
         if user_input.lower() == 'quit':
             break
-        
+
         if user_input.strip():
             conversation.messages.append(Message("user", [user_input]))
 
@@ -333,25 +333,24 @@ async def robust_computer_use():
         max_concurrent_requests=1,
         max_attempts=3  # Retry failed requests
     )
-    
+
     conversation = Conversation.user("Take a screenshot")
-    
+
     try:
         results = await client.process_prompts_async(
             [conversation],
             computer_use=True,
             cache="tools_only",
-            verbose=True  # Show detailed error info
         )
-        
+
         response = results[0]
         if response.is_error:
             print(f"Error: {response.error_message}")
             return
-            
+
         print("Success!")
         print(response.completion)
-        
+
     except Exception as e:
         print(f"Unexpected error: {e}")
 
@@ -407,7 +406,7 @@ results = await client.process_prompts_async(
 
 **Model Not Found**: Ensure you're using a Computer Use compatible model:
 - claude-3-5-sonnet-20241022
-- claude-3.7-sonnet  
+- claude-3.7-sonnet
 - claude-4-opus
 
 **Beta Header Errors**: Computer Use requires beta access. Check your API key has Computer Use enabled.
@@ -426,7 +425,6 @@ Enable verbose logging to debug issues:
 results = await client.process_prompts_async(
     conversations,
     computer_use=True,
-    verbose=True,  # Show detailed request/response info
     debug=True     # Additional debug output
 )
 ```

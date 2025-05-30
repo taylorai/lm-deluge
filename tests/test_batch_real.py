@@ -7,6 +7,7 @@ Run with: python tests/test_batch_real.py
 
 import asyncio
 import os
+
 from lm_deluge.client import LLMClient
 
 

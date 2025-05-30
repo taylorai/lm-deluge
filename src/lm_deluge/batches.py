@@ -284,7 +284,7 @@ async def _wait_for_anthropic_batch_completion_async(
         "content-type": "application/json",
     }
 
-    url = "https://api.anthropic.com/v1/messages/batches/{batch_id}"
+    url = f"https://api.anthropic.com/v1/messages/batches/{batch_id}"
     console = Console()
     start_time = time.time()
 
