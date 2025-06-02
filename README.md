@@ -3,6 +3,7 @@
 `lm-deluge` is a lightweight helper library for maxing out your rate limits with LLM providers. It provides the following:
 
 - **Unified client** – Send prompts to all relevant models with a single client.
+- **Files and Images** - Include images easily for multimodal models, and PDF files for models that support them (OpenAI and Anthropic).
 - **Massive concurrency with throttling** – Set `max_tokens_per_minute` and `max_requests_per_minute` and let it fly. The client will process as many requests as possible while respecting rate limits and retrying failures.
 - **Spray across models/providers** – Configure a client with multiple models from any provider(s), and sampling weights. The client samples a model for each request.
 - **Tool Use** – Unified API for defining tools for all providers, and creating tools automatically from python functions.
@@ -13,6 +14,8 @@
 - **Sync and async APIs** – Use the client from sync or async code.
 
 **STREAMING IS NOT IN SCOPE.** There are plenty of packages that let you stream chat completions across providers. The sole purpose of this package is to do very fast batch inference using APIs. Sorry!
+
+**Update 06/02/2025:** I lied, it supports (very basic) streaming now via client.stream(...). It will print tokens as they arrive, then return an APIResponse at the end. More sophisticated streaming may or may not be implemented later, don't count on it.
 
 ## Installation
 
