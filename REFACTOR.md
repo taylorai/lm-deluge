@@ -254,3 +254,68 @@ Suggested taskUpdate README and docstrings for new configuration objects
 Summary
 
 The current design frequently forwards long argument lists—often via **kwargs—through several layers of classes and helper functions. Introducing typed dataclasses (e.g. RequestParams, RateLimitConfig) and provider‑specific option objects would make the flow explicit and self-documenting. A builder pattern for creating LLMClient instances can further simplify user code. Refactoring in this manner will reduce reliance on **kwargs, make the codebase easier to navigate, and improve type checking and autocomplete support.
+
+
+Ideas for automatic file uploads
+
+⏺ Great question! Currently, the implementation always uses
+   base64 by default and only uses file IDs when explicitly
+   provided. Let me show you how it works:
+
+⏺ Read(src/lm_deluge/file.py)…
+  ⎿  Read 20 lines (ctrl+r to expand)
+
+⏺ Current Behavior
+
+  The File class determines the format based on whether
+  file_id is explicitly set:
+
+  1. If file_id is provided → Uses file ID reference
+  2. If file_id is None → Uses base64 encoding
+
+  # Uses base64 automatically
+  file1 = File("/path/to/document.pdf")
+
+  # Uses file ID explicitly
+  file2 = File("dummy", file_id="file-abc123")
+
+  Missing: Automatic Upload Logic
+
+  You're right that we could add smarter logic to
+  automatically decide when to upload vs. use base64. Here
+  are some strategies we could implement:
+
+  1. File size threshold - Upload large files, base64 small
+   ones
+  2. Provider preference - Some providers prefer uploads
+  3. Reuse detection - Upload files used multiple times
+  4. Global configuration - Let users set preferences
+
+  Would you like me to implement automatic upload logic?
+  For example:
+
+  @dataclass
+  class FileUploadStrategy:
+      size_threshold: int = 5 * 1024 * 1024  # 5MB
+      auto_upload_openai: bool = True
+      auto_upload_anthropic: bool = False
+
+  # Then in File class:
+  def should_upload(self, provider: str) -> bool:
+      if self.file_id:  # Already uploaded
+          return True
+
+      strategy = get_upload_strategy()  # Global config
+
+      if self.size > strategy.size_threshold:
+          return True
+
+      if provider == "openai" and
+  strategy.auto_upload_openai:
+          return True
+
+      return False
+
+  This would require extending the API request classes to
+  handle file uploads before making the main request.
+  Should I implement this?

@@ -1,12 +1,15 @@
 import io
 import json
-import tiktoken
-import xxhash
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, Sequence
-from lm_deluge.models import APIModel
+
+import tiktoken
+import xxhash
+
+from lm_deluge.file import File
 from lm_deluge.image import Image
+from lm_deluge.models import APIModel
 
 CachePattern = Literal[
     "tools_only",
@@ -203,7 +206,7 @@ class Thinking:
         return {"type": "text", "text": f"[Thinking: {self.content}]"}
 
 
-Part = Text | Image | ToolCall | ToolResult | Thinking
+Part = Text | Image | File | ToolCall | ToolResult | Thinking
 
 
 ###############################################################################
@@ -247,6 +250,11 @@ class Message:
         return [part for part in self.parts if part.type == "image"]  # type: ignore
 
     @property
+    def files(self) -> list[File]:
+        """Get all file parts with proper typing."""
+        return [part for part in self.parts if part.type == "file"]  # type: ignore
+
+    @property
     def thinking_parts(self) -> list["Thinking"]:
         """Get all thinking parts with proper typing."""
         return [part for part in self.parts if part.type == "thinking"]  # type: ignore
@@ -262,6 +270,9 @@ class Message:
             elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
                 w, h = p.size
                 content_blocks.append({"type": "image", "tag": f"<Image ({w}×{h})>"})
+            elif isinstance(p, File):  # File – redact the bytes, keep a hint
+                size = p.size
+                content_blocks.append({"type": "file", "tag": f"<File ({size} bytes)>"})
             elif isinstance(p, ToolCall):
                 content_blocks.append(
                     {
@@ -296,6 +307,9 @@ class Message:
             elif p["type"] == "image":
                 # We only stored a placeholder tag, so keep that placeholder.
                 parts.append(Image(p["tag"], detail="low"))
+            elif p["type"] == "file":
+                # We only stored a placeholder tag, so keep that placeholder.
+                parts.append(File(p["tag"]))
             elif p["type"] == "tool_call":
                 parts.append(
                     ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
@@ -340,6 +354,20 @@ class Message:
         self.parts.append(img)
         return self
 
+    def add_file(
+        self,
+        data: bytes | str | Path | io.BytesIO,
+        *,
+        media_type: str | None = None,
+        filename: str | None = None,
+    ) -> "Message":
+        """
+        Append a file block and return self for chaining.
+        """
+        file = File(data, media_type=media_type, filename=filename)
+        self.parts.append(file)
+        return self
+
     def add_tool_call(self, id: str, name: str, arguments: dict) -> "Message":
         """Append a tool call block and return self for chaining."""
         self.parts.append(ToolCall(id=id, name=name, arguments=arguments))
@@ -362,12 +390,15 @@ class Message:
         text: str | None = None,
         *,
         image: str | bytes | Path | io.BytesIO | None = None,
+        file: str | bytes | Path | io.BytesIO | None = None,
     ) -> "Message":
         res = cls("user", [])
         if text is not None:
             res.add_text(text)
         if image is not None:
             res.add_image(image)
+        if file is not None:
+            res.add_file(file)
         return res
 
     @classmethod
@@ -403,6 +434,19 @@ class Message:
                     part_list.append(Text(item["text"]))
                 elif item["type"] == "image_url":
                     part_list.append(Image(data=item["image_url"]["url"]))
+                elif item["type"] == "file":
+                    file_data = item["file"]
+                    if "file_id" in file_data:
+                        # Handle file ID reference (not implemented yet)
+                        part_list.append(File(data=file_data["file_id"]))
+                    elif "file_data" in file_data:
+                        # Handle base64 file data
+                        part_list.append(
+                            File(
+                                data=file_data["file_data"],
+                                filename=file_data.get("filename"),
+                            )
+                        )
             parts = part_list
 
         # Handle tool calls (assistant messages)
@@ -511,11 +555,17 @@ class Conversation:
 
     @classmethod
     def user(
-        cls, text: str, *, image: bytes | str | Path | None = None
+        cls,
+        text: str,
+        *,
+        image: bytes | str | Path | None = None,
+        file: bytes | str | Path | None = None,
     ) -> "Conversation":
-        msg = (
-            Message.user(text) if image is None else Message.user(text).add_image(image)
-        )
+        msg = Message.user(text)
+        if image is not None:
+            msg.add_image(image)
+        if file is not None:
+            msg.add_file(file)
         return cls([msg])
 
     @classmethod
@@ -677,6 +727,9 @@ class Conversation:
                 if isinstance(part, Image):
                     # Force conversion to bytes if not already
                     part.data = part._bytes()
+                elif isinstance(part, File):
+                    # Force conversion to bytes if not already
+                    part.data = part._bytes()
         return self
 
     def _add_cache_control_to_message(self, message: dict) -> None:
@@ -765,6 +818,11 @@ class Conversation:
                     content_blocks.append(
                         {"type": "image", "tag": f"<Image ({w}×{h})>"}
                     )
+                elif isinstance(p, File):  # File – redact the bytes, keep a hint
+                    size = p.size
+                    content_blocks.append(
+                        {"type": "file", "tag": f"<File ({size} bytes)>"}
+                    )
                 elif isinstance(p, ToolCall):
                     content_blocks.append(
                         {
@@ -795,7 +853,7 @@ class Conversation:
 
         for m in payload.get("messages", []):
             role: Role = m["role"]  # 'system' | 'user' | 'assistant'
-            parts: list[Text | Image | ToolCall | ToolResult | Thinking] = []
+            parts: list[Part] = []
 
             for p in m["content"]:
                 if p["type"] == "text":
@@ -804,6 +862,9 @@ class Conversation:
                     # We only stored a placeholder tag, so keep that placeholder.
                     # You could raise instead if real image bytes are required.
                     parts.append(Image(p["tag"], detail="low"))
+                elif p["type"] == "file":
+                    # We only stored a placeholder tag, so keep that placeholder.
+                    parts.append(File(p["tag"]))
                 elif p["type"] == "tool_call":
                     parts.append(
                         ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
