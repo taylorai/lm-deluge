@@ -67,7 +67,7 @@ class StatusTracker:
     def set_limiting_factor(self, factor):
         self.limiting_factor = factor
 
-    def check_capacity(self, num_tokens: int):
+    def check_capacity(self, num_tokens: int, retry: bool = False):
         request_available = self.available_request_capacity >= 1
         tokens_available = self.available_token_capacity >= num_tokens
         concurrent_request_available = (
@@ -76,8 +76,10 @@ class StatusTracker:
         if request_available and tokens_available and concurrent_request_available:
             self.available_request_capacity -= 1
             self.available_token_capacity -= num_tokens
-            self.num_tasks_started += 1
-            self.num_tasks_in_progress += 1
+            if not retry:
+                # Only count new tasks, not retries
+                self.num_tasks_started += 1
+                self.num_tasks_in_progress += 1
             self.set_limiting_factor(None)
             return True
         else:

@@ -6,6 +6,7 @@ import yaml
 from pydantic import BaseModel
 from pydantic.functional_validators import model_validator
 
+from lm_deluge.api_requests.openai import stream_chat
 from lm_deluge.batches import (
     submit_batches_anthropic,
     submit_batches_oa,
@@ -34,6 +35,12 @@ class LLMClient(BaseModel):
     """
 
     model_names: list[str] = ["gpt-4.1-mini"]
+
+    def __init__(self, model_name: str | list[str] | None = None, **kwargs):
+        if model_name is not None:
+            kwargs["model_names"] = model_name
+        super().__init__(**kwargs)
+
     max_requests_per_minute: int = 1_000
     max_tokens_per_minute: int = 100_000
     max_concurrent_requests: int = 225
@@ -81,7 +88,7 @@ class LLMClient(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def fix_lists(cls, data) -> "LLMClient":
-        if isinstance(data["model_names"], str):
+        if isinstance(data.get("model_names"), str):
             data["model_names"] = [data["model_names"]]
         if "sampling_params" not in data or len(data.get("sampling_params", [])) == 0:
             data["sampling_params"] = [
@@ -161,6 +168,11 @@ class LLMClient(BaseModel):
         """
         kwargs["model_names"] = model
         return cls(**kwargs)
+
+    def _select_model(self):
+        assert isinstance(self.model_weights, list)
+        model_idx = np.random.choice(range(len(self.models)), p=self.model_weights)
+        return self.models[model_idx], self.sampling_params[model_idx]
 
     @overload
     async def process_prompts_async(
@@ -249,41 +261,6 @@ class LLMClient(BaseModel):
             if len(cache_hit_ids) > 0:
                 tracker.update_pbar(len(cache_hit_ids))
 
-            # api_task = asyncio.create_task(
-            #     process_api_prompts_async(
-            #         ids,
-            #         prompts,  # type: ignore -- fix later for dry running conversations
-            #         self.models,
-            #         self.model_weights,  # type: ignore
-            #         self.sampling_params,  # type: ignore
-            #         max_attempts=self.max_attempts,
-            #         max_concurrent_requests=self.max_concurrent_requests,
-            #         request_timeout=self.request_timeout,
-            #         status_tracker=tracker,
-            #         tools=tools,
-            #         cache=cache,
-            #         computer_use=computer_use,
-            #         display_width=display_width,
-            #         display_height=display_height,
-            #         use_responses_api=use_responses_api,
-            #     )
-            # )
-            # async def process_api_prompts_async(
-
-            #     models: str | list[str],
-            #     model_weights: list[float],
-            #     sampling_params: list[SamplingParams],
-            #     max_attempts: int = 5,
-            #     max_concurrent_requests: int = 1_000,
-            #     request_timeout: int = 30,
-            #     status_tracker: StatusTracker | None = None,
-            #     tools: list[Tool] | None = None,
-            #     cache: CachePattern | None = None,
-            #     computer_use: bool = False,
-            #     display_width: int = 1024,
-            #     display_height: int = 768,
-            #     use_responses_api: bool = False,
-            # ):
             if isinstance(ids, np.ndarray):
                 ids = ids.tolist()  # pyright: ignore
 
@@ -296,28 +273,28 @@ class LLMClient(BaseModel):
             assert tracker.retry_queue, "retry queue not initialized"
             while True:
                 # get next request (if one is not already waiting for capacity)
+                retry_request = False
                 if next_request is None:
                     if not tracker.retry_queue.empty():
                         next_request = tracker.retry_queue.get_nowait()
+                        retry_request = True
                         print(f"Retrying request {next_request.task_id}.")
                     elif prompts_not_finished:
                         try:
                             # get new request
                             id, prompt = next(prompts_iter)
                             # select model
-                            assert isinstance(self.model_weights, list)
-                            model_idx = np.random.choice(
-                                range(len(self.models)), p=self.model_weights
-                            )
+                            model, sampling_params = self._select_model()
+
                             next_request = create_api_request(
                                 task_id=id,
-                                model_name=self.models[model_idx],
+                                model_name=model,
                                 prompt=prompt,  # type: ignore
                                 request_timeout=self.request_timeout,
                                 attempts_left=self.max_attempts,
                                 status_tracker=tracker,
                                 results_arr=requests,
-                                sampling_params=self.sampling_params[model_idx],
+                                sampling_params=sampling_params,
                                 all_model_names=self.models,
                                 all_sampling_params=self.sampling_params,
                                 tools=tools,
@@ -339,10 +316,9 @@ class LLMClient(BaseModel):
                 # if enough capacity available, call API
                 if next_request:
                     next_request_tokens = next_request.num_tokens
-                    if tracker.check_capacity(next_request_tokens):
+                    if tracker.check_capacity(next_request_tokens, retry=retry_request):
                         tracker.set_limiting_factor(None)
-                        next_request.attempts_left -= 1
-                        # call API
+                        # call API (attempts_left will be decremented in handle_error if it fails)
                         asyncio.create_task(next_request.call_api())
                         next_request = None  # reset next_request to empty
                 # update pbar status
@@ -360,9 +336,10 @@ class LLMClient(BaseModel):
                     await asyncio.sleep(tracker.seconds_to_pause)
                     print(f"Pausing {tracker.seconds_to_pause}s to cool down.")
 
-                # after finishing, log final status
-                tracker.log_final_status()
-                # deduplicate results by id
+            # after finishing, log final status
+            tracker.log_final_status()
+
+            # deduplicate results by id
             api_results = deduplicate_responses(requests)
             for res in api_results:
                 results[res.id] = res
@@ -398,6 +375,17 @@ class LLMClient(BaseModel):
                 cache=cache,
             )
         )
+
+    async def stream(self, prompt: str | Conversation, tools: list[Tool] | None = None):
+        model, sampling_params = self._select_model()
+        if isinstance(prompt, str):
+            prompt = Conversation.user(prompt)
+        async for item in stream_chat(model, prompt, sampling_params, tools, None):
+            if isinstance(item, str):
+                print(item, end="", flush=True)
+            else:
+                # final item
+                return item
 
     async def submit_batch_job(
         self,

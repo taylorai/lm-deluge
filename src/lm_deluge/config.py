@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Literal
+
+from pydantic import BaseModel
 
 
 class SamplingParams(BaseModel):
@@ -7,7 +8,7 @@ class SamplingParams(BaseModel):
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 512
-    reasoning_effort: Literal["low", "medium", "high", None] = None
+    reasoning_effort: Literal["low", "medium", "high", "none", None] = None
     logprobs: bool = False
     top_logprobs: int | None = None
 

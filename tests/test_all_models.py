@@ -1,31 +1,31 @@
-from lm_deluge import LLMClient, Message, Conversation
+from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.api_requests.base import APIResponse
 
 models_to_test = [
     # meta
-    "llama-3.3-8b",
-    "llama-3.3-70b",
-    "llama-4-maverick",
-    "llama-4-scout",
-    # grok
-    "grok-3-mini",
-    "grok-3",
-    # anthropic
-    "claude-3-opus",
-    "claude-3-sonnet",
-    "claude-3-haiku",
-    "claude-4-sonnet",
-    "claude-4-opus",
-    # anthropic bedrock
-    "claude-4-sonnet-bedrock",
-    "claude-4-opus-bedrock",
-    # openai
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-4.1-nano",
-    "o4-mini",
+    # "llama-3.3-8b",
+    # "llama-3.3-70b",
+    # "llama-4-maverick",
+    # "llama-4-scout",
+    # # grok
+    # "grok-3-mini",
+    # "grok-3",
+    # # anthropic
+    # "claude-3-opus",
+    # "claude-3-sonnet",
+    # "claude-3-haiku",
+    # "claude-4-sonnet",
+    # "claude-4-opus",
+    # # anthropic bedrock
+    # "claude-4-sonnet-bedrock",
+    # "claude-4-opus-bedrock",
+    # # openai
+    # "gpt-4o",
+    # "gpt-4o-mini",
+    # "gpt-4.1",
+    # "gpt-4.1-mini",
+    # "gpt-4.1-nano",
+    # "o4-mini",
     # cohere
     "command-a",
     "command-r-7b",

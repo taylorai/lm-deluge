@@ -1,17 +1,19 @@
-import warnings
-from aiohttp import ClientResponse
 import json
 import os
+import warnings
 from typing import Callable
+
+import aiohttp
+from aiohttp import ClientResponse
 
 from lm_deluge.tool import Tool
 
-from .base import APIRequestBase, APIResponse
-from ..prompt import Conversation, Message, Text, ToolCall, Thinking, CachePattern
-from ..usage import Usage
-from ..tracker import StatusTracker
 from ..config import SamplingParams
 from ..models import APIModel
+from ..prompt import CachePattern, Conversation, Message, Text, Thinking, ToolCall
+from ..tracker import StatusTracker
+from ..usage import Usage
+from .base import APIRequestBase, APIResponse
 
 
 def _build_oa_chat_request(
@@ -111,6 +113,7 @@ class OpenAIRequest(APIRequestBase):
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         data = None
+        finish_reason = None
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
@@ -125,6 +128,7 @@ class OpenAIRequest(APIRequestBase):
                     # Parse response into Message with parts
                     parts = []
                     message = data["choices"][0]["message"]
+                    finish_reason = data["choices"][0]["finish_reason"]
 
                     # Add text content if present
                     if message.get("content"):
@@ -190,6 +194,7 @@ class OpenAIRequest(APIRequestBase):
             sampling_params=self.sampling_params,
             usage=usage,
             raw_response=data,
+            finish_reason=finish_reason,
         )
 
 
@@ -266,6 +271,13 @@ class OpenAIResponsesRequest(APIRequestBase):
             self.request_json["max_output_tokens"] = sampling_params.max_new_tokens
 
         if self.model.reasoning_model:
+            if sampling_params.reasoning_effort in [None, "none"]:
+                # gemini models can switch reasoning off
+                if "gemini" in self.model.id:
+                    self.sampling_params.reasoning_effort = "none"  # expects string
+                # openai models can only go down to "low"
+                else:
+                    self.sampling_params.reasoning_effort = "low"
             self.request_json["temperature"] = 1.0
             self.request_json["top_p"] = 1.0
             self.request_json["reasoning"] = {
@@ -413,3 +425,57 @@ class OpenAIResponsesRequest(APIRequestBase):
             usage=usage,
             raw_response=data,
         )
+
+
+async def stream_chat(
+    model_name: str,  # must correspond to registry
+    prompt: Conversation,
+    sampling_params: SamplingParams = SamplingParams(),
+    tools: list | None = None,
+    cache: CachePattern | None = None,
+):
+    if cache is not None:
+        warnings.warn(
+            f"Cache parameter '{cache}' is only supported for Anthropic models, ignoring for {model_name}"
+        )
+
+    model = APIModel.from_registry(model_name)
+    if model.api_spec != "openai":
+        raise ValueError("streaming only supported on openai models for now")
+    url = f"{model.api_base}/chat/completions"
+    request_header = {"Authorization": f"Bearer {os.getenv(model.api_key_env_var)}"}
+    request_json = _build_oa_chat_request(model, prompt, tools, sampling_params)
+    request_json["stream"] = True
+
+    async with aiohttp.ClientSession() as s:
+        async with s.post(url, headers=request_header, json=request_json) as r:
+            r.raise_for_status()  # bail on 4xx/5xx
+            content = ""
+            buf = ""
+            async for chunk in r.content.iter_any():  # raw bytes
+                buf += chunk.decode()
+                while "\n\n" in buf:  # full SSE frame
+                    event, buf = buf.split("\n\n", 1)
+                    if not event.startswith("data:"):
+                        continue  # ignore comments
+                    data = event[5:].strip()  # after "data:"
+                    if data == "[DONE]":
+                        yield APIResponse(
+                            id=0,
+                            status_code=None,
+                            is_error=False,
+                            error_message=None,
+                            prompt=prompt,
+                            content=Message(
+                                role="assistant", parts=[Text(text=content)]
+                            ),
+                            model_internal=model.id,
+                            sampling_params=sampling_params,
+                            usage=None,
+                            raw_response=None,
+                        )
+                    msg = json.loads(data)  # SSE payload
+                    delta = msg["choices"][0]["delta"].get("content")
+                    if delta:
+                        content += delta
+                        yield delta
