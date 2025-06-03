@@ -141,8 +141,13 @@ class File:
         return filename, content, media_type
 
     def gemini(self) -> dict:
-        """For Gemini API - not yet supported."""
-        raise NotImplementedError("File support for Gemini is not yet implemented")
+        """For Gemini API - files are provided as inline data."""
+        return {
+            "inlineData": {
+                "mimeType": self._mime(),
+                "data": self._base64(include_header=False),
+            }
+        }
 
     def mistral(self) -> dict:
         """For Mistral API - not yet supported."""

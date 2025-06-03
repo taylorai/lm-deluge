@@ -2,6 +2,7 @@ from .openai import OpenAIRequest, OpenAIResponsesRequest
 from .anthropic import AnthropicRequest
 from .mistral import MistralRequest
 from .bedrock import BedrockRequest
+from .gemini import GeminiRequest
 
 CLASSES = {
     "openai": OpenAIRequest,
@@ -9,4 +10,5 @@ CLASSES = {
     "anthropic": AnthropicRequest,
     "mistral": MistralRequest,
     "bedrock": BedrockRequest,
+    "gemini": GeminiRequest,
 }

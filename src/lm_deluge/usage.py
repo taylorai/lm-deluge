@@ -71,6 +71,16 @@ class Usage:
             cache_write_tokens=None,
         )
 
+    @classmethod
+    def from_gemini_usage(cls, usage_data: dict) -> "Usage":
+        """Create Usage from Gemini API response usage data."""
+        return cls(
+            input_tokens=usage_data.get("promptTokenCount", 0),
+            output_tokens=usage_data.get("candidatesTokenCount", 0),
+            cache_read_tokens=None,  # Gemini doesn't support caching yet
+            cache_write_tokens=None,
+        )
+
     def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
