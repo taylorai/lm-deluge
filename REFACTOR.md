@@ -2,6 +2,8 @@ WE ARE IN THE MIDDLE OF FIXING STATUS TRACKER & INCORPORATIONG PBAR! XX
 ALSO LOGPROBS WERE REFACTORED AND HAVENT BEEN TESTED YET! XX
 ALSO ANTHROPIC RETRIEVING BATCH JOBS DOESNT WORK! XX
 
+TODO: option to force retries if try_load_json fails
+
 gemini 2.5 flash returns None ?? (it's because finish_reason is "length" but we aren't recording that for some reason, and it doesn't turn reasoning off)
 
 ideas for refactor to reduce kwargs shuttling
