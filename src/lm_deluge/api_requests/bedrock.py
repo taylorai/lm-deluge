@@ -1,8 +1,8 @@
 import asyncio
 import json
 import os
+
 from aiohttp import ClientResponse
-from typing import Callable
 
 try:
     from requests_aws4auth import AWS4Auth
@@ -12,67 +12,27 @@ except ImportError:
     )
 
 from lm_deluge.prompt import (
-    Conversation,
     Message,
     Text,
-    ToolCall,
     Thinking,
-    CachePattern,
+    ToolCall,
 )
+from lm_deluge.request_context import RequestContext
 from lm_deluge.usage import Usage
-from .base import APIRequestBase, APIResponse
 
-from ..tracker import StatusTracker
-from ..config import SamplingParams
 from ..models import APIModel
+from .base import APIRequestBase, APIResponse
 
 
 class BedrockRequest(APIRequestBase):
-    def __init__(
-        self,
-        task_id: int,
-        model_name: str,
-        prompt: Conversation,
-        attempts_left: int,
-        status_tracker: StatusTracker,
-        results_arr: list,
-        request_timeout: int = 30,
-        sampling_params: SamplingParams = SamplingParams(),
-        callback: Callable | None = None,
-        all_model_names: list[str] | None = None,
-        all_sampling_params: list[SamplingParams] | None = None,
-        tools: list | None = None,
-        cache: CachePattern | None = None,
-        # Computer Use support
-        computer_use: bool = False,
-        display_width: int = 1024,
-        display_height: int = 768,
-    ):
-        super().__init__(
-            task_id=task_id,
-            model_name=model_name,
-            prompt=prompt,
-            attempts_left=attempts_left,
-            status_tracker=status_tracker,
-            results_arr=results_arr,
-            request_timeout=request_timeout,
-            sampling_params=sampling_params,
-            callback=callback,
-            all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params,
-            tools=tools,
-            cache=cache,
-        )
-
-        self.computer_use = computer_use
-        self.display_width = display_width
-        self.display_height = display_height
+    def __init__(self, context: RequestContext):
+        super().__init__(context=context)
 
         # Lock images as bytes if caching is enabled
-        if cache is not None:
-            prompt.lock_images_as_bytes()
+        if self.context.cache is not None:
+            self.context.prompt.lock_images_as_bytes()
 
-        self.model = APIModel.from_registry(model_name)
+        self.model = APIModel.from_registry(self.context.model_name)
 
         # Get AWS credentials from environment
         self.access_key = os.getenv("AWS_ACCESS_KEY_ID")
@@ -102,46 +62,52 @@ class BedrockRequest(APIRequestBase):
         self.url = f"https://bedrock-runtime.{self.region}.amazonaws.com/model/{self.model.name}/invoke"
 
         # Convert prompt to Anthropic format for bedrock
-        self.system_message, messages = prompt.to_anthropic(cache_pattern=cache)
+        self.system_message, messages = self.context.prompt.to_anthropic(
+            cache_pattern=self.context.cache
+        )
 
         # Prepare request body in Anthropic's bedrock format
         self.request_json = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": sampling_params.max_new_tokens,
-            "temperature": sampling_params.temperature,
-            "top_p": sampling_params.top_p,
+            "max_tokens": self.context.sampling_params.max_new_tokens,
+            "temperature": self.context.sampling_params.temperature,
+            "top_p": self.context.sampling_params.top_p,
             "messages": messages,
         }
 
         if self.system_message is not None:
             self.request_json["system"] = self.system_message
 
-        if tools or self.computer_use:
+        if self.context.tools or self.context.computer_use:
             tool_definitions = []
 
             # Add Computer Use tools at the beginning if enabled
-            if self.computer_use:
+            if self.context.computer_use:
                 from ..computer_use.anthropic_tools import get_anthropic_cu_tools
 
                 cu_tools = get_anthropic_cu_tools(
                     model=self.model.id,
-                    display_width=self.display_width,
-                    display_height=self.display_height,
+                    display_width=self.context.display_width,
+                    display_height=self.context.display_height,
                 )
                 tool_definitions.extend(cu_tools)
 
                 # Add computer use display parameters to the request
-                self.request_json["computer_use_display_width_px"] = self.display_width
+                self.request_json["computer_use_display_width_px"] = (
+                    self.context.display_width
+                )
                 self.request_json["computer_use_display_height_px"] = (
-                    self.display_height
+                    self.context.display_height
                 )
 
             # Add user-provided tools
-            if tools:
-                tool_definitions.extend([tool.dump_for("anthropic") for tool in tools])
+            if self.context.tools:
+                tool_definitions.extend(
+                    [tool.dump_for("anthropic") for tool in self.context.tools]
+                )
 
             # Add cache control to last tool if tools_only caching is specified
-            if cache == "tools_only" and tool_definitions:
+            if self.context.cache == "tools_only" and tool_definitions:
                 tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
 
             self.request_json["tools"] = tool_definitions
@@ -165,8 +131,10 @@ class BedrockRequest(APIRequestBase):
         try:
             import aiohttp
 
-            self.status_tracker.total_requests += 1
-            timeout = aiohttp.ClientTimeout(total=self.request_timeout)
+            assert self.context.status_tracker
+
+            self.context.status_tracker.total_requests += 1
+            timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
 
             # Prepare the request data
             payload = json.dumps(self.request_json, separators=(",", ":")).encode(
@@ -213,10 +181,10 @@ class BedrockRequest(APIRequestBase):
         except asyncio.TimeoutError:
             self.result.append(
                 APIResponse(
-                    id=self.task_id,
-                    model_internal=self.model_name,
-                    prompt=self.prompt,
-                    sampling_params=self.sampling_params,
+                    id=self.context.task_id,
+                    model_internal=self.context.model_name,
+                    prompt=self.context.prompt,
+                    sampling_params=self.context.sampling_params,
                     status_code=None,
                     is_error=True,
                     error_message="Request timed out (terminated by client).",
@@ -232,10 +200,10 @@ class BedrockRequest(APIRequestBase):
             raise_if_modal_exception(e)
             self.result.append(
                 APIResponse(
-                    id=self.task_id,
-                    model_internal=self.model_name,
-                    prompt=self.prompt,
-                    sampling_params=self.sampling_params,
+                    id=self.context.task_id,
+                    model_internal=self.context.model_name,
+                    prompt=self.context.prompt,
+                    sampling_params=self.context.sampling_params,
                     status_code=None,
                     is_error=True,
                     error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
@@ -253,6 +221,7 @@ class BedrockRequest(APIRequestBase):
         usage = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
+        assert self.context.status_tracker
 
         if status_code >= 200 and status_code < 300:
             try:
@@ -300,21 +269,21 @@ class BedrockRequest(APIRequestBase):
                 or status_code == 429
             ):
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded()
             if "context length" in error_message or "too long" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
-                self.attempts_left = 0
+                self.context.attempts_left = 0
 
         return APIResponse(
-            id=self.task_id,
+            id=self.context.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            prompt=self.prompt,
+            prompt=self.context.prompt,
             content=content,
             thinking=thinking,
-            model_internal=self.model_name,
+            model_internal=self.context.model_name,
             region=self.region,
-            sampling_params=self.sampling_params,
+            sampling_params=self.context.sampling_params,
             usage=usage,
         )

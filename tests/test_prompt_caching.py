@@ -58,7 +58,9 @@ def test_tools_only_caching():
 
     # Create request with tools_only caching
     status_tracker = StatusTracker(
-        max_requests_per_minute=10, max_tokens_per_minute=10_000
+        max_requests_per_minute=10,
+        max_tokens_per_minute=10_000,
+        max_concurrent_requests=5,
     )
 
     request = AnthropicRequest(
@@ -123,7 +125,9 @@ def test_cache_warnings_non_anthropic():
 
     conv = Conversation.user("Hello")
     status_tracker = StatusTracker(
-        max_requests_per_minute=10, max_tokens_per_minute=10_000
+        max_requests_per_minute=10,
+        max_tokens_per_minute=10_000,
+        max_concurrent_requests=5,
     )
 
     # Should warn when cache is specified for OpenAI
@@ -150,6 +154,8 @@ def test_bedrock_caching():
     from lm_deluge.api_requests.bedrock import BedrockRequest
     from lm_deluge.tracker import StatusTracker
     from lm_deluge.tool import Tool
+    from lm_deluge.request_context import RequestContext
+    from lm_deluge.config import SamplingParams
 
     # Create a conversation with system message and user message
     conv = Conversation.system("You are a helpful assistant.").add(
@@ -164,20 +170,24 @@ def test_bedrock_caching():
     tool = Tool.from_function(test_function)
 
     status_tracker = StatusTracker(
-        max_requests_per_minute=10, max_tokens_per_minute=10_000
+        max_requests_per_minute=10,
+        max_tokens_per_minute=10_000,
+        max_concurrent_requests=5,
     )
 
     # Test system_and_tools caching
-    request = BedrockRequest(
+    context1 = RequestContext(
         task_id=1,
         model_name="claude-3.5-sonnet-bedrock",
         prompt=conv,
+        sampling_params=SamplingParams(),
         attempts_left=1,
         status_tracker=status_tracker,
         results_arr=[],
         cache="system_and_tools",
         all_model_names=["claude-3.5-sonnet-bedrock"],
     )
+    request = BedrockRequest(context=context1)
 
     # Check that system message has cache control
     system_msg = request.request_json.get("system")
@@ -187,10 +197,11 @@ def test_bedrock_caching():
         }, "System should have cache control for Bedrock"
 
     # Test tools_only caching
-    request = BedrockRequest(
+    context2 = RequestContext(
         task_id=2,
         model_name="claude-3.5-sonnet-bedrock",
         prompt=conv,
+        sampling_params=SamplingParams(),
         attempts_left=1,
         status_tracker=status_tracker,
         results_arr=[],
@@ -198,6 +209,7 @@ def test_bedrock_caching():
         cache="tools_only",
         all_model_names=["claude-3.5-sonnet-bedrock"],
     )
+    request = BedrockRequest(context=context2)
 
     # Check that cache control was added to the last tool
     tools = request.request_json.get("tools", [])

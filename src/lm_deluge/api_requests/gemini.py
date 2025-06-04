@@ -1,16 +1,15 @@
 import json
 import os
 import warnings
-from typing import Callable
 
 from aiohttp import ClientResponse
 
+from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 
 from ..config import SamplingParams
 from ..models import APIModel
-from ..prompt import CachePattern, Conversation, Message, Text, Thinking, ToolCall
-from ..tracker import StatusTracker
+from ..prompt import Conversation, Message, Text, Thinking, ToolCall
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
@@ -66,45 +65,16 @@ def _build_gemini_request(
 
 
 class GeminiRequest(APIRequestBase):
-    def __init__(
-        self,
-        task_id: int,
-        model_name: str,  # must correspond to registry
-        prompt: Conversation,
-        attempts_left: int,
-        status_tracker: StatusTracker,
-        results_arr: list,
-        request_timeout: int = 30,
-        sampling_params: SamplingParams = SamplingParams(),
-        callback: Callable | None = None,
-        all_model_names: list[str] | None = None,
-        all_sampling_params: list[SamplingParams] | None = None,
-        tools: list | None = None,
-        cache: CachePattern | None = None,
-    ):
-        super().__init__(
-            task_id=task_id,
-            model_name=model_name,
-            prompt=prompt,
-            attempts_left=attempts_left,
-            status_tracker=status_tracker,
-            results_arr=results_arr,
-            request_timeout=request_timeout,
-            sampling_params=sampling_params,
-            callback=callback,
-            all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params,
-            tools=tools,
-            cache=cache,
-        )
+    def __init__(self, context: RequestContext):
+        super().__init__(context=context)
 
         # Warn if cache is specified for Gemini model
-        if cache is not None:
+        if self.context.cache is not None:
             warnings.warn(
-                f"Cache parameter '{cache}' is not supported for Gemini models, ignoring for {model_name}"
+                f"Cache parameter '{self.context.cache}' is not supported for Gemini models, ignoring for {self.context.model_name}"
             )
 
-        self.model = APIModel.from_registry(model_name)
+        self.model = APIModel.from_registry(self.context.model_name)
         # Gemini API endpoint format: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
         self.url = f"{self.model.api_base}/models/{self.model.name}:generateContent"
         self.request_header = {
@@ -120,7 +90,10 @@ class GeminiRequest(APIRequestBase):
         self.url += f"?key={api_key}"
 
         self.request_json = _build_gemini_request(
-            self.model, prompt, tools, sampling_params
+            self.model,
+            self.context.prompt,
+            self.context.tools,
+            self.context.sampling_params,
         )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
@@ -132,6 +105,7 @@ class GeminiRequest(APIRequestBase):
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         data = None
+        assert self.context.status_tracker
 
         if status_code >= 200 and status_code < 300:
             try:
@@ -199,24 +173,24 @@ class GeminiRequest(APIRequestBase):
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded()
             if (
                 "context length" in error_message.lower()
                 or "token limit" in error_message.lower()
             ):
                 error_message += " (Context length exceeded, set retries to 0.)"
-                self.attempts_left = 0
+                self.context.attempts_left = 0
 
         return APIResponse(
-            id=self.task_id,
+            id=self.context.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            prompt=self.prompt,
+            prompt=self.context.prompt,
             content=content,
             thinking=thinking,
-            model_internal=self.model_name,
-            sampling_params=self.sampling_params,
+            model_internal=self.context.model_name,
+            sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
         )

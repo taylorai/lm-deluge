@@ -15,10 +15,11 @@ from lm_deluge.batches import (
 from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
 from lm_deluge.tool import Tool
 
-from .api_requests import create_api_request
+from .api_requests import create_api_request_from_context
 from .api_requests.base import APIRequestBase, APIResponse, deduplicate_responses
 from .config import SamplingParams
 from .models import registry
+from .request_context import RequestContext
 from .tracker import StatusTracker
 
 # from .cache import LevelDBCache, SqliteCache
@@ -286,15 +287,16 @@ class LLMClient(BaseModel):
                             # select model
                             model, sampling_params = self._select_model()
 
-                            next_request = create_api_request(
+                            # Create RequestContext to encapsulate all parameters
+                            context = RequestContext(
                                 task_id=id,
                                 model_name=model,
                                 prompt=prompt,  # type: ignore
-                                request_timeout=self.request_timeout,
+                                sampling_params=sampling_params,
                                 attempts_left=self.max_attempts,
+                                request_timeout=self.request_timeout,
                                 status_tracker=tracker,
                                 results_arr=requests,
-                                sampling_params=sampling_params,
                                 all_model_names=self.models,
                                 all_sampling_params=self.sampling_params,
                                 tools=tools,
@@ -304,6 +306,8 @@ class LLMClient(BaseModel):
                                 display_height=display_height,
                                 use_responses_api=use_responses_api,
                             )
+
+                            next_request = create_api_request_from_context(context)
                             requests.append(next_request)
 
                         except StopIteration:
@@ -315,7 +319,7 @@ class LLMClient(BaseModel):
 
                 # if enough capacity available, call API
                 if next_request:
-                    next_request_tokens = next_request.num_tokens
+                    next_request_tokens = next_request.context.num_tokens
                     if tracker.check_capacity(next_request_tokens, retry=retry_request):
                         tracker.set_limiting_factor(None)
                         # call API (attempts_left will be decremented in handle_error if it fails)

@@ -1,17 +1,16 @@
 import json
 import os
 import warnings
-from typing import Callable
 
 import aiohttp
 from aiohttp import ClientResponse
 
+from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 
 from ..config import SamplingParams
 from ..models import APIModel
 from ..prompt import CachePattern, Conversation, Message, Text, Thinking, ToolCall
-from ..tracker import StatusTracker
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
@@ -54,53 +53,26 @@ def _build_oa_chat_request(
 
 
 class OpenAIRequest(APIRequestBase):
-    def __init__(
-        self,
-        task_id: int,
-        # should always be 'role', 'content' keys.
-        # internal logic should handle translating to specific API format
-        model_name: str,  # must correspond to registry
-        prompt: Conversation,
-        attempts_left: int,
-        status_tracker: StatusTracker,
-        results_arr: list,
-        request_timeout: int = 30,
-        sampling_params: SamplingParams = SamplingParams(),
-        callback: Callable | None = None,
-        all_model_names: list[str] | None = None,
-        all_sampling_params: list[SamplingParams] | None = None,
-        tools: list | None = None,
-        cache: CachePattern | None = None,
-    ):
-        super().__init__(
-            task_id=task_id,
-            model_name=model_name,
-            prompt=prompt,
-            attempts_left=attempts_left,
-            status_tracker=status_tracker,
-            results_arr=results_arr,
-            request_timeout=request_timeout,
-            sampling_params=sampling_params,
-            callback=callback,
-            all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params,
-            tools=tools,
-            cache=cache,
-        )
+    def __init__(self, context: RequestContext):
+        # Pass context to parent, which will handle backwards compatibility
+        super().__init__(context=context)
 
         # Warn if cache is specified for non-Anthropic model
-        if cache is not None:
+        if self.context.cache is not None:
             warnings.warn(
-                f"Cache parameter '{cache}' is only supported for Anthropic models, ignoring for {model_name}"
+                f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
             )
-        self.model = APIModel.from_registry(model_name)
+        self.model = APIModel.from_registry(self.context.model_name)
         self.url = f"{self.model.api_base}/chat/completions"
         self.request_header = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
 
         self.request_json = _build_oa_chat_request(
-            self.model, prompt, tools, sampling_params
+            self.model,
+            self.context.prompt,
+            self.context.tools,
+            self.context.sampling_params,
         )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
@@ -114,6 +86,8 @@ class OpenAIRequest(APIRequestBase):
         mimetype = http_response.headers.get("Content-Type", None)
         data = None
         finish_reason = None
+        assert self.context.status_tracker
+
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
@@ -156,7 +130,7 @@ class OpenAIRequest(APIRequestBase):
 
                     usage = Usage.from_openai_usage(data["usage"])
                     if (
-                        self.sampling_params.logprobs
+                        self.context.sampling_params.logprobs
                         and "logprobs" in data["choices"][0]
                     ):
                         logprobs = data["choices"][0]["logprobs"]["content"]
@@ -176,22 +150,22 @@ class OpenAIRequest(APIRequestBase):
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
-                self.attempts_left = 0
+                self.context.attempts_left = 0
 
         return APIResponse(
-            id=self.task_id,
+            id=self.context.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            prompt=self.prompt,
+            prompt=self.context.prompt,
             logprobs=logprobs,
             thinking=thinking,
             content=content,
-            model_internal=self.model_name,
-            sampling_params=self.sampling_params,
+            model_internal=self.context.model_name,
+            sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
             finish_reason=finish_reason,
@@ -199,117 +173,89 @@ class OpenAIRequest(APIRequestBase):
 
 
 class OpenAIResponsesRequest(APIRequestBase):
-    def __init__(
-        self,
-        task_id: int,
-        model_name: str,
-        prompt: Conversation,
-        attempts_left: int,
-        status_tracker: StatusTracker,
-        results_arr: list,
-        request_timeout: int = 30,
-        sampling_params: SamplingParams = SamplingParams(),
-        callback: Callable | None = None,
-        all_model_names: list[str] | None = None,
-        all_sampling_params: list[SamplingParams] | None = None,
-        tools: list | None = None,
-        cache: CachePattern | None = None,
-        computer_use: bool = False,
-        display_width: int = 1024,
-        display_height: int = 768,
-    ):
-        super().__init__(
-            task_id=task_id,
-            model_name=model_name,
-            prompt=prompt,
-            attempts_left=attempts_left,
-            status_tracker=status_tracker,
-            results_arr=results_arr,
-            request_timeout=request_timeout,
-            sampling_params=sampling_params,
-            callback=callback,
-            all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params,
-            tools=tools,
-            cache=cache,
-        )
-
-        # Store computer use parameters
-        self.computer_use = computer_use
-        self.display_width = display_width
-        self.display_height = display_height
+    def __init__(self, context: RequestContext):
+        super().__init__(context)
 
         # Validate computer use requirements
-        if computer_use and model_name != "openai-computer-use-preview":
+        if (
+            self.context.computer_use
+            and self.context.model_name != "openai-computer-use-preview"
+        ):
             raise ValueError(
-                f"Computer use is only supported with openai-computer-use-preview model, got {model_name}"
+                f"Computer use is only supported with openai-computer-use-preview model, got {self.context.model_name}"
             )
 
         # Warn if cache is specified for non-Anthropic model
-        if cache is not None:
+        if self.context.cache is not None:
             warnings.warn(
-                f"Cache parameter '{cache}' is only supported for Anthropic models, ignoring for {model_name}"
+                f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
             )
-        self.model = APIModel.from_registry(model_name)
+        self.model = APIModel.from_registry(self.context.model_name)
         self.url = f"{self.model.api_base}/responses"
         self.request_header = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
 
         # Convert conversation to input format for Responses API
-        openai_responses_format = prompt.to_openai_responses()
+        openai_responses_format = self.context.prompt.to_openai_responses()
 
         self.request_json = {
             "model": self.model.name,
             "input": openai_responses_format["input"],
-            "temperature": sampling_params.temperature,
-            "top_p": sampling_params.top_p,
+            "temperature": self.context.sampling_params.temperature,
+            "top_p": self.context.sampling_params.top_p,
         }
 
         # Add max_output_tokens for responses API
-        if sampling_params.max_new_tokens:
-            self.request_json["max_output_tokens"] = sampling_params.max_new_tokens
+        if self.context.sampling_params.max_new_tokens:
+            self.request_json["max_output_tokens"] = (
+                self.context.sampling_params.max_new_tokens
+            )
 
         if self.model.reasoning_model:
-            if sampling_params.reasoning_effort in [None, "none"]:
+            if self.context.sampling_params.reasoning_effort in [None, "none"]:
                 # gemini models can switch reasoning off
                 if "gemini" in self.model.id:
-                    self.sampling_params.reasoning_effort = "none"  # expects string
+                    self.context.sampling_params.reasoning_effort = (
+                        "none"  # expects string
+                    )
                 # openai models can only go down to "low"
                 else:
-                    self.sampling_params.reasoning_effort = "low"
+                    self.context.sampling_params.reasoning_effort = "low"
             self.request_json["temperature"] = 1.0
             self.request_json["top_p"] = 1.0
             self.request_json["reasoning"] = {
-                "effort": sampling_params.reasoning_effort
+                "effort": self.context.sampling_params.reasoning_effort
             }
         else:
-            if sampling_params.reasoning_effort:
+            if self.context.sampling_params.reasoning_effort:
                 warnings.warn(
-                    f"Ignoring reasoning_effort param for non-reasoning model: {model_name}"
+                    f"Ignoring reasoning_effort param for non-reasoning model: {self.context.model_name}"
                 )
 
-        if sampling_params.json_mode and self.model.supports_json:
+        if self.context.sampling_params.json_mode and self.model.supports_json:
             self.request_json["text"] = {"format": {"type": "json_object"}}
 
         # Handle tools
         request_tools = []
-        if computer_use:
+        if self.context.computer_use:
             # Add computer use tool
             request_tools.append(
                 {
                     "type": "computer_use_preview",
-                    "display_width": display_width,
-                    "display_height": display_height,
+                    "display_width": self.context.display_width,
+                    "display_height": self.context.display_height,
                     "environment": "browser",  # Default to browser, could be configurable
                 }
             )
             # Set truncation to auto as required for computer use
             self.request_json["truncation"] = "auto"
 
-        if tools:
+        if self.context.tools:
             # Add regular function tools
-            request_tools.extend([tool.dump_for("openai-responses") for tool in tools])
+            request_tools.extend(
+                [tool.dump_for("openai-responses") for tool in self.context.tools]
+            )
 
         if request_tools:
             self.request_json["tools"] = request_tools
@@ -324,6 +270,7 @@ class OpenAIResponsesRequest(APIRequestBase):
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         data = None
+        assert self.context.status_tracker
 
         if status_code >= 200 and status_code < 300:
             try:
@@ -406,22 +353,22 @@ class OpenAIResponsesRequest(APIRequestBase):
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
-                self.attempts_left = 0
+                self.context.attempts_left = 0
 
         return APIResponse(
-            id=self.task_id,
+            id=self.context.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            prompt=self.prompt,
+            prompt=self.context.prompt,
             logprobs=logprobs,
             thinking=thinking,
             content=content,
-            model_internal=self.model_name,
-            sampling_params=self.sampling_params,
+            model_internal=self.context.model_name,
+            sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
         )

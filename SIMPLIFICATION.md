@@ -56,7 +56,7 @@ While requests DO store prompts (`self.prompt = prompt`), the architecture doesn
 
 ## Proposed Simplifications
 
-### 1. Request Context Object
+### 1. Request Context Object (DONE!)
 
 Instead of passing 15+ parameters through layers, encapsulate everything:
 
@@ -69,7 +69,7 @@ class RequestContext:
     sampling_params: SamplingParams
     cache_key: str = field(init=False)
     attempts_left: int = 5
-    
+
     def __post_init__(self):
         self.cache_key = self.prompt.fingerprint
 ```
@@ -97,18 +97,18 @@ async def process_single_request(self, context: RequestContext):
     if self.cache:
         if cached := self.cache.get(context.cache_key):
             return cached
-    
+
     # Execute with retries
     for attempt in range(context.attempts_left):
         try:
             response = await self._execute_request(context)
-            
+
             # Cache successful responses immediately
             if self.cache and response.completion:
                 self.cache.put(context.cache_key, response)
-            
+
             return response
-            
+
         except RetryableError as e:
             if attempt < context.attempts_left - 1:
                 # Change model if needed
@@ -126,7 +126,7 @@ class ProviderClient(ABC):
     @abstractmethod
     def format_request(self, context: RequestContext) -> dict:
         """Convert context to provider-specific format"""
-    
+
     @abstractmethod
     def parse_response(self, response: dict, context: RequestContext) -> APIResponse:
         """Parse provider response into standard format"""

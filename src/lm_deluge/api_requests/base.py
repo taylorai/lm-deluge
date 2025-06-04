@@ -12,6 +12,7 @@ from lm_deluge.prompt import CachePattern, Conversation
 from ..config import SamplingParams
 from ..errors import raise_if_modal_exception
 from ..models import APIModel
+from ..request_context import RequestContext
 from ..tracker import StatusTracker
 from .response import APIResponse
 
@@ -28,40 +29,13 @@ class APIRequestBase(ABC):
 
     def __init__(
         self,
-        task_id: int,
-        # should always be 'role', 'content' keys.
-        # internal logic should handle translating to specific API format
-        model_name: str,  # must correspond to registry
-        prompt: Conversation,
-        attempts_left: int,
-        status_tracker: StatusTracker,
-        # needed in order to retry with a different model and not throw the output away
-        results_arr: list["APIRequestBase"],
-        request_timeout: int = 30,
-        sampling_params: SamplingParams = SamplingParams(),
-        callback: Callable | None = None,
-        all_model_names: list[str] | None = None,
-        all_sampling_params: list[SamplingParams] | None = None,
-        tools: list | None = None,
-        cache: CachePattern | None = None,
+        context: RequestContext,
     ):
-        if all_model_names is None:
-            raise ValueError("all_model_names must be provided.")
-        self.task_id = task_id
-        self.model_name = model_name
+        # If context is provided, use it; otherwise construct one from individual parameters
+        self.context = context
+
+        # Everything is now accessed through self.context - no copying!
         self.system_prompt = None
-        self.prompt = prompt
-        self.attempts_left = attempts_left
-        self.status_tracker = status_tracker
-        self.request_timeout = request_timeout
-        self.sampling_params = sampling_params
-        self.callback = callback
-        self.num_tokens = prompt.count_tokens(sampling_params.max_new_tokens)
-        self.results_arr = results_arr
-        self.all_model_names = all_model_names
-        self.all_sampling_params = all_sampling_params
-        self.tools = tools
-        self.cache: CachePattern | None = cache
         self.result = []  # list of APIResponse objects from each attempt
 
         # these should be set in the __init__ of the subclass
@@ -71,16 +45,18 @@ class APIRequestBase(ABC):
         self.region = None
 
     def increment_pbar(self):
-        self.status_tracker.increment_pbar()
+        if self.context.status_tracker:
+            self.context.status_tracker.increment_pbar()
 
     def call_callback(self):
-        if self.callback is not None:
+        if self.context.callback is not None:
             # the APIResponse in self.result includes all the information
-            self.callback(self.result[-1], self.status_tracker)
+            self.context.callback(self.result[-1], self.context.status_tracker)
 
     def handle_success(self, data):
         self.call_callback()
-        self.status_tracker.task_succeeded(self.task_id)
+        if self.context.status_tracker:
+            self.context.status_tracker.task_succeeded(self.context.task_id)
 
     def handle_error(self, create_new_request=False, give_up_if_no_other_models=False):
         """
@@ -88,8 +64,9 @@ class APIRequestBase(ABC):
         has a chance of being sent to a different model). If false, will retry
         the same request.
         """
+        assert self.context.status_tracker
         last_result: APIResponse = self.result[-1]
-        error_to_print = f"Error  task {self.task_id}. "
+        error_to_print = f"Error  task {self.context.task_id}. "
         error_to_print += (
             f"Model: {last_result.model_internal} Code: {last_result.status_code}, "
         )
@@ -97,75 +74,71 @@ class APIRequestBase(ABC):
             error_to_print += f"Region: {self.region}, "
         error_to_print += f"Message: {last_result.error_message}."
         print(error_to_print)
-        if self.attempts_left > 0:
-            self.attempts_left -= 1
+        if self.context.attempts_left > 0:
+            self.context.attempts_left -= 1
             if not create_new_request:
-                assert self.status_tracker.retry_queue
-                self.status_tracker.retry_queue.put_nowait(self)
+                assert self.context.status_tracker.retry_queue
+                self.context.status_tracker.retry_queue.put_nowait(self)
                 return
             else:
                 # make sure we have another model to send it to besides the current one
-                if self.all_model_names is None or len(self.all_model_names) < 2:
+                if (
+                    self.context.all_model_names is None
+                    or len(self.context.all_model_names) < 2
+                ):
                     if give_up_if_no_other_models:
                         print(
-                            f"No other models to try for task {self.task_id}. Giving up."
+                            f"No other models to try for task {self.context.task_id}. Giving up."
                         )
-                        self.status_tracker.task_failed(self.task_id)
+                        self.context.status_tracker.task_failed(self.context.task_id)
                     else:
                         print(
-                            f"No other models to try for task {self.task_id}. Retrying with same model."
+                            f"No other models to try for task {self.context.task_id}. Retrying with same model."
                         )
-                        assert self.status_tracker.retry_queue
-                        self.status_tracker.retry_queue.put_nowait(self)
+                        assert self.context.status_tracker.retry_queue
+                        self.context.status_tracker.retry_queue.put_nowait(self)
                 else:
                     # two things to change: model_name and sampling_params
-                    new_model_name = self.model_name
+                    new_model_name = self.context.model_name
                     new_model_idx = 0
-                    while new_model_name == self.model_name:
-                        new_model_idx = random.randint(0, len(self.all_model_names) - 1)
-                        new_model_name = self.all_model_names[new_model_idx]
+                    while new_model_name == self.context.model_name:
+                        new_model_idx = random.randint(
+                            0, len(self.context.all_model_names) - 1
+                        )
+                        new_model_name = self.context.all_model_names[new_model_idx]
 
-                    if isinstance(self.all_sampling_params, list):
-                        new_sampling_params = self.all_sampling_params[new_model_idx]
-                    elif isinstance(self.all_sampling_params, SamplingParams):
-                        new_sampling_params = self.all_sampling_params
-                    elif self.all_sampling_params is None:
-                        new_sampling_params = self.sampling_params
+                    if isinstance(self.context.all_sampling_params, list):
+                        new_sampling_params = self.context.all_sampling_params[
+                            new_model_idx
+                        ]
+                    elif isinstance(self.context.all_sampling_params, SamplingParams):
+                        new_sampling_params = self.context.all_sampling_params
+                    elif self.context.all_sampling_params is None:
+                        new_sampling_params = self.context.sampling_params
                     else:
-                        new_sampling_params = self.sampling_params
+                        new_sampling_params = self.context.sampling_params
 
                     print("Creating new request with model", new_model_name)
-                    new_request = create_api_request(
-                        task_id=self.task_id,
-                        model_name=new_model_name,
-                        prompt=self.prompt,
-                        attempts_left=self.attempts_left,
-                        status_tracker=self.status_tracker,
-                        results_arr=self.results_arr,
-                        request_timeout=self.request_timeout,
-                        sampling_params=new_sampling_params,
-                        callback=self.callback,
-                        all_model_names=self.all_model_names,
-                        all_sampling_params=self.all_sampling_params,
-                        tools=self.tools,
-                        cache=self.cache,
-                        computer_use=getattr(self, "computer_use", False),
-                        display_width=getattr(self, "display_width", 1024),
-                        display_height=getattr(self, "display_height", 768),
+                    # Create new context with updated model and sampling params
+                    new_context = self.context.copy(
+                        model_name=new_model_name, sampling_params=new_sampling_params
                     )
+                    new_request = create_api_request_from_context(new_context)
                     # PROBLEM: new request is never put into results array, so we can't get the result.
-                    assert self.status_tracker.retry_queue
-                    self.status_tracker.retry_queue.put_nowait(self)
+                    assert self.context.status_tracker.retry_queue
+                    self.context.status_tracker.retry_queue.put_nowait(self)
                     # SOLUTION: just need to make sure it's deduplicated by task_id later.
-                    self.results_arr.append(new_request)
+                    assert self.context.results_arr
+                    self.context.results_arr.append(new_request)
         else:
-            print(f"Task {self.task_id} out of tries.")
-            self.status_tracker.task_failed(self.task_id)
+            print(f"Task {self.context.task_id} out of tries.")
+            self.context.status_tracker.task_failed(self.context.task_id)
 
     async def call_api(self):
+        assert self.context.status_tracker
         try:
-            self.status_tracker.total_requests += 1
-            timeout = aiohttp.ClientTimeout(total=self.request_timeout)
+            self.context.status_tracker.total_requests += 1
+            timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 assert self.url is not None, "URL is not set"
                 async with session.post(
@@ -188,10 +161,10 @@ class APIRequestBase(ABC):
         except asyncio.TimeoutError:
             self.result.append(
                 APIResponse(
-                    id=self.task_id,
-                    model_internal=self.model_name,
-                    prompt=self.prompt,
-                    sampling_params=self.sampling_params,
+                    id=self.context.task_id,
+                    model_internal=self.context.model_name,
+                    prompt=self.context.prompt,
+                    sampling_params=self.context.sampling_params,
                     status_code=None,
                     is_error=True,
                     error_message="Request timed out (terminated by client).",
@@ -207,10 +180,10 @@ class APIRequestBase(ABC):
             print(tb)
             self.result.append(
                 APIResponse(
-                    id=self.task_id,
-                    model_internal=self.model_name,
-                    prompt=self.prompt,
-                    sampling_params=self.sampling_params,
+                    id=self.context.task_id,
+                    model_internal=self.context.model_name,
+                    prompt=self.context.prompt,
+                    sampling_params=self.context.sampling_params,
                     status_code=None,
                     is_error=True,
                     error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
@@ -224,6 +197,43 @@ class APIRequestBase(ABC):
     @abstractmethod
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         raise NotImplementedError
+
+
+def create_api_request_from_context(context: RequestContext) -> APIRequestBase:
+    """Create an API request from a RequestContext object."""
+    from .common import CLASSES  # circular import so made it lazy, does this work?
+
+    model_obj = APIModel.from_registry(context.model_name)
+
+    # Choose API spec based on use_responses_api flag and model support
+    api_spec = model_obj.api_spec
+    if (
+        context.use_responses_api
+        and model_obj.supports_responses
+        and api_spec == "openai"
+    ):
+        api_spec = "openai-responses"
+
+    request_class = CLASSES.get(api_spec, None)
+    if request_class is None:
+        raise ValueError(f"Unsupported API spec: {api_spec}")
+
+    kwargs = {}
+    # Add computer_use to kwargs if the request class supports it
+    if context.computer_use and api_spec in [
+        "anthropic",
+        "bedrock",
+        "openai-responses",
+    ]:
+        kwargs.update(
+            {
+                "computer_use": context.computer_use,
+                "display_width": context.display_width,
+                "display_height": context.display_height,
+            }
+        )
+
+    return request_class(context=context, **kwargs)
 
 
 def create_api_request(
@@ -245,62 +255,43 @@ def create_api_request(
     display_height: int = 768,
     use_responses_api: bool = False,
 ) -> APIRequestBase:
-    from .common import CLASSES  # circular import so made it lazy, does this work?
-
-    model_obj = APIModel.from_registry(model_name)
-
-    # Choose API spec based on use_responses_api flag and model support
-    api_spec = model_obj.api_spec
-    if use_responses_api and model_obj.supports_responses and api_spec == "openai":
-        api_spec = "openai-responses"
-
-    request_class = CLASSES.get(api_spec, None)
-    if request_class is None:
-        raise ValueError(f"Unsupported API spec: {api_spec}")
-    kwargs = {}
-    # Add computer_use to kwargs if the request class supports it
-    model_obj = APIModel.from_registry(model_name)
-    if computer_use and api_spec in ["anthropic", "bedrock", "openai-responses"]:
-        kwargs.update(
-            {
-                "computer_use": computer_use,
-                "display_width": display_width,
-                "display_height": display_height,
-            }
-        )
-
-    return request_class(
+    """Create an API request from individual parameters (backwards compatibility)."""
+    context = RequestContext(
         task_id=task_id,
         model_name=model_name,
         prompt=prompt,
+        sampling_params=sampling_params,
         attempts_left=attempts_left,
+        request_timeout=request_timeout,
         status_tracker=status_tracker,
         results_arr=results_arr,
-        request_timeout=request_timeout,
-        sampling_params=sampling_params,
         callback=callback,
         all_model_names=all_model_names,
         all_sampling_params=all_sampling_params,
         tools=tools,
         cache=cache,
-        **kwargs,
+        computer_use=computer_use,
+        display_width=display_width,
+        display_height=display_height,
+        use_responses_api=use_responses_api,
     )
+    return create_api_request_from_context(context)
 
 
 def deduplicate_responses(results: list[APIRequestBase]) -> list[APIResponse]:
     deduplicated = {}
     for request in results:
-        if request.task_id not in deduplicated:
-            deduplicated[request.task_id] = request.result[-1]
+        if request.context.task_id not in deduplicated:
+            deduplicated[request.context.task_id] = request.result[-1]
         else:
-            current_response: APIResponse = deduplicated[request.task_id]
+            current_response: APIResponse = deduplicated[request.context.task_id]
             # only replace if the current request has no completion and the new one does
             if (
                 request.result[-1].completion is not None
                 and current_response.completion is None
             ):
-                deduplicated[request.task_id] = request.result[-1]
+                deduplicated[request.context.task_id] = request.result[-1]
 
-    output = [deduplicated[request.task_id] for request in results]
+    output = [deduplicated[request.context.task_id] for request in results]
 
     return output

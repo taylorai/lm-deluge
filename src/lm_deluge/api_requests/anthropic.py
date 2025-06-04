@@ -1,24 +1,24 @@
-from aiohttp import ClientResponse
 import json
 import os
-from typing import Callable
+
+from aiohttp import ClientResponse
 
 from lm_deluge.prompt import (
+    CachePattern,
     Conversation,
     Message,
     Text,
-    ToolCall,
     Thinking,
-    CachePattern,
+    ToolCall,
 )
+from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 from lm_deluge.usage import Usage
-from .base import APIRequestBase, APIResponse
 
-from ..tracker import StatusTracker
+from ..computer_use.anthropic_tools import get_anthropic_cu_tools
 from ..config import SamplingParams
 from ..models import APIModel
-from ..computer_use.anthropic_tools import get_anthropic_cu_tools
+from .base import APIRequestBase, APIResponse
 
 
 def _build_anthropic_request(
@@ -92,63 +92,25 @@ def _build_anthropic_request(
 
 
 class AnthropicRequest(APIRequestBase):
-    def __init__(
-        self,
-        task_id: int,
-        # should always be 'role', 'content' keys.
-        # internal logic should handle translating to specific API format
-        model_name: str,  # must correspond to registry
-        prompt: Conversation,
-        attempts_left: int,
-        status_tracker: StatusTracker,
-        results_arr: list,
-        request_timeout: int = 30,
-        sampling_params: SamplingParams = SamplingParams(),
-        callback: Callable | None = None,
-        # for retries
-        all_model_names: list[str] | None = None,
-        all_sampling_params: list[SamplingParams] | None = None,
-        tools: list | None = None,
-        cache: CachePattern | None = None,
-        # Computer Use support
-        computer_use: bool = False,
-        display_width: int = 1024,
-        display_height: int = 768,
-    ):
-        super().__init__(
-            task_id=task_id,
-            model_name=model_name,
-            prompt=prompt,
-            attempts_left=attempts_left,
-            status_tracker=status_tracker,
-            results_arr=results_arr,
-            request_timeout=request_timeout,
-            sampling_params=sampling_params,
-            callback=callback,
-            all_model_names=all_model_names,
-            all_sampling_params=all_sampling_params,
-            tools=tools,
-            cache=cache,
-        )
-        self.computer_use = computer_use
-        self.display_width = display_width
-        self.display_height = display_height
-        self.model = APIModel.from_registry(model_name)
+    def __init__(self, context: RequestContext):
+        super().__init__(context=context)
+
+        self.model = APIModel.from_registry(self.context.model_name)
         self.url = f"{self.model.api_base}/messages"
 
         # Lock images as bytes if caching is enabled
-        if cache is not None:
-            prompt.lock_images_as_bytes()
+        if self.context.cache is not None:
+            self.context.prompt.lock_images_as_bytes()
 
         self.request_json, self.request_header = _build_anthropic_request(
             self.model,
-            prompt,
-            tools,
-            sampling_params,
-            cache,
-            computer_use,
-            display_width,
-            display_height,
+            self.context.prompt,
+            self.context.tools,
+            self.context.sampling_params,
+            self.context.cache,
+            self.context.computer_use,
+            self.context.display_width,
+            self.context.display_height,
         )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
@@ -160,6 +122,7 @@ class AnthropicRequest(APIRequestBase):
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         rate_limits = {}
+        assert self.context.status_tracker
         for header in [
             "anthropic-ratelimit-requests-limit",
             "anthropic-ratelimit-requests-remaining",
@@ -215,20 +178,20 @@ class AnthropicRequest(APIRequestBase):
                 or "overloaded" in error_message.lower()
             ):
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded()
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
-                self.attempts_left = 0
+                self.context.attempts_left = 0
 
         return APIResponse(
-            id=self.task_id,
+            id=self.context.task_id,
             status_code=status_code,
             is_error=is_error,
             error_message=error_message,
-            prompt=self.prompt,
+            prompt=self.context.prompt,
             content=content,
             thinking=thinking,
-            model_internal=self.model_name,
-            sampling_params=self.sampling_params,
+            model_internal=self.context.model_name,
+            sampling_params=self.context.sampling_params,
             usage=usage,
         )
