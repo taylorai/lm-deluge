@@ -1,6 +1,6 @@
-from typing import Any, Literal, Callable, Coroutine, get_type_hints
-import inspect
 import asyncio
+import inspect
+from typing import Any, Callable, Coroutine, Literal, get_type_hints
 
 from fastmcp import Client  # pip install fastmcp >= 2.0
 from mcp.types import Tool as MCPTool
@@ -40,11 +40,15 @@ class Tool(BaseModel):
 
     name: str
     description: str | None
-    parameters: dict[str, Any]
+    parameters: dict[str, Any] | None
     required: list[str] = Field(default_factory=list)
     additionalProperties: bool | None = None  # only
     # if desired, can provide a callable to run the tool
     run: Callable | None = None
+    # for built-in tools that don't require schema
+    built_in: bool = False
+    type: str | None = None
+    built_in_args: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("name")
     @classmethod
@@ -196,7 +200,7 @@ class Tool(BaseModel):
         )
 
     @staticmethod
-    def _python_type_to_json_schema(python_type: type) -> dict[str, Any]:
+    def _python_type_to_json_schema(python_type) -> dict[str, Any]:
         """Convert Python type to JSON Schema type definition."""
         if python_type is int:
             return {"type": "integer"}
@@ -226,20 +230,16 @@ class Tool(BaseModel):
         return res
 
     # ---------- dumpers ----------
-    def for_openai_responses(self) -> dict[str, Any]:
-        return {
-            "type": "function",
-            "name": self.name,
-            "description": self.description,
-            "parameters": self._json_schema(include_additional_properties=True),
-        }
-
-    def for_openai_completions(self, *, strict: bool = True) -> dict[str, Any]:
+    def for_openai_completions(
+        self, *, strict: bool = True, **kwargs
+    ) -> dict[str, Any]:
+        if self.built_in:
+            return {"type": self.type, **self.built_in_args, **kwargs}
         if strict:
             # For strict mode, all parameters must be required and additionalProperties must be false
             schema = self._json_schema(include_additional_properties=True)
             schema["required"] = list(
-                self.parameters.keys()
+                (self.parameters or {}).keys()
             )  # All parameters required in strict mode
         else:
             # For non-strict mode, use the original required list
@@ -255,7 +255,25 @@ class Tool(BaseModel):
             },
         }
 
-    def for_anthropic(self) -> dict[str, Any]:
+    def for_openai_responses(self, **kwargs) -> dict[str, Any]:
+        if self.built_in:
+            return {"type": self.type, **self.built_in_args, **kwargs}
+        return {
+            "type": "function",
+            "name": self.name,
+            "description": self.description,
+            "parameters": self._json_schema(include_additional_properties=True),
+        }
+
+    def for_anthropic(self, **kwargs) -> dict[str, Any]:
+        # built-in tools have "name", "type", maybe metadata
+        if self.built_in:
+            return {
+                "name": self.name,
+                "type": self.type,
+                **self.built_in_args,
+                **kwargs,
+            }
         return {
             "name": self.name,
             "description": self.description,
@@ -271,6 +289,9 @@ class Tool(BaseModel):
             "description": self.description,
             "parameters": self._json_schema(),
         }
+
+    def for_mistral(self) -> dict[str, Any]:
+        return self.for_openai_completions()
 
     def dump_for(
         self,
