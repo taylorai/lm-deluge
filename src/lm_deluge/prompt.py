@@ -9,7 +9,6 @@ import xxhash
 
 from lm_deluge.file import File
 from lm_deluge.image import Image
-from lm_deluge.models import APIModel
 
 CachePattern = Literal[
     "tools_only",
@@ -779,6 +778,8 @@ class Conversation:
         return n + 6 * len(self.messages)
 
     def dry_run(self, model_name: str, max_new_tokens: int):
+        from lm_deluge.models import APIModel
+
         model_obj = APIModel.from_registry(model_name)
         if model_obj.api_spec == "openai":
             image_tokens = 85

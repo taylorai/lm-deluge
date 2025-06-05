@@ -15,10 +15,9 @@ from lm_deluge.batches import (
 from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
 from lm_deluge.tool import Tool
 
-from .api_requests import create_api_request_from_context
 from .api_requests.base import APIRequestBase, APIResponse, deduplicate_responses
 from .config import SamplingParams
-from .models import registry
+from .models import APIModel, registry
 from .request_context import RequestContext
 from .tracker import StatusTracker
 
@@ -306,8 +305,8 @@ class LLMClient(BaseModel):
                                 display_height=display_height,
                                 use_responses_api=use_responses_api,
                             )
-
-                            next_request = create_api_request_from_context(context)
+                            model_obj = APIModel.from_registry(context.model_name)
+                            next_request = model_obj.make_request(context)
                             requests.append(next_request)
 
                         except StopIteration:

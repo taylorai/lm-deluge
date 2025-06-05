@@ -2,18 +2,15 @@ import asyncio
 import random
 import traceback
 from abc import ABC, abstractmethod
-from typing import Callable
 
 import aiohttp
 from aiohttp import ClientResponse
 
-from lm_deluge.prompt import CachePattern, Conversation
+from lm_deluge.models import APIModel
 
 from ..config import SamplingParams
 from ..errors import raise_if_modal_exception
-from ..models import APIModel
 from ..request_context import RequestContext
-from ..tracker import StatusTracker
 from .response import APIResponse
 
 
@@ -123,7 +120,8 @@ class APIRequestBase(ABC):
                     new_context = self.context.copy(
                         model_name=new_model_name, sampling_params=new_sampling_params
                     )
-                    new_request = create_api_request_from_context(new_context)
+                    new_model_obj = APIModel.from_registry(new_model_name)
+                    new_request = new_model_obj.make_request(new_context)
                     # PROBLEM: new request is never put into results array, so we can't get the result.
                     assert self.context.status_tracker.retry_queue
                     self.context.status_tracker.retry_queue.put_nowait(self)
@@ -197,85 +195,6 @@ class APIRequestBase(ABC):
     @abstractmethod
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         raise NotImplementedError
-
-
-def create_api_request_from_context(context: RequestContext) -> APIRequestBase:
-    """Create an API request from a RequestContext object."""
-    from .common import CLASSES  # circular import so made it lazy, does this work?
-
-    model_obj = APIModel.from_registry(context.model_name)
-
-    # Choose API spec based on use_responses_api flag and model support
-    api_spec = model_obj.api_spec
-    if (
-        context.use_responses_api
-        and model_obj.supports_responses
-        and api_spec == "openai"
-    ):
-        api_spec = "openai-responses"
-
-    request_class = CLASSES.get(api_spec, None)
-    if request_class is None:
-        raise ValueError(f"Unsupported API spec: {api_spec}")
-
-    kwargs = {}
-    # Add computer_use to kwargs if the request class supports it
-    if context.computer_use and api_spec in [
-        "anthropic",
-        "bedrock",
-        "openai-responses",
-    ]:
-        kwargs.update(
-            {
-                "computer_use": context.computer_use,
-                "display_width": context.display_width,
-                "display_height": context.display_height,
-            }
-        )
-
-    return request_class(context=context, **kwargs)
-
-
-def create_api_request(
-    task_id: int,
-    model_name: str,
-    prompt: Conversation,
-    attempts_left: int,
-    status_tracker: StatusTracker,
-    results_arr: list["APIRequestBase"],
-    request_timeout: int = 30,
-    sampling_params: SamplingParams = SamplingParams(),
-    callback: Callable | None = None,
-    all_model_names: list[str] | None = None,
-    all_sampling_params: list[SamplingParams] | None = None,
-    tools: list | None = None,
-    cache: CachePattern | None = None,
-    computer_use: bool = False,
-    display_width: int = 1024,
-    display_height: int = 768,
-    use_responses_api: bool = False,
-) -> APIRequestBase:
-    """Create an API request from individual parameters (backwards compatibility)."""
-    context = RequestContext(
-        task_id=task_id,
-        model_name=model_name,
-        prompt=prompt,
-        sampling_params=sampling_params,
-        attempts_left=attempts_left,
-        request_timeout=request_timeout,
-        status_tracker=status_tracker,
-        results_arr=results_arr,
-        callback=callback,
-        all_model_names=all_model_names,
-        all_sampling_params=all_sampling_params,
-        tools=tools,
-        cache=cache,
-        computer_use=computer_use,
-        display_width=display_width,
-        display_height=display_height,
-        use_responses_api=use_responses_api,
-    )
-    return create_api_request_from_context(context)
 
 
 def deduplicate_responses(results: list[APIRequestBase]) -> list[APIResponse]:

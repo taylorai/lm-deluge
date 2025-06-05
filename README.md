@@ -101,6 +101,30 @@ This just works. Images can be local images on disk, URLs, bytes, base64 data UR
 
 See a full multi-turn chat example in `examples/multiturn.md`.
 
+## Files
+
+For models that support file uploads (OpenAI, Anthropic, and Gemini), you can easily include PDF files and other documents:
+
+```python
+from lm_deluge import LLMClient, Conversation
+
+# Simple file upload
+client = LLMClient.basic("gpt-4.1-mini")
+conversation = Conversation.user(
+    "Please summarize this document", 
+    file="path/to/document.pdf"
+)
+resps = client.process_prompts_sync([conversation])
+
+# You can also create File objects for more control
+from lm_deluge import File
+file = File("path/to/report.pdf", filename="Q4_Report.pdf")
+conversation = Conversation.user("Analyze this financial report")
+conversation.messages[0].parts.append(file)
+```
+
+Files can be local paths, URLs, bytes, or base64 data URLs, just like images.
+
 ## Tool Use
 
 Define tools from Python functions and use them with any model:

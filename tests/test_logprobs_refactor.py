@@ -4,10 +4,12 @@ import os
 import pytest
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.api_requests.base import APIResponse, create_api_request
+from lm_deluge.api_requests.base import APIResponse
 from lm_deluge.api_requests.openai import OpenAIRequest
 from lm_deluge.config import SamplingParams
+from lm_deluge.models import APIModel
 from lm_deluge.prompt import Message
+from lm_deluge.request_context import RequestContext
 from lm_deluge.tracker import StatusTracker
 from lm_deluge.usage import Usage
 
@@ -81,26 +83,30 @@ def test_api_request_uses_sampling_params_logprobs():
     prompt = Conversation.user("Hello, world!")
     sampling_params = SamplingParams(logprobs=True, top_logprobs=5)
     status_tracker = StatusTracker(
-        max_requests_per_minute=10, max_tokens_per_minute=10_000
+        max_requests_per_minute=10,
+        max_tokens_per_minute=10_000,
+        max_concurrent_requests=100,
     )
     results_arr = []
 
     # Create an OpenAI request
-    request = create_api_request(
-        task_id=1,
-        model_name="gpt-4o-mini",
-        prompt=prompt,
-        attempts_left=3,
-        status_tracker=status_tracker,
-        results_arr=results_arr,
-        sampling_params=sampling_params,
-        all_model_names=["gpt-4o-mini"],
-        all_sampling_params=[sampling_params],
+    request = APIModel.from_registry("gpt-4o-mini").make_request(
+        RequestContext(
+            task_id=1,
+            model_name="gpt-4o-mini",
+            prompt=prompt,
+            attempts_left=3,
+            status_tracker=status_tracker,
+            results_arr=results_arr,
+            sampling_params=sampling_params,
+            all_model_names=["gpt-4o-mini"],
+            all_sampling_params=[sampling_params],
+        )
     )
 
     # Check that the request has the correct sampling params
-    assert request.sampling_params.logprobs is True
-    assert request.sampling_params.top_logprobs == 5
+    assert request.context.sampling_params.logprobs is True
+    assert request.context.sampling_params.top_logprobs == 5
 
     # For OpenAI requests, check that the request JSON includes logprobs
     if isinstance(request, OpenAIRequest):

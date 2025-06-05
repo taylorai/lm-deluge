@@ -1,6 +1,5 @@
 import os
 from contextlib import contextmanager
-from functools import cached_property
 import io
 import requests
 from PIL import Image as PILImage  # type: ignore
@@ -18,6 +17,8 @@ class Image:
     media_type: str | None = None  # inferred if None
     detail: Literal["low", "high", "auto"] = "auto"
     type: str = field(init=False, default="image")
+    _fingerprint_cache: str | None = field(init=False, default=None)
+    _size_cache: tuple[int, int] | None = field(init=False, default=None)
 
     @classmethod
     def from_pdf(
@@ -95,12 +96,14 @@ class Image:
             if img:
                 img.close()
 
-    @cached_property
+    @property
     def size(self) -> tuple[int, int]:
-        with self._image() as img:
-            return img.size
+        if self._size_cache is None:
+            with self._image() as img:
+                self._size_cache = img.size
+        return self._size_cache
 
-    @cached_property
+    @property
     def num_pixels(self) -> int:
         return self.size[0] * self.size[1]
 
@@ -143,11 +146,13 @@ class Image:
             new_width = int(new_height / height * width)
         return self._resize((new_width, new_height))
 
-    @cached_property
+    @property
     def fingerprint(self) -> str:
         # return base64 of a very small version of the image
-        small_image = self._resize_longer(max_size=48)  # longer side = 48px
-        return base64.b64encode(small_image).decode("utf-8")
+        if self._fingerprint_cache is None:
+            small_image = self._resize_longer(max_size=48)  # longer side = 48px
+            self._fingerprint_cache = base64.b64encode(small_image).decode("utf-8")
+        return self._fingerprint_cache
 
     def resize(self, max_size: int) -> None:
         """

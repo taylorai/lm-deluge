@@ -1,6 +1,8 @@
 import random
 from dataclasses import dataclass, field
 
+from .request_context import RequestContext
+
 registry = {
     # `7MMM.     ,MMF'         mm
     #   MMMb    dPMM           MM
@@ -1206,3 +1208,19 @@ class APIModel:
         else:
             raise ValueError("no regions to sample")
         random.sample(regions, 1, counts=weights)[0]
+
+    def make_request(self, context: RequestContext):  # -> "APIRequestBase"
+        from .api_requests.common import CLASSES
+
+        api_spec = self.api_spec
+        if (
+            context.use_responses_api
+            and self.supports_responses
+            and api_spec == "openai"
+        ):
+            api_spec = "openai-responses"
+
+        request_class = CLASSES.get(api_spec, None)
+        if request_class is None:
+            raise ValueError(f"Unsupported API spec: {api_spec}")
+        return request_class(context=context)
