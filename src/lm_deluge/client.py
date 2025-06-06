@@ -1,4 +1,5 @@
 import asyncio
+import random
 from typing import Any, Literal, Self, Sequence, overload
 
 import numpy as np
@@ -173,6 +174,116 @@ class LLMClient(BaseModel):
         assert isinstance(self.model_weights, list)
         model_idx = np.random.choice(range(len(self.models)), p=self.model_weights)
         return self.models[model_idx], self.sampling_params[model_idx]
+
+    def _select_different_model(self, current_model: str):
+        """Select a model different from the provided one."""
+        other_models = [m for m in self.models if m != current_model]
+        if not other_models:
+            # No other models available, return current
+            return current_model, self.sampling_params[self.models.index(current_model)]
+
+        # Get weights for other models
+        other_indices = [self.models.index(m) for m in other_models]
+        weights = [self.model_weights[idx] for idx in other_indices]
+        weights = [w / sum(weights) for w in weights]  # type: ignore
+
+        model_idx = np.random.choice(range(len(other_models)), p=weights)
+        chosen_model = other_models[model_idx]
+        chosen_sp = self.sampling_params[self.models.index(chosen_model)]
+        return chosen_model, chosen_sp
+
+    async def _wait_for_capacity(self, num_tokens: int, tracker: StatusTracker):
+        while True:
+            if tracker.check_capacity(num_tokens):
+                tracker.set_limiting_factor(None)
+                return
+
+            if tracker.seconds_to_pause > 0:
+                await asyncio.sleep(tracker.seconds_to_pause)
+            else:
+                await asyncio.sleep(random.random())
+
+    async def _execute_request(self, context: RequestContext) -> APIResponse:
+        """Create and send a single API request using the provided context."""
+        model_obj = APIModel.from_registry(context.model_name)
+        request = model_obj.make_request(context)
+        response = await request.execute_once()
+        return response
+
+    async def process_single_request(self, context: RequestContext) -> APIResponse:
+        """Handle caching, retries, and rate limiting for a single request."""
+        # Check cache first
+        if self.cache:
+            cached = self.cache.get(context.prompt)
+            if cached:
+                cached.cache_hit = True
+                if context.status_tracker:
+                    context.status_tracker.task_succeeded(context.task_id)
+                return cached
+
+        # Rate limiting and retry loop
+        attempts_left = context.attempts_left
+        response: APIResponse | None = None
+
+        while attempts_left > 0:
+            # Wait for available capacity
+            assert context.status_tracker
+            await self._wait_for_capacity(context.num_tokens, context.status_tracker)
+
+            # Execute request
+            context.status_tracker.update_pbar()
+            response = await self._execute_request(context)
+
+            # Handle successful response
+            if not response.is_error:
+                context.status_tracker.task_succeeded(context.task_id)
+                # Cache successful responses immediately
+                if self.cache and response.completion:
+                    self.cache.put(context.prompt, response)
+                # Call callback if provided
+                if context.callback:
+                    context.callback(response, context.status_tracker)
+                return response
+
+            # Handle error response
+            attempts_left -= 1
+            if attempts_left <= 0:
+                context.status_tracker.task_failed(context.task_id)
+                context.maybe_callback(response, context.status_tracker)
+                return response
+
+            # Decide whether to retry with a different model
+            if response.retry_with_different_model:
+                if len(context.all_model_names or []) < 2:
+                    if response.give_up_if_no_other_models:
+                        context.status_tracker.task_failed(context.task_id)
+                        context.maybe_callback(response, context.status_tracker)
+                        return response
+                    # Continue with same model since no alternatives
+                else:
+                    # Switch to different model
+                    new_model, new_sp = self._select_different_model(context.model_name)
+                    context = context.copy(
+                        model_name=new_model,
+                        sampling_params=new_sp,
+                        attempts_left=attempts_left,
+                    )
+            else:
+                # Retry with same model
+                context = context.copy(attempts_left=attempts_left)
+
+            # Print error message for debugging
+            error_msg = (
+                f"Error task {context.task_id}. Model: {response.model_internal}"
+            )
+            if response.status_code:
+                error_msg += f" Code: {response.status_code},"
+            error_msg += f" Message: {response.error_message}."
+            print(error_msg)
+
+        # Should not reach here, but return last response if we do
+        assert response is not None
+        return response
 
     @overload
     async def process_prompts_async(

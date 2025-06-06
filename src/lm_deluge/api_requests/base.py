@@ -55,6 +55,51 @@ class APIRequestBase(ABC):
         if self.context.status_tracker:
             self.context.status_tracker.task_succeeded(self.context.task_id)
 
+    async def execute_once(self) -> APIResponse:
+        """Send the HTTP request once and return the parsed APIResponse."""
+        assert self.context.status_tracker
+        try:
+            self.context.status_tracker.total_requests += 1
+            timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                assert self.url is not None, "URL is not set"
+                async with session.post(
+                    url=self.url,
+                    headers=self.request_header,
+                    json=self.request_json,
+                ) as http_response:
+                    response: APIResponse = await self.handle_response(http_response)
+            return response
+
+        except asyncio.TimeoutError:
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message="Request timed out (terminated by client).",
+                content=None,
+                usage=None,
+            )
+
+        except Exception as e:
+            raise_if_modal_exception(e)
+            tb = traceback.format_exc()
+            print(tb)
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                content=None,
+                usage=None,
+            )
+
     def handle_error(self, create_new_request=False, give_up_if_no_other_models=False):
         """
         If create_new_request is True, will create a new API request (so that it

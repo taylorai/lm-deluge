@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Callable, Any
+from typing import Any, Callable
 
-from .prompt import Conversation, CachePattern
 from .config import SamplingParams
+from .prompt import CachePattern, Conversation
 from .tracker import StatusTracker
 
 
@@ -56,6 +56,11 @@ class RequestContext:
         # Validate required fields
         if self.all_model_names is None:
             self.all_model_names = [self.model_name]
+
+    def maybe_callback(self, response, tracker):
+        if not self.callback:
+            return
+        self.callback(response, tracker)
 
     def copy(self, **overrides):
         """Create a copy of this RequestContext with optional field overrides."""

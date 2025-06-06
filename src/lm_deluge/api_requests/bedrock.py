@@ -126,6 +126,71 @@ class BedrockRequest(APIRequestBase):
             "Content-Type": "application/json",
         }
 
+    async def execute_once(self) -> APIResponse:
+        """Override execute_once to handle AWS4Auth signing."""
+        import aiohttp
+
+        assert self.context.status_tracker
+
+        self.context.status_tracker.total_requests += 1
+        timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
+
+        # Prepare the request data
+        payload = json.dumps(self.request_json, separators=(",", ":")).encode("utf-8")
+
+        # Create a fake requests.PreparedRequest object for AWS4Auth to sign
+        import requests
+
+        fake_request = requests.Request(
+            method="POST",
+            url=self.url,
+            data=payload,
+            headers=self.request_header.copy(),
+        )
+
+        prepared_request = fake_request.prepare()
+        signed_request = self.auth(prepared_request)
+        signed_headers = dict(signed_request.headers)
+
+        try:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(
+                    url=self.url,
+                    headers=signed_headers,
+                    data=payload,
+                ) as http_response:
+                    response: APIResponse = await self.handle_response(http_response)
+            return response
+
+        except asyncio.TimeoutError:
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message="Request timed out (terminated by client).",
+                content=None,
+                usage=None,
+            )
+
+        except Exception as e:
+            from ..errors import raise_if_modal_exception
+
+            raise_if_modal_exception(e)
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                content=None,
+                usage=None,
+            )
+
     async def call_api(self):
         """Override call_api to handle AWS4Auth signing."""
         try:

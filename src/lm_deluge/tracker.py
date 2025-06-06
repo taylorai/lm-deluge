@@ -68,6 +68,7 @@ class StatusTracker:
         self.limiting_factor = factor
 
     def check_capacity(self, num_tokens: int, retry: bool = False):
+        self.update_capacity()  # always update before checking
         request_available = self.available_request_capacity >= 1
         tokens_available = self.available_token_capacity >= num_tokens
         concurrent_request_available = (

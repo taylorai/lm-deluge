@@ -1,232 +1,181 @@
-# Dynamic Caching Implementation Plan
+Implementation Plan: Client-Managed Request Processing
 
-## Overview
+  Phase 1: Foundation Changes (Based on Patch 2 + Improvements)
 
-Currently, lm-deluge checks the cache only at the beginning of `process_prompts_async` before creating any requests. This means if we have 100 identical prompts, all 100 requests are sent even though only 1 needs to run. We want to implement dynamic caching where cache checks happen as requests are being created, allowing later requests to benefit from earlier completions.
+⏺ Update Todos
+  ⎿  ☒ Create detailed plan to move request management to
+       client
+     ☐ Identify specific changes needed based on patch analysis
+     ☐ Plan backward-compatible migration approach
+     ☐ Define testing strategy for the refactor
 
-## Current Architecture Analysis
+⏺ 1.1 Add execute_once() to APIRequestBase
 
-### Key Components
+  async def execute_once(self) -> APIResponse:
+      """Send the HTTP request once and return the parsed
+  APIResponse."""
+      # Clean HTTP execution without retry/error handling
+      # Includes timeout and exception handling
+      # Returns APIResponse directly
 
-1. **LLMClient** (`client.py`):
-   - `process_prompts_async`: Main entry point, checks cache upfront
-   - Creates API requests in a rate-limited loop
-   - Uses StatusTracker to manage concurrent requests
+  1.2 Update RequestContext
 
-2. **Cache System** (`cache.py`):
-   - Three implementations: SqliteCache, LevelDBCache, DistributedDictCache
-   - Simple get/put interface based on Conversation fingerprints
-   - Fingerprints are deterministic hashes of conversation content
+  @dataclass
+  class RequestContext:
+      # ... existing fields ...
 
-3. **Request Flow**:
-   - Check cache for ALL prompts upfront
-   - Create list of cache hits and remaining prompts
-   - Loop through remaining prompts, creating requests as capacity allows
-   - Cache results after completion
+      @property
+      def cache_key(self) -> str:
+          """Compute cache key from prompt fingerprint."""
+          return self.prompt.fingerprint
 
-### The Problem
+  1.3 Add Client Methods
 
-With the current approach, if you have 100 identical prompts:
-1. Cache is checked once at the beginning (all miss)
-2. All 100 requests are queued for creation
-3. Due to rate limiting, they're created gradually
-4. Request #1 completes and is cached
-5. Requests #2-100 still get sent because cache isn't checked again
+  class LLMClient:
+      async def _execute_request(self, context: RequestContext)
+   -> APIResponse:
+          """Create and send a single API request."""
 
-## Proposed Solution: Dynamic Cache Checking
+      async def process_single_request(self, context:
+  RequestContext) -> APIResponse:
+          """Handle caching, retries, and rate limiting for one
+   request."""
 
-Move cache checking into the request creation loop so that each request checks the cache right before being created. This allows later requests to benefit from earlier completions.
+      async def process_prompts_v2_async(self, prompts,
+  **kwargs) -> list[APIResponse]:
+          """New concurrent implementation using
+  asyncio.gather()."""
 
-### Key Benefits
+  Phase 2: Key Changes Needed
 
-1. **Natural Deduplication**: With rate limiting, earlier requests have time to complete before later ones are created
-2. **Simple Implementation**: Minimal changes to existing architecture
-3. **Cost Savings**: Fewer API calls for duplicate prompts
-4. **Backwards Compatible**: Existing behavior preserved
+⏺ Update Todos
+  ⎿  ☒ Create detailed plan to move request management to
+       client
+     ☒ Identify specific changes needed based on patch analysis
+     ☐ Plan backward-compatible migration approach
+     ☐ Define testing strategy for the refactor
 
-### Implementation Details
+⏺ 2.1 Fix Cache Key Issue
 
-The key insight is that we need TWO changes:
-1. Check cache dynamically during request creation
-2. **Cache results immediately when each request completes** (not at the end)
+  - Add cache_key property to RequestContext that returns
+  self.prompt.fingerprint
+  - Update cache calls to use context.cache_key consistently
 
-#### Modified `process_prompts_async` Flow
+  2.2 Add Proper Concurrency
 
-```python
-async def process_prompts_async(self, prompts, ...):
-    prompts = prompts_to_conversations(prompts)
-    ids = np.arange(len(prompts))
-    
-    # Initialize results array
-    results: list[APIResponse | None] = [None for _ in range(len(prompts))]
-    
-    # Keep track of completed prompts
-    completed_ids = set()
-    
-    # Initial cache check (optional - could remove this entirely)
-    if self.cache:
-        for i, prompt in enumerate(prompts):
-            cached = self.cache.get(prompt)
-            if cached:
-                cached.cache_hit = True
-                results[i] = cached
-                completed_ids.add(i)
-        
-        print(f"{len(completed_ids)} cache hits; {len(prompts) - len(completed_ids)} prompts remaining.")
-    
-    # Create iterator for remaining prompts
-    remaining_prompts = [(i, p) for i, p in enumerate(prompts) if i not in completed_ids]
-    prompts_iter = iter(remaining_prompts)
-    
-    # ... StatusTracker setup ...
-    
-    # Main request loop
-    while True:
-        retry_request = False
-        if next_request is None:
-            if not tracker.retry_queue.empty():
-                next_request = tracker.retry_queue.get_nowait()
-                retry_request = True
-            elif prompts_not_finished:
-                try:
-                    id, prompt = next(prompts_iter)
-                    
-                    # DYNAMIC CACHE CHECK - Key change!
-                    if self.cache:
-                        cached = self.cache.get(prompt)
-                        if cached:
-                            cached.cache_hit = True
-                            cached.cache_hit_dynamic = True  # New field for metrics
-                            results[id] = cached
-                            tracker.update_pbar(1)
-                            continue
-                    
-                    # Not in cache, create request
-                    model, sampling_params = self._select_model()
-                    next_request = create_api_request(
-                        task_id=id,
-                        model_name=model,
-                        prompt=prompt,
-                        # ... other params ...
-                    )
-                    requests.append(next_request)
-                    
-                except StopIteration:
-                    prompts_not_finished = False
-        
-        # ... rest of loop (capacity checking, request execution) ...
-```
+  - Replace sequential loop with asyncio.gather() for parallel
+  execution
+  - Add semaphore for concurrent request limiting
 
-#### Key Changes
+  2.3 Implement Rate Limiting
 
-1. **Move cache check into request creation loop**: Check cache right before creating each request
-2. **Cache results immediately on completion**: Modify the request completion handler to cache results as they finish
-3. **Add metrics**: Track "dynamic cache hits" separately from initial cache hits
-4. **Update progress bar**: Ensure progress updates for dynamic cache hits
+  - Add capacity checking and waiting in
+  process_single_request()
+  - Integrate with StatusTracker for proper rate limiting
 
-#### Caching on Completion
+  2.4 Improve Retry Logic
 
-The critical change is in how we handle completed requests. Currently, results are cached after ALL requests finish. We need to cache them immediately:
+  - Use proper model selection with weights (not random choice)
+  - Handle model switching more robustly
+  - Add better error handling for "no other models" case
 
-```python
-# In APIRequestBase.handle_success() or in process_prompts_async
-def handle_success(self, data):
-    self.call_callback()
-    self.status_tracker.task_succeeded(self.task_id)
-    
-    # NEW: Cache immediately if cache is available
-    if hasattr(self, 'cache') and self.cache and self.result[-1].completion:
-        # Need access to the prompt - might need to store it on the request
-        self.cache.put(self.prompt, self.result[-1])
-```
+  2.5 Handle Bedrock Special Case
 
-Or alternatively, we could add a callback mechanism to cache results as they complete in the main loop.
+  - Override execute_once() in BedrockRequest for AWS4Auth
+  signing
+  - Maintain existing signature behavior
 
-### Edge Cases to Handle
+  Phase 3: Migration Strategy
 
-1. **Race Conditions**: Request completes while another identical request is being created
-   - Solution: Cache is checked atomically before request creation
-   
-2. **Failed Requests**: Failed request shouldn't poison cache for retries
-   - Solution: Only cache successful responses (existing behavior)
+⏺ Update Todos
+  ⎿  ☒ Create detailed plan to move request management to
+       client
+     ☒ Identify specific changes needed based on patch analysis
+     ☒ Plan backward-compatible migration approach
+     ☐ Define testing strategy for the refactor
 
-3. **Progress Tracking**: Ensure progress bar updates correctly for dynamic hits
-   - Solution: Call `tracker.update_pbar(1)` for cache hits
+⏺ 3.1 Backward Compatibility
 
-### Testing Strategy
+  - Keep existing call_api() method unchanged - maintains
+  compatibility
+  - Keep existing process_prompts_async() method as primary
+  interface
+  - Add new process_prompts_v2_async() as alternative
+  implementation
+  - Eventually deprecate old method after testing
 
-1. **Create test with many duplicate prompts**:
-   ```python
-   def test_dynamic_caching():
-       cache = SqliteCache("test_dynamic.db")
-       client = LLMClient(
-           "gpt-4.1-mini",
-           cache=cache,
-           max_concurrent_requests=5,  # Low concurrency to test dynamics
-           max_requests_per_minute=60  # Low rate to ensure staggering
-       )
-       
-       # 50 identical prompts
-       prompts = ["What is 2+2?"] * 50
-       
-       results = client.process_prompts_sync(prompts)
-       
-       # Count actual API calls made
-       api_calls = sum(1 for r in results if not r.cache_hit)
-       
-       # Should be much less than 50
-       assert api_calls < 10, f"Too many API calls: {api_calls}"
-   ```
+  3.2 Gradual Rollout
 
-2. **Test mixed prompts**:
-   - Mix of unique and duplicate prompts
-   - Ensure correct results for all
+  class LLMClient:
+      def __init__(self, ..., use_v2_processing: bool = False):
+          self.use_v2_processing = use_v2_processing
 
-3. **Test with failures**:
-   - Ensure failed requests don't break caching
-   - Retries should still check cache
+      async def process_prompts_async(self, ...):
+          if self.use_v2_processing:
+              return await self.process_prompts_v2_async(...)
+          else:
+              # Existing implementation
 
-### Metrics and Monitoring
+  3.3 Feature Parity
 
-Add new fields to track dynamic caching:
-- `initial_cache_hits`: Hits from upfront check
-- `dynamic_cache_hits`: Hits during request creation
-- `total_api_calls`: Actual API calls made
+  - Ensure new implementation supports all existing features:
+    - Tools, computer use, caching patterns
+    - Progress bars, callbacks, status tracking
+    - All sampling parameters and model selection
+    - Return type options (return_completions_only)
 
-### Alternative Consideration: Remove Upfront Cache Check
+  Phase 4: Testing Strategy
 
-We could simplify further by removing the upfront cache check entirely and only checking during request creation. This would:
-- Simplify the code
-- Make the flow more uniform
-- Still provide all the same benefits
+⏺ Update Todos
+  ⎿  ☒ Create detailed plan to move request management to
+       client
+     ☒ Identify specific changes needed based on patch analysis
+     ☒ Plan backward-compatible migration approach
+     ☒ Define testing strategy for the refactor
 
-The only downside is we wouldn't know total work upfront for progress bar initialization.
+⏺ 4.1 Unit Tests
 
-## Implementation Steps
+  - Test execute_once() method in isolation
+  - Test process_single_request() with mocked responses
+  - Test cache hit/miss scenarios
+  - Test retry logic with model switching
+  - Test rate limiting behavior
 
-1. **Add immediate caching**: Modify request completion to cache results as they finish
-   - Either in `APIRequestBase.handle_success()` 
-   - Or via a callback mechanism in `process_prompts_async`
-2. **Add dynamic cache checking**: Check cache before creating each request
-3. **Update tests** to verify dynamic caching works
-4. **Add metrics** for dynamic cache hits vs initial cache hits
+  4.2 Integration Tests
 
-## Implementation Options
+  - Compare v1 vs v2 outputs on same prompts
+  - Test with all provider types (OpenAI, Anthropic, Bedrock,
+  etc.)
+  - Test with various cache patterns
+  - Test concurrent request handling
 
-### Option A: Cache in handle_success (simpler but requires passing cache to requests)
-- Pass cache reference to each APIRequestBase
-- Cache in handle_success method
-- Minimal changes to main loop
+  4.3 Performance Tests
 
-### Option B: Use callback mechanism (cleaner separation)
-- Add a cache callback that fires on request completion
-- Keep cache logic in LLMClient
-- More modular but slightly more complex
+  - Measure dynamic caching effectiveness
+  - Compare processing speed v1 vs v2
+  - Test memory usage under load
+  - Validate rate limiting accuracy
 
-## Timeline
+  Implementation Order
 
-- Implementation: 1-2 hours (simple change)
-- Testing: 1 hour
-- Total: 2-3 hours
+  1. Week 1: Add execute_once() and cache_key property
+  2. Week 2: Implement process_single_request() with
+  caching/retries
+  3. Week 3: Add process_prompts_v2_async() with concurrency
+  4. Week 4: Comprehensive testing and bug fixes
+  5. Week 5: Gradual rollout with feature flag
 
-This is much simpler than the original plan while achieving the same goal!
+  Success Criteria
+
+  - ✅ All existing tests continue passing
+  - ✅ Dynamic caching works (cache hits populate for later
+  identical requests)
+  - ✅ Performance equal or better than current implementation
+
+  - ✅ Clean separation of HTTP execution vs retry logic
+  - ✅ Simplified debugging and testing of individual
+  components
+
+  This plan achieves the SIMPLIFICATION.md goals while
+  minimizing risk through backward compatibility and gradual
+  migration.
