@@ -1,21 +1,4 @@
 import asyncio
-import sys
-
-
-# Mock tiktoken to avoid network calls
-class DummyEncoding:
-    def encode(self, _):
-        return [0]
-
-    def decode(self, _):
-        return ""
-
-
-sys.modules["tiktoken"] = type(
-    "T",
-    (),
-    {"encoding_for_model": lambda *args, **kwargs: DummyEncoding()},
-)()
 
 from lm_deluge import Conversation, LLMClient, SamplingParams
 from lm_deluge.request_context import RequestContext
