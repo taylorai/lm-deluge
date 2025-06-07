@@ -3,7 +3,8 @@
 
 import asyncio
 import os
-from lm_deluge import LLMClient, Conversation
+
+from lm_deluge import Conversation, LLMClient
 
 
 async def main():
@@ -23,7 +24,8 @@ async def main():
             [Conversation.user("What is the capital of France? Answer briefly.")],
             show_progress=False,
         )
-        print(f"✓ Gemini native API test passed: {res[0].content.completion}")
+        assert res[0]
+        print(f"✓ Gemini native API test passed: {res[0].completion}")
     except Exception as e:
         print(f"✗ Exception: {e}")
 

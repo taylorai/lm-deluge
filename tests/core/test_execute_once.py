@@ -1,31 +1,15 @@
 import asyncio
-import sys
-
-
-# Mock tiktoken to avoid network calls
-class DummyEncoding:
-    def encode(self, _):
-        return [0]
-
-    def decode(self, _):
-        return ""
-
-
-sys.modules["tiktoken"] = type(
-    "T",
-    (),
-    {"encoding_for_model": lambda *args, **kwargs: DummyEncoding()},
-)()
 
 from lm_deluge import Conversation, LLMClient, SamplingParams
+from lm_deluge.models import APIModel
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tracker import StatusTracker
-from lm_deluge.models import APIModel
 
 
 async def test_execute_once_real():
     """Test that execute_once() makes a real API call and returns APIResponse."""
     client = LLMClient.basic("gpt-4o-mini")
+    assert client
 
     tracker = StatusTracker(
         max_requests_per_minute=10,

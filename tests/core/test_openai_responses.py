@@ -80,24 +80,30 @@ async def test_openai_computer_use_validation():
         # Test that computer use with wrong model raises error
         client = LLMClient.basic("gpt-4.1-mini")
 
-        try:
-            results = await client.process_prompts_async(
-                prompts=["Take a screenshot"],
-                computer_use=True,  # This should fail with gpt-4.1
-                use_responses_api=True,
-            )
-            assert results
-            print("✗ Expected error for computer use with non-computer model")
-            return False
-        except ValueError as e:
-            if "Computer use is only supported with openai-computer-use-preview" in str(
-                e
-            ):
-                print("✓ Computer use validation test passed")
-                return True
+        results = await client.process_prompts_async(
+            prompts=["Take a screenshot"],
+            computer_use=True,  # This should fail with gpt-4.1
+            use_responses_api=True,
+        )
+
+        if results and len(results) > 0:
+            result = results[0]
+            if result and result.is_error:
+                if (
+                    "Computer use is only supported with openai-computer-use-preview"
+                    in str(result.error_message)
+                ):
+                    print("✓ Computer use validation test passed")
+                    return True
+                else:
+                    print(f"✗ Unexpected error: {result.error_message}")
+                    return False
             else:
-                print(f"✗ Unexpected error: {e}")
+                print("✗ Expected error for computer use with non-computer model")
                 return False
+        else:
+            print("✗ No results returned")
+            return False
 
     except Exception as e:
         print(f"✗ Computer use validation test failed: {e}")

@@ -11,6 +11,7 @@ async def test_rich_display():
     tracker = StatusTracker(
         max_requests_per_minute=60,
         max_tokens_per_minute=10000,
+        max_concurrent_requests=100,
         use_progress_bar=True,
         progress_bar_total=10,
         use_rich=True,
@@ -60,6 +61,7 @@ def test_rich_disabled():
     tracker = StatusTracker(
         max_requests_per_minute=60,
         max_tokens_per_minute=10000,
+        max_concurrent_requests=100,
         use_progress_bar=True,
         progress_bar_total=5,
         use_rich=False,  # Explicitly disable Rich
@@ -84,6 +86,7 @@ def test_progress_disabled():
     tracker = StatusTracker(
         max_requests_per_minute=60,
         max_tokens_per_minute=10000,
+        max_concurrent_requests=100,
         use_progress_bar=False,  # Progress disabled
         use_rich=False,  # Should be ignored
     )

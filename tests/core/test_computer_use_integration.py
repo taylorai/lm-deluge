@@ -93,7 +93,7 @@ async def test_computer_use_integration():
 
         # Test 2: Verify tool versions are correct for Claude 4
         print("\n🔧 Test 2: Verifying tool versions for Claude 4...")
-        from lm_deluge.computer_use.anthropic_tools import (
+        from lm_deluge.built_in_tools.anthropic import (
             get_anthropic_cu_tools,
             model_to_version,
         )

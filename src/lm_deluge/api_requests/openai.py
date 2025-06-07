@@ -5,6 +5,7 @@ import warnings
 import aiohttp
 from aiohttp import ClientResponse
 
+from lm_deluge.built_in_tools.openai import computer_use_openai
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 
@@ -241,21 +242,21 @@ class OpenAIResponsesRequest(APIRequestBase):
         if self.context.computer_use:
             # Add computer use tool
             request_tools.append(
-                {
-                    "type": "computer_use_preview",
-                    "display_width": self.context.display_width,
-                    "display_height": self.context.display_height,
-                    "environment": "browser",  # Default to browser, could be configurable
-                }
+                computer_use_openai(
+                    display_width=self.context.display_width,
+                    display_height=self.context.display_height,
+                )
             )
             # Set truncation to auto as required for computer use
             self.request_json["truncation"] = "auto"
 
         if self.context.tools:
             # Add regular function tools
-            request_tools.extend(
-                [tool.dump_for("openai-responses") for tool in self.context.tools]
-            )
+            for tool in self.context.tools:
+                if isinstance(tool, Tool):
+                    request_tools.append(tool.dump_for("openai-responses"))
+                elif isinstance(tool, dict):
+                    request_tools.append(tool)  # allow passing dict
 
         if request_tools:
             self.request_json["tools"] = request_tools

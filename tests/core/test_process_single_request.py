@@ -85,7 +85,7 @@ async def test_process_single_request_with_cache():
     response2 = await client.process_single_request(context2)
 
     assert response2 is not None
-    assert response2.cache_hit is True
+    assert response2.local_cache_hit is True
     assert tracker_2.num_tasks_succeeded == 1
 
     print(

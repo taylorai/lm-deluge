@@ -2,6 +2,7 @@
 
 import time
 
+from lm_deluge.api_requests.response import APIResponse
 from lm_deluge.client import LLMClient
 
 
@@ -24,8 +25,10 @@ def test_max_concurrent_requests_one():
 
     # Should complete successfully without hanging
     assert len(results) == 3
-    assert all(r is not None for r in results)
-    assert all(r.completion is not None for r in results)
+    assert all(
+        r is not None and isinstance(r, APIResponse) and r.completion is not None
+        for r in results
+    )
 
     # Should take at least some time since requests are sequential
     assert end_time - start_time > 1.0  # At least 1 second for 3 requests

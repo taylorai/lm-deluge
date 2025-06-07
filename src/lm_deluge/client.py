@@ -16,7 +16,7 @@ from lm_deluge.batches import (
 from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
 from lm_deluge.tool import Tool
 
-from .api_requests.base import APIRequestBase, APIResponse, deduplicate_responses
+from .api_requests.base import APIResponse
 from .config import SamplingParams
 from .models import APIModel, registry
 from .request_context import RequestContext
@@ -210,67 +210,48 @@ class LLMClient(BaseModel):
         response = await request.execute_once()
         return response
 
-    async def process_single_request(self, context: RequestContext) -> APIResponse:
-        """Handle caching, retries, and rate limiting for a single request."""
+    async def process_single_request(
+        self, context: RequestContext, retry_queue: asyncio.Queue | None = None
+    ) -> APIResponse:
+        """Handle caching and single HTTP call for a request. Failed requests go to retry queue."""
         # Check cache first
         if self.cache:
             cached = self.cache.get(context.prompt)
             if cached:
-                cached.cache_hit = True
+                cached.local_cache_hit = True
                 if context.status_tracker:
                     context.status_tracker.task_succeeded(context.task_id)
                 return cached
 
-        # Rate limiting and retry loop
-        attempts_left = context.attempts_left
-        response: APIResponse | None = None
+        # Execute single request
+        assert context.status_tracker
+        context.status_tracker.update_pbar()
+        response = await self._execute_request(context)
 
-        while attempts_left > 0:
-            # Wait for available capacity
-            assert context.status_tracker
-            await self._wait_for_capacity(context.num_tokens, context.status_tracker)
+        # Handle successful response
+        if not response.is_error:
+            context.status_tracker.task_succeeded(context.task_id)
+            # Cache successful responses immediately
+            if self.cache and response.completion:
+                self.cache.put(context.prompt, response)
+            # Call callback if provided
+            context.maybe_callback(response, context.status_tracker)
+            return response
 
-            # Execute request
-            context.status_tracker.update_pbar()
-            response = await self._execute_request(context)
-
-            # Handle successful response
-            if not response.is_error:
-                context.status_tracker.task_succeeded(context.task_id)
-                # Cache successful responses immediately
-                if self.cache and response.completion:
-                    self.cache.put(context.prompt, response)
-                # Call callback if provided
-                if context.callback:
-                    context.callback(response, context.status_tracker)
-                return response
-
-            # Handle error response
-            attempts_left -= 1
-            if attempts_left <= 0:
-                context.status_tracker.task_failed(context.task_id)
-                context.maybe_callback(response, context.status_tracker)
-                return response
-
+        # Handle error response - add to retry queue if available
+        if retry_queue and context.attempts_left > 1:
             # Decide whether to retry with a different model
-            if response.retry_with_different_model:
-                if len(context.all_model_names or []) < 2:
-                    if response.give_up_if_no_other_models:
-                        context.status_tracker.task_failed(context.task_id)
-                        context.maybe_callback(response, context.status_tracker)
-                        return response
-                    # Continue with same model since no alternatives
-                else:
-                    # Switch to different model
-                    new_model, new_sp = self._select_different_model(context.model_name)
-                    context = context.copy(
-                        model_name=new_model,
-                        sampling_params=new_sp,
-                        attempts_left=attempts_left,
-                    )
+            if response.retry_with_different_model and len(self.models) > 1:
+                # Switch to different model for retry
+                new_model, new_sp = self._select_different_model(context.model_name)
+                retry_context = context.copy(
+                    model_name=new_model,
+                    sampling_params=new_sp,
+                    attempts_left=context.attempts_left - 1,
+                )
             else:
                 # Retry with same model
-                context = context.copy(attempts_left=attempts_left)
+                retry_context = context.copy(attempts_left=context.attempts_left - 1)
 
             # Print error message for debugging
             error_msg = (
@@ -278,11 +259,24 @@ class LLMClient(BaseModel):
             )
             if response.status_code:
                 error_msg += f" Code: {response.status_code},"
-            error_msg += f" Message: {response.error_message}."
+            error_msg += f" Message: {response.error_message}. Retrying..."
             print(error_msg)
 
-        # Should not reach here, but return last response if we do
-        assert response is not None
+            # Add to retry queue for later processing
+            await retry_queue.put(retry_context)
+            return response  # Return the error response for now
+
+        # No retries left or no retry queue - final failure
+        context.status_tracker.task_failed(context.task_id)
+        context.maybe_callback(response, context.status_tracker)
+
+        # Print final error message
+        error_msg = f"Error task {context.task_id}. Model: {response.model_internal}"
+        if response.status_code:
+            error_msg += f" Code: {response.status_code},"
+        error_msg += f" Message: {response.error_message}. Giving up."
+        print(error_msg)
+
         return response
 
     @overload
@@ -292,7 +286,7 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
-        tools: list[Tool] | None = ...,
+        tools: list[Tool | dict] | None = ...,
         cache: CachePattern | None = ...,
         computer_use: bool = ...,
         display_width: int = ...,
@@ -307,7 +301,7 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
-        tools: list[Tool] | None = ...,
+        tools: list[Tool | dict] | None = ...,
         cache: CachePattern | None = ...,
         computer_use: bool = ...,
         display_width: int = ...,
@@ -321,150 +315,125 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress: bool = True,
-        tools: list[Tool] | None = None,
+        tools: list[Tool | dict] | None = None,
         cache: CachePattern | None = None,
         computer_use: bool = False,
         display_width: int = 1024,
         display_height: int = 768,
         use_responses_api: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
-        # if prompts are not Conversations, convert them.
+        # Convert prompts to Conversations - no upfront cache checking for dynamic caching!
         prompts = prompts_to_conversations(prompts)
-        ids = np.arange(len(prompts))
-
-        # if using cache, check for cached completions
-        if self.cache:
-            cached_results = [self.cache.get(prompt) for prompt in prompts]
-            cache_hit_ids = [
-                id for id, res in zip(ids, cached_results) if res is not None
-            ]
-            cache_hit_results = [res for res in cached_results if res is not None]
-            assert len(cache_hit_ids) == len(
-                cache_hit_results
-            ), "Cache hit ids and results must be the same length."
-            remaining_ids = np.array([i for i in ids if i not in cache_hit_ids])
-            remaining_prompts = [prompts[i] for i in remaining_ids]
-            print(
-                f"{len(cache_hit_ids)} cache hits; {len(remaining_ids)} prompts remaining."
-            )
-
-        else:
-            cache_hit_ids = []
-            cache_hit_results = []
-            remaining_prompts = prompts
-            remaining_ids = ids
-
+        ids = list(range(len(prompts)))
         results: list[APIResponse | None] = [None for _ in range(len(prompts))]
-        if len(remaining_prompts) > 0:
-            # Create StatusTracker with integrated progress bar
-            tracker = StatusTracker(
-                max_requests_per_minute=self.max_requests_per_minute,
-                max_tokens_per_minute=self.max_tokens_per_minute,
-                max_concurrent_requests=self.max_concurrent_requests,
-                use_progress_bar=show_progress,
-                progress_bar_total=len(prompts),
-                progress_bar_disable=not show_progress,
-                use_rich=show_progress,  # Disable Rich if progress is disabled
-            )
 
-            # Initialize progress bar and update with cache hits
-            tracker.init_progress_bar()
-            if len(cache_hit_ids) > 0:
-                tracker.update_pbar(len(cache_hit_ids))
+        # Create StatusTracker
+        tracker = StatusTracker(
+            max_requests_per_minute=self.max_requests_per_minute,
+            max_tokens_per_minute=self.max_tokens_per_minute,
+            max_concurrent_requests=self.max_concurrent_requests,
+            use_progress_bar=show_progress,
+            progress_bar_total=len(prompts),
+            progress_bar_disable=not show_progress,
+            use_rich=show_progress,
+        )
 
-            if isinstance(ids, np.ndarray):
-                ids = ids.tolist()  # pyright: ignore
+        tracker.init_progress_bar()
 
-            # calculate dynamically so we don't throttle RPM
-            seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
-            next_request = None  # variable to hold the next request to call
-            prompts_not_finished = True
-            prompts_iter = iter(zip(ids, prompts))
-            requests: list[APIRequestBase] = []
-            assert tracker.retry_queue, "retry queue not initialized"
-            while True:
-                # get next request (if one is not already waiting for capacity)
-                retry_request = False
-                if next_request is None:
-                    if not tracker.retry_queue.empty():
-                        next_request = tracker.retry_queue.get_nowait()
-                        retry_request = True
-                        print(f"Retrying request {next_request.task_id}.")
-                    elif prompts_not_finished:
+        # Create retry queue for failed requests
+        retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
+
+        # Calculate sleep time for rate limiting
+        seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
+
+        # Main dispatch loop - using original pattern but with all prompts
+        next_context = None  # Persist across iterations like original
+        prompts_not_finished = True
+        prompts_iter = iter(zip(ids, prompts))
+
+        while True:
+            # Get next context (retry or new) - only if we don't already have one waiting
+            retry_request = False
+            if next_context is None:
+                if not retry_queue.empty():
+                    next_context = retry_queue.get_nowait()
+                    retry_request = True
+                    print(f"Retrying request {next_context.task_id}.")
+                elif prompts_not_finished:
+                    try:
+                        task_id, prompt = next(prompts_iter)
+                        model, sampling_params = self._select_model()
+                        assert isinstance(prompt, Conversation)
+                        next_context = RequestContext(
+                            task_id=task_id,
+                            model_name=model,
+                            prompt=prompt,
+                            sampling_params=sampling_params,
+                            attempts_left=self.max_attempts,
+                            request_timeout=self.request_timeout,
+                            status_tracker=tracker,
+                            all_model_names=self.models,
+                            all_sampling_params=self.sampling_params,
+                            tools=tools,
+                            cache=cache,
+                            computer_use=computer_use,
+                            display_width=display_width,
+                            display_height=display_height,
+                            use_responses_api=use_responses_api,
+                        )
+                    except StopIteration:
+                        prompts_not_finished = False
+
+            # Update capacity - original logic
+            tracker.update_capacity()
+
+            # Dispatch if capacity available - original logic
+            if next_context:
+                if tracker.check_capacity(next_context.num_tokens, retry=retry_request):
+                    tracker.set_limiting_factor(None)
+
+                    # Launch simplified request processing
+                    async def process_and_store(ctx: RequestContext):
                         try:
-                            # get new request
-                            id, prompt = next(prompts_iter)
-                            # select model
-                            model, sampling_params = self._select_model()
-
-                            # Create RequestContext to encapsulate all parameters
-                            context = RequestContext(
-                                task_id=id,
-                                model_name=model,
-                                prompt=prompt,  # type: ignore
-                                sampling_params=sampling_params,
-                                attempts_left=self.max_attempts,
-                                request_timeout=self.request_timeout,
-                                status_tracker=tracker,
-                                results_arr=requests,
-                                all_model_names=self.models,
-                                all_sampling_params=self.sampling_params,
-                                tools=tools,
-                                cache=cache,
-                                computer_use=computer_use,
-                                display_width=display_width,
-                                display_height=display_height,
-                                use_responses_api=use_responses_api,
+                            response = await self.process_single_request(
+                                ctx, retry_queue
                             )
-                            model_obj = APIModel.from_registry(context.model_name)
-                            next_request = model_obj.make_request(context)
-                            requests.append(next_request)
+                            results[ctx.task_id] = response
+                        except Exception as e:
+                            # Create an error response for validation errors and other exceptions
+                            from .api_requests.response import APIResponse
 
-                        except StopIteration:
-                            prompts_not_finished = False
-                            # print("API requests finished, only retries remain.")
+                            error_response = APIResponse(
+                                id=ctx.task_id,
+                                model_internal=ctx.model_name,
+                                prompt=ctx.prompt,
+                                sampling_params=ctx.sampling_params,
+                                status_code=None,
+                                is_error=True,
+                                error_message=str(e),
+                            )
+                            results[ctx.task_id] = error_response
+                            # Mark task as completed so the main loop can finish
+                            if ctx.status_tracker:
+                                ctx.status_tracker.task_failed(ctx.task_id)
 
-                # update available capacity
-                tracker.update_capacity()
+                    asyncio.create_task(process_and_store(next_context))
+                    next_context = None  # Reset after successful dispatch
 
-                # if enough capacity available, call API
-                if next_request:
-                    next_request_tokens = next_request.context.num_tokens
-                    if tracker.check_capacity(next_request_tokens, retry=retry_request):
-                        tracker.set_limiting_factor(None)
-                        # call API (attempts_left will be decremented in handle_error if it fails)
-                        asyncio.create_task(next_request.call_api())
-                        next_request = None  # reset next_request to empty
-                # update pbar status
-                tracker.update_pbar()
+            # Update progress - original logic
+            tracker.update_pbar()
 
-                # if all tasks are finished, break
-                if tracker.num_tasks_in_progress == 0:
-                    break
+            # Check completion - original logic
+            if (
+                tracker.num_tasks_in_progress == 0
+                and not prompts_not_finished
+                and retry_queue.empty()
+            ):
+                break
 
-                # main loop sleeps briefly so concurrent tasks can run
-                await asyncio.sleep(seconds_to_sleep_each_loop)
-
-                # if a rate limit error was hit recently, pause to cool down
-                if tracker.seconds_to_pause > 0:
-                    await asyncio.sleep(tracker.seconds_to_pause)
-                    print(f"Pausing {tracker.seconds_to_pause}s to cool down.")
-
-            # after finishing, log final status
+            # Sleep - original logic
+            await asyncio.sleep(seconds_to_sleep_each_loop + tracker.seconds_to_pause)
             tracker.log_final_status()
-
-            # deduplicate results by id
-            api_results = deduplicate_responses(requests)
-            for res in api_results:
-                results[res.id] = res
-                # set to cache if result has a completion
-                if self.cache and res.completion:
-                    self.cache.put(prompts[res.id], res)
-
-        # add cache hits back in
-        for id, res in zip(cache_hit_ids, cache_hit_results):
-            res.cache_hit = True
-            results[id] = res
 
         if return_completions_only:
             return [r.completion if r is not None else None for r in results]
@@ -477,7 +446,7 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress=True,
-        tools: list[Tool] | None = None,
+        tools: list[Tool | dict] | None = None,
         cache: CachePattern | None = None,
     ):
         return asyncio.run(
@@ -490,7 +459,9 @@ class LLMClient(BaseModel):
             )
         )
 
-    async def stream(self, prompt: str | Conversation, tools: list[Tool] | None = None):
+    async def stream(
+        self, prompt: str | Conversation, tools: list[Tool | dict] | None = None
+    ):
         model, sampling_params = self._select_model()
         if isinstance(prompt, str):
             prompt = Conversation.user(prompt)

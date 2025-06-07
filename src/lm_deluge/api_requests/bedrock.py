@@ -83,7 +83,7 @@ class BedrockRequest(APIRequestBase):
 
             # Add Computer Use tools at the beginning if enabled
             if self.context.computer_use:
-                from ..computer_use.anthropic_tools import get_anthropic_cu_tools
+                from ..built_in_tools.anthropic import get_anthropic_cu_tools
 
                 cu_tools = get_anthropic_cu_tools(
                     model=self.model.id,

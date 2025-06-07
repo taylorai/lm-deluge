@@ -2,7 +2,9 @@
 """Test the client with the refactored StatusTracker."""
 
 import os
+
 from lm_deluge import LLMClient
+from lm_deluge.api_requests.response import APIResponse
 
 # Quick test with a simple prompt
 if __name__ == "__main__":
@@ -30,14 +32,18 @@ if __name__ == "__main__":
         print("\nWith progress bar:")
         results = client.process_prompts_sync(prompts, show_progress=True)
         assert len(results) == 3
-        assert all(r.completion is not None for r in results)
+        assert all(
+            isinstance(r, APIResponse) and (r.completion is not None) for r in results
+        )
         print("✓ Progress bar test passed")
 
         # Test without progress bar
         print("\nWithout progress bar:")
         results = client.process_prompts_sync(prompts, show_progress=False)
         assert len(results) == 3
-        assert all(r.completion is not None for r in results)
+        assert all(
+            isinstance(r, APIResponse) and r.completion is not None for r in results
+        )
         print("✓ No progress bar test passed")
 
     print("\nAll integration tests passed!")

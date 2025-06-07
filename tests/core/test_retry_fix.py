@@ -55,7 +55,7 @@ async def test_retry_fix():
 
             # If we get here, the loop exited properly
             print("✓ Test passed: Loop exited after max attempts")
-            print(f"Result: {res[0]}")
+            # print(f"Result: {res[0]}")
             if res[0] and res[0].is_error:
                 print(f"Error message: {res[0].error_message}")
 

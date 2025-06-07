@@ -1,13 +1,12 @@
-#!/usr/bin/env python3
+import base64
+import io
 
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+from PIL import Image as PILImage
 
 from lm_deluge.image import Image
-import io
-from PIL import Image as PILImage
+
+PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/Ps4TAAAAAElFTkSuQmCC"
+PNG_BYTES = base64.b64decode(PNG_B64)
 
 
 def test_fingerprint_manual_caching():
@@ -49,5 +48,18 @@ def test_fingerprint_manual_caching():
     print("✓ Manual caching for fingerprint property works correctly")
 
 
+def test_mime_inferred():
+    img = Image(PNG_BYTES, media_type="image/png")
+    assert img._mime() == "image/png"
+
+
+def test_base64_header():
+    img = Image(PNG_BYTES, media_type="image/png")
+    encoded = img._base64()
+    assert encoded.startswith("data:image/png;base64,")
+
+
 if __name__ == "__main__":
+    test_mime_inferred()
+    test_base64_header()
     test_fingerprint_manual_caching()

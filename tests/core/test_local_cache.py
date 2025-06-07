@@ -17,8 +17,8 @@ def test_sqlite_cache():
         ["Hello there!"], show_progress=False
     )  # should print that it was a cache hit
     assert res1[0].completion == res2[0].completion, "completions don't match"  # type: ignore
-    assert res1[0].cache_hit is False, "res1 should not be a cache hit"  # type: ignore
-    assert res2[0].cache_hit, "res2 should be a cache hit"  # type: ignore
+    assert res1[0].local_cache_hit is False, "res1 should not be a cache hit"  # type: ignore
+    assert res2[0].local_cache_hit, "res2 should be a cache hit"  # type: ignore
 
 
 def test_dict_cache():
@@ -30,8 +30,8 @@ def test_dict_cache():
         ["Hello there!"], show_progress=False
     )  # should print that it was a cache hit
     assert res1[0].completion == res2[0].completion, "completions don't match"  # type: ignore
-    assert res1[0].cache_hit is False, "res1 should not be a cache hit"  # type: ignore
-    assert res2[0].cache_hit, "res2 should be a cache hit"  # type: ignore
+    assert res1[0].local_cache_hit is False, "res1 should not be a cache hit"  # type: ignore
+    assert res2[0].local_cache_hit, "res2 should be a cache hit"  # type: ignore
 
 
 def test_leveldb_cache():
@@ -46,11 +46,12 @@ def test_leveldb_cache():
         ["Hello there!"], show_progress=False
     )  # should print that it was a cache hit
     assert res1[0].completion == res2[0].completion, "completions don't match"  # type: ignore
-    assert res1[0].cache_hit is False, "res1 should not be a cache hit"  # type: ignore
-    assert res2[0].cache_hit, "res2 should be a cache hit"  # type: ignore
+    assert res1[0].local_cache_hit is False, "res1 should not be a cache hit"  # type: ignore
+    assert res2[0].local_cache_hit, "res2 should be a cache hit"  # type: ignore
 
 
 if __name__ == "__main__":
     test_sqlite_cache()
     test_dict_cache()
     test_leveldb_cache()
+    print("✅ All local cache tests passed!")

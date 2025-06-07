@@ -15,7 +15,7 @@ from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 from lm_deluge.usage import Usage
 
-from ..computer_use.anthropic_tools import get_anthropic_cu_tools
+from ..built_in_tools.anthropic import get_anthropic_cu_tools
 from ..config import SamplingParams
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse
@@ -39,7 +39,9 @@ def _build_anthropic_request(
     }
 
     # Add beta header for Computer Use
-    if computer_use:
+    if computer_use and "3.6" in model.id:
+        request_header["anthropic-beta"] = "computer-use-2024-10-22"
+    elif computer_use:
         request_header["anthropic-beta"] = "computer-use-2025-01-24"
 
     request_json = {

@@ -9,8 +9,9 @@ This test requires:
 Run with: python tests/test_real_caching.py
 """
 
-import os
 import asyncio
+import os
+
 from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, Message
 from lm_deluge.tool import Tool
@@ -288,7 +289,7 @@ async def test_real_caching_integration():
     print("📊 Cache efficiency:")
     print(f"   Tokens written to cache: {cache_write_first}")
     print(f"   Tokens read from cache: {cache_read_second}")
-    print(f"   Cache hit ratio: {cache_read_second/cache_write_first:.2%}")
+    print(f"   Cache hit ratio: {cache_read_second / cache_write_first:.2%}")
 
     # The cache read should be significant (at least 80% of what was written)
     assert (
@@ -301,5 +302,109 @@ async def test_real_caching_integration():
     )
 
 
+async def test_real_caching_bedrock_integration():
+    """Test real caching with Bedrock Anthropic models."""
+    # Check for AWS credentials
+    if not (os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY")):
+        print("Skipping real Bedrock caching test - AWS credentials not set")
+        print("Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables")
+        return
+
+    print("🧪 Running real Bedrock Anthropic caching integration test...")
+
+    # Create client with Bedrock model
+    client = LLMClient.basic("claude-3.7-sonnet-bedrock")
+
+    # Create long system message and tools to ensure we hit 1024+ tokens
+    system_msg = create_long_system_message()
+    tools = create_comprehensive_tools()
+
+    # Create initial conversation with system message
+    conv1 = Conversation.system(system_msg).add(
+        Message.user("What are the key principles of clean code architecture?")
+    )
+
+    print("📝 First request - should write to cache...")
+
+    # First request with caching enabled
+    results1 = await client.process_prompts_async(
+        [conv1], tools=tools, cache="system_and_tools", show_progress=False
+    )
+
+    result1 = results1[0]
+    assert result1 is not None, "First request failed"
+    assert not result1.is_error, f"First request error: {result1.error_message}"
+    assert result1.usage is not None, "No usage data in first result"
+
+    print("✅ First request completed:")
+    print(f"   Input tokens: {result1.usage.input_tokens}")
+    print(f"   Output tokens: {result1.usage.output_tokens}")
+    print(f"   Cache write tokens: {result1.usage.cache_write_tokens}")
+    print(f"   Cache read tokens: {result1.usage.cache_read_tokens}")
+
+    # Verify cache write occurred
+    assert result1.usage.has_cache_write, "First request should have written to cache"
+    assert (
+        result1.usage.cache_write_tokens and result1.usage.cache_write_tokens > 0
+    ), "Should have cache write tokens"
+
+    # Create follow-up conversation (continuing the conversation)
+    conv2 = (
+        Conversation.system(system_msg)
+        .add(Message.user("What are the key principles of clean code architecture?"))
+        .add(Message.ai(result1.completion or "Here are the key principles..."))
+        .add(
+            Message.user(
+                "Can you give me specific examples of how to implement these principles in Python?"
+            )
+        )
+    )
+
+    print("🔄 Second request - should read from cache...")
+
+    # Second request with same caching setup
+    results2 = await client.process_prompts_async(
+        [conv2], tools=tools, cache="system_and_tools", show_progress=False
+    )
+
+    result2 = results2[0]
+    assert result2 is not None, "Second request failed"
+    assert not result2.is_error, f"Second request error: {result2.error_message}"
+    assert result2.usage is not None, "No usage data in second result"
+
+    print("✅ Second request completed:")
+    print(f"   Input tokens: {result2.usage.input_tokens}")
+    print(f"   Output tokens: {result2.usage.output_tokens}")
+    print(f"   Cache write tokens: {result2.usage.cache_write_tokens}")
+    print(f"   Cache read tokens: {result2.usage.cache_read_tokens}")
+
+    # Verify cache read occurred
+    assert result2.usage.has_cache_hit, "Second request should have read from cache"
+    assert (
+        result2.usage.cache_read_tokens and result2.usage.cache_read_tokens > 0
+    ), "Should have cache read tokens"
+
+    # Verify the cache read tokens approximately match the cache write tokens from first request
+    # (allowing for small differences due to additional context)
+    cache_write_first = result1.usage.cache_write_tokens or 0
+    cache_read_second = result2.usage.cache_read_tokens or 0
+
+    print("📊 Cache efficiency:")
+    print(f"   Tokens written to cache: {cache_write_first}")
+    print(f"   Tokens read from cache: {cache_read_second}")
+    print(f"   Cache hit ratio: {cache_read_second / cache_write_first:.2%}")
+
+    # The cache read should be significant (at least 80% of what was written)
+    assert (
+        cache_read_second >= cache_write_first * 0.8
+    ), f"Cache read tokens ({cache_read_second}) should be close to cache write tokens ({cache_write_first})"
+
+    print("🎉 Real Bedrock caching integration test passed!")
+    print(
+        f"   Successfully cached {cache_write_first} tokens and retrieved {cache_read_second} tokens"
+    )
+
+
 if __name__ == "__main__":
     asyncio.run(test_real_caching_integration())
+    asyncio.run(test_real_caching_bedrock_integration())

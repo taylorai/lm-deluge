@@ -1,4 +1,6 @@
+from lm_deluge.config import SamplingParams
 from lm_deluge.prompt import Conversation, Message
+from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 
 
@@ -64,15 +66,18 @@ def test_tools_only_caching():
     )
 
     request = AnthropicRequest(
-        task_id=1,
-        model_name="claude-3.5-sonnet",
-        prompt=conv,
-        attempts_left=1,
-        status_tracker=status_tracker,
-        results_arr=[],
-        tools=[tool],
-        cache="tools_only",
-        all_model_names=["claude-3.5-sonnet"],
+        RequestContext(
+            task_id=1,
+            model_name="claude-3.5-sonnet",
+            sampling_params=SamplingParams(),
+            prompt=conv,
+            attempts_left=1,
+            status_tracker=status_tracker,
+            results_arr=[],
+            tools=[tool],
+            cache="tools_only",
+            all_model_names=["claude-3.5-sonnet"],
+        )
     )
 
     # Check that cache control was added to the last tool
@@ -119,9 +124,10 @@ def test_usage_tracking():
 
 def test_cache_warnings_non_anthropic():
     """Test that non-Anthropic models warn when cache is specified."""
+    import warnings
+
     from lm_deluge.api_requests.openai import OpenAIRequest
     from lm_deluge.tracker import StatusTracker
-    import warnings
 
     conv = Conversation.user("Hello")
     status_tracker = StatusTracker(
@@ -134,14 +140,17 @@ def test_cache_warnings_non_anthropic():
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         request = OpenAIRequest(
-            task_id=1,
-            model_name="gpt-4-turbo",
-            prompt=conv,
-            attempts_left=1,
-            status_tracker=status_tracker,
-            results_arr=[],
-            cache="system_and_tools",
-            all_model_names=["gpt-4-turbo"],
+            RequestContext(
+                task_id=1,
+                model_name="gpt-4-turbo",
+                prompt=conv,
+                sampling_params=SamplingParams(),
+                attempts_left=1,
+                status_tracker=status_tracker,
+                results_arr=[],
+                cache="system_and_tools",
+                all_model_names=["gpt-4-turbo"],
+            )
         )
         assert request
 
@@ -152,10 +161,10 @@ def test_cache_warnings_non_anthropic():
 def test_bedrock_caching():
     """Test that Bedrock Anthropic models support prompt caching."""
     from lm_deluge.api_requests.bedrock import BedrockRequest
-    from lm_deluge.tracker import StatusTracker
-    from lm_deluge.tool import Tool
-    from lm_deluge.request_context import RequestContext
     from lm_deluge.config import SamplingParams
+    from lm_deluge.request_context import RequestContext
+    from lm_deluge.tool import Tool
+    from lm_deluge.tracker import StatusTracker
 
     # Create a conversation with system message and user message
     conv = Conversation.system("You are a helpful assistant.").add(
@@ -266,4 +275,4 @@ if __name__ == "__main__":
     test_bedrock_caching()
     test_image_locking()
     test_no_cache_control_without_cache()
-    print("All prompt caching tests passed!")
+    print("✅ All prompt caching tests passed!")
