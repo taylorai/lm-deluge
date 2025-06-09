@@ -30,16 +30,9 @@ class RequestContext:
     )
     callback: Callable | None = None
 
-    # Model fallback configuration
-    all_model_names: list[str] | None = None
-    all_sampling_params: list[SamplingParams] | None = None
-
     # Optional features
     tools: list | None = None
     cache: CachePattern | None = None
-    computer_use: bool = False
-    display_width: int = 1024
-    display_height: int = 768
     use_responses_api: bool = False
 
     # Computed properties
@@ -52,10 +45,6 @@ class RequestContext:
 
         # Compute token count
         self.num_tokens = self.prompt.count_tokens(self.sampling_params.max_new_tokens)
-
-        # Validate required fields
-        if self.all_model_names is None:
-            self.all_model_names = [self.model_name]
 
     def maybe_callback(self, response, tracker):
         if not self.callback:
@@ -75,13 +64,8 @@ class RequestContext:
             "status_tracker": self.status_tracker,
             "results_arr": self.results_arr,
             "callback": self.callback,
-            "all_model_names": self.all_model_names,
-            "all_sampling_params": self.all_sampling_params,
             "tools": self.tools,
             "cache": self.cache,
-            "computer_use": self.computer_use,
-            "display_width": self.display_width,
-            "display_height": self.display_height,
             "use_responses_api": self.use_responses_api,
         }
 

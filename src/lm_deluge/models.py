@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import random
 from dataclasses import dataclass, field
 
 from .request_context import RequestContext
 
-registry = {
+BUILTIN_MODELS = {
     # `7MMM.     ,MMF'         mm
     #   MMMb    dPMM           MM
     #   M YM   ,M MM  .gP"Ya mmMMmm  ,6"Yb.
@@ -245,7 +247,7 @@ registry = {
         "supports_json": True,
         "supports_logprobs": False,
         "supports_responses": True,
-        "api_spec": "openai-responses",
+        "api_spec": "openai",
         "input_cost": 2.0,
         "output_cost": 8.0,
         "requests_per_minute": 20,
@@ -1196,6 +1198,8 @@ class APIModel:
         if name not in registry:
             raise ValueError(f"Model {name} not found in registry")
         cfg = registry[name]
+        if isinstance(cfg, APIModel):
+            return cfg
         return cls(**cfg)
 
     def sample_region(self):
@@ -1224,3 +1228,18 @@ class APIModel:
         if request_class is None:
             raise ValueError(f"Unsupported API spec: {api_spec}")
         return request_class(context=context)
+
+
+registry: dict[str, APIModel] = {}
+
+
+def register_model(**kwargs) -> APIModel:
+    """Register a model configuration and return the created APIModel."""
+    model = APIModel(**kwargs)
+    registry[model.id] = model
+    return model
+
+
+# Populate registry with builtin models
+for cfg in BUILTIN_MODELS.values():
+    register_model(**cfg)

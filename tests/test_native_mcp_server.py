@@ -4,23 +4,29 @@ import asyncio
 import os
 
 from lm_deluge import LLMClient
-from lm_deluge.built_in_tools.openai import image_generation_openai
+from lm_deluge.tool import MCPServer
 
 
-async def test_openai_image_gen():
+async def test_native_mcp_anthropic():
     """Test basic text generation with OpenAI Responses API"""
-    if not os.getenv("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY not set, skipping test")
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        print("ANTHROPIC_API_KEY not set, skipping test")
         return
 
     # Test with a regular GPT model using responses API
     try:
         # Use a model with responses API enabled
-        client = LLMClient("gpt-4.1-mini", request_timeout=75)
+        client = LLMClient("claude-3.5-haiku", request_timeout=75)
         results = await client.process_prompts_async(
-            prompts=["Make an image of a cat"],
-            use_responses_api=True,  # Enable responses API
-            tools=[image_generation_openai()],
+            prompts=[
+                "What tools do you have access to? Use one and show me what happens."
+            ],
+            tools=[
+                MCPServer(
+                    name="exa",
+                    url=f"https://mcp.exa.ai/mcp?exaApiKey={os.getenv('EXA_API_KEY')}",
+                )
+            ],
         )
         print("got results")
 
@@ -33,9 +39,11 @@ async def test_openai_image_gen():
                 return False
 
             print(f"Parts: {len(result.content.parts)}")
-            print("✓ Image Generation test passed")
+            for part in result.content.parts:
+                print(part)
+            print("✓ MCP test passed")
 
-            # print(result.raw_response)
+            print(result.raw_response)
 
             # with open("raw_response.json", "w") as f:
             #     f.write(json.dumps(result.raw_response, indent=4))
@@ -47,10 +55,10 @@ async def test_openai_image_gen():
 
 
 async def main():
-    print("Testing OpenAI Image Gen...")
+    print("Testing MCPServer support...")
 
     # Test model registration first
-    success1 = await test_openai_image_gen()
+    success1 = await test_native_mcp_anthropic()
     assert success1
 
 

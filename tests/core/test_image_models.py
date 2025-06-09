@@ -55,7 +55,10 @@ async def main():
             ],
             show_progress=False,
         )
-        print(f"\n=== {model} === \n\n{res[0].completion}\n")  # type: ignore
+        assert res
+
+        # print(f"\n=== {model} === \n\n{res[0].completion}\n")  # type: ignore
+        print(f"✅ Got image response from {model}")
 
 
 if __name__ == "__main__":

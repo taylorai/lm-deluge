@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
-import os
 import asyncio
 import base64
+import os
+
 from lm_deluge import LLMClient
-from lm_deluge.prompt import Conversation, Message, Text, ToolResult, ToolCall
+from lm_deluge.built_in_tools.openai import computer_use_openai
+from lm_deluge.models import APIModel
+from lm_deluge.prompt import Conversation, Message, Text, ToolCall, ToolResult
 
 
 async def test_openai_responses_basic():
@@ -51,14 +54,8 @@ async def test_openai_responses_basic():
 async def test_openai_computer_use_model():
     """Test that computer use model is registered correctly"""
     try:
-        from lm_deluge.models import APIModel
-
         # Test that the computer use model is properly registered
         model = APIModel.from_registry("openai-computer-use-preview")
-
-        assert (
-            model.api_spec == "openai-responses"
-        ), f"Expected openai-responses, got {model.api_spec}"
         assert (
             model.name == "computer-use-preview"
         ), f"Unexpected model name: {model.name}"
@@ -82,18 +79,17 @@ async def test_openai_computer_use_validation():
 
         results = await client.process_prompts_async(
             prompts=["Take a screenshot"],
-            computer_use=True,  # This should fail with gpt-4.1
+            tools=[computer_use_openai()],
             use_responses_api=True,
         )
 
         if results and len(results) > 0:
             result = results[0]
             if result and result.is_error:
-                if (
-                    "Computer use is only supported with openai-computer-use-preview"
-                    in str(result.error_message)
-                ):
-                    print("✓ Computer use validation test passed")
+                if "does not support computer use" in str(result.error_message):
+                    print(
+                        "✓ Computer use validation test passed (above failure is expected!)"
+                    )
                     return True
                 else:
                     print(f"✗ Unexpected error: {result.error_message}")
@@ -120,14 +116,10 @@ async def test_openai_computer_use_basic():
         # Test with computer use model
         client = LLMClient.basic("openai-computer-use-preview")
 
-        # Note: This test will likely fail without proper environment setup,
-        # but it should at least validate the request format
         results = await client.process_prompts_async(
             prompts=["Take a screenshot of the current screen"],
-            computer_use=True,
+            tools=[computer_use_openai()],
             use_responses_api=True,  # Required for computer use
-            display_width=1024,
-            display_height=768,
         )
 
         if results and len(results) > 0:
@@ -191,10 +183,8 @@ async def test_openai_computer_use_loop():
 
         results = await client.process_prompts_async(
             prompts=[conversation],
-            computer_use=True,
+            tools=[computer_use_openai()],
             use_responses_api=True,
-            display_width=1024,
-            display_height=768,
         )
 
         if not results or results[0] is None:
@@ -247,10 +237,8 @@ async def test_openai_computer_use_loop():
 
         results2 = await client.process_prompts_async(
             prompts=[conversation2],
-            computer_use=True,
+            tools=[computer_use_openai()],
             use_responses_api=True,
-            display_width=1024,
-            display_height=768,
         )
 
         if results2 and results2[0]:

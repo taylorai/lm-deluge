@@ -16,32 +16,31 @@ async def test_retry_fix():
     client = LLMClient.basic("gpt-4o-mini")
     client.max_attempts = 3  # Limit attempts for faster test
 
-    # original_call_api = None
+    call_count = 0
 
-    # Mock the API call to always timeout
-    async def mock_failing_call_api(self):
-        print(
-            f"Mock API call for task {self.task_id}, attempts_left: {self.attempts_left}"
-        )
+    # Mock execute_once to always return a timeout error
+    async def mock_failing_execute_once(self):
+        nonlocal call_count
+        call_count += 1
+        print(f"Mock execute_once call #{call_count} for task {self.context.task_id}")
+
         # Simulate timeout error
-        self.result.append(
-            APIResponse(
-                id=self.task_id,
-                model_internal=self.model_name,
-                prompt=self.prompt,
-                sampling_params=self.sampling_params,
-                status_code=None,
-                is_error=True,
-                error_message="Request timed out (terminated by client).",
-                content=None,
-                usage=None,
-            )
+        return APIResponse(
+            id=self.context.task_id,
+            model_internal=self.context.model_name,
+            prompt=self.context.prompt,
+            sampling_params=self.context.sampling_params,
+            status_code=None,
+            is_error=True,
+            error_message="Request timed out (terminated by client).",
+            content=None,
+            usage=None,
         )
-        self.handle_error(create_new_request=False)
 
-    # Patch the call_api method for all request types
+    # Patch the execute_once method for all request types
     with patch(
-        "lm_deluge.api_requests.openai.OpenAIRequest.call_api", mock_failing_call_api
+        "lm_deluge.api_requests.openai.OpenAIRequest.execute_once",
+        mock_failing_execute_once,
     ):
         try:
             res = await client.process_prompts_async(
@@ -55,7 +54,7 @@ async def test_retry_fix():
 
             # If we get here, the loop exited properly
             print("✓ Test passed: Loop exited after max attempts")
-            # print(f"Result: {res[0]}")
+            print(f"Total API calls made: {call_count}")
             if res[0] and res[0].is_error:
                 print(f"Error message: {res[0].error_message}")
 

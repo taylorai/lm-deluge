@@ -218,7 +218,7 @@ async def submit_batches_anthropic(
     batch_tasks = []
     async with aiohttp.ClientSession() as session:
         for batch in batches:
-            url = f"{registry[model]['api_base']}/messages/batches"
+            url = f"{registry[model].api_base}/messages/batches"
             data = {"requests": batch}
 
             async def submit_batch(data, url, headers):

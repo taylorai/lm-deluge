@@ -117,11 +117,6 @@ async def test_process_single_request_retry():
         sampling_params=SamplingParams(max_new_tokens=10),
         attempts_left=2,
         status_tracker=tracker,
-        all_model_names=["gpt-4o-mini", "gpt-4.1-mini"],
-        all_sampling_params=[
-            SamplingParams(max_new_tokens=10),
-            SamplingParams(max_new_tokens=10),
-        ],
     )
 
     response = await client.process_single_request(context)

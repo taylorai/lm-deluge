@@ -99,8 +99,6 @@ def test_api_request_uses_sampling_params_logprobs():
             status_tracker=status_tracker,
             results_arr=results_arr,
             sampling_params=sampling_params,
-            all_model_names=["gpt-4o-mini"],
-            all_sampling_params=[sampling_params],
         )
     )
 

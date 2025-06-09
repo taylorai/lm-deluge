@@ -19,8 +19,8 @@ def model_to_version(model: str) -> ToolVersion:
 
 def get_anthropic_cu_tools(
     model: str,
-    display_width: int,
-    display_height: int,
+    display_width: int = 1024,
+    display_height: int = 768,
     exclude_tools: list[ToolType] | None = None,
 ):
     version = model_to_version(model)

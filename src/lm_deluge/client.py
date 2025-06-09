@@ -14,7 +14,7 @@ from lm_deluge.batches import (
     wait_for_batch_completion_async,
 )
 from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
-from lm_deluge.tool import Tool
+from lm_deluge.tool import MCPServer, Tool
 
 from .api_requests.base import APIResponse
 from .config import SamplingParams
@@ -136,9 +136,7 @@ class LLMClient(BaseModel):
                     print(
                         "WARNING: using top_logprobs can result in very large outputs. consider limiting max_new_tokens."
                     )
-            if not all(
-                registry[model].get("supports_logprobs") for model in self.models
-            ):
+            if not all(registry[model].supports_logprobs for model in self.models):
                 raise ValueError(
                     "logprobs can only be enabled if all models support it."
                 )
@@ -286,11 +284,8 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
-        tools: list[Tool | dict] | None = ...,
+        tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
-        computer_use: bool = ...,
-        display_width: int = ...,
-        display_height: int = ...,
         use_responses_api: bool = ...,
     ) -> list[str | None]: ...
 
@@ -301,11 +296,8 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
-        tools: list[Tool | dict] | None = ...,
+        tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
-        computer_use: bool = ...,
-        display_width: int = ...,
-        display_height: int = ...,
         use_responses_api: bool = ...,
     ) -> list[APIResponse | None]: ...
 
@@ -315,11 +307,8 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress: bool = True,
-        tools: list[Tool | dict] | None = None,
+        tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
-        computer_use: bool = False,
-        display_width: int = 1024,
-        display_height: int = 768,
         use_responses_api: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
         # Convert prompts to Conversations - no upfront cache checking for dynamic caching!
@@ -372,13 +361,8 @@ class LLMClient(BaseModel):
                             attempts_left=self.max_attempts,
                             request_timeout=self.request_timeout,
                             status_tracker=tracker,
-                            all_model_names=self.models,
-                            all_sampling_params=self.sampling_params,
                             tools=tools,
                             cache=cache,
-                            computer_use=computer_use,
-                            display_width=display_width,
-                            display_height=display_height,
                             use_responses_api=use_responses_api,
                         )
                     except StopIteration:
@@ -446,7 +430,7 @@ class LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress=True,
-        tools: list[Tool | dict] | None = None,
+        tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
     ):
         return asyncio.run(
@@ -460,7 +444,9 @@ class LLMClient(BaseModel):
         )
 
     async def stream(
-        self, prompt: str | Conversation, tools: list[Tool | dict] | None = None
+        self,
+        prompt: str | Conversation,
+        tools: list[Tool | dict | MCPServer] | None = None,
     ):
         model, sampling_params = self._select_model()
         if isinstance(prompt, str):
@@ -494,7 +480,7 @@ class LLMClient(BaseModel):
         if len(self.models) != 1:
             raise ValueError("Batch jobs can only be submitted with a single model.")
         model = self.models[0]
-        api_spec = registry[model].get("api_spec", None)
+        api_spec = registry[model].api_spec
 
         if api_spec == "openai":
             return await submit_batches_oa(model, self.sampling_params[0], prompts)

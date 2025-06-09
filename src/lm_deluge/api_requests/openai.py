@@ -5,9 +5,8 @@ import warnings
 import aiohttp
 from aiohttp import ClientResponse
 
-from lm_deluge.built_in_tools.openai import computer_use_openai
 from lm_deluge.request_context import RequestContext
-from lm_deluge.tool import Tool
+from lm_deluge.tool import MCPServer, Tool
 
 from ..config import SamplingParams
 from ..models import APIModel
@@ -51,6 +50,15 @@ def _build_oa_chat_request(
     if tools:
         request_json["tools"] = [tool.dump_for("openai-completions") for tool in tools]
     return request_json
+
+
+def _build_oa_responses_request(
+    model: APIModel,
+    prompt: Conversation,
+    tools: list[Tool] | None,
+    sampling_params: SamplingParams,
+):
+    pass  # TODO: implement
 
 
 class OpenAIRequest(APIRequestBase):
@@ -176,16 +184,6 @@ class OpenAIRequest(APIRequestBase):
 class OpenAIResponsesRequest(APIRequestBase):
     def __init__(self, context: RequestContext):
         super().__init__(context)
-
-        # Validate computer use requirements
-        if (
-            self.context.computer_use
-            and self.context.model_name != "openai-computer-use-preview"
-        ):
-            raise ValueError(
-                f"Computer use is only supported with openai-computer-use-preview model, got {self.context.model_name}"
-            )
-
         # Warn if cache is specified for non-Anthropic model
         if self.context.cache is not None:
             warnings.warn(
@@ -239,24 +237,23 @@ class OpenAIResponsesRequest(APIRequestBase):
 
         # Handle tools
         request_tools = []
-        if self.context.computer_use:
-            # Add computer use tool
-            request_tools.append(
-                computer_use_openai(
-                    display_width=self.context.display_width,
-                    display_height=self.context.display_height,
-                )
-            )
-            # Set truncation to auto as required for computer use
-            self.request_json["truncation"] = "auto"
-
         if self.context.tools:
             # Add regular function tools
             for tool in self.context.tools:
                 if isinstance(tool, Tool):
                     request_tools.append(tool.dump_for("openai-responses"))
                 elif isinstance(tool, dict):
+                    # if computer use, make sure model supports it
+                    if tool["type"] == "computer_use_preview":
+                        if self.context.model_name != "openai-computer-use-preview":
+                            raise ValueError(
+                                f"model {self.context.model_name} does not support computer use"
+                            )
+                        # have to use truncation
+                        self.request_json["truncation"] = "auto"
                     request_tools.append(tool)  # allow passing dict
+                elif isinstance(tool, MCPServer):
+                    request_tools.append(tool.for_openai_responses())
 
         if request_tools:
             self.request_json["tools"] = request_tools
@@ -300,26 +297,83 @@ class OpenAIResponsesRequest(APIRequestBase):
                                 for content_item in message_content:
                                     if content_item.get("type") == "output_text":
                                         parts.append(Text(content_item["text"]))
-                                    # Handle tool calls if present
-                                    elif content_item.get("type") == "tool_call":
-                                        tool_call = content_item["tool_call"]
-                                        parts.append(
-                                            ToolCall(
-                                                id=tool_call["id"],
-                                                name=tool_call["function"]["name"],
-                                                arguments=json.loads(
-                                                    tool_call["function"]["arguments"]
-                                                ),
-                                            )
-                                        )
-                            elif item.get("type") == "computer_call":
-                                # Handle computer use actions
-                                action = item.get("action", {})
+                                    elif content_item.get("type") == "refusal":
+                                        parts.append(Text(content_item["refusal"]))
+                            elif item.get("type") == "reasoning":
+                                parts.append(Thinking(item["summary"]["text"]))
+                            elif item.get("type") == "function_call":
                                 parts.append(
                                     ToolCall(
                                         id=item["call_id"],
-                                        name=f"_computer_{action.get('type', 'action')}",
-                                        arguments=action,
+                                        name=item["name"],
+                                        arguments=json.loads(item["arguments"]),
+                                    )
+                                )
+                            elif item.get("type") == "mcp_call":
+                                parts.append(
+                                    ToolCall(
+                                        id=item["id"],
+                                        name=item["name"],
+                                        arguments=json.loads(item["arguments"]),
+                                        built_in=True,
+                                        built_in_type="mcp_call",
+                                        extra_body={
+                                            "server_label": item["server_label"],
+                                            "error": item.get("error"),
+                                            "output": item.get("output"),
+                                        },
+                                    )
+                                )
+
+                            elif item.get("type") == "computer_call":
+                                parts.append(
+                                    ToolCall(
+                                        id=item["call_id"],
+                                        name="computer_call",
+                                        arguments=item.get("action"),
+                                        built_in=True,
+                                        built_in_type="computer_call",
+                                    )
+                                )
+
+                            elif item.get("type") == "web_search_call":
+                                parts.append(
+                                    ToolCall(
+                                        id=item["id"],
+                                        name="web_search_call",
+                                        arguments={},
+                                        built_in=True,
+                                        built_in_type="web_search_call",
+                                        extra_body={"status": item["status"]},
+                                    )
+                                )
+
+                            elif item.get("type") == "file_search_call":
+                                parts.append(
+                                    ToolCall(
+                                        id=item["id"],
+                                        name="file_search_call",
+                                        arguments={"queries": item["queries"]},
+                                        built_in=True,
+                                        built_in_type="file_search_call",
+                                        extra_body={
+                                            "status": item["status"],
+                                            "results": item["results"],
+                                        },
+                                    )
+                                )
+                            elif item.get("type") == "image_generation_call":
+                                parts.append(
+                                    ToolCall(
+                                        id=item["id"],
+                                        name="image_generation_call",
+                                        arguments={},
+                                        built_in=True,
+                                        built_in_type="image_generation_call",
+                                        extra_body={
+                                            "status": item["status"],
+                                            "result": item["result"],
+                                        },
                                     )
                                 )
 
@@ -333,9 +387,6 @@ class OpenAIResponsesRequest(APIRequestBase):
                         # Extract usage information
                         if "usage" in data:
                             usage = Usage.from_openai_usage(data["usage"])
-
-                        # Extract response_id for computer use continuation
-                        # response_id = data.get("id")
 
                 except Exception as e:
                     is_error = True

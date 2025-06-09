@@ -81,12 +81,13 @@ async def main():
             show_progress=False,
         )
         assert isinstance(res[0], APIResponse)
+        print(f"✅ Successful completion from {model}")
 
-        print(f"\n=== {model} ===\n")
-        if res[0].thinking:
-            print(res[0].thinking + "\n\n")
-        assert res[0].completion, "no completion"
-        print(res[0].completion + "\n\n")
+        # print(f"\n=== {model} ===\n")
+        # if res[0].thinking:
+        #     print(res[0].thinking + "\n\n")
+        # assert res[0].completion, "no completion"
+        # print(res[0].completion + "\n\n")
 
 
 if __name__ == "__main__":

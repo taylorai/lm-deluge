@@ -76,7 +76,6 @@ def test_tools_only_caching():
             results_arr=[],
             tools=[tool],
             cache="tools_only",
-            all_model_names=["claude-3.5-sonnet"],
         )
     )
 
@@ -149,7 +148,6 @@ def test_cache_warnings_non_anthropic():
                 status_tracker=status_tracker,
                 results_arr=[],
                 cache="system_and_tools",
-                all_model_names=["gpt-4-turbo"],
             )
         )
         assert request
@@ -194,7 +192,6 @@ def test_bedrock_caching():
         status_tracker=status_tracker,
         results_arr=[],
         cache="system_and_tools",
-        all_model_names=["claude-3.5-sonnet-bedrock"],
     )
     request = BedrockRequest(context=context1)
 
@@ -216,7 +213,6 @@ def test_bedrock_caching():
         results_arr=[],
         tools=[tool],
         cache="tools_only",
-        all_model_names=["claude-3.5-sonnet-bedrock"],
     )
     request = BedrockRequest(context=context2)
 

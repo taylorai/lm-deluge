@@ -309,3 +309,60 @@ class Tool(BaseModel):
         if provider == "google":
             return self.for_google()
         raise ValueError(provider)
+
+
+class MCPServer(BaseModel):
+    """
+    Allow MCPServers to be passed directly, if provider supports it.
+    Provider can directly call MCP instead of handling it client-side.
+    Should work with Anthropic MCP connector and OpenAI responses API.
+    """
+
+    name: str
+    url: str
+    # anthropic-specific
+    token: str | None = None
+    configuration: dict | None = None
+    # openai-specific
+    headers: dict | None = None
+
+    def for_openai_responses(self):
+        # return {
+        #     "type": "mcp",
+        #     "server_label": "deepwiki",
+        #     "server_url": "https://mcp.deepwiki.com/mcp",
+        #     "require_approval": "never",
+        # }
+        res: dict[str, Any] = {
+            "type": "mcp",
+            "server_label": self.name,
+            "server_url": self.url,
+            "require_approval": "never",
+        }
+        if self.headers:
+            res["headers"] = self.headers
+
+        return res
+
+    def for_anthropic(self):
+        # return {
+        #   "type": "url",
+        #   "url": "https://example-server.modelcontextprotocol.io/sse",
+        #   "name": "example-mcp",
+        #   "tool_configuration": {
+        #     "enabled": true,
+        #     "allowed_tools": ["example_tool_1", "example_tool_2"]
+        #   },
+        #   "authorization_token": "YOUR_TOKEN"
+        # }
+        res: dict[str, Any] = {
+            "type": "url",
+            "url": self.url,
+            "name": self.name,
+        }
+        if self.token:
+            res["authorization_token"] = self.token
+        if self.configuration:
+            res["tool_configuration"] = self.configuration
+
+        return res

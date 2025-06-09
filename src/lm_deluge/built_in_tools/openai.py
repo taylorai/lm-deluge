@@ -9,6 +9,10 @@ def code_interpreter_openai(container: dict | None = None):
     return {"type": "code_interpreter", "container": container}
 
 
+def local_shell_openai():
+    return {"type": "local_shell"}
+
+
 def web_search_openai():
     return {"type": "web_search_preview"}
 

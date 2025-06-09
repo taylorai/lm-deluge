@@ -56,6 +56,10 @@ class ToolCall:
     name: str  # function name
     arguments: dict  # parsed arguments
     type: str = field(init=False, default="tool_call")
+    # built-in tool handling
+    built_in: bool = False
+    built_in_type: str | None = None
+    extra_body: dict | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -101,10 +105,13 @@ class ToolCall:
 @dataclass(slots=True)
 class ToolResult:
     tool_call_id: str  # references the ToolCall.id
-    result: (
-        str | dict | list[dict]
-    )  # tool execution result - can be string or list for images
+    # tool execution result - can be string or list for images
+    result: str | dict | list[dict]
     type: str = field(init=False, default="tool_result")
+    # NEW! instead of specific carve-out for computer use,
+    # need to handle all built-ins for OpenAI
+    built_in: bool = False
+    built_in_type: str | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -125,35 +132,41 @@ class ToolResult:
         return {"tool_call_id": self.tool_call_id, "content": content}
 
     def oa_resp(self) -> dict:  # OpenAI Responses
-        # Check if this is a computer use output (special case)
-        if isinstance(self.result, dict) and self.result.get("_computer_use_output"):
-            # This is a computer use output, emit it properly
-            output_data = self.result.copy()
-            output_data.pop("_computer_use_output")  # Remove marker
-
-            result = {
-                "type": "computer_call_output",
+        # if normal (not built-in just return the regular output
+        if not self.built_in:
+            result = (
+                json.dumps(self.result)
+                if isinstance(self.result, list)
+                else self.result
+            )
+            return {
+                "type": "function_result",
                 "call_id": self.tool_call_id,
-                "output": output_data.get("output", {}),
+                "result": result,
             }
 
-            # Add acknowledged safety checks if present
-            if "acknowledged_safety_checks" in output_data:
-                result["acknowledged_safety_checks"] = output_data[
-                    "acknowledged_safety_checks"
-                ]
+        # if it's a built-in, OpenAI expects special type for each
+        else:
+            assert isinstance(self.result, dict)
+            output_data = self.result.copy()
+            result = {
+                "type": self.built_in_type,
+                "call_id": self.tool_call_id,
+            }
+            if self.built_in_type == "computer_call":
+                result["output"] = output_data.get("output", {})
+                if "acknowledged_safety_checks" in output_data:
+                    result["acknowledged_safety_checks"] = output_data[
+                        "acknowledged_safety_checks"
+                    ]
+            elif self.built_in_type == "image_generation_call":
+                raise NotImplementedError(
+                    "implement image generation call handling in tool result"
+                )
+            elif self.built_in_type == "web_search_call":
+                pass
 
             return result
-
-        # Regular function result
-        result = (
-            json.dumps(self.result) if isinstance(self.result, list) else self.result
-        )
-        return {
-            "type": "function_result",
-            "call_id": self.tool_call_id,
-            "result": result,
-        }
 
     def anthropic(self) -> dict:  # Anthropic Messages
         return {
@@ -182,6 +195,8 @@ class ToolResult:
 class Thinking:
     content: str  # reasoning content (o1, Claude thinking, etc.)
     type: str = field(init=False, default="thinking")
+    # for openai - to keep conversation chain
+    raw_payload: dict | None = None
 
     @property
     def fingerprint(self) -> str:

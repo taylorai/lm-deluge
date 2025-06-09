@@ -1,9 +1,12 @@
+import asyncio
 import io
 import json
-from ..prompt import Conversation
-import asyncio
-from ..client import LLMClient
 from typing import Any
+
+from lm_deluge.file import File
+
+from ..client import LLMClient
+from ..prompt import Conversation
 from ..util.json import load_json
 
 try:
@@ -62,6 +65,15 @@ async def extract_async(
         + 'like `{"error": "The document is not relevant to the schema."}`.'
     )
 
+    file_prompt = (
+        f"Given the attached {document_name} file, extract the {object_name}information "
+        + "from it according to the following JSON schema:\n\n```json\n"
+        + json.dumps(schema_dict, indent=2)
+        + "Return the extracted information as JSON, no explanation required. "
+        + f"If the {document_name} seems to be totally irrelevant to the schema (not just incomplete), you may return a JSON object "
+        + 'like `{"error": "The document is not relevant to the schema."}`.'
+    )
+
     prompts = []
     for input in inputs:
         if isinstance(input, str):
@@ -74,8 +86,15 @@ async def extract_async(
             prompts.append(
                 Conversation.user(text=image_only_prompt, image=buffer.getvalue())
             )
+        elif isinstance(input, File):
+            data = input.data
+            if isinstance(data, io.BytesIO):
+                data = data.getvalue()
+            prompts.append(Conversation.user(text=file_prompt, file=data))
         else:
-            raise ValueError("inputs must be a list of strings or PIL images.")
+            raise ValueError(
+                "inputs must be a list of strings or PIL images or a File object."
+            )
 
     if return_prompts:
         return prompts

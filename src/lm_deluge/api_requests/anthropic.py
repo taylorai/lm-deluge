@@ -12,24 +12,28 @@ from lm_deluge.prompt import (
     ToolCall,
 )
 from lm_deluge.request_context import RequestContext
-from lm_deluge.tool import Tool
+from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
-from ..built_in_tools.anthropic import get_anthropic_cu_tools
 from ..config import SamplingParams
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse
 
 
+def _add_beta(headers: dict, beta: str):
+    if "anthropic-beta" in headers and headers["anthropic-beta"]:
+        if beta not in headers["anthropic-beta"]:
+            headers["anthropic-beta"] += f",{beta}"
+    else:
+        headers["anthropic-beta"] = beta
+
+
 def _build_anthropic_request(
     model: APIModel,
     prompt: Conversation,
-    tools: list[Tool] | None,
+    tools: list[Tool | dict | MCPServer] | None,
     sampling_params: SamplingParams,
     cache_pattern: CachePattern | None = None,
-    computer_use: bool = False,
-    display_width: int = 1024,
-    display_height: int = 768,
 ):
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
     request_header = {
@@ -37,12 +41,6 @@ def _build_anthropic_request(
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }
-
-    # Add beta header for Computer Use
-    if computer_use and "3.6" in model.id:
-        request_header["anthropic-beta"] = "computer-use-2024-10-22"
-    elif computer_use:
-        request_header["anthropic-beta"] = "computer-use-2025-01-24"
 
     request_json = {
         "model": model.name,
@@ -71,24 +69,36 @@ def _build_anthropic_request(
             print("ignoring reasoning_effort for non-reasoning model")
     if system_message is not None:
         request_json["system"] = system_message
-    if tools or computer_use:
+    if tools:
+        mcp_servers = []
         tool_definitions = []
-        if tools:
-            tool_definitions.extend([tool.dump_for("anthropic") for tool in tools])
-        # Add Computer Use tools
-        if computer_use:
-            cu_tools = get_anthropic_cu_tools(
-                model=model.id,
-                display_width=display_width,  # todo: set from ComputerUseParams
-                display_height=display_height,
-            )
-            tool_definitions.extend(cu_tools)
+        for tool in tools:
+            if isinstance(tool, Tool):
+                tool_definitions.append(tool.dump_for("anthropic"))
+            elif isinstance(tool, dict):
+                tool_definitions.append(tool)
+                # add betas if needed
+                if tool["type"] in [
+                    "computer_20241022",
+                    "text_editor_20241022",
+                    "bash_20241022",
+                ]:
+                    _add_beta(request_header, "computer-use-2024-10-22")
+                elif tool["type"] == "computer_20250124":
+                    _add_beta(request_header, "computer-use-2025-01-24")
+                elif tool["type"] == "code_execution_20250522":
+                    _add_beta(request_header, "code-execution-2025-05-22")
+            elif isinstance(tool, MCPServer):
+                _add_beta(request_header, "mcp-client-2025-04-04")
+                mcp_servers.append(tool.for_anthropic())
 
         # Add cache control to last tool if tools_only caching is specified
         if cache_pattern == "tools_only" and tool_definitions:
             tool_definitions[-1]["cache_control"] = {"type": "ephemeral"}
 
         request_json["tools"] = tool_definitions
+        if len(mcp_servers) > 0:
+            request_json["mcp_servers"] = mcp_servers
 
     return request_json, request_header
 
@@ -110,12 +120,10 @@ class AnthropicRequest(APIRequestBase):
             self.context.tools,
             self.context.sampling_params,
             self.context.cache,
-            self.context.computer_use,
-            self.context.display_width,
-            self.context.display_height,
         )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
+        data = None
         is_error = False
         error_message = None
         thinking = None
@@ -196,4 +204,5 @@ class AnthropicRequest(APIRequestBase):
             model_internal=self.context.model_name,
             sampling_params=self.context.sampling_params,
             usage=usage,
+            raw_response=data,
         )
