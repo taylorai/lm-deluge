@@ -184,6 +184,16 @@ for tool_call in resps[0].tool_calls:
     # this is dumb sorry will make it better
     tool_to_call = [x for x in tools if x.name == tool_call.name][0]
     tool_to_call.call(**tool_call.arguments) # in async code, use .acall()
+
+# or use the built-in agent loop to handle this automatically
+import asyncio
+
+async def main():
+    conv = Conversation.user("List the files in the current directory")
+    conv, resp = await client.run_agent_loop(conv, tools=tools)
+    print(resp.content.completion)
+
+asyncio.run(main())
 ```
 
 ### Prompt Caching (Anthropic)

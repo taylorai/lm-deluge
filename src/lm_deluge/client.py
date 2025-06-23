@@ -458,6 +458,91 @@ class LLMClient(BaseModel):
                 # final item
                 return item
 
+    async def run_agent_loop(
+        self,
+        conversation: str | Conversation,
+        *,
+        tools: list[Tool | dict | MCPServer] | None = None,
+        max_rounds: int = 5,
+        show_progress: bool = False,
+    ) -> tuple[Conversation, APIResponse]:
+        """Run a simple agent loop until no more tool calls are returned.
+
+        The provided ``conversation`` will be mutated and returned alongside the
+        final ``APIResponse`` from the model. ``tools`` may include ``Tool``
+        instances, built‑in tool dictionaries or ``MCPServer`` objects. Only
+        ``Tool`` objects are executed locally—built‑ins are handled by the
+        provider.
+        """
+
+        if isinstance(conversation, str):
+            conversation = Conversation.user(conversation)
+
+        last_response: APIResponse | None = None
+
+        for _ in range(max_rounds):
+            responses = await self.process_prompts_async(
+                [conversation],
+                tools=tools,
+                return_completions_only=False,
+                show_progress=show_progress,
+            )
+
+            last_response = responses[0]
+            if last_response is None or last_response.content is None:
+                break
+
+            conversation.add(last_response.content)
+
+            tool_calls = last_response.content.tool_calls
+            if not tool_calls:
+                break
+
+            for call in tool_calls:
+                tool_obj = None
+                if tools:
+                    for t in tools:
+                        if isinstance(t, Tool) and t.name == call.name:
+                            tool_obj = t
+                            break
+
+                if isinstance(tool_obj, Tool) and tool_obj.run is not None:
+                    try:
+                        result = await tool_obj.acall(**call.arguments)
+                    except Exception as e:  # pragma: no cover - best effort
+                        result = f"Error: {e}"
+                else:
+                    result = f"Tool {call.name} not found"
+
+                if not isinstance(result, (str, dict, list)):
+                    result = str(result)
+
+                conversation.add_tool_result(call.id, result)
+
+        if last_response is None:
+            raise RuntimeError("model did not return a response")
+
+        return conversation, last_response
+
+    def run_agent_loop_sync(
+        self,
+        conversation: str | Conversation,
+        *,
+        tools: list[Tool | dict | MCPServer] | None = None,
+        max_rounds: int = 5,
+        show_progress: bool = False,
+    ) -> tuple[Conversation, APIResponse]:
+        """Synchronous wrapper for :meth:`run_agent_loop`."""
+
+        return asyncio.run(
+            self.run_agent_loop(
+                conversation,
+                tools=tools,
+                max_rounds=max_rounds,
+                show_progress=show_progress,
+            )
+        )
+
     async def submit_batch_job(
         self,
         prompts: Sequence[str | list[dict] | Conversation],
