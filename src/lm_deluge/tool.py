@@ -255,6 +255,10 @@ class Tool(BaseModel):
             },
         }
 
+    def for_openai(self, strict: bool = True, **kwargs):
+        """just an alias for the above"""
+        return self.for_openai_completions(strict=strict, **kwargs)
+
     def for_openai_responses(self, **kwargs) -> dict[str, Any]:
         if self.built_in:
             return {"type": self.type, **self.built_in_args, **kwargs}

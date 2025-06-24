@@ -462,7 +462,7 @@ class LLMClient(BaseModel):
         self,
         conversation: str | Conversation,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: list[Tool | dict] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -470,9 +470,7 @@ class LLMClient(BaseModel):
 
         The provided ``conversation`` will be mutated and returned alongside the
         final ``APIResponse`` from the model. ``tools`` may include ``Tool``
-        instances, built‑in tool dictionaries or ``MCPServer`` objects. Only
-        ``Tool`` objects are executed locally—built‑ins are handled by the
-        provider.
+        instances or built‑in tool dictionaries.
         """
 
         if isinstance(conversation, str):
@@ -483,7 +481,7 @@ class LLMClient(BaseModel):
         for _ in range(max_rounds):
             responses = await self.process_prompts_async(
                 [conversation],
-                tools=tools,
+                tools=tools,  # type: ignore
                 return_completions_only=False,
                 show_progress=show_progress,
             )
@@ -517,7 +515,7 @@ class LLMClient(BaseModel):
                 if not isinstance(result, (str, dict, list)):
                     result = str(result)
 
-                conversation.add_tool_result(call.id, result)
+                conversation.add_tool_result(call.id, result)  # type: ignore
 
         if last_response is None:
             raise RuntimeError("model did not return a response")
@@ -537,7 +535,7 @@ class LLMClient(BaseModel):
         return asyncio.run(
             self.run_agent_loop(
                 conversation,
-                tools=tools,
+                tools=tools,  # type: ignore
                 max_rounds=max_rounds,
                 show_progress=show_progress,
             )

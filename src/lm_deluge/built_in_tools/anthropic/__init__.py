@@ -1,5 +1,7 @@
 from typing import Literal
 
+# from lm_deluge.prompt import ToolCall
+
 ToolVersion = Literal["2024-10-22", "2025-01-24", "2025-04-29"]
 ToolType = Literal["bash", "computer", "editor"]
 
@@ -102,7 +104,7 @@ def web_search_tool(max_uses: int = 5):
         "type": "web_search_20250305",
         "name": "web_search",
         # Optional: Limit the number of searches per request
-        "max_uses": 5,
+        "max_uses": max_uses,
         # You can use either allowed_domains or blocked_domains, but not both in the same request.
         # Optional: Only include results from these domains
         # "allowed_domains": ["example.com", "trusteddomain.org"],
