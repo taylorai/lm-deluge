@@ -43,6 +43,7 @@ def _build_anthropic_request(
     }
 
     request_json = {
+        "system": system_message,
         "model": model.name,
         "messages": messages,
         "temperature": sampling_params.temperature,
