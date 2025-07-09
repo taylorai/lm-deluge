@@ -104,6 +104,8 @@ class LLMClient(BaseModel):
                     top_logprobs=data.get("top_logprobs", None),
                 )
             ]
+        if len(data["model_names"]) > 1 and len(data["sampling_params"]) == 1:
+            data["sampling_params"] = data["sampling_params"] * len(data["model_names"])
         return data
 
     @model_validator(mode="after")
