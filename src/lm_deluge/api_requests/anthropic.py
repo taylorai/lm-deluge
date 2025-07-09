@@ -185,6 +185,7 @@ class AnthropicRequest(APIRequestBase):
             error_message = text
 
         # handle special kinds of errors. TODO: make sure these are correct for anthropic
+        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 413]
         if is_error and error_message is not None:
             if (
                 "rate limit" in error_message.lower()
@@ -195,6 +196,7 @@ class AnthropicRequest(APIRequestBase):
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
+            retry_with_different_model = True
 
         return APIResponse(
             id=self.context.task_id,
@@ -208,4 +210,5 @@ class AnthropicRequest(APIRequestBase):
             sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
+            retry_with_different_model=retry_with_different_model,
         )
