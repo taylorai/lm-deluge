@@ -22,9 +22,12 @@ class MistralRequest(APIRequestBase):
             )
         self.model = APIModel.from_registry(self.context.model_name)
         self.url = f"{self.model.api_base}/chat/completions"
-        self.request_header = {
+        base_headers = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
+        self.request_header = self.merge_headers(
+            base_headers, exclude_patterns=["anthropic", "openai", "gemini"]
+        )
         self.request_json = {
             "model": self.model.name,
             "messages": self.context.prompt.to_mistral(),

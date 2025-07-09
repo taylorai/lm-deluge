@@ -36,7 +36,7 @@ def _build_anthropic_request(
     cache_pattern: CachePattern | None = None,
 ):
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
-    request_header = {
+    base_headers = {
         "x-api-key": os.getenv(model.api_key_env_var),
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
@@ -83,13 +83,13 @@ def _build_anthropic_request(
                     "text_editor_20241022",
                     "bash_20241022",
                 ]:
-                    _add_beta(request_header, "computer-use-2024-10-22")
+                    _add_beta(base_headers, "computer-use-2024-10-22")
                 elif tool["type"] == "computer_20250124":
-                    _add_beta(request_header, "computer-use-2025-01-24")
+                    _add_beta(base_headers, "computer-use-2025-01-24")
                 elif tool["type"] == "code_execution_20250522":
-                    _add_beta(request_header, "code-execution-2025-05-22")
+                    _add_beta(base_headers, "code-execution-2025-05-22")
             elif isinstance(tool, MCPServer):
-                _add_beta(request_header, "mcp-client-2025-04-04")
+                _add_beta(base_headers, "mcp-client-2025-04-04")
                 mcp_servers.append(tool.for_anthropic())
 
         # Add cache control to last tool if tools_only caching is specified
@@ -100,7 +100,7 @@ def _build_anthropic_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
-    return request_json, request_header
+    return request_json, base_headers
 
 
 class AnthropicRequest(APIRequestBase):
@@ -114,12 +114,15 @@ class AnthropicRequest(APIRequestBase):
         if self.context.cache is not None:
             self.context.prompt.lock_images_as_bytes()
 
-        self.request_json, self.request_header = _build_anthropic_request(
+        self.request_json, base_headers = _build_anthropic_request(
             self.model,
             self.context.prompt,
             self.context.tools,
             self.context.sampling_params,
             self.context.cache,
+        )
+        self.request_header = self.merge_headers(
+            base_headers, exclude_patterns=["openai", "gemini", "mistral"]
         )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:

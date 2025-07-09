@@ -8,7 +8,7 @@ import tiktoken
 import xxhash
 
 from lm_deluge.file import File
-from lm_deluge.image import Image
+from lm_deluge.image import Image, MediaType
 
 CachePattern = Literal[
     "tools_only",
@@ -348,7 +348,7 @@ class Message:
         self,
         data: bytes | str | Path | io.BytesIO,
         *,
-        media_type: str | None = None,
+        media_type: MediaType | None = None,
         detail: Literal["low", "high", "auto"] = "auto",
         max_size: int | None = None,
     ) -> "Message":

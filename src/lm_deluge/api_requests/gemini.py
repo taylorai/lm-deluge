@@ -77,9 +77,12 @@ class GeminiRequest(APIRequestBase):
         self.model = APIModel.from_registry(self.context.model_name)
         # Gemini API endpoint format: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
         self.url = f"{self.model.api_base}/models/{self.model.name}:generateContent"
-        self.request_header = {
+        base_headers = {
             "Content-Type": "application/json",
         }
+        self.request_header = self.merge_headers(
+            base_headers, exclude_patterns=["anthropic", "openai", "mistral"]
+        )
 
         # Add API key as query parameter for Gemini
         api_key = os.getenv(self.model.api_key_env_var)

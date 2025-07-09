@@ -50,6 +50,7 @@ class LLMClient(BaseModel):
     max_attempts: int = 5
     request_timeout: int = 30
     cache: Any = None
+    extra_headers: dict[str, str] | None = None
     # sampling params - if provided, and sampling_params is not,
     # these override the defaults
     temperature: float = 0.75
@@ -364,6 +365,7 @@ class LLMClient(BaseModel):
                             tools=tools,
                             cache=cache,
                             use_responses_api=use_responses_api,
+                            extra_headers=self.extra_headers,
                         )
                     except StopIteration:
                         prompts_not_finished = False
@@ -451,7 +453,9 @@ class LLMClient(BaseModel):
         model, sampling_params = self._select_model()
         if isinstance(prompt, str):
             prompt = Conversation.user(prompt)
-        async for item in stream_chat(model, prompt, sampling_params, tools, None):
+        async for item in stream_chat(
+            model, prompt, sampling_params, tools, None, self.extra_headers
+        ):
             if isinstance(item, str):
                 print(item, end="", flush=True)
             else:

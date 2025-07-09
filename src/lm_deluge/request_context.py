@@ -34,6 +34,7 @@ class RequestContext:
     tools: list | None = None
     cache: CachePattern | None = None
     use_responses_api: bool = False
+    extra_headers: dict[str, str] | None = None
 
     # Computed properties
     cache_key: str = field(init=False)

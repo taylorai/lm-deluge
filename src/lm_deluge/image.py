@@ -1,20 +1,23 @@
+import base64
+import io
+import mimetypes
 import os
 from contextlib import contextmanager
-import io
-import requests
-from PIL import Image as PILImage  # type: ignore
-import base64
-import mimetypes
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
+
+import requests
+from PIL import Image as PILImage  # type: ignore
+
+MediaType = Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
 
 
 @dataclass(slots=True)
 class Image:
     # raw bytes, pathlike, http url, or base64 data url
     data: bytes | io.BytesIO | Path | str
-    media_type: str | None = None  # inferred if None
+    media_type: MediaType | None = None  # inferred if None
     detail: Literal["low", "high", "auto"] = "auto"
     type: str = field(init=False, default="image")
     _fingerprint_cache: str | None = field(init=False, default=None)

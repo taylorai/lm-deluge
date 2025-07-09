@@ -46,6 +46,29 @@ class APIRequestBase(ABC):
             # the APIResponse in self.result includes all the information
             self.context.callback(self.result[-1], self.context.status_tracker)
 
+    def merge_headers(
+        self, base_headers: dict[str, str], exclude_patterns: list[str] | None = None
+    ) -> dict[str, str]:
+        """Merge extra_headers with base headers, giving priority to extra_headers."""
+        if not self.context.extra_headers:
+            return base_headers
+
+        # Filter out headers that match exclude patterns
+        filtered_extra = {}
+        if exclude_patterns:
+            for key, value in self.context.extra_headers.items():
+                if not any(
+                    pattern.lower() in key.lower() for pattern in exclude_patterns
+                ):
+                    filtered_extra[key] = value
+        else:
+            filtered_extra = dict(self.context.extra_headers)
+
+        # Start with base headers, then overlay filtered extra headers (extra takes precedence)
+        merged = dict(base_headers)
+        merged.update(filtered_extra)
+        return merged
+
     def handle_success(self, data):
         self.call_callback()
         if self.context.status_tracker:

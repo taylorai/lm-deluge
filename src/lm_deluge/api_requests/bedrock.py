@@ -85,7 +85,7 @@ def _build_anthropic_bedrock_request(
     )
 
     # Setup basic headers (AWS4Auth will add the Authorization header)
-    request_header = {
+    base_headers = {
         "Content-Type": "application/json",
     }
 
@@ -115,11 +115,11 @@ def _build_anthropic_bedrock_request(
                     "text_editor_20241022",
                     "bash_20241022",
                 ]:
-                    _add_beta(request_header, "computer-use-2024-10-22")
+                    _add_beta(base_headers, "computer-use-2024-10-22")
                 elif tool["type"] == "computer_20250124":
-                    _add_beta(request_header, "computer-use-2025-01-24")
+                    _add_beta(base_headers, "computer-use-2025-01-24")
                 elif tool["type"] == "code_execution_20250522":
-                    _add_beta(request_header, "code-execution-2025-05-22")
+                    _add_beta(base_headers, "code-execution-2025-05-22")
             elif isinstance(tool, MCPServer):
                 raise ValueError("bedrock doesn't support MCP connector right now")
                 # _add_beta(request_header, "mcp-client-2025-04-04")
@@ -133,7 +133,7 @@ def _build_anthropic_bedrock_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
-    return request_json, request_header, auth, url
+    return request_json, base_headers, auth, url
 
 
 class BedrockRequest(APIRequestBase):
@@ -147,7 +147,7 @@ class BedrockRequest(APIRequestBase):
         if self.context.cache is not None:
             self.context.prompt.lock_images_as_bytes()
 
-        self.request_json, self.request_header, self.auth, self.url = (
+        self.request_json, base_headers, self.auth, self.url = (
             _build_anthropic_bedrock_request(
                 self.model,
                 context.prompt,
@@ -155,6 +155,9 @@ class BedrockRequest(APIRequestBase):
                 context.sampling_params,
                 context.cache,
             )
+        )
+        self.request_header = self.merge_headers(
+            base_headers, exclude_patterns=["anthropic", "openai", "gemini", "mistral"]
         )
 
     async def execute_once(self) -> APIResponse:

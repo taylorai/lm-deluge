@@ -73,9 +73,12 @@ class OpenAIRequest(APIRequestBase):
             )
         self.model = APIModel.from_registry(self.context.model_name)
         self.url = f"{self.model.api_base}/chat/completions"
-        self.request_header = {
+        base_headers = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
+        self.request_header = self.merge_headers(
+            base_headers, exclude_patterns=["anthropic"]
+        )
 
         self.request_json = _build_oa_chat_request(
             self.model,
@@ -432,6 +435,7 @@ async def stream_chat(
     sampling_params: SamplingParams = SamplingParams(),
     tools: list | None = None,
     cache: CachePattern | None = None,
+    extra_headers: dict[str, str] | None = None,
 ):
     if cache is not None:
         warnings.warn(
@@ -442,7 +446,16 @@ async def stream_chat(
     if model.api_spec != "openai":
         raise ValueError("streaming only supported on openai models for now")
     url = f"{model.api_base}/chat/completions"
-    request_header = {"Authorization": f"Bearer {os.getenv(model.api_key_env_var)}"}
+    base_headers = {"Authorization": f"Bearer {os.getenv(model.api_key_env_var)}"}
+
+    # Merge extra headers, filtering out anthropic headers
+    request_header = dict(base_headers)
+    if extra_headers:
+        filtered_extra = {
+            k: v for k, v in extra_headers.items() if "anthropic" not in k.lower()
+        }
+        request_header.update(filtered_extra)
+
     request_json = _build_oa_chat_request(model, prompt, tools, sampling_params)
     request_json["stream"] = True
 
