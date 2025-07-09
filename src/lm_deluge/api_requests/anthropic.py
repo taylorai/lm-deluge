@@ -45,7 +45,6 @@ def _build_anthropic_request(
     }
 
     request_json = {
-        "system": system_message,
         "model": model.name,
         "messages": messages,
         "temperature": sampling_params.temperature,
@@ -72,6 +71,7 @@ def _build_anthropic_request(
             print("ignoring reasoning_effort for non-reasoning model")
     if system_message is not None:
         request_json["system"] = system_message
+
     if tools:
         mcp_servers = []
         tool_definitions = []
@@ -103,6 +103,7 @@ def _build_anthropic_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
+    print("request json:", request_json)
     return request_json, base_headers
 
 
