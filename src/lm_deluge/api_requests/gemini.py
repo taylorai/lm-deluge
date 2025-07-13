@@ -14,7 +14,7 @@ from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
 
-def _build_gemini_request(
+async def _build_gemini_request(
     model: APIModel,
     prompt: Conversation,
     tools: list[Tool] | None,
@@ -75,7 +75,8 @@ class GeminiRequest(APIRequestBase):
             )
 
         self.model = APIModel.from_registry(self.context.model_name)
-        # Gemini API endpoint format: https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+
+    async def build_request(self):
         self.url = f"{self.model.api_base}/models/{self.model.name}:generateContent"
         base_headers = {
             "Content-Type": "application/json",
@@ -92,7 +93,7 @@ class GeminiRequest(APIRequestBase):
             )
         self.url += f"?key={api_key}"
 
-        self.request_json = _build_gemini_request(
+        self.request_json = await _build_gemini_request(
             self.model,
             self.context.prompt,
             self.context.tools,

@@ -24,18 +24,20 @@ class APIRequestBase(ABC):
         self,
         context: RequestContext,
     ):
-        # If context is provided, use it; otherwise construct one from individual parameters
         self.context = context
 
         # Everything is now accessed through self.context - no copying!
         self.system_prompt = None
         self.result = []  # list of APIResponse objects from each attempt
 
-        # these should be set in the __init__ of the subclass
+        # these should be set in build_request of the subclass
         self.url = None
         self.request_header = None
         self.request_json = None
         self.region = None
+
+    async def build_request(self):
+        raise NotImplementedError("must be implemented in subclass")
 
     def increment_pbar(self):
         if self.context.status_tracker:
@@ -76,7 +78,13 @@ class APIRequestBase(ABC):
 
     async def execute_once(self) -> APIResponse:
         """Send the HTTP request once and return the parsed APIResponse."""
+        await self.build_request()
         assert self.context.status_tracker
+        # try:
+        #     dumped = json.dumps(self.request_json)
+        # except Exception:
+        #     print("couldn't serialize request json")
+        #     print(self.request_json)
         try:
             self.context.status_tracker.total_requests += 1
             timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)

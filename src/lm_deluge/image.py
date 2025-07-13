@@ -10,7 +10,7 @@ from typing import Literal
 import requests
 from PIL import Image as PILImage  # type: ignore
 
-MediaType = Literal["image/jpeg", "image/png", "image/gif", "image/webp"]
+MediaType = Literal["image/jpeg", "image/png", "image/gif", "image/webp"] | str
 
 
 @dataclass(slots=True)
@@ -22,6 +22,9 @@ class Image:
     type: str = field(init=False, default="image")
     _fingerprint_cache: str | None = field(init=False, default=None)
     _size_cache: tuple[int, int] | None = field(init=False, default=None)
+
+    def __repr__(self):
+        return f"Image(data=[{type(self.data)}], media_type={self.media_type}, detail={self.detail})"
 
     @classmethod
     def from_pdf(
@@ -69,10 +72,11 @@ class Image:
         elif isinstance(self.data, Path) and self.data.exists():
             return Path(self.data).read_bytes()
         elif isinstance(self.data, str) and self.data.startswith("data:"):
+            # print("base64 path selected")
             header, encoded = self.data.split(",", 1)
             return base64.b64decode(encoded)
         else:
-            raise ValueError("unreadable image format")
+            raise ValueError(f"unreadable image format. type: {type(self.data)}")
 
     def _mime(self) -> str:
         if self.media_type:

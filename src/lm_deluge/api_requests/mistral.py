@@ -21,6 +21,8 @@ class MistralRequest(APIRequestBase):
                 f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
             )
         self.model = APIModel.from_registry(self.context.model_name)
+
+    async def build_request(self):
         self.url = f"{self.model.api_base}/chat/completions"
         base_headers = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"

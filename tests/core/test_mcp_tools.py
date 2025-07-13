@@ -1,9 +1,11 @@
-import os
 import asyncio
+import os
+
 import dotenv
 from fastmcp import Client
-from lm_deluge.tool import Tool
+
 from lm_deluge import LLMClient
+from lm_deluge.tool import Tool
 
 dotenv.load_dotenv()
 
@@ -58,7 +60,7 @@ async def use_local_tool_with_llm():
     client = LLMClient.basic("gpt-4.1-mini")
     res = await client.process_prompts_async(
         ["Use the tool to list files in the current directory."],
-        tools=tools,
+        tools=tools,  # type: ignore
     )
     print("✅ Got model response.")
     assert res[0] and res[0].content

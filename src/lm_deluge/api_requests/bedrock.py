@@ -12,8 +12,6 @@ except ImportError:
     )
 
 from lm_deluge.prompt import (
-    CachePattern,
-    Conversation,
     Message,
     Text,
     Thinking,
@@ -23,7 +21,6 @@ from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
-from ..config import SamplingParams
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse
 
@@ -38,13 +35,14 @@ def _add_beta(headers: dict, beta: str):
         headers["anthropic_beta"] = beta
 
 
-def _build_anthropic_bedrock_request(
+async def _build_anthropic_bedrock_request(
     model: APIModel,
-    prompt: Conversation,
-    tools: list[Tool | dict | MCPServer] | None,
-    sampling_params: SamplingParams,
-    cache_pattern: CachePattern | None = None,
+    context: RequestContext,
 ):
+    prompt = context.prompt
+    cache_pattern = context.cache
+    tools = context.tools
+    sampling_params = context.sampling_params
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
 
     # handle AWS auth
@@ -121,9 +119,10 @@ def _build_anthropic_bedrock_request(
                 elif tool["type"] == "code_execution_20250522":
                     _add_beta(base_headers, "code-execution-2025-05-22")
             elif isinstance(tool, MCPServer):
-                raise ValueError("bedrock doesn't support MCP connector right now")
-                # _add_beta(request_header, "mcp-client-2025-04-04")
-                # mcp_servers.append(tool.for_anthropic())
+                # Convert to individual tools locally (like OpenAI does)
+                individual_tools = await tool.to_tools()
+                for individual_tool in individual_tools:
+                    tool_definitions.append(individual_tool.dump_for("anthropic"))
 
         # Add cache control to last tool if tools_only caching is specified
         if cache_pattern == "tools_only" and tool_definitions:
@@ -141,21 +140,20 @@ class BedrockRequest(APIRequestBase):
         super().__init__(context=context)
 
         self.model = APIModel.from_registry(self.context.model_name)
+
+    async def build_request(self):
         self.url = f"{self.model.api_base}/messages"
 
         # Lock images as bytes if caching is enabled
         if self.context.cache is not None:
             self.context.prompt.lock_images_as_bytes()
 
-        self.request_json, base_headers, self.auth, self.url = (
-            _build_anthropic_bedrock_request(
-                self.model,
-                context.prompt,
-                context.tools,
-                context.sampling_params,
-                context.cache,
-            )
-        )
+        (
+            self.request_json,
+            base_headers,
+            self.auth,
+            self.url,
+        ) = await _build_anthropic_bedrock_request(self.model, self.context)
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["anthropic", "openai", "gemini", "mistral"]
         )

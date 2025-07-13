@@ -1,6 +1,7 @@
 import json
 import os
 import warnings
+from types import SimpleNamespace
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -15,12 +16,14 @@ from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
 
-def _build_oa_chat_request(
+async def _build_oa_chat_request(
     model: APIModel,
-    prompt: Conversation,
-    tools: list[Tool] | None,
-    sampling_params: SamplingParams,
+    context: RequestContext,
 ) -> dict:
+    print("building oa chat request")
+    prompt = context.prompt
+    sampling_params = context.sampling_params
+    tools = context.tools
     request_json = {
         "model": model.name,
         "messages": prompt.to_openai(),
@@ -48,17 +51,17 @@ def _build_oa_chat_request(
     if sampling_params.json_mode and model.supports_json:
         request_json["response_format"] = {"type": "json_object"}
     if tools:
-        request_json["tools"] = [tool.dump_for("openai-completions") for tool in tools]
+        request_tools = []
+        for tool in tools:
+            if isinstance(tool, Tool):
+                request_tools.append(tool.dump_for("openai-completions"))
+            elif isinstance(tool, MCPServer):
+                as_tools = await tool.to_tools()
+                request_tools.extend(
+                    [t.dump_for("openai-completions") for t in as_tools]
+                )
+        request_json["tools"] = request_tools
     return request_json
-
-
-def _build_oa_responses_request(
-    model: APIModel,
-    prompt: Conversation,
-    tools: list[Tool] | None,
-    sampling_params: SamplingParams,
-):
-    pass  # TODO: implement
 
 
 class OpenAIRequest(APIRequestBase):
@@ -72,6 +75,8 @@ class OpenAIRequest(APIRequestBase):
                 f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
             )
         self.model = APIModel.from_registry(self.context.model_name)
+
+    async def build_request(self):
         self.url = f"{self.model.api_base}/chat/completions"
         base_headers = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
@@ -80,12 +85,7 @@ class OpenAIRequest(APIRequestBase):
             base_headers, exclude_patterns=["anthropic"]
         )
 
-        self.request_json = _build_oa_chat_request(
-            self.model,
-            self.context.prompt,
-            self.context.tools,
-            self.context.sampling_params,
-        )
+        self.request_json = await _build_oa_chat_request(self.model, self.context)
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
@@ -187,6 +187,75 @@ class OpenAIRequest(APIRequestBase):
         )
 
 
+async def _build_oa_responses_request(
+    model: APIModel,
+    context: RequestContext,
+    # prompt: Conversation,
+    # tools: list[Tool] | None,
+    # sampling_params: SamplingParams,
+):
+    prompt = context.prompt
+    sampling_params = context.sampling_params
+    tools = context.tools
+    openai_responses_format = prompt.to_openai_responses()
+    request_json = {
+        "model": model.name,
+        "input": openai_responses_format["input"],
+        "temperature": sampling_params.temperature,
+        "top_p": sampling_params.top_p,
+    }
+    if sampling_params.max_new_tokens:
+        request_json["max_output_tokens"] = sampling_params.max_new_tokens
+
+    if model.reasoning_model:
+        if sampling_params.reasoning_effort in [None, "none"]:
+            # gemini models can switch reasoning off
+            if "gemini" in model.id:
+                sampling_params.reasoning_effort = "none"
+            else:
+                sampling_params.reasoning_effort = "low"
+        request_json["temperature"] = 1.0
+        request_json["top_p"] = 1.0
+        request_json["reasoning"] = {
+            "effort": sampling_params.reasoning_effort,
+            "summary": "auto",
+        }
+    else:
+        if sampling_params.reasoning_effort:
+            warnings.warn(
+                f"Ignoring reasoning_effort for non-reasoning model: {model.id}"
+            )
+
+    if sampling_params.json_mode and model.supports_json:
+        request_json["text"] = {"format": {"type": "json_object"}}
+
+    # Handle tools
+    request_tools = []
+    # Add regular function tools
+    for tool in tools or []:
+        if isinstance(tool, Tool):
+            request_tools.append(tool.dump_for("openai-responses"))
+        elif isinstance(tool, dict):
+            # if computer use, make sure model supports it
+            if tool["type"] == "computer_use_preview":
+                if model.name != "openai-computer-use-preview":
+                    raise ValueError(f"model {model.id} does not support computer use")
+                # have to use truncation
+                request_json["truncation"] = "auto"
+            request_tools.append(tool)  # allow passing dict
+        elif isinstance(tool, MCPServer):
+            if context.force_local_mcp:
+                as_tools = await tool.to_tools()
+                request_tools.extend([t.dump_for("openai-responses") for t in as_tools])
+            else:
+                request_tools.append(tool.for_openai_responses())
+
+    if request_tools:
+        request_json["tools"] = request_tools
+
+    return request_json
+
+
 class OpenAIResponsesRequest(APIRequestBase):
     def __init__(self, context: RequestContext):
         super().__init__(context)
@@ -196,73 +265,14 @@ class OpenAIResponsesRequest(APIRequestBase):
                 f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
             )
         self.model = APIModel.from_registry(self.context.model_name)
+
+    async def build_request(self):
         self.url = f"{self.model.api_base}/responses"
         self.request_header = {
             "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
         }
 
-        # Convert conversation to input format for Responses API
-        openai_responses_format = self.context.prompt.to_openai_responses()
-
-        self.request_json = {
-            "model": self.model.name,
-            "input": openai_responses_format["input"],
-            "temperature": self.context.sampling_params.temperature,
-            "top_p": self.context.sampling_params.top_p,
-        }
-
-        # Add max_output_tokens for responses API
-        if self.context.sampling_params.max_new_tokens:
-            self.request_json["max_output_tokens"] = (
-                self.context.sampling_params.max_new_tokens
-            )
-
-        if self.model.reasoning_model:
-            if self.context.sampling_params.reasoning_effort in [None, "none"]:
-                # gemini models can switch reasoning off
-                if "gemini" in self.model.id:
-                    self.context.sampling_params.reasoning_effort = (
-                        "none"  # expects string
-                    )
-                # openai models can only go down to "low"
-                else:
-                    self.context.sampling_params.reasoning_effort = "low"
-            self.request_json["temperature"] = 1.0
-            self.request_json["top_p"] = 1.0
-            self.request_json["reasoning"] = {
-                "effort": self.context.sampling_params.reasoning_effort
-            }
-        else:
-            if self.context.sampling_params.reasoning_effort:
-                warnings.warn(
-                    f"Ignoring reasoning_effort param for non-reasoning model: {self.context.model_name}"
-                )
-
-        if self.context.sampling_params.json_mode and self.model.supports_json:
-            self.request_json["text"] = {"format": {"type": "json_object"}}
-
-        # Handle tools
-        request_tools = []
-        if self.context.tools:
-            # Add regular function tools
-            for tool in self.context.tools:
-                if isinstance(tool, Tool):
-                    request_tools.append(tool.dump_for("openai-responses"))
-                elif isinstance(tool, dict):
-                    # if computer use, make sure model supports it
-                    if tool["type"] == "computer_use_preview":
-                        if self.context.model_name != "openai-computer-use-preview":
-                            raise ValueError(
-                                f"model {self.context.model_name} does not support computer use"
-                            )
-                        # have to use truncation
-                        self.request_json["truncation"] = "auto"
-                    request_tools.append(tool)  # allow passing dict
-                elif isinstance(tool, MCPServer):
-                    request_tools.append(tool.for_openai_responses())
-
-        if request_tools:
-            self.request_json["tools"] = request_tools
+        self.request_json = await _build_oa_responses_request(self.model, self.context)
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         is_error = False
@@ -459,7 +469,11 @@ async def stream_chat(
         }
         request_header.update(filtered_extra)
 
-    request_json = _build_oa_chat_request(model, prompt, tools, sampling_params)
+    context = SimpleNamespace(
+        prompt=prompt, tools=tools, sampling_params=sampling_params
+    )
+
+    request_json = await _build_oa_chat_request(model, context)  # type: ignore
     request_json["stream"] = True
 
     async with aiohttp.ClientSession() as s:

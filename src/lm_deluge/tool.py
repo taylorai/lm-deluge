@@ -1,10 +1,14 @@
 import asyncio
 import inspect
-from typing import Any, Callable, Coroutine, Literal, get_type_hints
+from typing import Any, Callable, Coroutine, Literal, TypedDict, get_type_hints
+from concurrent.futures import ThreadPoolExecutor
 
 from fastmcp import Client  # pip install fastmcp >= 2.0
 from mcp.types import Tool as MCPTool
 from pydantic import BaseModel, Field, field_validator
+
+from lm_deluge.prompt import Text, ToolResultPart
+from lm_deluge.image import Image
 
 
 async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
@@ -14,7 +18,18 @@ async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
         async def _async_call(**kw):
             async with client:
                 # maybe should be call_tool_mcp if don't want to raise error
-                return await client.call_tool(name, kw)
+                content_blocks = await client.call_tool(name, kw)
+
+                # for now just concatenate them all into a result string
+                results = []
+                for block in content_blocks:
+                    if block.type == "text":
+                        results.append(Text(block.text))
+                    elif block.type == "image":
+                        data_url = f"data:{block.mimeType};base64,{block.data}"
+                        results.append(Image(data=data_url))
+
+                return results
 
         return _async_call
 
@@ -63,7 +78,7 @@ class Tool(BaseModel):
     def _is_async(self) -> bool:
         return inspect.iscoroutinefunction(self.run)
 
-    def call(self, **kwargs):
+    def call(self, **kwargs) -> str | list[ToolResultPart]:
         if self.run is None:
             raise ValueError("No run function provided")
 
@@ -71,17 +86,22 @@ class Tool(BaseModel):
             coro: Coroutine = self.run(**kwargs)  # type: ignore[arg-type]
             try:
                 loop = asyncio.get_running_loop()
+                assert loop
             except RuntimeError:
                 # no loop → safe to block
                 return asyncio.run(coro)
             else:
-                # already inside a loop → schedule
-                return loop.create_task(coro)
+                # Loop is running → execute coroutine in a worker thread
+                def _runner():
+                    return asyncio.run(coro)
+
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    return executor.submit(_runner).result()
         else:
             # plain function
             return self.run(**kwargs)
 
-    async def acall(self, **kwargs):
+    async def acall(self, **kwargs) -> str | list[ToolResultPart]:
         if self.run is None:
             raise ValueError("No run function provided")
 
@@ -218,12 +238,64 @@ class Tool(BaseModel):
             # Default to string for unknown types
             return {"type": "string"}
 
-    def _json_schema(self, include_additional_properties=False) -> dict[str, Any]:
+    def _json_schema(
+        self, include_additional_properties=False, remove_defaults=False
+    ) -> dict[str, Any]:
+        def _add_additional_properties_recursive(
+            schema: dict | list | Any, remove_defaults: bool = False
+        ) -> dict | list | Any:
+            """Recursively add additionalProperties: false to all object-type schemas."""
+            if isinstance(schema, dict):
+                # Copy the dictionary to avoid modifying the original
+                new_schema = schema.copy()
+
+                # make sure to label arrays and objects
+                if "type" not in new_schema:
+                    if "properties" in new_schema:
+                        new_schema["type"] = "object"
+                    elif "items" in new_schema:
+                        new_schema["type"] = "array"
+
+                # If this is an object type schema, set additionalProperties: false
+                if new_schema.get("type") == "object":
+                    new_schema["additionalProperties"] = False
+
+                # Remove default values if requested (for strict mode)
+                if remove_defaults and "default" in new_schema:
+                    del new_schema["default"]
+
+                # Recursively process all values in the dictionary
+                for key, value in new_schema.items():
+                    new_schema[key] = _add_additional_properties_recursive(
+                        value, remove_defaults
+                    )
+
+                return new_schema
+            elif isinstance(schema, list):
+                # Recursively process all items in the list
+                return [
+                    _add_additional_properties_recursive(item, remove_defaults)
+                    for item in schema
+                ]
+            else:
+                # Return primitive values as-is
+                return schema
+
+        # Start with the base schema structure
+        if include_additional_properties and self.parameters:
+            # Apply recursive additionalProperties processing to parameters
+            processed_parameters = _add_additional_properties_recursive(
+                self.parameters, remove_defaults
+            )
+        else:
+            processed_parameters = self.parameters
+
         res = {
             "type": "object",
-            "properties": self.parameters,
+            "properties": processed_parameters,
             "required": self.required,  # Use the tool's actual required list
         }
+
         if include_additional_properties:
             res["additionalProperties"] = False
 
@@ -236,8 +308,10 @@ class Tool(BaseModel):
         if self.built_in:
             return {"type": self.type, **self.built_in_args, **kwargs}
         if strict:
-            # For strict mode, all parameters must be required and additionalProperties must be false
-            schema = self._json_schema(include_additional_properties=True)
+            # For strict mode, remove defaults and make all parameters required
+            schema = self._json_schema(
+                include_additional_properties=True, remove_defaults=True
+            )
             schema["required"] = list(
                 (self.parameters or {}).keys()
             )  # All parameters required in strict mode
@@ -315,6 +389,14 @@ class Tool(BaseModel):
         raise ValueError(provider)
 
 
+class OpenAIMCPSpec(TypedDict):
+    type: str
+    server_label: str
+    server_url: str
+    headers: dict | None
+    require_approval: str
+
+
 class MCPServer(BaseModel):
     """
     Allow MCPServers to be passed directly, if provider supports it.
@@ -330,13 +412,18 @@ class MCPServer(BaseModel):
     # openai-specific
     headers: dict | None = None
 
+    # tools cache
+    _tools: list[Tool] | None = None
+
+    @classmethod
+    def from_openai(cls, spec: OpenAIMCPSpec):
+        return cls(
+            name=spec["server_label"],
+            url=spec["server_url"],
+            headers=spec.get("headers"),
+        )
+
     def for_openai_responses(self):
-        # return {
-        #     "type": "mcp",
-        #     "server_label": "deepwiki",
-        #     "server_url": "https://mcp.deepwiki.com/mcp",
-        #     "require_approval": "never",
-        # }
         res: dict[str, Any] = {
             "type": "mcp",
             "server_label": self.name,
@@ -349,16 +436,6 @@ class MCPServer(BaseModel):
         return res
 
     def for_anthropic(self):
-        # return {
-        #   "type": "url",
-        #   "url": "https://example-server.modelcontextprotocol.io/sse",
-        #   "name": "example-mcp",
-        #   "tool_configuration": {
-        #     "enabled": true,
-        #     "allowed_tools": ["example_tool_1", "example_tool_2"]
-        #   },
-        #   "authorization_token": "YOUR_TOKEN"
-        # }
         res: dict[str, Any] = {
             "type": "url",
             "url": self.url,
@@ -370,3 +447,15 @@ class MCPServer(BaseModel):
             res["tool_configuration"] = self.configuration
 
         return res
+
+    async def to_tools(self) -> list[Tool]:
+        """
+        Compatible with ALL providers.
+        Caches so we don't have to hit the server a ton of times.
+        """
+        if self._tools:
+            return self._tools
+        else:
+            tools: list[Tool] = await Tool.from_mcp(self.name, url=self.url)
+            self._tools = tools
+            return tools

@@ -4,8 +4,6 @@ import os
 from aiohttp import ClientResponse
 
 from lm_deluge.prompt import (
-    CachePattern,
-    Conversation,
     Message,
     Text,
     Thinking,
@@ -15,7 +13,6 @@ from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
-from ..config import SamplingParams
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse
 
@@ -30,11 +27,16 @@ def _add_beta(headers: dict, beta: str):
 
 def _build_anthropic_request(
     model: APIModel,
-    prompt: Conversation,
-    tools: list[Tool | dict | MCPServer] | None,
-    sampling_params: SamplingParams,
-    cache_pattern: CachePattern | None = None,
+    context: RequestContext,
+    # prompt: Conversation,
+    # tools: list[Tool | dict | MCPServer] | None,
+    # sampling_params: SamplingParams,
+    # cache_pattern: CachePattern | None = None,
 ):
+    prompt = context.prompt
+    cache_pattern = context.cache
+    tools = context.tools
+    sampling_params = context.sampling_params
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
     if not system_message:
         print("WARNING: system_message is None")
@@ -103,7 +105,7 @@ def _build_anthropic_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
-    print("request json:", request_json)
+    # print("request json:", request_json)
     return request_json, base_headers
 
 
@@ -112,18 +114,15 @@ class AnthropicRequest(APIRequestBase):
         super().__init__(context=context)
 
         self.model = APIModel.from_registry(self.context.model_name)
-        self.url = f"{self.model.api_base}/messages"
 
         # Lock images as bytes if caching is enabled
         if self.context.cache is not None:
             self.context.prompt.lock_images_as_bytes()
 
+    async def build_request(self):
+        self.url = f"{self.model.api_base}/messages"
         self.request_json, base_headers = _build_anthropic_request(
-            self.model,
-            self.context.prompt,
-            self.context.tools,
-            self.context.sampling_params,
-            self.context.cache,
+            self.model, self.context
         )
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["openai", "gemini", "mistral"]

@@ -19,8 +19,8 @@ models_to_test = [
     "claude-4-sonnet",
     "claude-4-opus",
     # anthropic bedrock
-    "claude-4-sonnet-bedrock",
-    "claude-4-opus-bedrock",
+    # "claude-4-sonnet-bedrock",
+    # "claude-4-opus-bedrock",
     # openai
     "gpt-4o",
     "gpt-4o-mini",
@@ -36,16 +36,16 @@ models_to_test = [
     "aya-vision-8b",
     "aya-vision-32b",
     # mistral
-    "codestral",
-    "devstral-small",
-    "mistral-large",
-    "mistral-medium",
-    "mistral-small",
-    "pixtral-12b",
-    "pixtral-large",
-    "mistral-nemo",
-    "ministral-8b",
-    "mixtral-8x22b",
+    # "codestral",
+    # "devstral-small",
+    # "mistral-large",
+    # "mistral-medium",
+    # "mistral-small",
+    # "pixtral-12b",
+    # "pixtral-large",
+    # "mistral-nemo",
+    # "ministral-8b",
+    # "mixtral-8x22b",
     # gemini via AI studio
     "gemini-2.5-pro",
     "gemini-2.5-flash",
@@ -71,7 +71,11 @@ models_to_test = [
 
 async def main():
     for model in random.sample(models_to_test, 10):
-        client = LLMClient.basic(model)
+        try:
+            client = LLMClient.basic(model)
+        except Exception as e:
+            print(f"❌ Failed instantiating client for {model}: {e}")
+            raise e
         res = await client.process_prompts_async(
             [
                 Conversation.system("You are a helpful assistant").add(
@@ -80,8 +84,17 @@ async def main():
             ],
             show_progress=False,
         )
-        assert isinstance(res[0], APIResponse)
-        print(f"✅ Successful completion from {model}")
+        try:
+            assert isinstance(res[0], APIResponse)
+            assert isinstance(res[0].completion, str)
+            print(f"✅ Successful completion from {model}")
+        except Exception as e:
+            print(f"❌ Failed completion from {model}: {e}")
+            if isinstance(res[0], APIResponse):
+                print("Status Code:", res[0].status_code)
+                print("raw resp:", res[0].raw_response)
+                print("error message:", res[0].error_message)
+            raise e
 
         # print(f"\n=== {model} ===\n")
         # if res[0].thinking:

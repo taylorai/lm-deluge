@@ -102,11 +102,14 @@ class ToolCall:
         }
 
 
+ToolResultPart = Text | Image
+
+
 @dataclass(slots=True)
 class ToolResult:
     tool_call_id: str  # references the ToolCall.id
     # tool execution result - can be string or list for images
-    result: str | dict | list[dict]
+    result: str | dict | list[ToolResultPart]
     type: str = field(init=False, default="tool_result")
     # NEW! instead of specific carve-out for computer use,
     # need to handle all built-ins for OpenAI
@@ -115,23 +118,64 @@ class ToolResult:
 
     @property
     def fingerprint(self) -> str:
-        result_str = (
-            json.dumps(self.result, sort_keys=True)
-            if isinstance(self.result, list) or isinstance(self.result, dict)
-            else str(self.result)
-        )
+        if isinstance(self.result, str):
+            result_str = self.result
+        elif isinstance(self.result, list):
+            result_str = json.dumps([part.fingerprint for part in self.result])
+        else:
+            raise ValueError("unsupported self.result type")
         return xxhash.xxh64(f"{self.tool_call_id}:{result_str}".encode()).hexdigest()
 
     # ── provider-specific emission ────────────────────────────────────────────
+    def get_images(self) -> list[Image]:
+        # for openai, we can't include images in tool result, so we have to
+        # include them in the next user message
+        if isinstance(self.result, str):
+            return []
+        elif isinstance(self.result, list):
+            images = []
+            for block in self.result:
+                if isinstance(block, Image):
+                    images.append(block)
+            return images
+        else:
+            raise ValueError("unexpected tool result type")
+
     def oa_chat(
         self,
     ) -> dict:  # OpenAI Chat Completions - tool results are separate messages
-        content = (
-            json.dumps(self.result) if isinstance(self.result, list) else self.result
-        )
-        return {"tool_call_id": self.tool_call_id, "content": content}
+        print("serializing toolresult with oa_chat...")
+        print("typeof self.result:", type(self.result))
+        if isinstance(self.result, str):
+            return {
+                "role": "tool",
+                "tool_call_id": self.tool_call_id,
+                "content": self.result,
+            }
+        elif isinstance(self.result, list):
+            # OpenAI only accepts strings! this is a painful limitation
+            image_idx = 0
+            text_result = ""
+            for block in self.result:
+                if isinstance(block, Text):
+                    text_result += block.text
+                    text_result += "\n\n---\n\n"
+                else:
+                    image_idx += 1
+                    text_result += f"[Image {image_idx} in following user message]"
+                    text_result += "\n\n---\n\n"
+
+            return {
+                "role": "tool",
+                "tool_call_id": self.tool_call_id,
+                "content": text_result,
+            }
+        else:
+            raise ValueError("result type not supported")
 
     def oa_resp(self) -> dict:  # OpenAI Responses
+        print("serializing toolresult with oa_chat...")
+        print("typeof self.result:", type(self.result))
         # if normal (not built-in just return the regular output
         if not self.built_in:
             result = (
@@ -169,13 +213,25 @@ class ToolResult:
             return result
 
     def anthropic(self) -> dict:  # Anthropic Messages
-        return {
-            "type": "tool_result",
-            "tool_use_id": self.tool_call_id,
-            "content": self.result,
-        }
+        if isinstance(self.result, str):
+            return {
+                "type": "tool_result",
+                "tool_use_id": self.tool_call_id,
+                "content": self.result,
+            }
+        elif isinstance(self.result, list):
+            # handle list of content blocks
+            return {
+                "type": "tool_result",
+                "tool_use_id": self.tool_call_id,
+                "content": [part.anthropic() for part in self.result],
+            }
+        else:
+            raise ValueError("unsupported self.result type")
 
     def gemini(self) -> dict:
+        if not isinstance(self.result, str):
+            raise ValueError("can't handle content blocks for gemini yet")
         return {
             "functionResponse": {
                 "name": self.tool_call_id,  # Gemini uses name field for ID
@@ -346,7 +402,7 @@ class Message:
 
     def add_image(
         self,
-        data: bytes | str | Path | io.BytesIO,
+        data: bytes | str | Path | io.BytesIO | Image,
         *,
         media_type: MediaType | None = None,
         detail: Literal["low", "high", "auto"] = "auto",
@@ -359,8 +415,10 @@ class Message:
         dimension equals max_size, but only if the longer dimension is currently
         larger than max_size.
         """
-        img = Image(data, media_type=media_type, detail=detail)
-
+        if not isinstance(data, Image):
+            img = Image(data, media_type=media_type, detail=detail)
+        else:
+            img = data
         # Resize if max_size is provided
         if max_size is not None:
             img.resize(max_size)
@@ -387,7 +445,9 @@ class Message:
         self.parts.append(ToolCall(id=id, name=name, arguments=arguments))
         return self
 
-    def add_tool_result(self, tool_call_id: str, result: str) -> "Message":
+    def add_tool_result(
+        self, tool_call_id: str, result: str | list[ToolResultPart]
+    ) -> "Message":
         """Append a tool result block and return self for chaining."""
         self.parts.append(ToolResult(tool_call_id=tool_call_id, result=result))
         return self
@@ -493,11 +553,12 @@ class Message:
             tool_results = [p for p in self.parts if isinstance(p, ToolResult)]
             if len(tool_results) == 1:
                 tool_result = tool_results[0]
-                return {
-                    "role": "tool",
-                    "tool_call_id": tool_result.tool_call_id,
-                    "content": tool_result.result,
-                }
+                return tool_result.oa_chat()
+                # {
+                #     "role": "tool",
+                #     "tool_call_id": tool_result.tool_call_id,
+                #     "content": tool_result.result,
+                # }
             else:
                 raise ValueError(
                     f"Tool role messages must contain exactly one ToolResult part for OpenAI, got {len(tool_results)}"
@@ -597,7 +658,9 @@ class Conversation:
         self.messages.append(msg)
         return self
 
-    def add_tool_result(self, tool_call_id: str, result: str) -> "Conversation":
+    def add_tool_result(
+        self, tool_call_id: str, result: str | list[ToolResultPart]
+    ) -> "Conversation":
         """Add a tool result to the conversation.
 
         If the conversation ends with a tool message, append to it (for parallel tool calls).
@@ -617,11 +680,23 @@ class Conversation:
     def to_openai(self) -> list[dict]:
         result = []
         for m in self.messages:
-            if m.role == "tool" and len(m.tool_results) > 1:
+            if m.role == "tool":
                 # Split tool messages with multiple results into separate messages for OpenAI
                 for tool_result in m.tool_results:
                     tool_msg = Message("tool", [tool_result])
                     result.append(tool_msg.oa_chat())
+
+                # if tool response included images, add those to next user message
+                user_msg = Message("user", [])
+                for i, tool_result in enumerate(m.tool_results):
+                    images = tool_result.get_images()
+                    if len(images) > 0:
+                        user_msg.add_text(
+                            f"[Images for Tool Call {tool_result.tool_call_id}]"
+                        )
+                        for img in images:
+                            user_msg.add_image(img)
+
             else:
                 result.append(m.oa_chat())
         return result
@@ -905,32 +980,3 @@ def prompts_to_conversations(prompts: Sequence[str | list[dict] | Conversation])
     return [  # type: ignore
         Conversation.user(p) if isinstance(p, str) else p for p in prompts
     ]
-
-
-###############################################################################
-# --------------------------------------------------------------------------- #
-# Basic usage examples                                                        #
-# --------------------------------------------------------------------------- #
-
-# 1️⃣  trivial single-turn (text only)  ---------------------------------------
-# conv = Conversation.user("Hi Claude, who won the 2018 World Cup?")
-# client.messages.create(model="claude-3-7-sonnet", **conv.to_anthropic())
-
-# # 2️⃣  system + vision + follow-up for OpenAI Chat Completions  ---------------
-# conv = (
-#     Conversation.system("You are a visual assistant.")
-#     .add(
-#         Message.with_image(
-#             "user",
-#             "What's in this photo?",
-#             Image("boardwalk.jpg", detail="low"),
-#         )
-#     )
-#     .add(Message.text("assistant", "Looks like a lakeside boardwalk."))
-#     .add(Message.text("user", "Great, write a haiku about it."))
-# )
-
-# openai.chat.completions.create(model="gpt-4o-mini", messages=conv.to_openai_chat())
-
-# # 3️⃣  Same conversation sent through new Responses API -----------------------
-# openai.responses.create(model="gpt-4o-mini", **conv.to_openai_responses())

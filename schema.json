@@ -1,0 +1,50 @@
+{
+  "type": "function",
+  "function": {
+    "name": "read_pdfs",
+    "description": "Retrieve pages from multiple PDFs in one call - MUCH FASTER than multiple read_pdf calls.\n\nArgs:\n - requests: list[dict] \u2013 list of requests like [{'pdf_id': 'doc1', 'pages': [1,2,3]}, {'pdf_id': 'doc2', 'pages': '5-8,10'}]. Pages can be int, list of ints or range string.\n - include_summaries: bool \u2013 whether to include high-level summaries (default false)\n - include_captions: bool \u2013 whether to include detailed captions of visual pages (default false)\n - include_images: bool \u2013 whether to include images (default true)\n - include_text: bool \u2013 whether to include OCR text (default true)\n - model_provider: Literal['openai', 'anthropic'] \u2013 for image resizing (default openai)",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "items": {
+            "additionalProperties": false,
+            "type": "object"
+          },
+          "title": "Requests",
+          "type": "array"
+        },
+        "include_summaries": {
+          "title": "Include Summaries",
+          "type": "boolean"
+        },
+        "include_captions": {
+          "title": "Include Captions",
+          "type": "boolean"
+        },
+        "include_images": {
+          "title": "Include Images",
+          "type": "boolean"
+        },
+        "include_text": {
+          "title": "Include Text",
+          "type": "boolean"
+        },
+        "model_provider": {
+          "title": "Model Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "requests",
+        "include_summaries",
+        "include_captions",
+        "include_images",
+        "include_text",
+        "model_provider"
+      ],
+      "additionalProperties": false
+    },
+    "strict": true
+  }
+}

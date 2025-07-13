@@ -35,6 +35,7 @@ class RequestContext:
     cache: CachePattern | None = None
     use_responses_api: bool = False
     extra_headers: dict[str, str] | None = None
+    force_local_mcp: bool = False
 
     # Computed properties
     cache_key: str = field(init=False)
@@ -68,6 +69,7 @@ class RequestContext:
             "tools": self.tools,
             "cache": self.cache,
             "use_responses_api": self.use_responses_api,
+            "force_local_mcp": self.force_local_mcp,
         }
 
         # Update with any overrides

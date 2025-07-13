@@ -26,7 +26,6 @@ from .tracker import StatusTracker
 
 
 # TODO: get completions as they finish, not all at once at the end.
-# relatedly, would be nice to cache them as they finish too.
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
 class LLMClient(BaseModel):
     """
@@ -60,6 +59,7 @@ class LLMClient(BaseModel):
     reasoning_effort: Literal["low", "medium", "high", None] = None
     logprobs: bool = False
     top_logprobs: int | None = None
+    force_local_mcp: bool = False
 
     # NEW! Builder methods
     def with_model(self, model: str):
@@ -113,6 +113,7 @@ class LLMClient(BaseModel):
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
         if any(m not in registry for m in self.model_names):
+            print("got model names:", self.model_names)
             raise ValueError("all model_names must be in registry")
         if isinstance(self.sampling_params, SamplingParams):
             self.sampling_params = [self.sampling_params for _ in self.model_names]
@@ -368,6 +369,7 @@ class LLMClient(BaseModel):
                             cache=cache,
                             use_responses_api=use_responses_api,
                             extra_headers=self.extra_headers,
+                            force_local_mcp=self.force_local_mcp,
                         )
                     except StopIteration:
                         prompts_not_finished = False
@@ -468,7 +470,7 @@ class LLMClient(BaseModel):
         self,
         conversation: str | Conversation,
         *,
-        tools: list[Tool | dict] | None = None,
+        tools: list[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -481,6 +483,16 @@ class LLMClient(BaseModel):
 
         if isinstance(conversation, str):
             conversation = Conversation.user(conversation)
+
+        # Expand MCPServer objects to their constituent tools for tool execution
+        expanded_tools: list[Tool] = []
+        if tools:
+            for tool in tools:
+                if isinstance(tool, Tool):
+                    expanded_tools.append(tool)
+                elif isinstance(tool, MCPServer):
+                    mcp_tools = await tool.to_tools()
+                    expanded_tools.extend(mcp_tools)
 
         last_response: APIResponse | None = None
 
@@ -504,9 +516,9 @@ class LLMClient(BaseModel):
 
             for call in tool_calls:
                 tool_obj = None
-                if tools:
-                    for t in tools:
-                        if isinstance(t, Tool) and t.name == call.name:
+                if expanded_tools:
+                    for t in expanded_tools:
+                        if t.name == call.name:
                             tool_obj = t
                             break
 
