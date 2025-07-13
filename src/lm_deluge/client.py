@@ -423,7 +423,8 @@ class LLMClient(BaseModel):
 
             # Sleep - original logic
             await asyncio.sleep(seconds_to_sleep_each_loop + tracker.seconds_to_pause)
-            tracker.log_final_status()
+
+        tracker.log_final_status()
 
         if return_completions_only:
             return [r.completion if r is not None else None for r in results]
