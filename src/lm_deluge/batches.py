@@ -3,7 +3,7 @@ import json
 import time
 import asyncio
 import aiohttp
-import pandas as pd
+import tempfile
 from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel
@@ -79,11 +79,8 @@ def _create_batch_status_display(
     return grid
 
 
-async def submit_batch_oa(batch_requests: list[dict]):
-    """Submit one batch asynchronously."""
-    pd.DataFrame(batch_requests).to_json(
-        "requests_temp.jsonl", orient="records", lines=True
-    )
+async def submit_batch_oa(file_path: str):
+    """Upload a JSONL file and create one OpenAI batch."""
 
     # upload the file
     api_key = os.environ.get("OPENAI_API_KEY", None)
@@ -99,21 +96,22 @@ async def submit_batch_oa(batch_requests: list[dict]):
         url = "https://api.openai.com/v1/files"
         data = aiohttp.FormData()
         data.add_field("purpose", "batch")
-        data.add_field(
-            "file",
-            open("requests_temp.jsonl", "rb"),
-            filename="requests_temp.jsonl",
-            content_type="application/json",
-        )
+        with open(file_path, "rb") as f:
+            data.add_field(
+                "file",
+                f,
+                filename=os.path.basename(file_path),
+                content_type="application/json",
+            )
 
-        async with session.post(url, data=data, headers=headers) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise ValueError(f"Error uploading file: {text}")
+            async with session.post(url, data=data, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error uploading file: {text}")
 
-            print("File uploaded successfully")
-            response_data = await response.json()
-            file_id = response_data["id"]
+                print("File uploaded successfully")
+                response_data = await response.json()
+                file_id = response_data["id"]
 
         # Create batch
         url = "https://api.openai.com/v1/batches"
@@ -131,7 +129,36 @@ async def submit_batch_oa(batch_requests: list[dict]):
             response_data = await response.json()
             batch_id = response_data["id"]
             print("Batch job started successfully: id = ", batch_id)
-            return batch_id
+
+        os.remove(file_path)
+        return batch_id
+
+
+async def _submit_anthropic_batch(file_path: str, headers: dict, model: str):
+    """Upload a JSONL file and create one Anthropic batch."""
+
+    async with aiohttp.ClientSession() as session:
+        url = f"{registry[model].api_base}/messages/batches"
+        data = aiohttp.FormData()
+        with open(file_path, "rb") as f:
+            data.add_field(
+                "file",
+                f,
+                filename=os.path.basename(file_path),
+                content_type="application/json",
+            )
+
+            async with session.post(url, data=data, headers=headers) as response:
+                if response.status != 200:
+                    text = await response.text()
+                    raise ValueError(f"Error creating batch: {text}")
+
+                batch_data = await response.json()
+                batch_id = batch_data["id"]
+                print(f"Anthropic batch job started successfully: id = {batch_id}")
+
+        os.remove(file_path)
+        return batch_id
 
 
 async def submit_batches_oa(
@@ -139,38 +166,38 @@ async def submit_batches_oa(
     sampling_params: SamplingParams,
     prompts: Sequence[str | list[dict] | Conversation],
 ):
-    # if prompts are strings, convert them to message lists
+    """Write OpenAI batch requests to a file and submit."""
+
     prompts = prompts_to_conversations(prompts)
     if any(p is None for p in prompts):
         raise ValueError("All prompts must be valid.")
-    ids = [i for i, _ in enumerate(prompts)]
 
-    # create file with requests to send to batch api
-    batch_requests = []
     model_obj = APIModel.from_registry(model)
-    for id, prompt in zip(ids, prompts):
-        assert isinstance(prompt, Conversation)
-        batch_requests.append(
-            {
-                "custom_id": str(id),
-                "method": "POST",
-                "url": "/v1/chat/completions",
-                "body": _build_oa_chat_request(model_obj, prompt, [], sampling_params),
-            }
-        )
 
-    # since the api only accepts up to 50,000 requests per batch job, we chunk into 50k chunks
     BATCH_SIZE = 50_000
-    batches = [
-        batch_requests[i : i + BATCH_SIZE]
-        for i in range(0, len(batch_requests), BATCH_SIZE)
-    ]
     tasks = []
-    for batch in batches:
-        tasks.append(asyncio.create_task(submit_batch_oa(batch)))
+
+    for start in range(0, len(prompts), BATCH_SIZE):
+        batch_prompts = prompts[start : start + BATCH_SIZE]
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", delete=False) as f:
+            for idx, prompt in enumerate(batch_prompts, start=start):
+                assert isinstance(prompt, Conversation)
+                request = {
+                    "custom_id": str(idx),
+                    "method": "POST",
+                    "url": "/v1/chat/completions",
+                    "body": _build_oa_chat_request(model_obj, prompt, [], sampling_params),
+                }
+                json.dump(request, f)
+                f.write("\n")
+
+            file_path = f.name
+
+        tasks.append(asyncio.create_task(submit_batch_oa(file_path)))
+
     batch_ids = await asyncio.gather(*tasks)
 
-    print(f"Submitted {len(batches)} batch jobs.")
+    print(f"Submitted {len(tasks)} batch jobs.")
 
     return batch_ids
 
@@ -196,47 +223,29 @@ async def submit_batches_anthropic(
 
     # Convert prompts to Conversations
     prompts = prompts_to_conversations(prompts)
-    # Create batch requests
+
     request_headers = None
-    batch_requests = []
-    for i, prompt in enumerate(prompts):
-        assert isinstance(prompt, Conversation)
-        # Build request body
-        request_body, request_headers = _build_anthropic_request(
-            APIModel.from_registry(model), prompt, [], sampling_params, cache
-        )
-
-        batch_requests.append({"custom_id": str(i), "params": request_body})
-
-    # Chunk into batches of 100k requests (Anthropic's limit)
     BATCH_SIZE = 100_000
-    batches = [
-        batch_requests[i : i + BATCH_SIZE]
-        for i in range(0, len(batch_requests), BATCH_SIZE)
-    ]
-    batch_ids = []
     batch_tasks = []
-    async with aiohttp.ClientSession() as session:
-        for batch in batches:
-            url = f"{registry[model].api_base}/messages/batches"
-            data = {"requests": batch}
 
-            async def submit_batch(data, url, headers):
-                async with session.post(url, json=data, headers=headers) as response:
-                    if response.status != 200:
-                        text = await response.text()
-                        raise ValueError(f"Error creating batch: {text}")
+    for start in range(0, len(prompts), BATCH_SIZE):
+        batch_prompts = prompts[start : start + BATCH_SIZE]
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", delete=False) as f:
+            for idx, prompt in enumerate(batch_prompts, start=start):
+                assert isinstance(prompt, Conversation)
+                request_body, request_headers = _build_anthropic_request(
+                    APIModel.from_registry(model), prompt, [], sampling_params, cache
+                )
+                json.dump({"custom_id": str(idx), "params": request_body}, f)
+                f.write("\n")
 
-                    batch_data = await response.json()
-                    batch_id = batch_data["id"]
-                    print(f"Anthropic batch job started successfully: id = {batch_id}")
-                    return batch_id
+            file_path = f.name
 
-            batch_tasks.append(submit_batch(data, url, request_headers))
+        batch_tasks.append(asyncio.create_task(_submit_anthropic_batch(file_path, request_headers, model)))
 
-        batch_ids = await asyncio.gather(*batch_tasks)
+    batch_ids = await asyncio.gather(*batch_tasks)
 
-    print(f"Submitted {len(batches)} batch jobs.")
+    print(f"Submitted {len(batch_tasks)} batch jobs.")
     return batch_ids
 
 
