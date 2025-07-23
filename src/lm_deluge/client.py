@@ -22,8 +22,6 @@ from .models import APIModel, registry
 from .request_context import RequestContext
 from .tracker import StatusTracker
 
-# from .cache import LevelDBCache, SqliteCache
-
 
 # TODO: get completions as they finish, not all at once at the end.
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
@@ -391,8 +389,6 @@ class LLMClient(BaseModel):
                             results[ctx.task_id] = response
                         except Exception as e:
                             # Create an error response for validation errors and other exceptions
-                            from .api_requests.response import APIResponse
-
                             error_response = APIResponse(
                                 id=ctx.task_id,
                                 model_internal=ctx.model_name,

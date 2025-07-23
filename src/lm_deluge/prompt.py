@@ -928,7 +928,9 @@ class Conversation:
                         {
                             "type": "tool_result",
                             "tool_call_id": p.tool_call_id,
-                            "result": p.result,
+                            "result": p.result
+                            if isinstance(p.result, str)
+                            else f"<Tool result ({len(p.result)} blocks)>",
                         }
                     )
                 elif isinstance(p, Thinking):

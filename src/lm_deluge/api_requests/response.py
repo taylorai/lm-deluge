@@ -14,7 +14,7 @@ class APIResponse:
     # request information
     id: int  # should be unique to the request within a given prompt-processing call
     model_internal: str  # our internal model tag
-    prompt: Conversation
+    prompt: Conversation | dict
     sampling_params: SamplingParams
 
     # http response information
@@ -92,6 +92,8 @@ class APIResponse:
             print(
                 f"Warning: Completion provided without token counts for model {self.model_internal}."
             )
+        if isinstance(self.prompt, Conversation):
+            self.prompt = self.prompt.to_log()  # avoid keeping images in memory
 
     def to_dict(self):
         return {
@@ -99,7 +101,7 @@ class APIResponse:
             "model_internal": self.model_internal,
             "model_external": self.model_external,
             "region": self.region,
-            "prompt": self.prompt.to_log(),  # destroys image if present
+            "prompt": self.prompt,
             "sampling_params": self.sampling_params.__dict__,
             "status_code": self.status_code,
             "is_error": self.is_error,
