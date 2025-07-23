@@ -194,7 +194,7 @@ async def submit_batches_oa(
                     "custom_id": str(idx),
                     "method": "POST",
                     "url": "/v1/chat/completions",
-                    "body": _build_oa_chat_request(model_obj, context),
+                    "body": await _build_oa_chat_request(model_obj, context),
                 }
                 json.dump(request, f)
                 f.write("\n")
