@@ -16,6 +16,7 @@ from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 from lm_deluge.models import registry
+from lm_deluge.request_context import RequestContext
 
 
 def _create_batch_status_display(
@@ -165,8 +166,10 @@ async def submit_batches_oa(
     model: str,
     sampling_params: SamplingParams,
     prompts: Sequence[str | list[dict] | Conversation],
+    batch_size: int = 50_000,
 ):
     """Write OpenAI batch requests to a file and submit."""
+    BATCH_SIZE = batch_size
 
     prompts = prompts_to_conversations(prompts)
     if any(p is None for p in prompts):
@@ -174,7 +177,6 @@ async def submit_batches_oa(
 
     model_obj = APIModel.from_registry(model)
 
-    BATCH_SIZE = 50_000
     tasks = []
 
     for start in range(0, len(prompts), BATCH_SIZE):
@@ -182,11 +184,17 @@ async def submit_batches_oa(
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", delete=False) as f:
             for idx, prompt in enumerate(batch_prompts, start=start):
                 assert isinstance(prompt, Conversation)
+                context = RequestContext(
+                    task_id=idx,
+                    model_name=model,
+                    prompt=prompt,
+                    sampling_params=sampling_params,
+                )
                 request = {
                     "custom_id": str(idx),
                     "method": "POST",
                     "url": "/v1/chat/completions",
-                    "body": _build_oa_chat_request(model_obj, prompt, [], sampling_params),
+                    "body": _build_oa_chat_request(model_obj, context),
                 }
                 json.dump(request, f)
                 f.write("\n")
@@ -208,6 +216,7 @@ async def submit_batches_anthropic(
     prompts: Sequence[str | list[dict] | Conversation],
     *,
     cache: CachePattern | None = None,
+    batch_size=100_000,
 ):
     """Submit a batch job to Anthropic's Message Batches API.
 
@@ -225,7 +234,7 @@ async def submit_batches_anthropic(
     prompts = prompts_to_conversations(prompts)
 
     request_headers = None
-    BATCH_SIZE = 100_000
+    BATCH_SIZE = batch_size
     batch_tasks = []
 
     for start in range(0, len(prompts), BATCH_SIZE):
@@ -233,15 +242,26 @@ async def submit_batches_anthropic(
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", delete=False) as f:
             for idx, prompt in enumerate(batch_prompts, start=start):
                 assert isinstance(prompt, Conversation)
+                context = RequestContext(
+                    task_id=idx,
+                    model_name=model,
+                    prompt=prompt,
+                    sampling_params=sampling_params,
+                    cache=cache,
+                )
                 request_body, request_headers = _build_anthropic_request(
-                    APIModel.from_registry(model), prompt, [], sampling_params, cache
+                    APIModel.from_registry(model), context
                 )
                 json.dump({"custom_id": str(idx), "params": request_body}, f)
                 f.write("\n")
 
             file_path = f.name
 
-        batch_tasks.append(asyncio.create_task(_submit_anthropic_batch(file_path, request_headers, model)))
+        batch_tasks.append(
+            asyncio.create_task(
+                _submit_anthropic_batch(file_path, request_headers, model)  # type: ignore
+            )
+        )
 
     batch_ids = await asyncio.gather(*batch_tasks)
 

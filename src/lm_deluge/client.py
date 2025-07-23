@@ -562,6 +562,7 @@ class LLMClient(BaseModel):
         *,
         tools: list[Tool] | None = None,
         cache: CachePattern | None = None,
+        batch_size: int = 50_000,
     ):
         """Submit a batch job asynchronously, automatically detecting the provider based on model.
 
@@ -581,13 +582,16 @@ class LLMClient(BaseModel):
         api_spec = registry[model].api_spec
 
         if api_spec == "openai":
-            return await submit_batches_oa(model, self.sampling_params[0], prompts)
+            return await submit_batches_oa(
+                model, self.sampling_params[0], prompts, batch_size=batch_size
+            )
         elif api_spec == "anthropic":
             return await submit_batches_anthropic(
                 model,
                 self.sampling_params[0],
                 prompts,
                 cache=cache,
+                batch_size=batch_size,
             )
         else:
             raise ValueError(f"Batch processing not supported for API spec: {api_spec}")
