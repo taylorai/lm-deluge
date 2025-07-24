@@ -169,7 +169,8 @@ async def submit_batches_oa(
     batch_size: int = 50_000,
 ):
     """Write OpenAI batch requests to a file and submit."""
-    BATCH_SIZE = batch_size
+    MAX_BATCH_SIZE_BYTES = 200 * 1024 * 1024  # 200MB
+    MAX_BATCH_SIZE_ITEMS = batch_size
 
     prompts = prompts_to_conversations(prompts)
     if any(p is None for p in prompts):
@@ -178,29 +179,71 @@ async def submit_batches_oa(
     model_obj = APIModel.from_registry(model)
 
     tasks = []
+    current_batch = []
+    current_batch_size = 0
+    # current_batch_start_idx = 0
 
-    for start in range(0, len(prompts), BATCH_SIZE):
-        batch_prompts = prompts[start : start + BATCH_SIZE]
-        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", delete=False) as f:
-            for idx, prompt in enumerate(batch_prompts, start=start):
-                assert isinstance(prompt, Conversation)
-                context = RequestContext(
-                    task_id=idx,
-                    model_name=model,
-                    prompt=prompt,
-                    sampling_params=sampling_params,
-                )
-                request = {
-                    "custom_id": str(idx),
-                    "method": "POST",
-                    "url": "/v1/chat/completions",
-                    "body": await _build_oa_chat_request(model_obj, context),
-                }
-                json.dump(request, f)
-                f.write("\n")
+    for idx, prompt in enumerate(prompts):
+        assert isinstance(prompt, Conversation)
+        context = RequestContext(
+            task_id=idx,
+            model_name=model,
+            prompt=prompt,
+            sampling_params=sampling_params,
+        )
+        request = {
+            "custom_id": str(idx),
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": await _build_oa_chat_request(model_obj, context),
+        }
 
-            file_path = f.name
+        # Calculate size of this request
+        request_json = json.dumps(request) + "\n"
+        request_size = len(request_json.encode("utf-8"))
 
+        # Check if adding this request would exceed limits
+        would_exceed_size = current_batch_size + request_size > MAX_BATCH_SIZE_BYTES
+        would_exceed_items = len(current_batch) >= MAX_BATCH_SIZE_ITEMS
+
+        if current_batch and (would_exceed_size or would_exceed_items):
+            # Submit current batch
+            def write_batch_file():
+                with tempfile.NamedTemporaryFile(
+                    mode="w+", suffix=".jsonl", delete=False
+                ) as f:
+                    for batch_request in current_batch:
+                        json.dump(batch_request, f)
+                        f.write("\n")
+                    print("wrote", len(current_batch), "items")
+                    return f.name
+
+            file_path = await asyncio.to_thread(write_batch_file)
+            tasks.append(asyncio.create_task(submit_batch_oa(file_path)))
+
+            # Start new batch
+            current_batch = []
+            current_batch_size = 0
+            # current_batch_start_idx = idx
+
+        # Add request to current batch
+        current_batch.append(request)
+        current_batch_size += request_size
+
+    # Submit final batch if it has items
+    if current_batch:
+
+        def write_final_batch_file():
+            with tempfile.NamedTemporaryFile(
+                mode="w+", suffix=".jsonl", delete=False
+            ) as f:
+                for batch_request in current_batch:
+                    json.dump(batch_request, f)
+                    f.write("\n")
+                print("wrote", len(current_batch), "items")
+                return f.name
+
+        file_path = await asyncio.to_thread(write_final_batch_file)
         tasks.append(asyncio.create_task(submit_batch_oa(file_path)))
 
     batch_ids = await asyncio.gather(*tasks)
@@ -229,34 +272,80 @@ async def submit_batches_anthropic(
 
     Returns: batch_ids (list[str])
     """
+    MAX_BATCH_SIZE_BYTES = 200 * 1024 * 1024  # 200MB
+    MAX_BATCH_SIZE_ITEMS = batch_size
 
     # Convert prompts to Conversations
     prompts = prompts_to_conversations(prompts)
 
     request_headers = None
-    BATCH_SIZE = batch_size
     batch_tasks = []
+    current_batch = []
+    current_batch_size = 0
 
-    for start in range(0, len(prompts), BATCH_SIZE):
-        batch_prompts = prompts[start : start + BATCH_SIZE]
-        with tempfile.NamedTemporaryFile(mode="w+", suffix=".jsonl", delete=False) as f:
-            for idx, prompt in enumerate(batch_prompts, start=start):
-                assert isinstance(prompt, Conversation)
-                context = RequestContext(
-                    task_id=idx,
-                    model_name=model,
-                    prompt=prompt,
-                    sampling_params=sampling_params,
-                    cache=cache,
+    for idx, prompt in enumerate(prompts):
+        assert isinstance(prompt, Conversation)
+        context = RequestContext(
+            task_id=idx,
+            model_name=model,
+            prompt=prompt,
+            sampling_params=sampling_params,
+            cache=cache,
+        )
+        request_body, request_headers = _build_anthropic_request(
+            APIModel.from_registry(model), context
+        )
+        request = {"custom_id": str(idx), "params": request_body}
+
+        # Calculate size of this request
+        request_json = json.dumps(request) + "\n"
+        request_size = len(request_json.encode("utf-8"))
+
+        # Check if adding this request would exceed limits
+        would_exceed_size = current_batch_size + request_size > MAX_BATCH_SIZE_BYTES
+        would_exceed_items = len(current_batch) >= MAX_BATCH_SIZE_ITEMS
+
+        if current_batch and (would_exceed_size or would_exceed_items):
+            # Submit current batch
+            def write_batch_file():
+                with tempfile.NamedTemporaryFile(
+                    mode="w+", suffix=".jsonl", delete=False
+                ) as f:
+                    for batch_request in current_batch:
+                        json.dump(batch_request, f)
+                        f.write("\n")
+                    print("wrote", len(current_batch), "items")
+                    return f.name
+
+            file_path = await asyncio.to_thread(write_batch_file)
+            batch_tasks.append(
+                asyncio.create_task(
+                    _submit_anthropic_batch(file_path, request_headers, model)  # type: ignore
                 )
-                request_body, request_headers = _build_anthropic_request(
-                    APIModel.from_registry(model), context
-                )
-                json.dump({"custom_id": str(idx), "params": request_body}, f)
-                f.write("\n")
+            )
 
-            file_path = f.name
+            # Start new batch
+            current_batch = []
+            current_batch_size = 0
 
+        # Add request to current batch
+        current_batch.append(request)
+        current_batch_size += request_size
+
+    # Submit final batch if it has items
+    if current_batch:
+
+        def write_final_batch_file():
+            with tempfile.NamedTemporaryFile(
+                mode="w+", suffix=".jsonl", delete=False
+            ) as f:
+                for batch_request in current_batch:
+                    json.dump(batch_request, f)
+                    f.write("\n")
+                print("wrote", len(current_batch), "items")
+                return f.name
+
+        file_path = await asyncio.to_thread(write_final_batch_file)
         batch_tasks.append(
             asyncio.create_task(
                 _submit_anthropic_batch(file_path, request_headers, model)  # type: ignore
