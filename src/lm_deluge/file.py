@@ -1,3 +1,4 @@
+from functools import cached_property
 import os
 import io
 import requests
@@ -68,13 +69,13 @@ class File:
             return encoded
         return f"data:{self._mime()};base64,{encoded}"
 
-    @property
+    @cached_property
     def fingerprint(self) -> str:
         # Hash the file contents for fingerprinting
         file_bytes = self._bytes()
         return xxhash.xxh64(file_bytes).hexdigest()
 
-    @property
+    @cached_property
     def size(self) -> int:
         """Return file size in bytes."""
         return len(self._bytes())
