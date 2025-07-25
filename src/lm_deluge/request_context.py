@@ -43,7 +43,12 @@ class RequestContext:
 
     def __post_init__(self):
         # Compute cache key from prompt fingerprint
-        self.cache_key = self.prompt.fingerprint
+        # Only do this when caching is enabled so we avoid
+        # generating fingerprints for images unnecessarily.
+        if self.cache is not None:
+            self.cache_key = self.prompt.fingerprint
+        else:
+            self.cache_key = ""
 
         # Compute token count
         self.num_tokens = self.prompt.count_tokens(self.sampling_params.max_new_tokens)
