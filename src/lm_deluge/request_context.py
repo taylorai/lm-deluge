@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any, Callable
 
 from .config import SamplingParams
@@ -39,14 +40,18 @@ class RequestContext:
 
     # Computed properties
     cache_key: str = field(init=False)
-    num_tokens: int = field(init=False)
+    # num_tokens: int = field(init=False)
 
-    def __post_init__(self):
-        # Compute cache key from prompt fingerprint
-        self.cache_key = self.prompt.fingerprint
+    # def __post_init__(self):
+    #     # Compute cache key from prompt fingerprint
+    #     # self.cache_key = self.prompt.fingerprint
 
-        # Compute token count
-        self.num_tokens = self.prompt.count_tokens(self.sampling_params.max_new_tokens)
+    #     # Compute token count
+    #     self.num_tokens =
+
+    @cached_property
+    def num_tokens(self):
+        return self.prompt.count_tokens(self.sampling_params.max_new_tokens)
 
     def maybe_callback(self, response, tracker):
         if not self.callback:
