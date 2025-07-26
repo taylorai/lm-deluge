@@ -37,7 +37,14 @@ async def _build_oa_chat_request(
     if model.reasoning_model:
         request_json["temperature"] = 1.0
         request_json["top_p"] = 1.0
-        request_json["reasoning_effort"] = sampling_params.reasoning_effort
+        effort = sampling_params.reasoning_effort
+        if effort in [None, "none"]:
+            # Disable reasoning for Gemini models when no effort requested
+            if "gemini" in model.id:
+                effort = "none"
+            else:
+                effort = "low"
+        request_json["reasoning_effort"] = effort
     else:
         if sampling_params.reasoning_effort:
             warnings.warn(
