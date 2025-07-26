@@ -247,7 +247,7 @@ We support all models in `src/lm_deluge/models.py`. Vertex support is not planne
 
 ## Feature Support
 
-We support structured outputs via `json_mode` parameter provided to `SamplingParams`. Structured outputs with a schema are planned. Reasoning models are supported via the `reasoning_effort` parameter, which is translated to a thinking budget for Claude/Gemini. Image models are supported. We support tool use as documented above. We support logprobs for OpenAI models that return them.
+We support structured outputs via `json_mode` parameter provided to `SamplingParams`. Structured outputs with a schema are planned. Reasoning models are supported via the `reasoning_effort` parameter, which is translated to a thinking budget for Claude/Gemini. Passing `None` (or the string `"none"`) disables Gemini thoughts entirely. Image models are supported. We support tool use as documented above. We support logprobs for OpenAI models that return them.
 
 ## Built‑in tools
 

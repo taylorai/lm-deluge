@@ -37,14 +37,17 @@ async def _build_gemini_request(
 
     # Handle reasoning models (thinking)
     if model.reasoning_model:
-        request_json["generationConfig"]["thinkingConfig"] = {"includeThoughts": True}
-        if sampling_params.reasoning_effort and "flash" in model.id:
-            budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
-                sampling_params.reasoning_effort
-            )
-            request_json["generationConfig"]["thinkingConfig"]["thinkingBudget"] = (
-                budget
-            )
+        thinking_config = None
+        effort = sampling_params.reasoning_effort
+        if effort is None or effort == "none":
+            # Explicitly disable thoughts when no effort is requested
+            thinking_config = {"includeThoughts": False, "thinkingBudget": 0}
+        else:
+            thinking_config = {"includeThoughts": True}
+            if effort in {"low", "medium", "high"} and "flash" in model.id:
+                budget = {"low": 1024, "medium": 4096, "high": 16384}[effort]
+                thinking_config["thinkingBudget"] = budget
+        request_json["generationConfig"]["thinkingConfig"] = thinking_config
 
     else:
         if sampling_params.reasoning_effort:
