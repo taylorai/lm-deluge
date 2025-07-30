@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-@dataclass(slots=True)
+@dataclass
 class File:
     # raw bytes, pathlike, http url, base64 data url, or file_id
     data: bytes | io.BytesIO | Path | str
