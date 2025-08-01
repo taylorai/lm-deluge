@@ -4,7 +4,7 @@ from typing import Any, Literal, Self, Sequence, overload
 
 import numpy as np
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, PrivateAttr
 from pydantic.functional_validators import model_validator
 
 from lm_deluge.api_requests.openai import stream_chat
@@ -59,6 +59,13 @@ class LLMClient(BaseModel):
     top_logprobs: int | None = None
     force_local_mcp: bool = False
 
+    # Internal state for async task handling
+    _next_task_id: int = PrivateAttr(default=0)
+    _tasks: dict[int, asyncio.Task] = PrivateAttr(default_factory=dict)
+    _results: dict[int, APIResponse] = PrivateAttr(default_factory=dict)
+    _tracker: StatusTracker | None = PrivateAttr(default=None)
+    _capacity_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
+
     # NEW! Builder methods
     def with_model(self, model: str):
         self.model_names = [model]
@@ -80,6 +87,18 @@ class LLMClient(BaseModel):
             self.max_tokens_per_minute = max_tokens_per_minute
         if max_concurrent_requests:
             self.max_concurrent_requests = max_concurrent_requests
+
+    def _get_tracker(self) -> StatusTracker:
+        if self._tracker is None:
+            self._tracker = StatusTracker(
+                max_requests_per_minute=self.max_requests_per_minute,
+                max_tokens_per_minute=self.max_tokens_per_minute,
+                max_concurrent_requests=self.max_concurrent_requests,
+                use_progress_bar=False,
+                progress_bar_disable=True,
+                use_rich=False,
+            )
+        return self._tracker
 
     @property
     def models(self):
@@ -192,14 +211,19 @@ class LLMClient(BaseModel):
         chosen_sp = self.sampling_params[self.models.index(chosen_model)]
         return chosen_model, chosen_sp
 
-    async def _wait_for_capacity(self, num_tokens: int, tracker: StatusTracker):
+    async def _wait_for_capacity(
+        self, num_tokens: int, tracker: StatusTracker, *, retry: bool = False
+    ):
         while True:
-            if tracker.check_capacity(num_tokens):
-                tracker.set_limiting_factor(None)
-                return
+            async with self._capacity_lock:
+                tracker.update_capacity()
+                if tracker.check_capacity(num_tokens, retry=retry):
+                    tracker.set_limiting_factor(None)
+                    return
+                seconds_to_pause = tracker.seconds_to_pause
 
-            if tracker.seconds_to_pause > 0:
-                await asyncio.sleep(tracker.seconds_to_pause)
+            if seconds_to_pause > 0:
+                await asyncio.sleep(seconds_to_pause)
             else:
                 await asyncio.sleep(random.random())
 
@@ -445,6 +469,78 @@ class LLMClient(BaseModel):
                 cache=cache,
             )
         )
+
+    async def _run_context(self, context: RequestContext) -> APIResponse:
+        tracker = self._get_tracker()
+        retry = False
+        retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
+        current = context
+        while True:
+            await self._wait_for_capacity(current.num_tokens, tracker, retry=retry)
+            response = await self.process_single_request(current, retry_queue)
+            if not response.is_error or retry_queue.empty():
+                self._results[context.task_id] = response
+                return response
+            current = await retry_queue.get()
+            retry = True
+
+    def start_nowait(
+        self,
+        prompt: str | Conversation,
+        *,
+        tools: list[Tool | dict | MCPServer] | None = None,
+        cache: CachePattern | None = None,
+        use_responses_api: bool = False,
+    ) -> int:
+        tracker = self._get_tracker()
+        task_id = self._next_task_id
+        self._next_task_id += 1
+        model, sampling_params = self._select_model()
+        if isinstance(prompt, str):
+            prompt = Conversation.user(prompt)
+        context = RequestContext(
+            task_id=task_id,
+            model_name=model,
+            prompt=prompt,
+            sampling_params=sampling_params,
+            attempts_left=self.max_attempts,
+            request_timeout=self.request_timeout,
+            status_tracker=tracker,
+            tools=tools,
+            cache=cache,
+            use_responses_api=use_responses_api,
+            extra_headers=self.extra_headers,
+            force_local_mcp=self.force_local_mcp,
+        )
+        task = asyncio.create_task(self._run_context(context))
+        self._tasks[task_id] = task
+        return task_id
+
+    async def start(
+        self,
+        prompt: str | Conversation,
+        *,
+        tools: list[Tool | dict | MCPServer] | None = None,
+        cache: CachePattern | None = None,
+        use_responses_api: bool = False,
+    ) -> APIResponse:
+        task_id = self.start_nowait(
+            prompt, tools=tools, cache=cache, use_responses_api=use_responses_api
+        )
+        return await self.wait_for(task_id)
+
+    async def wait_for(self, task_id: int) -> APIResponse | None:
+        task = self._tasks.get(task_id)
+        if task:
+            return await task
+        return self._results.get(task_id)
+
+    async def wait_for_all(
+        self, task_ids: Sequence[int] | None = None
+    ) -> list[APIResponse | None]:
+        if task_ids is None:
+            task_ids = list(self._tasks.keys())
+        return [await self.wait_for(tid) for tid in task_ids]
 
     async def stream(
         self,
