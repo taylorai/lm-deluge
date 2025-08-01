@@ -28,7 +28,7 @@ BUILTIN_MODELS = {
         "reasoning_model": False,
     },
     "llama-4-maverick": {
-        "id": "llama-4-scout",
+        "id": "llama-4-maverick",
         "name": "Llama-4-Maverick-17B-128E-Instruct-FP8",
         "api_base": "https://api.llama.com/compat/v1",
         "api_key_env_var": "META_API_KEY",

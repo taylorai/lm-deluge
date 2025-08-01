@@ -132,7 +132,7 @@ async def _build_anthropic_bedrock_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
-    return request_json, base_headers, auth, url
+    return request_json, base_headers, auth, url, region
 
 
 class BedrockRequest(APIRequestBase):
@@ -140,6 +140,7 @@ class BedrockRequest(APIRequestBase):
         super().__init__(context=context)
 
         self.model = APIModel.from_registry(self.context.model_name)
+        self.region = None  # Will be set during build_request
 
     async def build_request(self):
         self.url = f"{self.model.api_base}/messages"
@@ -153,6 +154,7 @@ class BedrockRequest(APIRequestBase):
             base_headers,
             self.auth,
             self.url,
+            self.region,
         ) = await _build_anthropic_bedrock_request(self.model, self.context)
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["anthropic", "openai", "gemini", "mistral"]
@@ -160,6 +162,7 @@ class BedrockRequest(APIRequestBase):
 
     async def execute_once(self) -> APIResponse:
         """Override execute_once to handle AWS4Auth signing."""
+        await self.build_request()
         import aiohttp
 
         assert self.context.status_tracker

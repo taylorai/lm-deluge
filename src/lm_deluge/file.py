@@ -37,7 +37,10 @@ class File:
             header, encoded = self.data.split(",", 1)
             return base64.b64decode(encoded)
         else:
-            raise ValueError("unreadable file format")
+            err = f"unreadable file. self.data type: {type(self.data)}"
+            if isinstance(self.data, str) and len(self.data) < 1_000:
+                err += f". self.data: {len(self.data)}"
+            raise ValueError(err)
 
     def _mime(self) -> str:
         if self.media_type:
