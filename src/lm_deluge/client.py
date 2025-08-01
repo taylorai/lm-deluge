@@ -32,13 +32,7 @@ class LLMClient(BaseModel):
     Handles models, sampling params for each model, model weights, rate limits, etc.
     """
 
-    model_names: list[str] = ["gpt-4.1-mini"]
-
-    def __init__(self, model_name: str | list[str] | None = None, **kwargs):
-        if model_name is not None:
-            kwargs["model_names"] = model_name
-        super().__init__(**kwargs)
-
+    model_names: str | list[str] = ["gpt-4.1-mini"]
     max_requests_per_minute: int = 1_000
     max_tokens_per_minute: int = 100_000
     max_concurrent_requests: int = 225
@@ -109,6 +103,8 @@ class LLMClient(BaseModel):
     def fix_lists(cls, data) -> "LLMClient":
         if isinstance(data.get("model_names"), str):
             data["model_names"] = [data["model_names"]]
+        if not isinstance(data.get("sampling_params", []), list):
+            data["sampling_params"] = [data["sampling_params"]]
         if "sampling_params" not in data or len(data.get("sampling_params", [])) == 0:
             data["sampling_params"] = [
                 SamplingParams(
@@ -523,7 +519,7 @@ class LLMClient(BaseModel):
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
         use_responses_api: bool = False,
-    ) -> APIResponse:
+    ) -> APIResponse | None:
         task_id = self.start_nowait(
             prompt, tools=tools, cache=cache, use_responses_api=use_responses_api
         )

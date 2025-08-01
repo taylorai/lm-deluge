@@ -38,8 +38,8 @@ def _build_anthropic_request(
     tools = context.tools
     sampling_params = context.sampling_params
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
-    if not system_message:
-        print("WARNING: system_message is None")
+    # if not system_message:
+    #     print("WARNING: system_message is None")
     base_headers = {
         "x-api-key": os.getenv(model.api_key_env_var),
         "anthropic-version": "2023-06-01",
