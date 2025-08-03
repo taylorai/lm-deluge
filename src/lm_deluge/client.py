@@ -53,12 +53,32 @@ class LLMClient(BaseModel):
     top_logprobs: int | None = None
     force_local_mcp: bool = False
 
+    # Progress configuration
+    progress: Literal["rich", "tqdm", "manual"] = "rich"
+
     # Internal state for async task handling
     _next_task_id: int = PrivateAttr(default=0)
     _tasks: dict[int, asyncio.Task] = PrivateAttr(default_factory=dict)
     _results: dict[int, APIResponse] = PrivateAttr(default_factory=dict)
     _tracker: StatusTracker | None = PrivateAttr(default=None)
     _capacity_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
+
+    # Progress management for queueing API
+    def open(self, total: int | None = None, show_progress: bool = True):
+        self._tracker = StatusTracker(
+            max_requests_per_minute=self.max_requests_per_minute,
+            max_tokens_per_minute=self.max_tokens_per_minute,
+            max_concurrent_requests=self.max_concurrent_requests,
+            progress_style=self.progress,
+            use_progress_bar=show_progress,
+        )
+        self._tracker.init_progress_bar(total)
+        return self
+
+    def close(self):
+        if self._tracker:
+            self._tracker.log_final_status()
+            self._tracker = None
 
     # NEW! Builder methods
     def with_model(self, model: str):
@@ -90,7 +110,7 @@ class LLMClient(BaseModel):
                 max_concurrent_requests=self.max_concurrent_requests,
                 use_progress_bar=False,
                 progress_bar_disable=True,
-                use_rich=False,
+                progress_style=self.progress,
             )
         return self._tracker
 
@@ -343,13 +363,10 @@ class LLMClient(BaseModel):
             max_requests_per_minute=self.max_requests_per_minute,
             max_tokens_per_minute=self.max_tokens_per_minute,
             max_concurrent_requests=self.max_concurrent_requests,
+            progress_style=self.progress,
             use_progress_bar=show_progress,
-            progress_bar_total=len(prompts),
-            progress_bar_disable=not show_progress,
-            use_rich=show_progress,
         )
-
-        tracker.init_progress_bar()
+        tracker.init_progress_bar(total=len(prompts), disable=not show_progress)
 
         # Create retry queue for failed requests
         retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
@@ -510,6 +527,7 @@ class LLMClient(BaseModel):
         )
         task = asyncio.create_task(self._run_context(context))
         self._tasks[task_id] = task
+        tracker.add_to_total(1)
         return task_id
 
     async def start(
