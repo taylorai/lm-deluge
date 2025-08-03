@@ -2,8 +2,15 @@
 """Test the Rich display functionality."""
 
 import asyncio
+import importlib.util
+import pathlib
 
-from lm_deluge.tracker import StatusTracker
+spec = importlib.util.spec_from_file_location(
+    "status_tracker", pathlib.Path(__file__).resolve().parents[2] / "src" / "lm_deluge" / "tracker.py"
+)
+tracker_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(tracker_module)  # type: ignore
+StatusTracker = tracker_module.StatusTracker
 
 
 async def test_rich_display():
@@ -14,7 +21,7 @@ async def test_rich_display():
         max_concurrent_requests=100,
         use_progress_bar=True,
         progress_bar_total=10,
-        use_rich=True,
+        progress_style="rich",
     )
 
     # Initialize Rich display
@@ -64,7 +71,7 @@ def test_rich_disabled():
         max_concurrent_requests=100,
         use_progress_bar=True,
         progress_bar_total=5,
-        use_rich=False,  # Explicitly disable Rich
+        progress_style="tqdm",  # Explicitly use tqdm
     )
 
     tracker.init_progress_bar()
@@ -88,7 +95,7 @@ def test_progress_disabled():
         max_tokens_per_minute=10000,
         max_concurrent_requests=100,
         use_progress_bar=False,  # Progress disabled
-        use_rich=False,  # Should be ignored
+        progress_style="tqdm",  # Should be ignored
     )
 
     tracker.init_progress_bar()

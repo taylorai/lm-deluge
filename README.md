@@ -59,7 +59,7 @@ print(resp[0].completion)
 API calls can be customized in a few ways.
 
 1. **Sampling Parameters.** This determines things like structured outputs, maximum completion tokens, nucleus sampling, etc. Provide a custom `SamplingParams` to the `LLMClient` to set temperature, top_p, json_mode, max_new_tokens, and/or reasoning_effort. You can pass 1 `SamplingParams` to use for all models, or a list of `SamplingParams` that's the same length as the list of models. You can also pass many of these arguments directly to `LLMClient.basic` so you don't have to construct an entire `SamplingParams` object.
-2. **Arguments to LLMClient.** This is where you set request timeout, rate limits, model name(s), model weight(s) for distributing requests across models, retries, and caching.
+2. **Arguments to LLMClient.** This is where you set request timeout, rate limits, model name(s), model weight(s) for distributing requests across models, retries, caching, **and progress display style**. Set `progress="rich"` (default), `"tqdm"`, or `"manual"` to choose how progress is reported. The manual option prints an update every 30 seconds.
 3. **Arguments to process_prompts.** Per-call, you can set verbosity, whether to display progress, and whether to return just completions (rather than the full APIResponse object). This is also where you provide tools.
 
 Putting it all together:
@@ -80,6 +80,19 @@ await client.process_prompts_async(
     show_progress=False,
     return_completions_only=True
 )
+```
+
+### Queueing individual prompts
+
+You can queue prompts one at a time and track progress explicitly:
+
+```python
+client = LLMClient.basic("gpt-4.1-mini", progress="tqdm")
+client.open()
+task_id = client.start_nowait("hello there")
+# ... queue more tasks ...
+results = await client.wait_for_all()
+client.close()
 ```
 
 ## Multi-Turn Conversations
