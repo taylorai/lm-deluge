@@ -13,7 +13,7 @@ async def test_retry_fix():
     print("Testing retry fix with mocked failures...")
 
     # Create a client with a single model (to trigger the bug path)
-    client = LLMClient.basic("gpt-4o-mini")
+    client = LLMClient("gpt-4o-mini")
     client.max_attempts = 3  # Limit attempts for faster test
 
     call_count = 0

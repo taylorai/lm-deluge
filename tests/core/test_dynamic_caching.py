@@ -36,7 +36,7 @@ class SimpleCache:
 
 async def test_dynamic_caching():
     """Test that dynamic caching works - early completions populate cache for later requests."""
-    client = LLMClient.basic("gpt-4o-mini")
+    client = LLMClient("gpt-4o-mini")
     # Set very low rate limits to force sequential processing
     client.max_concurrent_requests = 2
 

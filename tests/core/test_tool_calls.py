@@ -42,7 +42,7 @@ rng_tool = Tool(
 
 async def test_openai_tool_calling():
     """Test tool calling with OpenAI-compatible models (gpt-4.1-mini)"""
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     prompt = (
         "I need to pick a random number between 0 and 10. Can you help me with that?"
@@ -78,7 +78,7 @@ async def test_openai_tool_calling():
 
 async def test_anthropic_tool_calling():
     """Test tool calling with Anthropic models (claude-3-haiku)"""
-    client = LLMClient.basic("claude-3-haiku")
+    client = LLMClient("claude-3-haiku")
 
     prompt = "I need to flip 3 coins with a 60% chance of heads each. Can you help me with that?"
 
@@ -115,7 +115,7 @@ async def test_openai_complete_tool_execution():
     """Test complete tool execution flow with OpenAI: call → execute → result → model response"""
     from lm_deluge.prompt import Conversation
 
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     # Step 1: Initial request with tool
     prompt = "I need to pick a random number between 0 and 5. Please use the random_choice tool to help me."
@@ -183,7 +183,7 @@ async def test_anthropic_complete_tool_execution():
     """Test complete tool execution flow with Anthropic: call → execute → result → model response"""
     from lm_deluge.prompt import Conversation
 
-    client = LLMClient.basic("claude-3-haiku")
+    client = LLMClient("claude-3-haiku")
 
     # Step 1: Initial request with tool
     prompt = "I need to flip 2 coins with a 70% chance of heads each. Please use the random_choice tool."
@@ -268,7 +268,7 @@ async def test_tool_execution_error_handling():
         required=["should_fail"],
     )
 
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     # Test successful execution first
     prompt = "Please use the error_test tool with should_fail=false"
@@ -317,7 +317,7 @@ async def test_multi_turn_tool_conversation():
     """Test a conversation with multiple tool calls and responses"""
     from lm_deluge.prompt import Conversation
 
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     # Start a conversation
     conversation = Conversation.user(

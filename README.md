@@ -27,12 +27,12 @@ The package relies on environment variables for API keys. Typical variables incl
 
 ## Quickstart
 
-The easiest way to get started is with the `.basic` constructor. This uses sensible default arguments for rate limits and sampling parameters so that you don't have to provide a ton of arguments.
+`LLMClient` uses sensible default arguments for rate limits and sampling parameters so that you don't have to provide a ton of arguments.
 
 ```python
 from lm_deluge import LLMClient
 
-client = LLMClient.basic("gpt-4o-mini")
+client = LLMClient("gpt-4o-mini")
 resps = client.process_prompts_sync(["Hello, world!"])
 print(resp[0].completion)
 ```
@@ -44,7 +44,7 @@ To distribute your requests across models, just provide a list of more than one 
 ```python
 from lm_deluge import LLMClient
 
-client = LLMClient.basic(
+client = LLMClient(
     ["gpt-4o-mini", "claude-3-haiku"],
     max_requests_per_minute=10_000
 )
@@ -58,7 +58,7 @@ print(resp[0].completion)
 
 API calls can be customized in a few ways.
 
-1. **Sampling Parameters.** This determines things like structured outputs, maximum completion tokens, nucleus sampling, etc. Provide a custom `SamplingParams` to the `LLMClient` to set temperature, top_p, json_mode, max_new_tokens, and/or reasoning_effort. You can pass 1 `SamplingParams` to use for all models, or a list of `SamplingParams` that's the same length as the list of models. You can also pass many of these arguments directly to `LLMClient.basic` so you don't have to construct an entire `SamplingParams` object.
+1. **Sampling Parameters.** This determines things like structured outputs, maximum completion tokens, nucleus sampling, etc. Provide a custom `SamplingParams` to the `LLMClient` to set temperature, top_p, json_mode, max_new_tokens, and/or reasoning_effort. You can pass 1 `SamplingParams` to use for all models, or a list of `SamplingParams` that's the same length as the list of models.
 2. **Arguments to LLMClient.** This is where you set request timeout, rate limits, model name(s), model weight(s) for distributing requests across models, retries, caching, **and progress display style**. Set `progress="rich"` (default), `"tqdm"`, or `"manual"` to choose how progress is reported. The manual option prints an update every 30 seconds.
 3. **Arguments to process_prompts.** Per-call, you can set verbosity, whether to display progress, and whether to return just completions (rather than the full APIResponse object). This is also where you provide tools.
 
@@ -87,7 +87,7 @@ await client.process_prompts_async(
 You can queue prompts one at a time and track progress explicitly:
 
 ```python
-client = LLMClient.basic("gpt-4.1-mini", progress="tqdm")
+client = LLMClient("gpt-4.1-mini", progress="tqdm")
 client.open()
 task_id = client.start_nowait("hello there")
 # ... queue more tasks ...
@@ -106,7 +106,7 @@ prompt = Conversation.system("You are a helpful assistant.").add(
     Message.user("What's in this image?").add_image("tests/image.jpg")
 )
 
-client = LLMClient.basic("gpt-4.1-mini")
+client = LLMClient("gpt-4.1-mini")
 resps = client.process_prompts_sync([prompt])
 ```
 
@@ -122,9 +122,9 @@ For models that support file uploads (OpenAI, Anthropic, and Gemini), you can ea
 from lm_deluge import LLMClient, Conversation
 
 # Simple file upload
-client = LLMClient.basic("gpt-4.1-mini")
+client = LLMClient("gpt-4.1-mini")
 conversation = Conversation.user(
-    "Please summarize this document", 
+    "Please summarize this document",
     file="path/to/document.pdf"
 )
 resps = client.process_prompts_sync([conversation])
@@ -149,7 +149,7 @@ def get_weather(city: str) -> str:
     return f"The weather in {city} is sunny and 72°F"
 
 tool = Tool.from_function(get_weather)
-client = LLMClient.basic("claude-3-haiku")
+client = LLMClient("claude-3-haiku")
 resps = client.process_prompts_sync(
     ["What's the weather in Paris?"],
     tools=[tool]
@@ -186,7 +186,7 @@ config = {
 all_tools = Tool.from_mcp_config(config)
 
 # let the model use the tools
-client = LLMClient.basic("gpt-4o-mini")
+client = LLMClient("gpt-4o-mini")
 resps = client.process_prompts_sync(
     ["List the files in the current directory"],
     tools=tools
@@ -223,7 +223,7 @@ conv = (
 )
 
 # Use prompt caching to cache system message and tools
-client = LLMClient.basic("claude-3-5-sonnet")
+client = LLMClient("claude-3-5-sonnet")
 resps = client.process_prompts_sync(
     [conv],
     cache="system_and_tools"  # Cache system message and any tools

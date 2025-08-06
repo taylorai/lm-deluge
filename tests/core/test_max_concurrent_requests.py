@@ -8,7 +8,7 @@ from lm_deluge.client import LLMClient
 
 def test_max_concurrent_requests_one():
     """Test that max_concurrent_requests=1 allows exactly 1 request to run."""
-    client = LLMClient.basic(
+    client = LLMClient(
         model="claude-3-haiku",
         max_concurrent_requests=1,
         max_requests_per_minute=10,

@@ -44,7 +44,7 @@ models_to_test = [
 
 async def main():
     for model in random.sample(models_to_test, 6):
-        client = LLMClient.basic(model)
+        client = LLMClient(model)
         res = await client.process_prompts_async(
             [
                 Conversation.system("You are a helpful assistant").add(

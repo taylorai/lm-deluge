@@ -19,7 +19,7 @@ async def test_openai_responses_basic():
     # Test with a regular GPT model using responses API
     try:
         # Use a model with responses API enabled
-        client = LLMClient.basic("gpt-4.1-mini")
+        client = LLMClient("gpt-4.1-mini")
         results = await client.process_prompts_async(
             prompts=["Hello, please say 'Hi there!' back"],
             use_responses_api=True,  # Enable responses API
@@ -75,7 +75,7 @@ async def test_openai_computer_use_validation():
     """Test computer use validation logic"""
     try:
         # Test that computer use with wrong model raises error
-        client = LLMClient.basic("gpt-4.1-mini")
+        client = LLMClient("gpt-4.1-mini")
 
         results = await client.process_prompts_async(
             prompts=["Take a screenshot"],
@@ -114,7 +114,7 @@ async def test_openai_computer_use_basic():
 
     try:
         # Test with computer use model
-        client = LLMClient.basic("openai-computer-use-preview")
+        client = LLMClient("openai-computer-use-preview")
 
         results = await client.process_prompts_async(
             prompts=["Take a screenshot of the current screen"],
@@ -173,7 +173,7 @@ async def test_openai_computer_use_loop():
         with open(screenshot_path, "rb") as f:
             screenshot_data = base64.b64encode(f.read()).decode("utf-8")
 
-        client = LLMClient.basic("openai-computer-use-preview")
+        client = LLMClient("openai-computer-use-preview")
 
         # Test 1: Initial computer use request
         print("\nTest 1: Initial computer use request")

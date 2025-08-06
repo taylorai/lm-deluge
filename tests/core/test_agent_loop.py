@@ -23,7 +23,7 @@ hash_tool = Tool.from_function(hash_string)
 
 
 async def simple_agent_loop():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
     conv = Conversation.user(
         "Reverse each of the following strings using the reverse string tool. "
         "Then, return all of the reversed strings in your final message. "
@@ -48,7 +48,7 @@ async def simple_agent_loop():
 
 
 async def sequential_agent_loop():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
     conv = Conversation.user(
         "Apply the hash function to the input string 3 times, e.g. "
         "hash(hash(hash(input))), and then return the result. "
@@ -71,7 +71,7 @@ async def sequential_agent_loop():
 
 
 async def mcp_agent_loop():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
     EXA_API_KEY = os.getenv("EXA_API_KEY")
     if not EXA_API_KEY:
         raise ValueError("need EXA_API_KEY to test mcps")
@@ -108,7 +108,7 @@ async def mcp_agent_loop():
 
 
 async def fulltext_search_mcp_agent():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     server = MCPServer.from_openai(
         {
@@ -135,7 +135,7 @@ async def fulltext_search_mcp_agent():
 
 
 async def pdf_search_mcp_agent():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     server = MCPServer.from_openai(
         {

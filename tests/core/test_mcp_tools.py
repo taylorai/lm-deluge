@@ -57,7 +57,7 @@ async def use_local_tool_with_llm():
     tools = await Tool.from_mcp_config(config, timeout=20)
     assert len(tools) > 0, "no tools"
     print("✅ Successfully instantiated Tools from server-filesystem.")
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
     res = await client.process_prompts_async(
         ["Use the tool to list files in the current directory."],
         tools=tools,  # type: ignore
@@ -116,7 +116,7 @@ async def use_zapier_tool_with_llm():
     print("✅ Successfully instantiated Tools from Zapier.")
     sms_tool = [x for x in tools if x.name == "sms_by_zapier_send_sms"][0]
 
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
     res = await client.process_prompts_async(
         [
             "Use the tool to send an SMS message. Leave the phone number and content blank, pass any creative 'instructions' for how to write the message."
@@ -161,7 +161,7 @@ async def use_exa_tool_with_llm():
     assert tool, "didn't get tool from exa"
     print("✅ Successfully got tool for Exa MCP.")
 
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
     res = await client.process_prompts_async(
         ["Search for where to see the calla lillies in SF."], tools=[tool]
     )

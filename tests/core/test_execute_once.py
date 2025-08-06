@@ -8,7 +8,7 @@ from lm_deluge.tracker import StatusTracker
 
 async def test_execute_once_real():
     """Test that execute_once() makes a real API call and returns APIResponse."""
-    client = LLMClient.basic("gpt-4o-mini")
+    client = LLMClient("gpt-4o-mini")
     assert client
 
     tracker = StatusTracker(

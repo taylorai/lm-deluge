@@ -15,7 +15,7 @@ async def main():
     print("Testing native Gemini API support...")
 
     # Test the new -gemini model
-    client = LLMClient.basic("gemini-2.0-flash-gemini")
+    client = LLMClient("gemini-2.0-flash-gemini")
     client.max_attempts = 2
     client.request_timeout = 30
 

@@ -210,7 +210,7 @@ async def test_real_caching_integration():
     print("🧪 Running real Anthropic caching integration test...")
 
     # Create client
-    client = LLMClient.basic("claude-3.5-sonnet")
+    client = LLMClient("claude-3.5-sonnet")
 
     # Create long system message and tools to ensure we hit 1024+ tokens
     system_msg = create_long_system_message()
@@ -313,7 +313,7 @@ async def test_real_caching_bedrock_integration():
     print("🧪 Running real Bedrock Anthropic caching integration test...")
 
     # Create client with Bedrock model
-    client = LLMClient.basic("claude-3.7-sonnet-bedrock")
+    client = LLMClient("claude-3.7-sonnet-bedrock")
 
     # Create long system message and tools to ensure we hit 1024+ tokens
     system_msg = create_long_system_message()

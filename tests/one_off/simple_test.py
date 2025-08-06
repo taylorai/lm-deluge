@@ -8,7 +8,7 @@ from lm_deluge import LLMClient, Conversation
 
 async def main():
     print("Starting simple test...")
-    client = LLMClient.basic("command-r-7b")
+    client = LLMClient("command-r-7b")
     client.max_attempts = 2  # Very low for quick failure
     client.request_timeout = 1  # Very short timeout
 

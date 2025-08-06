@@ -25,11 +25,10 @@ from .tracker import StatusTracker
 
 # TODO: get completions as they finish, not all at once at the end.
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
-class LLMClient(BaseModel):
+class _LLMClient(BaseModel):
     """
-    LLMClient abstracts all the fixed arguments to process_prompts_async, so you can create it
-    once and use it for more stuff without having to configure all the arguments.
-    Handles models, sampling params for each model, model weights, rate limits, etc.
+    Internal LLMClient implementation using Pydantic.
+    Keeps all validation, serialization, and existing functionality.
     """
 
     model_names: str | list[str] = ["gpt-4.1-mini"]
@@ -120,7 +119,7 @@ class LLMClient(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def fix_lists(cls, data) -> "LLMClient":
+    def fix_lists(cls, data) -> "_LLMClient":
         if isinstance(data.get("model_names"), str):
             data["model_names"] = [data["model_names"]]
         if not isinstance(data.get("sampling_params", []), list):
@@ -770,3 +769,114 @@ class LLMClient(BaseModel):
 #     combined_results["limiting_factor"] = limiting_factor
 
 #     return combined_results
+
+
+# Clean factory function with perfect IDE support
+@overload
+def LLMClient(
+    model_names: str,
+    *,
+    max_requests_per_minute: int = 1_000,
+    max_tokens_per_minute: int = 100_000,
+    max_concurrent_requests: int = 225,
+    sampling_params: list[SamplingParams] | None = None,
+    model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    max_attempts: int = 5,
+    request_timeout: int = 30,
+    cache: Any = None,
+    extra_headers: dict[str, str] | None = None,
+    temperature: float = 0.75,
+    top_p: float = 1.0,
+    json_mode: bool = False,
+    max_new_tokens: int = 512,
+    reasoning_effort: Literal["low", "medium", "high", None] = None,
+    logprobs: bool = False,
+    top_logprobs: int | None = None,
+    force_local_mcp: bool = False,
+    progress: Literal["rich", "tqdm", "manual"] = "rich",
+) -> _LLMClient: ...
+
+
+@overload
+def LLMClient(
+    model_names: list[str],
+    *,
+    max_requests_per_minute: int = 1_000,
+    max_tokens_per_minute: int = 100_000,
+    max_concurrent_requests: int = 225,
+    sampling_params: list[SamplingParams] | None = None,
+    model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    max_attempts: int = 5,
+    request_timeout: int = 30,
+    cache: Any = None,
+    extra_headers: dict[str, str] | None = None,
+    temperature: float = 0.75,
+    top_p: float = 1.0,
+    json_mode: bool = False,
+    max_new_tokens: int = 512,
+    reasoning_effort: Literal["low", "medium", "high", None] = None,
+    logprobs: bool = False,
+    top_logprobs: int | None = None,
+    force_local_mcp: bool = False,
+    progress: Literal["rich", "tqdm", "manual"] = "rich",
+) -> _LLMClient: ...
+
+
+def LLMClient(
+    model_names: str | list[str] = "gpt-4.1-mini",
+    *,
+    max_requests_per_minute: int = 1_000,
+    max_tokens_per_minute: int = 100_000,
+    max_concurrent_requests: int = 225,
+    sampling_params: list[SamplingParams] | None = None,
+    model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    max_attempts: int = 5,
+    request_timeout: int = 30,
+    cache: Any = None,
+    extra_headers: dict[str, str] | None = None,
+    temperature: float = 0.75,
+    top_p: float = 1.0,
+    json_mode: bool = False,
+    max_new_tokens: int = 512,
+    reasoning_effort: Literal["low", "medium", "high", None] = None,
+    logprobs: bool = False,
+    top_logprobs: int | None = None,
+    force_local_mcp: bool = False,
+    progress: Literal["rich", "tqdm", "manual"] = "rich",
+) -> _LLMClient:
+    """
+    Create an LLMClient with model_names as a positional argument.
+
+    Args:
+        model_names: Model name(s) to use - can be a single string or list of strings
+        **kwargs: All other LLMClient configuration options (keyword-only)
+
+    Returns:
+        Configured LLMClient instance
+    """
+    # Handle default for mutable argument
+    if sampling_params is None:
+        sampling_params = []
+
+    # Simply pass everything to the Pydantic constructor
+    return _LLMClient(
+        model_names=model_names,
+        max_requests_per_minute=max_requests_per_minute,
+        max_tokens_per_minute=max_tokens_per_minute,
+        max_concurrent_requests=max_concurrent_requests,
+        sampling_params=sampling_params,
+        model_weights=model_weights,
+        max_attempts=max_attempts,
+        request_timeout=request_timeout,
+        cache=cache,
+        extra_headers=extra_headers,
+        temperature=temperature,
+        top_p=top_p,
+        json_mode=json_mode,
+        max_new_tokens=max_new_tokens,
+        reasoning_effort=reasoning_effort,
+        logprobs=logprobs,
+        top_logprobs=top_logprobs,
+        force_local_mcp=force_local_mcp,
+        progress=progress,
+    )

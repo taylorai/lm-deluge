@@ -1,3 +1,4 @@
+import random
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.api_requests.base import APIResponse
 
@@ -14,18 +15,18 @@ models_to_test = [
     # "claude-3-opus",
     # "claude-3-sonnet",
     # "claude-3-haiku",
-    # "claude-4-sonnet",
-    # "claude-4-opus",
+    "claude-4-sonnet",
+    "claude-4-opus",
     # anthropic bedrock
     "claude-4-sonnet-bedrock",
     "claude-4-opus-bedrock",
     # openai
-    # "gpt-4o",
-    # "gpt-4o-mini",
-    # "gpt-4.1",
-    # "gpt-4.1-mini",
-    # "gpt-4.1-nano",
-    # "o4-mini",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "gpt-4.1-nano",
+    "o4-mini",
     # cohere
     # "command-a",
     # "command-r-7b",
@@ -34,16 +35,16 @@ models_to_test = [
     # "aya-vision-8b",
     # "aya-vision-32b",
     # mistral
-    # "codestral",
-    # "devstral-small",
-    # "mistral-large",
-    # "mistral-medium",
-    # "mistral-small",
-    # "pixtral-12b",
-    # "pixtral-large",
-    # "mistral-nemo",
-    # "ministral-8b",
-    # "mixtral-8x22b",
+    "codestral",
+    "devstral-small",
+    "mistral-large",
+    "mistral-medium",
+    "mistral-small",
+    "pixtral-12b",
+    "pixtral-large",
+    "mistral-nemo",
+    "ministral-8b",
+    "mixtral-8x22b",
     # gemini via AI studio
     # "gemini-2.5-pro",
     # "gemini-2.5-flash",
@@ -60,17 +61,17 @@ models_to_test = [
     # "llama-4-maverick-together",
     # "llama-4-scout-together",
     # native gemini
-    # "gemini-2.5-pro-gemini",
-    # "gemini-2.5-flash-gemini",
-    # "gemini-2.0-flash-gemini",
-    # "gemini-2.0-flash-lite-gemini",
+    "gemini-2.5-pro-gemini",
+    "gemini-2.5-flash-gemini",
+    "gemini-2.0-flash-gemini",
+    "gemini-2.0-flash-lite-gemini",
 ]
 
 
 async def main():
-    for model in models_to_test:  # random.sample(models_to_test, 10):
+    for model in random.sample(models_to_test, 10):
         try:
-            client = LLMClient.basic(model)
+            client = LLMClient(model)
         except Exception as e:
             print(f"❌ Failed instantiating client for {model}: {e}")
             raise e

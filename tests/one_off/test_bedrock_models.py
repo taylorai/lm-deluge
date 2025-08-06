@@ -109,7 +109,7 @@ async def test_bedrock_api_calls():
     for model_name in models_to_test:
         try:
             print(f"Testing {model_name}...")
-            client = LLMClient.basic(model_name)
+            client = LLMClient(model_name)
 
             results = await client.process_prompts_async(
                 [test_prompt], show_progress=False
@@ -165,7 +165,7 @@ async def test_bedrock_with_tools():
 
         tool = Tool.from_function(add_numbers)
 
-        client = LLMClient.basic(model_name)
+        client = LLMClient(model_name)
         test_prompt = Conversation.system("You are a helpful assistant").add(
             Message.user().add_text("What is 15 + 27? Use the add_numbers tool.")
         )

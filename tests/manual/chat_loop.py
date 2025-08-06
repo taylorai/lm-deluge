@@ -36,7 +36,7 @@ async def chat_loop():
     )
 
     # Create a client with Claude 3 Haiku for caching support
-    client = LLMClient.basic("claude-3-haiku", max_new_tokens=1000)
+    client = LLMClient("claude-3-haiku", max_new_tokens=1000)
 
     print("Chat started with Claude 3 Haiku and prompt caching enabled!")
     print("Cache strategy: last_2_user_messages (caches system + conversation history)")

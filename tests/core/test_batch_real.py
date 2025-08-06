@@ -19,7 +19,7 @@ async def test_openai_batch():
 
     print("🚀 Testing OpenAI batch processing...")
 
-    client = LLMClient.basic("gpt-4o-mini", max_new_tokens=50, temperature=0.5)
+    client = LLMClient("gpt-4o-mini", max_new_tokens=50, temperature=0.5)
 
     test_prompts = ["What is 2+2?", "Name a primary color", "Say hello in French"]
 
@@ -53,7 +53,7 @@ async def test_anthropic_batch():
 
     print("🚀 Testing Anthropic batch processing...")
 
-    client = LLMClient.basic("claude-3.5-haiku", max_new_tokens=50, temperature=0.5)
+    client = LLMClient("claude-3.5-haiku", max_new_tokens=50, temperature=0.5)
 
     test_prompts = ["What is 2+2?", "Name a primary color", "Say hello in French"]
 

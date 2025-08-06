@@ -11,7 +11,7 @@ class FakeDistributedDict(dict):
 
 def test_sqlite_cache():
     cache = SqliteCache(f"llm_cache_{time.time()}.db")
-    client = LLMClient.basic("gpt-4.1-mini", cache=cache)
+    client = LLMClient("gpt-4.1-mini", cache=cache)
     res1 = client.process_prompts_sync(["Hello there!"], show_progress=False)
     res2 = client.process_prompts_sync(
         ["Hello there!"], show_progress=False
@@ -24,7 +24,7 @@ def test_sqlite_cache():
 def test_dict_cache():
     d = FakeDistributedDict()
     cache = DistributedDictCache(d)
-    client = LLMClient.basic("gpt-4.1-mini", cache=cache)
+    client = LLMClient("gpt-4.1-mini", cache=cache)
     res1 = client.process_prompts_sync(["Hello there!"], show_progress=False)
     res2 = client.process_prompts_sync(
         ["Hello there!"], show_progress=False
@@ -40,7 +40,7 @@ def test_leveldb_cache():
     except ImportError:
         print("plyvel not installed, skipping leveldb test")
     cache = LevelDBCache(f"llm_cache_{time.time()}.db")
-    client = LLMClient.basic("gpt-4.1-mini", cache=cache)
+    client = LLMClient("gpt-4.1-mini", cache=cache)
     res1 = client.process_prompts_sync(["Hello there!"], show_progress=False)
     res2 = client.process_prompts_sync(
         ["Hello there!"], show_progress=False

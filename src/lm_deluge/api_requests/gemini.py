@@ -1,7 +1,7 @@
 import json
 import os
 import warnings
-
+from typing import Any
 from aiohttp import ClientResponse
 
 from lm_deluge.request_context import RequestContext
@@ -37,11 +37,12 @@ async def _build_gemini_request(
 
     # Handle reasoning models (thinking)
     if model.reasoning_model:
-        thinking_config = None
+        thinking_config: dict[str, Any] | None = None
         effort = sampling_params.reasoning_effort
         if effort is None or effort == "none":
+            budget = 128 if "2.5-pro" in model.id else 0
             # Explicitly disable thoughts when no effort is requested
-            thinking_config = {"includeThoughts": False, "thinkingBudget": 0}
+            thinking_config = {"includeThoughts": False, "thinkingBudget": budget}
         else:
             thinking_config = {"includeThoughts": True}
             if effort in {"low", "medium", "high"} and "flash" in model.id:

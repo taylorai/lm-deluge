@@ -1654,14 +1654,14 @@ Read(src/lm_deluge/api_requests/base.py)…
              es...")
           12
           13      client =
-          LLMClient.basic("command-r-7b")
+          LLMClient("command-r-7b")
           14      client.request_timeout = 5  # Short
           timeout to trigger failure quickly
               to trigger failure quickly
           13      # Create a client with a single model
           (to trigger the bug path)
              rigger the bug path)
-          14      client = LLMClient.basic("gpt-4o-mini")
+          14      client = LLMClient("gpt-4o-mini")
           15      client.max_attempts = 3  # Limit
           attempts f
              or faster test
@@ -1846,7 +1846,7 @@ Read(src/lm_deluge/api_requests/base.py)…
           Conversation
           async def main():
               print("Starting simple test...")
-              client = LLMClient.basic("command-r-7b")
+              client = LLMClient("command-r-7b")
           … +24 lines (ctrl+r to expand)
 
 ⏺ Bash(cd /Users/benjamin/Desktop/repos/lm-deluge && …

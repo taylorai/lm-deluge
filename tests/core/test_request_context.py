@@ -17,7 +17,7 @@ def test_request_context():
     print("Testing RequestContext implementation...")
 
     try:
-        client = LLMClient.basic("gpt-4.1-mini")
+        client = LLMClient("gpt-4.1-mini")
 
         # Simple test - should work the same as before
         result = client.process_prompts_sync(["What is 2+2?"], show_progress=False)

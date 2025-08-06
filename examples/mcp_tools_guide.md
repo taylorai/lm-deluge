@@ -36,7 +36,7 @@ async def basic_mcp_example():
         print(f"  - {tool.name}: {tool.description}")
 
     # Use the tools with an LLM
-    client = LLMClient.basic("gpt-4o-mini")
+    client = LLMClient("gpt-4o-mini")
 
     prompt = """
     Please help me research renewable energy trends.
@@ -107,7 +107,7 @@ async def single_tool_mcp_example():
     print(f"Parameters: {list(search_tool.parameters.keys())}")
 
     # Use the tool directly
-    client = LLMClient.basic("claude-3-haiku")
+    client = LLMClient("claude-3-haiku")
 
     prompt = "Search for information about the best hiking trails in Yosemite National Park"
 

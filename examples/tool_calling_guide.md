@@ -52,58 +52,58 @@ print(f"Weather tool: {weather_tool.name}, required: {weather_tool.required}")
 ```python
 async def from_function_example():
     """Complete example using Tool.from_function()"""
-    
+
     def calculate_tip(bill_amount: float, tip_percentage: float = 15.0) -> str:
         """Calculate tip amount and total bill."""
         tip = bill_amount * (tip_percentage / 100)
         total = bill_amount + tip
         return f"Tip: ${tip:.2f}, Total: ${total:.2f}"
-    
+
     def flip_coin(num_flips: int = 1) -> str:
         """Flip a coin one or more times."""
         import random
         results = ["Heads" if random.random() < 0.5 else "Tails" for _ in range(num_flips)]
         return ", ".join(results)
-    
+
     # Create tools automatically
     tip_tool = Tool.from_function(calculate_tip)
     coin_tool = Tool.from_function(flip_coin)
-    
-    client = LLMClient.basic("gpt-4o-mini")  # or "claude-3-haiku"
-    
+
+    client = LLMClient("gpt-4o-mini")  # or "claude-3-haiku"
+
     prompt = """
     I had dinner and the bill was $47.50. Can you:
     1. Calculate a 20% tip and total
     2. Flip a coin to decide if I should round up to the nearest dollar
     """
-    
+
     # Start conversation
     conversation = Conversation.user(prompt)
     tools = [tip_tool, coin_tool]
-    
+
     for round_num in range(3):  # Allow multiple rounds
         print(f"\n--- Round {round_num + 1} ---")
-        
+
         responses = await client.process_prompts_async(
             [conversation],
             tools=tools,
             return_completions_only=False
         )
-        
+
         response = responses[0]
         print(f"Model: {response.content.completion}")
-        
+
         tool_calls = response.content.tool_calls
         if not tool_calls:
             break
-            
+
         # Add assistant response to conversation
         conversation.add(response.content)
-        
+
         # Execute tools
         for tool_call in tool_calls:
             print(f"Executing: {tool_call.name}({tool_call.arguments})")
-            
+
             # Find the right tool and execute it
             for tool in tools:
                 if tool.name == tool_call.name:
@@ -186,7 +186,7 @@ Here's how to use the tool with a simple request:
 ```python
 async def simple_tool_example():
     # Create a client
-    client = LLMClient.basic("gpt-4.1-mini")  # or "claude-3-haiku"
+    client = LLMClient("gpt-4.1-mini")  # or "claude-3-haiku"
 
     # Make a request that will trigger tool usage
     prompt = "I need a random number between 0 and 10. Please use the random_generator tool."
@@ -219,7 +219,7 @@ For a full conversation where the model uses tools and receives results:
 
 ```python
 async def complete_tool_flow():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     # Step 1: Initial request
     prompt = "Please flip 3 coins with 60% chance of heads and tell me the results."
@@ -335,7 +335,7 @@ calculator_spec = Tool(
 )
 
 async def multi_tool_example():
-    client = LLMClient.basic("claude-3-haiku")
+    client = LLMClient("claude-3-haiku")
 
     prompt = """
     I'm planning a trip to Paris. Can you:
@@ -430,7 +430,7 @@ risky_spec = Tool(
 )
 
 async def error_handling_example():
-    client = LLMClient.basic("gpt-4.1-mini")
+    client = LLMClient("gpt-4.1-mini")
 
     prompt = "Please try the risky operation with should_fail=true"
 

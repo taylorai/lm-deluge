@@ -17,13 +17,13 @@ Anthropic's prompt caching allows you to cache parts of your prompt on their ser
 from lm_deluge import LLMClient, Conversation, Message
 
 # Create a client - prompt caching works with any Anthropic model
-client = LLMClient.basic("claude-3-5-sonnet")
+client = LLMClient("claude-3-5-sonnet")
 
 # Create a conversation with a long system prompt
 conv = Conversation.system("""
 You are an expert software architect with 20+ years of experience in:
 - Distributed systems design
-- Microservices architecture  
+- Microservices architecture
 - Database optimization
 - Cloud infrastructure (AWS, GCP, Azure)
 - Container orchestration (Kubernetes, Docker)
@@ -97,7 +97,7 @@ for system_prompt in system_prompts:
     conv = Conversation.system(system_prompt).add(
         Message.user("Help me plan something")
     )
-    
+
     resps = client.process_prompts_sync(
         [conv],
         tools=tools,
@@ -172,11 +172,11 @@ import asyncio
 from lm_deluge import LLMClient
 
 async def demonstrate_cost_savings():
-    client = LLMClient.basic("claude-3-5-sonnet")
-    
+    client = LLMClient("claude-3-5-sonnet")
+
     # Long system prompt (expensive to process repeatedly)
     long_system_prompt = "You are an expert data scientist..." * 100  # Very long prompt
-    
+
     questions = [
         "What is linear regression?",
         "Explain decision trees",
@@ -184,19 +184,19 @@ async def demonstrate_cost_savings():
         "What is cross-validation?",
         "Explain feature engineering"
     ]
-    
+
     # First batch - cache gets created (normal cost)
     conversations = [
         Conversation.system(long_system_prompt).add(Message.user(q))
         for q in questions
     ]
-    
+
     print("Processing with caching...")
     resps = await client.process_prompts_async(
         conversations,
         cache="system_and_tools"
     )
-    
+
     # Check usage to see cache savings
     for i, resp in enumerate(resps):
         usage = resp.usage
@@ -241,7 +241,7 @@ resps3 = client.process_prompts_sync([conv], cache="last_user_message")
 
 1. **Cache Long, Stable Content**: Cache system prompts and tool definitions that don't change frequently.
 
-2. **Choose the Right Pattern**: 
+2. **Choose the Right Pattern**:
    - Use `system_and_tools` for consistent system prompts with tools
    - Use `tools_only` when system prompts vary but tools are constant
    - Use `last_user_message` for iterative refinement scenarios

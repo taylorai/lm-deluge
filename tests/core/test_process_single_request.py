@@ -20,7 +20,7 @@ class SimpleCache:
 
 async def test_process_single_request_success():
     """Test successful request processing."""
-    client = LLMClient.basic("gpt-4o-mini")
+    client = LLMClient("gpt-4o-mini")
 
     tracker = StatusTracker(
         max_requests_per_minute=10,
@@ -50,7 +50,7 @@ async def test_process_single_request_success():
 
 async def test_process_single_request_with_cache():
     """Test caching functionality."""
-    client = LLMClient.basic("gpt-4o-mini")
+    client = LLMClient("gpt-4o-mini")
     client.cache = SimpleCache()
 
     tracker = StatusTracker(

@@ -33,8 +33,8 @@ def test_sampling_params_logprobs():
 
 
 def test_client_basic_with_logprobs():
-    """Test that LLMClient.basic properly passes logprobs to SamplingParams."""
-    client = LLMClient.basic(
+    """Test that LLMClient properly passes logprobs to SamplingParams."""
+    client = LLMClient(
         model="gpt-4o-mini",
         logprobs=True,
         top_logprobs=10,

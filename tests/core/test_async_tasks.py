@@ -8,12 +8,14 @@ def test_async_start_and_wait():
     dotenv.load_dotenv()
 
     async def run_test():
-        client = LLMClient.basic(
+        client = LLMClient(
             "gpt-4.1-mini",
             max_requests_per_minute=1000,
             max_tokens_per_minute=1000000,
             max_concurrent_requests=10,
+            progress="rich",
         )
+        client.open()
 
         ids: list[int] = []
         for i in range(3):
@@ -36,6 +38,8 @@ def test_async_start_and_wait():
         res = await client.start(prompt)
         assert res and res.completion
         print("✅ Queued and waited for single blocking completion")
+        await asyncio.sleep(3.0)
+        client.close()
 
     asyncio.run(run_test())
 

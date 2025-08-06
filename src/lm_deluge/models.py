@@ -1261,9 +1261,39 @@ class APIModel:
 registry: dict[str, APIModel] = {}
 
 
-def register_model(**kwargs) -> APIModel:
+def register_model(
+    id: str,
+    name: str,
+    api_base: str,
+    api_key_env_var: str,
+    api_spec: str,
+    input_cost: float | None = 0,  # $ per million input tokens
+    output_cost: float | None = 0,  # $ per million output tokens
+    supports_json: bool = False,
+    supports_logprobs: bool = False,
+    supports_responses: bool = False,
+    reasoning_model: bool = False,
+    regions: list[str] | dict[str, int] = field(default_factory=list),
+    tokens_per_minute: int | None = None,
+    requests_per_minute: int | None = None,
+) -> APIModel:
     """Register a model configuration and return the created APIModel."""
-    model = APIModel(**kwargs)
+    model = APIModel(
+        id=id,
+        name=name,
+        api_base=api_base,
+        api_key_env_var=api_key_env_var,
+        api_spec=api_spec,
+        input_cost=input_cost,
+        output_cost=output_cost,
+        supports_json=supports_json,
+        supports_logprobs=supports_logprobs,
+        supports_responses=supports_responses,
+        reasoning_model=reasoning_model,
+        regions=regions,
+        tokens_per_minute=tokens_per_minute,
+        requests_per_minute=requests_per_minute,
+    )
     registry[model.id] = model
     return model
 

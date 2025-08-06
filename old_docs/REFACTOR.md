@@ -237,7 +237,7 @@ Proposed approach
 Suggested taskAdd RateLimitConfig to encapsulate throttle parameters
 4. Provide Builder or Factory Functions
 
-LLMClient.basic constructs a client by passing many parameters to LLMClient.__init__. Instead of long signatures, consider a builder pattern:
+LLMClient constructs a client by passing many parameters to LLMClient.__init__. Instead of long signatures, consider a builder pattern:
 
 client = (
     ClientBuilder("gpt-4")
