@@ -42,8 +42,15 @@ async def _build_oa_chat_request(
             # Disable reasoning for Gemini models when no effort requested
             if "gemini" in model.id:
                 effort = "none"
+            elif "gpt-5" in model.id:
+                effort = "minimal"
             else:
                 effort = "low"
+        if effort == "minimal" and "gpt-5" not in model.id:
+            print(
+                "WARNING: 'minimal' reasoning effort only allowed for gpt-5. setting to 'low'."
+            )
+            effort = "low"
         request_json["reasoning_effort"] = effort
     else:
         if sampling_params.reasoning_effort:
@@ -122,14 +129,20 @@ class OpenAIRequest(APIRequestBase):
                     message = data["choices"][0]["message"]
                     finish_reason = data["choices"][0]["finish_reason"]
 
-                    # Add text content if present
-                    if message.get("content"):
-                        parts.append(Text(message["content"]))
-
                     # Add thinking content if present (reasoning models)
                     if "reasoning_content" in message:
                         thinking = message["reasoning_content"]
                         parts.append(Thinking(thinking))
+
+                    # Together AI returns reasoning in a "reasoning"
+                    # field which is not correct but whatever
+                    if message.get("reasoning"):
+                        thinking = message["reasoning"]
+                        parts.append(Thinking(thinking))
+
+                    # Add text content if present
+                    if message.get("content"):
+                        parts.append(Text(message["content"]))
 
                     # Add tool calls if present
                     if "tool_calls" in message:

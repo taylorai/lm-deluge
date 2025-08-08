@@ -45,8 +45,10 @@ async def _build_gemini_request(
             thinking_config = {"includeThoughts": False, "thinkingBudget": budget}
         else:
             thinking_config = {"includeThoughts": True}
-            if effort in {"low", "medium", "high"} and "flash" in model.id:
-                budget = {"low": 1024, "medium": 4096, "high": 16384}[effort]
+            if effort in {"minimal", "low", "medium", "high"} and "flash" in model.id:
+                budget = {"minimal": 256, "low": 1024, "medium": 4096, "high": 16384}[
+                    effort
+                ]
                 thinking_config["thinkingBudget"] = budget
         request_json["generationConfig"]["thinkingConfig"] = thinking_config
 

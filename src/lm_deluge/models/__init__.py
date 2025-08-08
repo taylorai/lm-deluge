@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from .request_context import RequestContext
+from ..request_context import RequestContext
 
 BUILTIN_MODELS = {
     # `7MMM.     ,MMF'         mm
@@ -267,6 +267,62 @@ BUILTIN_MODELS = {
     #                ░███
     #                █████
     #               ░░░░░
+    "gpt-5": {
+        "id": "gpt-5",
+        "name": "gpt-5",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 1.25,
+        "cached_input_cost": 0.125,
+        "output_cost": 10.0,
+        "reasoning_model": True,
+    },
+    "gpt-5-chat": {
+        "id": "gpt-5-chat",
+        "name": "gpt-5-chat-latest",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 1.25,
+        "cached_input_cost": 0.125,
+        "output_cost": 10.0,
+        "reasoning_model": False,
+    },
+    "gpt-5-mini": {
+        "id": "gpt-5-mini",
+        "name": "gpt-5-mini",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 0.25,
+        "cached_input_cost": 0.025,
+        "output_cost": 2.0,
+        "reasoning_model": True,
+    },
+    "gpt-5-nano": {
+        "id": "gpt-5-nano",
+        "name": "gpt-5-nano",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 0.05,
+        "cached_input_cost": 0.005,
+        "output_cost": 0.40,
+        "reasoning_model": True,
+    },
     "openai-computer-use-preview": {
         "id": "openai-computer-use-preview",
         "name": "computer-use-preview",
@@ -971,6 +1027,32 @@ BUILTIN_MODELS = {
         "requests_per_minute": None,
         "tokens_per_minute": None,
     },
+    "gpt-oss-120b-together": {
+        "id": "gpt-oss-120b-together",
+        "name": "openai/gpt-oss-120b",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 0.18,
+        "output_cost": 0.59,
+        "requests_per_minute": None,
+        "tokens_per_minute": None,
+        "reasoning_model": True,
+    },
+    "gpt-oss-20b-together": {
+        "id": "gpt-oss-20b-together",
+        "name": "openai/gpt-oss-20b",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 0.18,
+        "output_cost": 0.59,
+        "requests_per_minute": None,
+        "tokens_per_minute": None,
+        "reasoning_model": True,
+    },
     #    █████████           █████
     #   ███░░░░░███         ░░███
     #  ███     ░░░   ██████  ░███████    ██████  ████████   ██████
@@ -1210,6 +1292,7 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
+    cached_input_cost: float | None = 0
     input_cost: float | None = 0  # $ per million input tokens
     output_cost: float | None = 0  # $ per million output tokens
     supports_json: bool = False
@@ -1242,7 +1325,7 @@ class APIModel:
         random.sample(regions, 1, counts=weights)[0]
 
     def make_request(self, context: RequestContext):  # -> "APIRequestBase"
-        from .api_requests.common import CLASSES
+        from ..api_requests.common import CLASSES
 
         api_spec = self.api_spec
         if (
@@ -1268,6 +1351,7 @@ def register_model(
     api_key_env_var: str,
     api_spec: str,
     input_cost: float | None = 0,  # $ per million input tokens
+    cached_input_cost: float | None = 0,
     output_cost: float | None = 0,  # $ per million output tokens
     supports_json: bool = False,
     supports_logprobs: bool = False,
@@ -1284,6 +1368,7 @@ def register_model(
         api_base=api_base,
         api_key_env_var=api_key_env_var,
         api_spec=api_spec,
+        cached_input_cost=cached_input_cost,
         input_cost=input_cost,
         output_cost=output_cost,
         supports_json=supports_json,

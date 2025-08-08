@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import Any, Literal, Self, Sequence, overload
+from typing import Any, Literal, Self, Sequence, Callable, overload
 
 import numpy as np
 import yaml
@@ -23,7 +23,6 @@ from .request_context import RequestContext
 from .tracker import StatusTracker
 
 
-# TODO: get completions as they finish, not all at once at the end.
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
 class _LLMClient(BaseModel):
     """
@@ -54,6 +53,9 @@ class _LLMClient(BaseModel):
 
     # Progress configuration
     progress: Literal["rich", "tqdm", "manual"] = "rich"
+
+    # Postprocessing - run on every APIResponse
+    postprocess: Callable[[APIResponse], APIResponse] | None = None
 
     # Internal state for async task handling
     _next_task_id: int = PrivateAttr(default=0)
@@ -196,14 +198,6 @@ class _LLMClient(BaseModel):
         config_dict = yaml.safe_load(open(file_path))
         return cls.from_dict(config_dict)
 
-    @classmethod
-    def basic(cls, model: str | list[str], **kwargs):
-        """
-        Doesn't do anything differently now, kept for backwards compat.
-        """
-        kwargs["model_names"] = model
-        return cls(**kwargs)
-
     def _select_model(self):
         assert isinstance(self.model_weights, list)
         model_idx = np.random.choice(range(len(self.models)), p=self.model_weights)
@@ -253,14 +247,20 @@ class _LLMClient(BaseModel):
         self, context: RequestContext, retry_queue: asyncio.Queue | None = None
     ) -> APIResponse:
         """Handle caching and single HTTP call for a request. Failed requests go to retry queue."""
+
         # Check cache first
+        def _maybe_postprocess(response: APIResponse):
+            if self.postprocess:
+                return self.postprocess(response)
+            return response
+
         if self.cache:
             cached = self.cache.get(context.prompt)
             if cached:
                 cached.local_cache_hit = True
                 if context.status_tracker:
                     context.status_tracker.task_succeeded(context.task_id)
-                return cached
+                return _maybe_postprocess(cached)
 
         # Execute single request
         assert context.status_tracker
@@ -275,7 +275,7 @@ class _LLMClient(BaseModel):
                 self.cache.put(context.prompt, response)
             # Call callback if provided
             context.maybe_callback(response, context.status_tracker)
-            return response
+            return _maybe_postprocess(response)
 
         # Handle error response - add to retry queue if available
         if retry_queue and context.attempts_left > 1:
@@ -303,7 +303,7 @@ class _LLMClient(BaseModel):
 
             # Add to retry queue for later processing
             await retry_queue.put(retry_context)
-            return response  # Return the error response for now
+            return _maybe_postprocess(response)  # Return the error response for now
 
         # No retries left or no retry queue - final failure
         context.status_tracker.task_failed(context.task_id)
@@ -316,7 +316,7 @@ class _LLMClient(BaseModel):
         error_msg += f" Message: {response.error_message}. Giving up."
         print(error_msg)
 
-        return response
+        return _maybe_postprocess(response)
 
     @overload
     async def process_prompts_async(
@@ -570,6 +570,8 @@ class _LLMClient(BaseModel):
                 print(item, end="", flush=True)
             else:
                 # final item
+                if self.postprocess:
+                    return self.postprocess(item)
                 return item
 
     async def run_agent_loop(
@@ -713,65 +715,8 @@ class _LLMClient(BaseModel):
         )
 
 
-# def api_prompts_dry_run(
-#     ids: np.ndarray | list[int],
-#     prompts: list[Conversation],
-#     models: str | list[str],
-#     model_weights: list[float],
-#     sampling_params: list[SamplingParams],
-#     max_tokens_per_minute: int = 500_000,
-#     max_requests_per_minute: int = 1_000,
-# ):
-#     """
-#     Count tokens and estimate costs for a batch of prompts.
-#     """
-#     results = []
-#     for i, prompt in zip(ids, prompts):
-#         # choose a model
-#         model_idx = np.random.choice(range(len(models)), p=model_weights)
-#         model = models[model_idx]
-
-#         # dry run
-#         input_tokens, output_tokens, min_cost, max_cost = prompt.dry_run(
-#             model, sampling_params[model_idx].max_new_tokens
-#         )
-#         results.append(
-#             {
-#                 "id": i,
-#                 "input_tokens": input_tokens,
-#                 "output_tokens": output_tokens,
-#                 "min_cost": min_cost,
-#                 "max_cost": max_cost,
-#             }
-#         )
-
-#     combined_results: dict[str, Any] = {
-#         "total_input_tokens": sum([r["input_tokens"] for r in results]),
-#         "total_output_tokens": sum([r["output_tokens"] for r in results]),
-#         "total_min_cost": sum([r["min_cost"] for r in results]),
-#         "total_max_cost": sum([r["max_cost"] for r in results]),
-#     }
-#     minimum_time_tpm = combined_results["total_input_tokens"] / max_tokens_per_minute
-#     maximum_time_tpm = (
-#         combined_results["total_input_tokens"] + combined_results["total_output_tokens"]
-#     ) / max_tokens_per_minute
-#     minimum_time_rpm = len(prompts) / max_requests_per_minute
-
-#     combined_results["minimum_time"] = max(minimum_time_tpm, minimum_time_rpm)
-#     combined_results["maximum_time"] = max(maximum_time_tpm, minimum_time_rpm)
-#     limiting_factor = None
-#     if minimum_time_rpm > maximum_time_tpm:
-#         limiting_factor = "requests"
-#     elif minimum_time_rpm < minimum_time_tpm:
-#         limiting_factor = "tokens"
-#     else:
-#         limiting_factor = "depends"
-#     combined_results["limiting_factor"] = limiting_factor
-
-#     return combined_results
-
-
-# Clean factory function with perfect IDE support
+# factory function -- allows positional model names,
+# keeps pydantic validation, without sacrificing IDE support
 @overload
 def LLMClient(
     model_names: str,
@@ -794,6 +739,7 @@ def LLMClient(
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
     progress: Literal["rich", "tqdm", "manual"] = "rich",
+    postprocess: Callable[[APIResponse], APIResponse] | None = None,
 ) -> _LLMClient: ...
 
 
@@ -819,6 +765,7 @@ def LLMClient(
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
     progress: Literal["rich", "tqdm", "manual"] = "rich",
+    postprocess: Callable[[APIResponse], APIResponse] | None = None,
 ) -> _LLMClient: ...
 
 
@@ -843,6 +790,7 @@ def LLMClient(
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
     progress: Literal["rich", "tqdm", "manual"] = "rich",
+    postprocess: Callable[[APIResponse], APIResponse] | None = None,
 ) -> _LLMClient:
     """
     Create an LLMClient with model_names as a positional argument.
@@ -879,4 +827,5 @@ def LLMClient(
         top_logprobs=top_logprobs,
         force_local_mcp=force_local_mcp,
         progress=progress,
+        postprocess=postprocess,
     )

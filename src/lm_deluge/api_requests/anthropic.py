@@ -57,7 +57,7 @@ def _build_anthropic_request(
     # handle thinking
     if model.reasoning_model and sampling_params.reasoning_effort:
         # translate reasoning effort of low, medium, high to budget tokens
-        budget = {"low": 1024, "medium": 4096, "high": 16384}.get(
+        budget = {"minimal": 256, "low": 1024, "medium": 4096, "high": 16384}.get(
             sampling_params.reasoning_effort
         )
         request_json["thinking"] = {
