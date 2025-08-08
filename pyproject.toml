@@ -28,5 +28,9 @@ dependencies = [
     "pdf2image",
     "pillow",
     "fastmcp>=2.4",
-    "rich"
+    "rich",
+    # "textual>=0.58.0"
 ]
+
+# [project.scripts]
+# deluge = "lm_deluge.cli:main"
