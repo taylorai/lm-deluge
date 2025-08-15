@@ -86,7 +86,7 @@ def register_model(
     name: str,
     api_base: str,
     api_key_env_var: str,
-    api_spec: str,
+    api_spec: str = "openai",
     input_cost: float | None = 0,  # $ per million input tokens
     cached_input_cost: float | None = 0,
     output_cost: float | None = 0,  # $ per million output tokens
