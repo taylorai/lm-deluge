@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import Any, Callable, Literal, Self, Sequence, overload
+from typing import Any, AsyncGenerator, Callable, Literal, Self, Sequence, overload
 
 import numpy as np
 import yaml
@@ -556,6 +556,42 @@ class _LLMClient(BaseModel):
         if task_ids is None:
             task_ids = list(self._tasks.keys())
         return [await self.wait_for(tid) for tid in task_ids]
+
+    async def as_completed(
+        self, task_ids: Sequence[int] | None = None
+    ) -> AsyncGenerator[tuple[int, APIResponse | None], None]:
+        """Yield ``(task_id, result)`` pairs as tasks complete.
+
+        Args:
+            task_ids: Optional sequence of task IDs to wait on. If ``None``,
+                all queued tasks are watched.
+
+        Yields:
+            Tuples of task ID and ``APIResponse`` as each task finishes.
+        """
+
+        if task_ids is None:
+            tasks_map: dict[asyncio.Task, int] = {
+                task: tid for tid, task in self._tasks.items()
+            }
+        else:
+            tasks_map = {
+                self._tasks[tid]: tid for tid in task_ids if tid in self._tasks
+            }
+
+        # Yield any tasks that have already completed
+        for task in list(tasks_map.keys()):
+            if task.done():
+                tid = tasks_map.pop(task)
+                yield tid, self._results.get(tid, await task)
+
+        while tasks_map:
+            done, _ = await asyncio.wait(
+                set(tasks_map.keys()), return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in done:
+                tid = tasks_map.pop(task)
+                yield tid, self._results.get(tid, await task)
 
     async def stream(
         self,

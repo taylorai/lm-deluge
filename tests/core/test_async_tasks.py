@@ -44,5 +44,39 @@ def test_async_start_and_wait():
     asyncio.run(run_test())
 
 
+def test_async_as_completed():
+    import dotenv
+    from lm_deluge import Conversation, LLMClient
+
+    dotenv.load_dotenv()
+
+    async def run_test():
+        client = LLMClient(
+            "gpt-4.1-mini",
+            max_requests_per_minute=1000,
+            max_tokens_per_minute=1000000,
+            max_concurrent_requests=10,
+            progress="rich",
+        )
+        client.open()
+
+        ids: list[int] = []
+        for i in range(3):
+            prompt = Conversation.user(f"hello as_completed {i}")
+            ids.append(client.start_nowait(prompt))
+
+        seen: set[int] = set()
+        async for tid, resp in client.as_completed(ids):
+            assert resp and resp.completion
+            seen.add(tid)
+
+        assert seen == set(ids)
+        await asyncio.sleep(3.0)
+        client.close()
+
+    asyncio.run(run_test())
+
+
 if __name__ == "__main__":
     test_async_start_and_wait()
+    test_async_as_completed()
