@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import Any, Literal, Self, Sequence, Callable, overload
+from typing import Any, Callable, Literal, Self, Sequence, overload
 
 import numpy as np
 import yaml
@@ -375,16 +375,16 @@ class _LLMClient(BaseModel):
 
         # Main dispatch loop - using original pattern but with all prompts
         next_context = None  # Persist across iterations like original
+        next_is_retry = False  # Track whether next_context is a retry
         prompts_not_finished = True
         prompts_iter = iter(zip(ids, prompts))
 
         while True:
             # Get next context (retry or new) - only if we don't already have one waiting
-            retry_request = False
             if next_context is None:
                 if not retry_queue.empty():
                     next_context = retry_queue.get_nowait()
-                    retry_request = True
+                    next_is_retry = True
                     print(f"Retrying request {next_context.task_id}.")
                 elif prompts_not_finished:
                     try:
@@ -405,6 +405,8 @@ class _LLMClient(BaseModel):
                             extra_headers=self.extra_headers,
                             force_local_mcp=self.force_local_mcp,
                         )
+
+                        next_is_retry = False
                     except StopIteration:
                         prompts_not_finished = False
 
@@ -413,7 +415,7 @@ class _LLMClient(BaseModel):
 
             # Dispatch if capacity available - original logic
             if next_context:
-                if tracker.check_capacity(next_context.num_tokens, retry=retry_request):
+                if tracker.check_capacity(next_context.num_tokens, retry=next_is_retry):
                     tracker.set_limiting_factor(None)
 
                     # Launch simplified request processing
@@ -441,16 +443,16 @@ class _LLMClient(BaseModel):
 
                     asyncio.create_task(process_and_store(next_context))
                     next_context = None  # Reset after successful dispatch
+                    next_is_retry = False
 
             # Update progress - original logic
             tracker.update_pbar()
 
-            # Check completion - original logic
-            if (
-                tracker.num_tasks_in_progress == 0
-                and not prompts_not_finished
-                and retry_queue.empty()
-            ):
+            # Check completion: consider final outcomes, not in-progress count
+            # This avoids rare hangs if in-progress is miscounted (e.g., double-increment).
+            if (tracker.num_tasks_succeeded + tracker.num_tasks_failed) >= len(
+                prompts
+            ) and retry_queue.empty():
                 break
 
             # Sleep - original logic
@@ -616,7 +618,7 @@ class _LLMClient(BaseModel):
             if last_response is None or last_response.content is None:
                 break
 
-            conversation.add(last_response.content)
+            conversation = conversation.with_message(last_response.content)
 
             tool_calls = last_response.content.tool_calls
             if not tool_calls:

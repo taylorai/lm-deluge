@@ -1,4 +1,5 @@
 import random
+
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.api_requests.base import APIResponse
 
@@ -67,10 +68,10 @@ models_to_test = [
     "gpt-oss-120b-together",
     "gpt-oss-20b-together",
     # native gemini
-    "gemini-2.5-pro-gemini",
-    "gemini-2.5-flash-gemini",
-    "gemini-2.0-flash-gemini",
-    "gemini-2.0-flash-lite-gemini",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-lite",
 ]
 
 

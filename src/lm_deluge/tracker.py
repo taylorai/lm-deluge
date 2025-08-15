@@ -10,6 +10,7 @@ from rich.progress import (
     MofNCompleteColumn,
     Progress,
     SpinnerColumn,
+    TaskID,
     TextColumn,
 )
 from rich.text import Text
@@ -44,7 +45,7 @@ class StatusTracker:
     _rich_console: Console | None = None
     _rich_live: object | None = None
     _rich_progress: Progress | None = None
-    _rich_task_id: int | None = None
+    _rich_task_id: TaskID | None = None
     _rich_display_task: asyncio.Task | None = None
     _rich_stop_event: asyncio.Event | None = None
 
@@ -244,9 +245,7 @@ class StatusTracker:
         """Initialize manual progress printer."""
         self.progress_bar_total = total
         self._manual_stop_event = asyncio.Event()
-        self._manual_display_task = asyncio.create_task(
-            self._manual_display_updater()
-        )
+        self._manual_display_task = asyncio.create_task(self._manual_display_updater())
 
     async def _manual_display_updater(self):
         if self._manual_stop_event is None:

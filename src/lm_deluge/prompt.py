@@ -658,6 +658,11 @@ class Conversation:
         self.messages.append(msg)
         return self
 
+    # another way of doing the same thing
+    def add(self, msg: Message) -> "Conversation":
+        self.messages.append(msg)
+        return self
+
     def with_tool_result(
         self, tool_call_id: str, result: str | list[ToolResultPart]
     ) -> "Conversation":
