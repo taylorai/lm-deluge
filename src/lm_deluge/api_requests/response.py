@@ -89,9 +89,10 @@ class APIResponse:
                 + self.usage.output_tokens * api_model.output_cost / 1e6
             )
         elif self.content is not None and self.completion is not None:
-            print(
-                f"Warning: Completion provided without token counts for model {self.model_internal}."
-            )
+            pass
+            # print(
+            #     f"Warning: Completion provided without token counts for model {self.model_internal}."
+            # )
         if isinstance(self.prompt, Conversation):
             self.prompt = self.prompt.to_log()  # avoid keeping images in memory
 

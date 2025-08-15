@@ -654,11 +654,11 @@ class Conversation:
         pass
 
     # fluent additions
-    def add(self, msg: Message) -> "Conversation":
+    def with_message(self, msg: Message) -> "Conversation":
         self.messages.append(msg)
         return self
 
-    def add_tool_result(
+    def with_tool_result(
         self, tool_call_id: str, result: str | list[ToolResultPart]
     ) -> "Conversation":
         """Add a tool result to the conversation.
