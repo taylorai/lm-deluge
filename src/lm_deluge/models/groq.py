@@ -54,6 +54,7 @@ GROQ_MODELS = {
         "api_key_env_var": "GROQ_API_KEY",
         "supports_json": False,
         "api_spec": "openai",
+        "reasoning_model": True,
     },
     "gpt-oss-20b-groq": {
         "id": "gpt-oss-20b-groq",
@@ -62,6 +63,7 @@ GROQ_MODELS = {
         "api_key_env_var": "GROQ_API_KEY",
         "supports_json": False,
         "api_spec": "openai",
+        "reasoning_model": True,
     },
     "qwen-3-32b-groq": {
         "id": "qwen-3-32b-groq",

@@ -4,6 +4,7 @@ CEREBRAS_MODELS = {
         "name": "gpt-oss-120b",
         "api_base": "https://api.cerebras.ai/v1",
         "api_key_env_var": "CEREBRAS_API_KEY",
+        "reasoning_model": True,
     },
     "llama-4-scout-cerebras": {
         "id": "llama-4-scout-cerebras",

@@ -5,6 +5,7 @@ FIREWORKS_MODELS = {
         "api_base": "https://api.fireworks.ai/inference/v1",
         "api_key_env_var": "FIREWORKS_API_KEY",
         "api_spec": "openai",
+        "reasoning_model": True,
     },
     "gpt-oss-120b-fireworks": {
         "id": "gpt-oss-120b-fireworks",
@@ -12,5 +13,6 @@ FIREWORKS_MODELS = {
         "api_base": "https://api.fireworks.ai/inference/v1",
         "api_key_env_var": "FIREWORKS_API_KEY",
         "api_spec": "openai",
+        "reasoning_model": True,
     },
 }
