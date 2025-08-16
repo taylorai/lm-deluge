@@ -84,14 +84,17 @@ await client.process_prompts_async(
 
 ### Queueing individual prompts
 
-You can queue prompts one at a time and track progress explicitly:
+You can queue prompts one at a time and track progress explicitly. Iterate over
+results as they finish with `as_completed` (or gather them all at once with
+`wait_for_all`):
 
 ```python
 client = LLMClient("gpt-4.1-mini", progress="tqdm")
 client.open()
-task_id = client.start_nowait("hello there")
+client.start_nowait("hello there")
 # ... queue more tasks ...
-results = await client.wait_for_all()
+async for task_id, result in client.as_completed():
+    print(task_id, result.completion)
 client.close()
 ```
 
