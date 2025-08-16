@@ -3,6 +3,7 @@ import asyncio
 
 def test_async_start_and_wait():
     import dotenv
+
     from lm_deluge import Conversation, LLMClient
 
     dotenv.load_dotenv()
@@ -46,6 +47,7 @@ def test_async_start_and_wait():
 
 def test_async_as_completed():
     import dotenv
+
     from lm_deluge import Conversation, LLMClient
 
     dotenv.load_dotenv()
@@ -67,6 +69,7 @@ def test_async_as_completed():
 
         seen: set[int] = set()
         async for tid, resp in client.as_completed(ids):
+            print(f"✅ As completed: {tid}")
             assert resp and resp.completion
             seen.add(tid)
 
