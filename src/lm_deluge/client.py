@@ -356,16 +356,16 @@ class _LLMClient(BaseModel):
         prompts = prompts_to_conversations(prompts)
         ids = list(range(len(prompts)))
         results: list[APIResponse | None] = [None for _ in range(len(prompts))]
-
-        # Create StatusTracker
-        tracker = StatusTracker(
-            max_requests_per_minute=self.max_requests_per_minute,
-            max_tokens_per_minute=self.max_tokens_per_minute,
-            max_concurrent_requests=self.max_concurrent_requests,
-            progress_style=self.progress,
-            use_progress_bar=show_progress,
-        )
-        tracker.init_progress_bar(total=len(prompts), disable=not show_progress)
+        # Use existing tracker if client has been opened; otherwise open/close automatically
+        tracker: StatusTracker
+        tracker_preopened = self._tracker is not None
+        if tracker_preopened:
+            tracker = self._tracker  # type: ignore[assignment]
+            tracker.add_to_total(len(prompts))
+        else:
+            self.open(total=len(prompts), show_progress=show_progress)
+            tracker = self._tracker  # type: ignore[assignment]
+        assert tracker is not None
 
         # Create retry queue for failed requests
         retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
@@ -458,7 +458,8 @@ class _LLMClient(BaseModel):
             # Sleep - original logic
             await asyncio.sleep(seconds_to_sleep_each_loop + tracker.seconds_to_pause)
 
-        tracker.log_final_status()
+        if not tracker_preopened:
+            self.close()
 
         if return_completions_only:
             return [r.completion if r is not None else None for r in results]
