@@ -1,21 +1,22 @@
-import os
-import json
-import time
 import asyncio
-import aiohttp
+import json
+import os
 import tempfile
-from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
-from lm_deluge.config import SamplingParams
-from lm_deluge.models import APIModel
-from typing import Sequence, Literal
-from lm_deluge.api_requests.openai import _build_oa_chat_request
-from lm_deluge.api_requests.anthropic import _build_anthropic_request
+import time
+from typing import Literal, Sequence
+
+import aiohttp
 from rich.console import Console
 from rich.live import Live
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
-from lm_deluge.models import registry
+
+from lm_deluge.api_requests.anthropic import _build_anthropic_request
+from lm_deluge.api_requests.openai import _build_oa_chat_request
+from lm_deluge.config import SamplingParams
+from lm_deluge.models import APIModel, registry
+from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
 from lm_deluge.request_context import RequestContext
 
 
@@ -160,6 +161,91 @@ async def _submit_anthropic_batch(file_path: str, headers: dict, model: str):
 
         os.remove(file_path)
         return batch_id
+
+
+async def create_batch_files_oa(
+    model: str,
+    sampling_params: SamplingParams,
+    prompts: Sequence[str | list[dict] | Conversation],
+    batch_size: int = 50_000,
+    destination: str | None = None,  # if none provided, temp files
+):
+    MAX_BATCH_SIZE_BYTES = 200 * 1024 * 1024  # 200MB
+    MAX_BATCH_SIZE_ITEMS = batch_size
+
+    prompts = prompts_to_conversations(prompts)
+    if any(p is None for p in prompts):
+        raise ValueError("All prompts must be valid.")
+
+    model_obj = APIModel.from_registry(model)
+
+    current_batch = []
+    current_batch_size = 0
+    file_paths = []
+
+    for idx, prompt in enumerate(prompts):
+        assert isinstance(prompt, Conversation)
+        context = RequestContext(
+            task_id=idx,
+            model_name=model,
+            prompt=prompt,
+            sampling_params=sampling_params,
+        )
+        request = {
+            "custom_id": str(idx),
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": await _build_oa_chat_request(model_obj, context),
+        }
+
+        # Calculate size of this request
+        request_json = json.dumps(request) + "\n"
+        request_size = len(request_json.encode("utf-8"))
+
+        # Check if adding this request would exceed limits
+        would_exceed_size = current_batch_size + request_size > MAX_BATCH_SIZE_BYTES
+        would_exceed_items = len(current_batch) >= MAX_BATCH_SIZE_ITEMS
+
+        if current_batch and (would_exceed_size or would_exceed_items):
+            # Submit current batch
+            def write_batch_file():
+                with tempfile.NamedTemporaryFile(
+                    mode="w+", suffix=".jsonl", delete=False
+                ) as f:
+                    for batch_request in current_batch:
+                        json.dump(batch_request, f)
+                        f.write("\n")
+                    print("wrote", len(current_batch), "items")
+                    return f.name
+
+            file_path = await asyncio.to_thread(write_batch_file)
+            file_paths.append(file_path)
+            # Start new batch
+            current_batch = []
+            current_batch_size = 0
+            # current_batch_start_idx = idx
+
+        # Add request to current batch
+        current_batch.append(request)
+        current_batch_size += request_size
+
+    # Submit final batch if it has items
+    if current_batch:
+
+        def write_final_batch_file():
+            with tempfile.NamedTemporaryFile(
+                mode="w+", suffix=".jsonl", delete=False
+            ) as f:
+                for batch_request in current_batch:
+                    json.dump(batch_request, f)
+                    f.write("\n")
+                print("wrote", len(current_batch), "items")
+                return f.name
+
+        file_path = await asyncio.to_thread(write_final_batch_file)
+        file_paths.append(file_path)
+
+    return file_paths
 
 
 async def submit_batches_oa(

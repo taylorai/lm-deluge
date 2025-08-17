@@ -14,7 +14,7 @@ from rich.progress import (
     TextColumn,
 )
 from rich.text import Text
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR = 5
 
