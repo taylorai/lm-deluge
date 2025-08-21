@@ -1,5 +1,4 @@
 import asyncio
-import random
 from typing import Any, AsyncGenerator, Callable, Literal, Self, Sequence, overload
 
 import numpy as np
@@ -225,9 +224,10 @@ class _LLMClient(BaseModel):
                 seconds_to_pause = tracker.seconds_to_pause
 
             if seconds_to_pause > 0:
+                print(f"Pausing for {seconds_to_pause} seconds to cool down.")
                 await asyncio.sleep(seconds_to_pause)
             else:
-                await asyncio.sleep(random.random())
+                await asyncio.sleep(30.0 / self.max_requests_per_minute)
 
     async def _execute_request(self, context: RequestContext) -> APIResponse:
         """Create and send a single API request using the provided context."""
