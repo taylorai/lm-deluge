@@ -217,17 +217,19 @@ class _LLMClient(BaseModel):
         self, num_tokens: int, tracker: StatusTracker, *, retry: bool = False
     ):
         while True:
+            # Enforce cooldown first, regardless of current capacity.
+            cooldown = tracker.seconds_to_pause
+            if cooldown > 0:
+                print(f"Pausing for {cooldown} seconds to cool down.")
+                await asyncio.sleep(cooldown)
+                continue
+
             async with self._capacity_lock:
                 if tracker.check_capacity(num_tokens, retry=retry):
                     tracker.set_limiting_factor(None)
                     return
-                seconds_to_pause = tracker.seconds_to_pause
-
-            if seconds_to_pause > 0:
-                print(f"Pausing for {seconds_to_pause} seconds to cool down.")
-                await asyncio.sleep(seconds_to_pause)
-            else:
-                await asyncio.sleep(30.0 / self.max_requests_per_minute)
+            # Idle wait before next capacity check. Aim for ~RPM spacing.
+            await asyncio.sleep(max(60.0 / self.max_requests_per_minute, 0.01))
 
     async def _execute_request(self, context: RequestContext) -> APIResponse:
         """Create and send a single API request using the provided context."""
@@ -363,7 +365,7 @@ class _LLMClient(BaseModel):
         # Create retry queue for failed requests
         retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
 
-        # Calculate sleep time for rate limiting
+        # Calculate sleep time for rate limiting (legacy; gating happens in _wait_for_capacity)
         seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
 
         # Main dispatch loop - using original pattern but with all prompts
@@ -403,40 +405,37 @@ class _LLMClient(BaseModel):
                     except StopIteration:
                         prompts_not_finished = False
 
-            # Update capacity - original logic
-            tracker.update_capacity()
-
-            # Dispatch if capacity available - original logic
+            # Dispatch using shared capacity gate (consistent with start_nowait)
             if next_context:
-                if tracker.check_capacity(next_context.num_tokens, retry=next_is_retry):
-                    tracker.set_limiting_factor(None)
+                # Wait here until we have capacity to launch this context
+                await self._wait_for_capacity(
+                    next_context.num_tokens, tracker, retry=next_is_retry
+                )
 
-                    # Launch simplified request processing
-                    async def process_and_store(ctx: RequestContext):
-                        try:
-                            response = await self.process_single_request(
-                                ctx, retry_queue
-                            )
-                            results[ctx.task_id] = response
-                        except Exception as e:
-                            # Create an error response for validation errors and other exceptions
-                            error_response = APIResponse(
-                                id=ctx.task_id,
-                                model_internal=ctx.model_name,
-                                prompt=ctx.prompt,
-                                sampling_params=ctx.sampling_params,
-                                status_code=None,
-                                is_error=True,
-                                error_message=str(e),
-                            )
-                            results[ctx.task_id] = error_response
-                            # Mark task as completed so the main loop can finish
-                            if ctx.status_tracker:
-                                ctx.status_tracker.task_failed(ctx.task_id)
+                # Launch simplified request processing
+                async def process_and_store(ctx: RequestContext):
+                    try:
+                        response = await self.process_single_request(ctx, retry_queue)
+                        results[ctx.task_id] = response
+                    except Exception as e:
+                        # Create an error response for validation errors and other exceptions
+                        error_response = APIResponse(
+                            id=ctx.task_id,
+                            model_internal=ctx.model_name,
+                            prompt=ctx.prompt,
+                            sampling_params=ctx.sampling_params,
+                            status_code=None,
+                            is_error=True,
+                            error_message=str(e),
+                        )
+                        results[ctx.task_id] = error_response
+                        # Mark task as completed so the main loop can finish
+                        if ctx.status_tracker:
+                            ctx.status_tracker.task_failed(ctx.task_id)
 
-                    asyncio.create_task(process_and_store(next_context))
-                    next_context = None  # Reset after successful dispatch
-                    next_is_retry = False
+                asyncio.create_task(process_and_store(next_context))
+                next_context = None  # Reset after successful dispatch
+                next_is_retry = False
 
             # Update progress - original logic
             tracker.update_pbar()
@@ -448,8 +447,8 @@ class _LLMClient(BaseModel):
             ) and retry_queue.empty():
                 break
 
-            # Sleep - original logic
-            await asyncio.sleep(seconds_to_sleep_each_loop + tracker.seconds_to_pause)
+            # Yield briefly to allow in-flight tasks to progress
+            await asyncio.sleep(min(0.01, seconds_to_sleep_each_loop))
 
         if not tracker_preopened:
             self.close()
