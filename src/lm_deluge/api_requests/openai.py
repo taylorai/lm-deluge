@@ -113,6 +113,9 @@ class OpenAIRequest(APIRequestBase):
         finish_reason = None
         assert self.context.status_tracker
 
+        if status_code == 500:
+            print("Internal Server Error: ", (await http_response.text()))
+
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
@@ -305,6 +308,9 @@ class OpenAIResponsesRequest(APIRequestBase):
         data = None
         assert self.context.status_tracker
 
+        if status_code == 500:
+            print("Internal Server Error: ", http_response.text())
+
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
@@ -428,10 +434,12 @@ class OpenAIResponsesRequest(APIRequestBase):
                     error_message = f"Error parsing {self.model.name} responses API response: {str(e)}"
 
         elif mimetype and "json" in mimetype.lower():
+            print("is_error True, json response")
             is_error = True
             data = await http_response.json()
             error_message = json.dumps(data)
         else:
+            print("is_error True, non-json response")
             is_error = True
             text = await http_response.text()
             error_message = text

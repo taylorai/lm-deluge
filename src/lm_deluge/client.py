@@ -294,7 +294,7 @@ class _LLMClient(BaseModel):
 
             # Print error message for debugging
             error_msg = (
-                f"Error task {context.task_id}. Model: {response.model_internal}"
+                f"😔 Error task {context.task_id}. Model: {response.model_internal}"
             )
             if response.status_code:
                 error_msg += f" Code: {response.status_code},"
@@ -474,6 +474,7 @@ class _LLMClient(BaseModel):
         show_progress=True,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
+        use_responses_api: bool = False,
     ):
         return asyncio.run(
             self.process_prompts_async(
@@ -482,6 +483,7 @@ class _LLMClient(BaseModel):
                 show_progress=show_progress,
                 tools=tools,
                 cache=cache,
+                use_responses_api=use_responses_api,
             )
         )
 
