@@ -105,14 +105,8 @@ class _LLMClient(BaseModel):
 
     def _get_tracker(self) -> StatusTracker:
         if self._tracker is None:
-            self._tracker = StatusTracker(
-                max_requests_per_minute=self.max_requests_per_minute,
-                max_tokens_per_minute=self.max_tokens_per_minute,
-                max_concurrent_requests=self.max_concurrent_requests,
-                use_progress_bar=False,
-                progress_bar_disable=True,
-                progress_style=self.progress,
-            )
+            self.open()
+            assert self._tracker, "should have tracker now"
         return self._tracker
 
     @property
@@ -225,7 +219,6 @@ class _LLMClient(BaseModel):
     ):
         while True:
             async with self._capacity_lock:
-                tracker.update_capacity()
                 if tracker.check_capacity(num_tokens, retry=retry):
                     tracker.set_limiting_factor(None)
                     return
