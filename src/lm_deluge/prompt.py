@@ -333,6 +333,23 @@ class Message:
         """
         Return a JSON-serialisable dict that fully captures the message.
         """
+        def _json_safe(value):
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                return value
+            if isinstance(value, list):
+                return [_json_safe(v) for v in value]
+            if isinstance(value, dict):
+                return {k: _json_safe(v) for k, v in value.items()}
+            if isinstance(value, Text):
+                return {"type": "text", "text": value.text}
+            if isinstance(value, Image):
+                w, h = value.size
+                return {"type": "image", "tag": f"<Image ({w}×{h})>"}
+            if isinstance(value, File):
+                size = value.size
+                return {"type": "file", "tag": f"<File ({size} bytes)>"}
+            return repr(value)
+
         content_blocks: list[dict] = []
         for p in self.parts:
             if isinstance(p, Text):
@@ -349,7 +366,7 @@ class Message:
                         "type": "tool_call",
                         "id": p.id,
                         "name": p.name,
-                        "arguments": p.arguments,
+                        "arguments": _json_safe(p.arguments),
                     }
                 )
             elif isinstance(p, ToolResult):
@@ -357,7 +374,7 @@ class Message:
                     {
                         "type": "tool_result",
                         "tool_call_id": p.tool_call_id,
-                        "result": p.result,
+                        "result": _json_safe(p.result),
                     }
                 )
             elif isinstance(p, Thinking):
