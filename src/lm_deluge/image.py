@@ -76,7 +76,15 @@ class Image:
             header, encoded = self.data.split(",", 1)
             return base64.b64decode(encoded)
         else:
-            raise ValueError(f"unreadable image format. type: {type(self.data)}")
+            if isinstance(self.data, str):
+                content = self.data[:1_000]
+            elif isinstance(self.data, bytes):
+                content = "[raw bytes]"
+            else:
+                content = f"[raw {type(self.data)}]"
+            raise ValueError(
+                f"unreadable image format. type: {type(self.data)}. content: {content}"
+            )
 
     def _mime(self) -> str:
         if self.media_type:
