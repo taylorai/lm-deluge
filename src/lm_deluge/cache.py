@@ -78,9 +78,18 @@ class LevelDBCache:
         Get an API response from the cache.
         """
         key = f"{self.cache_key}:{prompt.fingerprint}"
+        # print(f"DEBUG: Cache.get() looking for key: {key}")
         data = self.db.get(key.encode())
         if data is not None:
-            return decode_api_response(data)
+            # print(f"DEBUG: Cache.get() FOUND data, calling decode_api_response")
+            try:
+                result = decode_api_response(data)
+                # print(f"DEBUG: Cache.get() decode_api_response returned: {type(result)}")
+                return result
+            except Exception:
+                # print(f"DEBUG: Cache.get() ERROR in decode_api_response: {e}")
+                return None
+        # print(f"DEBUG: Cache.get() NO data found, returning None")
         return None
 
     def put(self, prompt: Conversation, response: APIResponse):
