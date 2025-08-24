@@ -23,6 +23,16 @@ class Image:
     _fingerprint_cache: str | None = field(init=False, default=None)
     _size_cache: tuple[int, int] | None = field(init=False, default=None)
 
+    # def __post_init__(self):
+    # DEBUG: Track image data at creation
+    # data_type = type(self.data)
+    # data_preview = (
+    #     str(self.data)[:100]
+    #     if isinstance(self.data, str)
+    #     else f"[{data_type.__name__}]"
+    # )
+    # print(f"DEBUG: Image.__post_init__: id={id(self)}, data={data_type}, preview={data_preview}")
+
     def __repr__(self):
         return f"Image(data=[{type(self.data)}], media_type={self.media_type}, detail={self.detail})"
 
@@ -58,6 +68,15 @@ class Image:
 
     # helpers -----------------------------------------------------------------
     def _bytes(self) -> bytes:
+        # DEBUG: Track when _bytes is called and what data we have
+        # data_type = type(self.data)
+        # data_preview = (
+        #     str(self.data)[:100]
+        #     if isinstance(self.data, str)
+        #     else f"[{data_type.__name__}]"
+        # )
+        # print(f"DEBUG: Image._bytes called: id={id(self)}, data={data_type}, preview={data_preview}")
+
         if isinstance(self.data, bytes):
             return self.data
         elif isinstance(self.data, io.BytesIO):
@@ -82,6 +101,7 @@ class Image:
                 content = "[raw bytes]"
             else:
                 content = f"[raw {type(self.data)}]"
+            # print(f"DEBUG: Image._bytes ERROR PATH: type={type(self.data)}, content={content}")
             raise ValueError(
                 f"unreadable image format. type: {type(self.data)}. content: {content}"
             )
@@ -164,6 +184,7 @@ class Image:
     @property
     def fingerprint(self) -> str:
         # return base64 of a very small version of the image
+        # print(f"DEBUG: Image.fingerprint called, data type: {type(self.data)}")
         if self._fingerprint_cache is None:
             small_image = self._resize_longer(max_size=48)  # longer side = 48px
             self._fingerprint_cache = base64.b64encode(small_image).decode("utf-8")

@@ -93,8 +93,8 @@ class APIResponse:
             # print(
             #     f"Warning: Completion provided without token counts for model {self.model_internal}."
             # )
-        if isinstance(self.prompt, Conversation):
-            self.prompt = self.prompt.to_log()  # avoid keeping images in memory
+        # Don't convert prompt to log format here - keep original images intact
+        # The conversion will happen during serialization in to_dict() method
 
     def to_dict(self):
         return {
@@ -102,7 +102,9 @@ class APIResponse:
             "model_internal": self.model_internal,
             "model_external": self.model_external,
             "region": self.region,
-            "prompt": self.prompt,
+            "prompt": self.prompt.to_log()
+            if isinstance(self.prompt, Conversation)
+            else self.prompt,
             "sampling_params": self.sampling_params.__dict__,
             "status_code": self.status_code,
             "is_error": self.is_error,
@@ -132,7 +134,8 @@ class APIResponse:
         return cls(
             id=data.get("id", random.randint(0, 1_000_000_000)),
             model_internal=data["model_internal"],
-            prompt=Conversation.from_log(data["prompt"]),
+            # Keep prompt as dict to avoid reconstructing placeholder images into objects
+            prompt=data["prompt"],
             sampling_params=SamplingParams(**data["sampling_params"]),
             status_code=data["status_code"],
             is_error=data["is_error"],

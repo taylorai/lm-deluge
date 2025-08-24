@@ -333,6 +333,15 @@ class Message:
         """
         Return a JSON-serialisable dict that fully captures the message.
         """
+
+        # DEBUG: Track when to_log is called
+        # print(f"DEBUG: Message.to_log called on {self.role} message with {len(self.parts)} parts")
+        # for i, part in enumerate(self.parts):
+        #     print(f"  Part {i}: {type(part)} - {part.type if hasattr(part, 'type') else 'no type'}")
+        #     if hasattr(part, 'type') and part.type == 'image':
+        #         print(f"    Image data type: {type(part.data)}")
+        #         data_preview = str(part.data)[:50] if isinstance(part.data, str) else f"[{type(part.data).__name__}]"
+        #         print(f"    Image data preview: {data_preview}")
         def _json_safe(value):
             if isinstance(value, (str, int, float, bool)) or value is None:
                 return value
@@ -385,6 +394,8 @@ class Message:
     @classmethod
     def from_log(cls, data: dict) -> "Message":
         """Re-hydrate a Message previously produced by `to_log()`."""
+        # DEBUG: Track when from_log is called
+        # print(f"DEBUG: Message.from_log called for {data['role']} message with {len(data['content'])} content blocks")
         role: Role = data["role"]
         parts: list[Part] = []
 
@@ -392,11 +403,12 @@ class Message:
             if p["type"] == "text":
                 parts.append(Text(p["text"]))
             elif p["type"] == "image":
-                # We only stored a placeholder tag, so keep that placeholder.
-                parts.append(Image(p["tag"], detail="low"))
+                # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
+                # print(f"DEBUG: Message.from_log creating Text placeholder for image: {p['tag']}")
+                parts.append(Text(p["tag"]))
             elif p["type"] == "file":
-                # We only stored a placeholder tag, so keep that placeholder.
-                parts.append(File(p["tag"]))
+                # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
+                parts.append(Text(p["tag"]))
             elif p["type"] == "tool_call":
                 parts.append(
                     ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
@@ -974,12 +986,11 @@ class Conversation:
                 if p["type"] == "text":
                     parts.append(Text(p["text"]))
                 elif p["type"] == "image":
-                    # We only stored a placeholder tag, so keep that placeholder.
-                    # You could raise instead if real image bytes are required.
-                    parts.append(Image(p["tag"], detail="low"))
+                    # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
+                    parts.append(Text(p["tag"]))
                 elif p["type"] == "file":
-                    # We only stored a placeholder tag, so keep that placeholder.
-                    parts.append(File(p["tag"]))
+                    # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
+                    parts.append(Text(p["tag"]))
                 elif p["type"] == "tool_call":
                     parts.append(
                         ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])

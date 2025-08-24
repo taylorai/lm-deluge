@@ -250,12 +250,17 @@ class _LLMClient(BaseModel):
             return response
 
         if self.cache:
+            # print(f"DEBUG: Checking cache for prompt with {len(context.prompt.messages)} messages")
             cached = self.cache.get(context.prompt)
             if cached:
+                # print(f"DEBUG: Cache HIT! Returning cached response")
                 cached.local_cache_hit = True
                 if context.status_tracker:
                     context.status_tracker.task_succeeded(context.task_id)
                 return _maybe_postprocess(cached)
+            else:
+                # print(f"DEBUG: Cache MISS")
+                pass
 
         # Execute single request
         assert context.status_tracker
@@ -267,6 +272,7 @@ class _LLMClient(BaseModel):
             context.status_tracker.task_succeeded(context.task_id)
             # Cache successful responses immediately
             if self.cache and response.completion:
+                # print(f"DEBUG: Caching successful response")
                 self.cache.put(context.prompt, response)
             # Call callback if provided
             context.maybe_callback(response, context.status_tracker)
