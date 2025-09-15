@@ -28,10 +28,6 @@ def _add_beta(headers: dict, beta: str):
 def _build_anthropic_request(
     model: APIModel,
     context: RequestContext,
-    # prompt: Conversation,
-    # tools: list[Tool | dict | MCPServer] | None,
-    # sampling_params: SamplingParams,
-    # cache_pattern: CachePattern | None = None,
 ):
     prompt = context.prompt
     cache_pattern = context.cache

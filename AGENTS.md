@@ -1,0 +1,2 @@
+- whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. (as long as you think that test is general enough to be useful.)
+- don't use == True and == False as these always lead to ruff errors

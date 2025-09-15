@@ -334,14 +334,6 @@ class Message:
         Return a JSON-serialisable dict that fully captures the message.
         """
 
-        # DEBUG: Track when to_log is called
-        # print(f"DEBUG: Message.to_log called on {self.role} message with {len(self.parts)} parts")
-        # for i, part in enumerate(self.parts):
-        #     print(f"  Part {i}: {type(part)} - {part.type if hasattr(part, 'type') else 'no type'}")
-        #     if hasattr(part, 'type') and part.type == 'image':
-        #         print(f"    Image data type: {type(part.data)}")
-        #         data_preview = str(part.data)[:50] if isinstance(part.data, str) else f"[{type(part.data).__name__}]"
-        #         print(f"    Image data preview: {data_preview}")
         def _json_safe(value):
             if isinstance(value, (str, int, float, bool)) or value is None:
                 return value
@@ -574,6 +566,51 @@ class Message:
     @classmethod
     def from_anthropic(cls, msg: dict):
         pass
+        # role = (
+        #     "system"
+        #     if msg["role"] in ["developer", "system"]
+        #     else ("user" if msg["role"] == "user" else "assistant")
+        # )
+        # parts: list[Part] = []
+        # content = msg["content"]
+        # if isinstance(content, str):
+        #     parts = [Text(content)]
+        # else:
+        #     part_list = []
+        #     for item in content:
+        #         if item["type"] == "text":
+        #             part_list.append(Text(item["text"]))
+        #         elif item["type"] == "image_url":
+        #             part_list.append(Image(data=item["image_url"]["url"]))
+        #         elif item["type"] == "file":
+        #             file_data = item["file"]
+        #             if "file_id" in file_data:
+        #                 # Handle file ID reference (not implemented yet)
+        #                 part_list.append(File(data=file_data["file_id"]))
+        #             elif "file_data" in file_data:
+        #                 # Handle base64 file data
+        #                 part_list.append(
+        #                     File(
+        #                         data=file_data["file_data"],
+        #                         filename=file_data.get("filename"),
+        #                     )
+        #                 )
+        #     parts = part_list
+
+        # # Handle tool calls (assistant messages)
+        # if "tool_calls" in msg:
+        #     part_list = list(parts) if parts else []
+        #     for tool_call in msg["tool_calls"]:
+        #         part_list.append(
+        #             ToolCall(
+        #                 id=tool_call["id"],
+        #                 name=tool_call["function"]["name"],
+        #                 arguments=json.loads(tool_call["function"]["arguments"]),
+        #             )
+        #         )
+        #     parts = part_list
+
+        # return cls(role, parts)
 
     # ───── provider-specific emission ─────
     def oa_chat(self) -> dict:
@@ -583,11 +620,6 @@ class Message:
             if len(tool_results) == 1:
                 tool_result = tool_results[0]
                 return tool_result.oa_chat()
-                # {
-                #     "role": "tool",
-                #     "tool_call_id": tool_result.tool_call_id,
-                #     "content": tool_result.result,
-                # }
             else:
                 raise ValueError(
                     f"Tool role messages must contain exactly one ToolResult part for OpenAI, got {len(tool_results)}"
@@ -673,14 +705,469 @@ class Conversation:
         return cls([msg])
 
     @classmethod
-    def from_openai(cls, messages: list[dict]):
+    def from_openai_chat(cls, messages: list[dict]):
         """Compatibility with openai-formatted messages"""
-        pass
+
+        def _to_image_from_url(block: dict) -> Image:
+            payload = block.get("image_url") or block.get("input_image") or {}
+            url = payload.get("url") or payload.get("file_id")
+            detail = payload.get("detail", "auto")
+            media_type = payload.get("media_type")
+            if url is None:
+                raise ValueError("image content missing url")
+            return Image(data=url, media_type=media_type, detail=detail)
+
+        def _to_file(block: dict) -> File:
+            payload = block.get("file") or block.get("input_file") or {}
+            file_id = payload.get("file_id") or block.get("file_id")
+            filename = payload.get("filename")
+            file_data = payload.get("file_data")
+            if file_id is not None:
+                return File(data=b"", filename=filename, file_id=file_id)
+            if file_data is not None:
+                return File(data=file_data, filename=filename)
+            raise ValueError("file content missing file data or id")
+
+        def _to_audio_file(block: dict) -> File:
+            payload = block.get("audio") or block.get("input_audio") or {}
+            file_id = payload.get("file_id")
+            audio_format = payload.get("format", "wav")
+            media_type = f"audio/{audio_format}"
+            data = payload.get("data")
+            if file_id is not None:
+                return File(data=b"", media_type=media_type, file_id=file_id)
+            if data is not None:
+                data_url = f"data:{media_type};base64,{data}"
+                return File(data=data_url, media_type=media_type)
+            raise ValueError("audio block missing data or file id")
+
+        text_types = {"text", "input_text", "output_text", "refusal"}
+        image_types = {"image_url", "input_image", "image"}
+        file_types = {"file", "input_file"}
+        audio_types = {"audio", "input_audio"}
+
+        def _convert_content_blocks(content: str | list[dict] | None) -> list[Part]:
+            parts: list[Part] = []
+            if content is None:
+                return parts
+            if isinstance(content, str):
+                parts.append(Text(content))
+                return parts
+
+            for block in content:
+                block_type = block.get("type")
+                if block_type in text_types:
+                    text_value = block.get("text") or block.get(block_type) or ""
+                    parts.append(Text(text_value))
+                elif block_type in image_types:
+                    parts.append(_to_image_from_url(block))
+                elif block_type in file_types:
+                    parts.append(_to_file(block))
+                elif block_type in audio_types:
+                    parts.append(_to_audio_file(block))
+                elif block_type == "tool_result":
+                    # Rare: assistant echoing tool results – convert to text
+                    result = block.get("content")
+                    if isinstance(result, str):
+                        parts.append(Text(result))
+                    else:
+                        parts.append(Text(json.dumps(result)))
+                elif block_type == "image_file":
+                    payload = block.get("image_file", {})
+                    file_id = payload.get("file_id")
+                    placeholder = {"type": "image_file", "file_id": file_id}
+                    parts.append(Text(json.dumps(placeholder)))
+                else:
+                    parts.append(Text(json.dumps(block)))
+            return parts
+
+        def _convert_tool_arguments(raw: str | dict | None) -> dict:
+            if isinstance(raw, dict):
+                return raw
+            if raw is None:
+                return {}
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return {"__raw__": raw}
+
+        def _convert_tool_result_content(
+            content: str | list[dict] | None,
+        ) -> str | list[ToolResultPart]:
+            if content is None:
+                return ""
+            if isinstance(content, str):
+                return content
+            result_parts: list[ToolResultPart] = []
+            for block in content:
+                block_type = block.get("type")
+                if block_type in {"text", "input_text", "output_text", "refusal"}:
+                    text_value = block.get("text") or block.get(block_type) or ""
+                    result_parts.append(Text(text_value))
+                elif block_type in image_types:
+                    result_parts.append(_to_image_from_url(block))
+                else:
+                    result_parts.append(Text(json.dumps(block)))
+            return result_parts
+
+        conversation_messages: list[Message] = []
+
+        for idx, raw_message in enumerate(messages):
+            role = raw_message.get("role")
+            if role is None:
+                raise ValueError("OpenAI message missing role")
+
+            role_lower = role.lower()
+            if role_lower in {"system", "developer"}:
+                parts = _convert_content_blocks(raw_message.get("content"))
+                conversation_messages.append(Message("system", parts))
+                continue
+
+            if role_lower == "tool" or role_lower == "function":
+                tool_call_id = (
+                    raw_message.get("tool_call_id")
+                    or raw_message.get("id")
+                    or raw_message.get("name")
+                    or f"tool_call_{idx}"
+                )
+                tool_result = ToolResult(
+                    tool_call_id=tool_call_id,
+                    result=_convert_tool_result_content(raw_message.get("content")),
+                )
+                conversation_messages.append(Message("tool", [tool_result]))
+                continue
+
+            mapped_role: Role
+            if role_lower == "user":
+                mapped_role = "user"
+            elif role_lower == "assistant":
+                mapped_role = "assistant"
+            else:
+                raise ValueError(f"Unsupported OpenAI message role: {role}")
+
+            parts = _convert_content_blocks(raw_message.get("content"))
+
+            tool_calls = raw_message.get("tool_calls")
+            if not tool_calls and raw_message.get("function_call") is not None:
+                tool_calls = [
+                    {
+                        "id": raw_message.get("id"),
+                        "type": "function",
+                        "function": raw_message["function_call"],
+                    }
+                ]
+
+            if tool_calls:
+                for call_index, call in enumerate(tool_calls):
+                    call_type = call.get("type", "function")
+                    call_id = (
+                        call.get("id")
+                        or call.get("tool_call_id")
+                        or call.get("call_id")
+                        or f"tool_call_{idx}_{call_index}"
+                    )
+
+                    if call_type == "function":
+                        function_payload = call.get("function", {})
+                        name = (
+                            function_payload.get("name")
+                            or call.get("name")
+                            or "function"
+                        )
+                        arguments = _convert_tool_arguments(
+                            function_payload.get("arguments")
+                        )
+                        parts.append(
+                            ToolCall(
+                                id=call_id,
+                                name=name,
+                                arguments=arguments,
+                            )
+                        )
+                    else:
+                        payload = call.get(call_type, {})
+                        if not isinstance(payload, dict):
+                            payload = {"value": payload}
+                        arguments = payload.get("arguments")
+                        if arguments is None:
+                            arguments = payload
+                        parts.append(
+                            ToolCall(
+                                id=call_id,
+                                name=call_type,
+                                arguments=arguments
+                                if isinstance(arguments, dict)
+                                else {"value": arguments},
+                                built_in=True,
+                                built_in_type=call_type,
+                                extra_body=payload,
+                            )
+                        )
+
+            conversation_messages.append(Message(mapped_role, parts))
+
+        return cls(conversation_messages)
 
     @classmethod
-    def from_anthropic(cls, messages: list[dict], system: str | None = None):
+    def from_anthropic(
+        cls, messages: list[dict], system: str | list[dict] | None = None
+    ):
         """Compatibility with anthropic-formatted messages"""
-        pass
+
+        def _anthropic_text_part(text_value: str | None) -> Text:
+            return Text(text_value or "")
+
+        def _anthropic_image(block: dict) -> Image:
+            source = block.get("source", {})
+            source_type = source.get("type")
+            if source_type == "base64":
+                media_type = source.get("media_type", "image/png")
+                data = source.get("data", "")
+                return Image(
+                    data=f"data:{media_type};base64,{data}",
+                    media_type=media_type,
+                )
+            if source_type == "url":
+                media_type = source.get("media_type")
+                url = source.get("url")
+                if url is None:
+                    raise ValueError("Anthropic image source missing url")
+                return Image(data=url, media_type=media_type)
+            if source_type == "file":
+                file_id = source.get("file_id")
+                if file_id is None:
+                    raise ValueError("Anthropic image file source missing file_id")
+                raise ValueError(
+                    "Anthropic image file references require external fetch"
+                )
+            raise ValueError(f"Unsupported Anthropic image source: {source_type}")
+
+        def _anthropic_file(block: dict) -> File:
+            source = block.get("source", {})
+            source_type = source.get("type")
+            if source_type == "file":
+                file_id = source.get("file_id")
+                if file_id is None:
+                    raise ValueError("Anthropic file source missing file_id")
+                return File(data=b"", file_id=file_id)
+            if source_type == "base64":
+                media_type = source.get("media_type")
+                data = source.get("data", "")
+                return File(
+                    data=f"data:{media_type};base64,{data}",
+                    media_type=media_type,
+                    filename=block.get("name"),
+                )
+            raise ValueError(f"Unsupported Anthropic file source: {source_type}")
+
+        def _anthropic_tool_result_content(
+            content: str | list[dict] | None,
+        ) -> str | list[ToolResultPart]:
+            if content is None:
+                return ""
+            if isinstance(content, str):
+                return content
+            result_parts: list[ToolResultPart] = []
+            for part in content:
+                part_type = part.get("type")
+                if part_type == "text":
+                    result_parts.append(_anthropic_text_part(part.get("text")))
+                elif part_type == "image":
+                    try:
+                        result_parts.append(_anthropic_image(part))
+                    except ValueError:
+                        result_parts.append(Text(json.dumps(part)))
+                else:
+                    result_parts.append(Text(json.dumps(part)))
+            return result_parts
+
+        def _anthropic_content_to_parts(
+            role: Role, content: str | list[dict] | None
+        ) -> list[Part]:
+            parts: list[Part] = []
+            if content is None:
+                return parts
+            if isinstance(content, str):
+                parts.append(_anthropic_text_part(content))
+                return parts
+
+            for block in content:
+                block_type = block.get("type")
+                if block_type == "text":
+                    parts.append(_anthropic_text_part(block.get("text")))
+                elif block_type == "image":
+                    try:
+                        parts.append(_anthropic_image(block))
+                    except ValueError:
+                        parts.append(Text(json.dumps(block)))
+                elif block_type == "document":
+                    try:
+                        parts.append(_anthropic_file(block))
+                    except ValueError:
+                        parts.append(Text(json.dumps(block)))
+                elif block_type == "tool_use":
+                    tool_id = block.get("id")
+                    if tool_id is None:
+                        raise ValueError("Anthropic tool_use block missing id")
+                    name = block.get("name") or "tool"
+                    arguments = block.get("input") or {}
+                    parts.append(
+                        ToolCall(
+                            id=tool_id,
+                            name=name,
+                            arguments=arguments
+                            if isinstance(arguments, dict)
+                            else {"value": arguments},
+                        )
+                    )
+                elif block_type == "tool_result":
+                    tool_use_id = block.get("tool_use_id")
+                    if tool_use_id is None:
+                        raise ValueError(
+                            "Anthropic tool_result block missing tool_use_id"
+                        )
+                    result = _anthropic_tool_result_content(block.get("content"))
+                    tool_result = ToolResult(tool_call_id=tool_use_id, result=result)
+                    parts.append(tool_result)
+                elif block_type == "thinking":
+                    thinking_content = block.get("thinking", "")
+                    parts.append(Thinking(content=thinking_content, raw_payload=block))
+                else:
+                    parts.append(Text(json.dumps(block)))
+            return parts
+
+        conversation_messages: list[Message] = []
+
+        if system is not None:
+            if isinstance(system, str):
+                conversation_messages.append(Message("system", [Text(system)]))
+            elif isinstance(system, list):
+                system_parts = _anthropic_content_to_parts("system", system)
+                conversation_messages.append(Message("system", system_parts))
+            else:
+                raise ValueError(
+                    "Anthropic system prompt must be string or list of blocks"
+                )
+
+        for message in messages:
+            role = message.get("role")
+            if role is None:
+                raise ValueError("Anthropic message missing role")
+
+            if role not in {"user", "assistant"}:
+                raise ValueError(f"Unsupported Anthropic role: {role}")
+
+            base_role: Role = role  # type: ignore[assignment]
+            content = message.get("content")
+            if isinstance(content, list):
+                buffer_parts: list[Part] = []
+                for block in content:
+                    block_type = block.get("type")
+                    if block_type == "tool_result":
+                        if buffer_parts:
+                            conversation_messages.append(
+                                Message(base_role, buffer_parts)
+                            )
+                            buffer_parts = []
+                        tool_use_id = block.get("tool_use_id")
+                        if tool_use_id is None:
+                            raise ValueError(
+                                "Anthropic tool_result block missing tool_use_id"
+                            )
+                        result = _anthropic_tool_result_content(block.get("content"))
+                        conversation_messages.append(
+                            Message(
+                                "tool",
+                                [ToolResult(tool_call_id=tool_use_id, result=result)],
+                            )
+                        )
+                    else:
+                        block_parts = _anthropic_content_to_parts(base_role, [block])
+                        buffer_parts.extend(block_parts)
+
+                if buffer_parts:
+                    conversation_messages.append(Message(base_role, buffer_parts))
+            else:
+                parts = _anthropic_content_to_parts(base_role, content)
+                conversation_messages.append(Message(base_role, parts))
+
+        return cls(conversation_messages)
+
+    @classmethod
+    def from_unknown(
+        cls, messages: list[dict], *, system: str | list[dict] | None = None
+    ) -> tuple["Conversation", str]:
+        """Attempt to convert provider-formatted messages without knowing the provider.
+
+        Returns the parsed conversation together with the provider label that succeeded
+        ("openai" or "anthropic").
+        """
+
+        def _detect_provider() -> str:
+            has_openai_markers = False
+            has_anthropic_markers = False
+
+            for msg in messages:
+                role = msg.get("role")
+                if role == "tool":
+                    has_openai_markers = True
+
+                if role == "system":
+                    has_openai_markers = True
+
+                if (
+                    "tool_calls" in msg
+                    or "function_call" in msg
+                    or "tool_call_id" in msg
+                ):
+                    has_openai_markers = True
+
+                content = msg.get("content")
+                if isinstance(content, list):
+                    for block in content:
+                        if not isinstance(block, dict):
+                            continue
+                        block_type = block.get("type")
+                        if block_type in {
+                            "tool_use",
+                            "tool_result",
+                            "thinking",
+                            "assistant_response",
+                            "redacted",
+                        }:
+                            has_anthropic_markers = True
+                        if block_type == "tool_result" and block.get("tool_use_id"):
+                            has_anthropic_markers = True
+                        if block_type == "tool_use":
+                            has_anthropic_markers = True
+
+            if has_openai_markers and not has_anthropic_markers:
+                return "openai"
+            if has_anthropic_markers and not has_openai_markers:
+                return "anthropic"
+            if has_openai_markers:
+                return "openai"
+            if has_anthropic_markers:
+                return "anthropic"
+            # As a fallback, default to OpenAI which is the most permissive
+            return "openai"
+
+        provider = _detect_provider()
+        if provider == "openai":
+            try:
+                return cls.from_openai_chat(messages), "openai"
+            except Exception:
+                try:
+                    return cls.from_anthropic(messages, system=system), "anthropic"
+                except Exception as anthropic_error:
+                    raise ValueError(
+                        "Unable to parse messages as OpenAI or Anthropic"
+                    ) from anthropic_error
+        else:
+            try:
+                return cls.from_anthropic(messages, system=system), "anthropic"
+            except Exception:
+                return cls.from_openai_chat(messages), "openai"
 
     # fluent additions
     def with_message(self, msg: Message) -> "Conversation":
