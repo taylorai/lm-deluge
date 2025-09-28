@@ -1,5 +1,6 @@
 import json
 import os
+import traceback as tb
 import warnings
 from types import SimpleNamespace
 
@@ -341,7 +342,13 @@ class OpenAIResponsesRequest(APIRequestBase):
                                     elif content_item.get("type") == "refusal":
                                         parts.append(Text(content_item["refusal"]))
                             elif item.get("type") == "reasoning":
-                                parts.append(Thinking(item["summary"]["text"]))
+                                summary = item["summary"]
+                                if not summary:
+                                    continue
+                                if isinstance(summary, list) and len(summary) > 0:
+                                    summary = summary[0]
+                                assert isinstance(summary, dict), "summary isn't a dict"
+                                parts.append(Thinking(summary["text"]))
                             elif item.get("type") == "function_call":
                                 parts.append(
                                     ToolCall(
@@ -432,6 +439,9 @@ class OpenAIResponsesRequest(APIRequestBase):
                 except Exception as e:
                     is_error = True
                     error_message = f"Error parsing {self.model.name} responses API response: {str(e)}"
+                    print("got data:", data)
+                    traceback = tb.format_exc()
+                    print(f"Error details:\n{traceback}")
 
         elif mimetype and "json" in mimetype.lower():
             print("is_error True, json response")

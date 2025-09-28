@@ -357,6 +357,8 @@ class _LLMClient(BaseModel):
         prompts = prompts_to_conversations(prompts)
         ids = list(range(len(prompts)))
         results: list[APIResponse | None] = [None for _ in range(len(prompts))]
+        contexts: list[RequestContext | None] = [None for _ in range(len(prompts))]
+        inflight_tasks: set[asyncio.Task[None]] = set()
         # Use existing tracker if client has been opened; otherwise open/close automatically
         tracker: StatusTracker
         tracker_preopened = self._tracker is not None
@@ -419,6 +421,8 @@ class _LLMClient(BaseModel):
                 )
 
                 # Launch simplified request processing
+                contexts[next_context.task_id] = next_context
+
                 async def process_and_store(ctx: RequestContext):
                     try:
                         response = await self.process_single_request(ctx, retry_queue)
@@ -439,7 +443,9 @@ class _LLMClient(BaseModel):
                         if ctx.status_tracker:
                             ctx.status_tracker.task_failed(ctx.task_id)
 
-                asyncio.create_task(process_and_store(next_context))
+                task = asyncio.create_task(process_and_store(next_context))
+                inflight_tasks.add(task)
+                task.add_done_callback(inflight_tasks.discard)
                 next_context = None  # Reset after successful dispatch
                 next_is_retry = False
 
@@ -456,8 +462,36 @@ class _LLMClient(BaseModel):
             # Yield briefly to allow in-flight tasks to progress
             await asyncio.sleep(min(0.01, seconds_to_sleep_each_loop))
 
+        if inflight_tasks:
+            await asyncio.gather(*inflight_tasks, return_exceptions=True)
+
         if not tracker_preopened:
             self.close()
+
+        for idx, response in enumerate(results):
+            if response is None:
+                ctx = contexts[idx]
+                prompt = ctx.prompt if ctx else prompts[idx]
+                sampling_params = (
+                    ctx.sampling_params
+                    if ctx
+                    else self.sampling_params[0]
+                    if self.sampling_params
+                    else SamplingParams()
+                )
+                model_name = ctx.model_name if ctx else self.model_names[0]
+                assert isinstance(
+                    prompt, Conversation
+                ), "expected prompt to be a conversation"
+                results[idx] = APIResponse(
+                    id=idx,
+                    model_internal=model_name,
+                    prompt=prompt,
+                    sampling_params=sampling_params,
+                    status_code=None,
+                    is_error=True,
+                    error_message="Internal error: no response produced.",
+                )
 
         if return_completions_only:
             return [r.completion if r is not None else None for r in results]

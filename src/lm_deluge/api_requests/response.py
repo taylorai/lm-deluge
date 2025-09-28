@@ -14,7 +14,7 @@ class APIResponse:
     # request information
     id: int  # should be unique to the request within a given prompt-processing call
     model_internal: str  # our internal model tag
-    prompt: Conversation | dict
+    prompt: Conversation | dict  # dict if converted to log
     sampling_params: SamplingParams
 
     # http response information

@@ -316,7 +316,7 @@ async def test_serialization_preserves_message_structure():
         for orig_part, rest_part in zip(orig.parts, rest.parts):
             if hasattr(orig_part, "text") and hasattr(rest_part, "text"):
                 assert (
-                    orig_part.text == rest_part.text
+                    orig_part.text == rest_part.text  # type: ignore
                 ), "Text content should be preserved"
 
     print("✅ Serialization preserves message structure test passed!")
