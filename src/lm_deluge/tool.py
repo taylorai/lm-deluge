@@ -1,14 +1,14 @@
 import asyncio
 import inspect
-from typing import Any, Callable, Coroutine, Literal, TypedDict, get_type_hints
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Callable, Coroutine, Literal, TypedDict, get_type_hints
 
 from fastmcp import Client  # pip install fastmcp >= 2.0
 from mcp.types import Tool as MCPTool
 from pydantic import BaseModel, Field, field_validator
 
-from lm_deluge.prompt import Text, ToolResultPart
 from lm_deluge.image import Image
+from lm_deluge.prompt import Text, ToolResultPart
 
 
 async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
@@ -18,10 +18,14 @@ async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
         async def _async_call(**kw):
             async with client:
                 # maybe should be call_tool_mcp if don't want to raise error
-                content_blocks = await client.call_tool(name, kw)
+                raw_result = await client.call_tool(name, kw)
 
                 # for now just concatenate them all into a result string
                 results = []
+                if not isinstance(raw_result, list):  # newer versions of fastmcp
+                    content_blocks = raw_result.content
+                else:
+                    content_blocks = raw_result
                 for block in content_blocks:
                     if block.type == "text":
                         results.append(Text(block.text))
@@ -54,14 +58,14 @@ class Tool(BaseModel):
     """
 
     name: str
-    description: str | None
-    parameters: dict[str, Any] | None
+    description: str | None = None
+    parameters: dict[str, Any] | None = None
     required: list[str] = Field(default_factory=list)
     additionalProperties: bool | None = None  # only
     # if desired, can provide a callable to run the tool
     run: Callable | None = None
     # for built-in tools that don't require schema
-    built_in: bool = False
+    is_built_in: bool = False
     type: str | None = None
     built_in_args: dict[str, Any] = Field(default_factory=dict)
 
@@ -305,7 +309,7 @@ class Tool(BaseModel):
     def for_openai_completions(
         self, *, strict: bool = True, **kwargs
     ) -> dict[str, Any]:
-        if self.built_in:
+        if self.is_built_in:
             return {"type": self.type, **self.built_in_args, **kwargs}
         if strict:
             # For strict mode, remove defaults and make all parameters required
@@ -334,7 +338,7 @@ class Tool(BaseModel):
         return self.for_openai_completions(strict=strict, **kwargs)
 
     def for_openai_responses(self, **kwargs) -> dict[str, Any]:
-        if self.built_in:
+        if self.is_built_in:
             return {"type": self.type, **self.built_in_args, **kwargs}
         return {
             "type": "function",
@@ -345,7 +349,7 @@ class Tool(BaseModel):
 
     def for_anthropic(self, **kwargs) -> dict[str, Any]:
         # built-in tools have "name", "type", maybe metadata
-        if self.built_in:
+        if self.is_built_in:
             return {
                 "name": self.name,
                 "type": self.type,
@@ -387,6 +391,14 @@ class Tool(BaseModel):
         if provider == "google":
             return self.for_google()
         raise ValueError(provider)
+
+    @classmethod
+    def built_in(cls, name: str, **kwargs):
+        if "type" in kwargs:
+            type = kwargs.pop("type")
+        else:
+            type = name
+        return cls(name=name, type=type, is_built_in=True, built_in_args=kwargs)
 
 
 class OpenAIMCPSpec(TypedDict):
