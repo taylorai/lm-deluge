@@ -10,6 +10,18 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-4.5-sonnet": {
+        "id": "claude-4.5-sonnet",
+        "name": "claude-sonnet-4-5-20250929",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "requests_per_minute": 4_000,
+        "tokens_per_minute": 400_000,
+    },
     "claude-4.1-opus": {
         "id": "claude-4.1-opus",
         "name": "claude-opus-4-1-20250805",

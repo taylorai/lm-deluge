@@ -80,6 +80,22 @@ class _LLMClient(BaseModel):
             self._tracker.log_final_status()
             self._tracker = None
 
+    def reset_tracker(self):
+        """Reset tracker by closing and reopening with fresh state.
+
+        Useful when reusing a client across multiple batches and you want
+        the progress bar to start from 0 instead of showing cumulative totals.
+        """
+        if self._tracker is None:
+            return
+
+        # Close existing tracker (including progress bar)
+        show_progress = self._tracker.use_progress_bar
+        self.close()
+
+        # Create fresh tracker
+        self.open(total=0, show_progress=show_progress)
+
     # NEW! Builder methods
     def with_model(self, model: str):
         self.model_names = [model]
@@ -353,146 +369,61 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         use_responses_api: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
-        # Convert prompts to Conversations - no upfront cache checking for dynamic caching!
+        """Process multiple prompts asynchronously using the start_nowait/wait_for_all backend.
+
+        This implementation creates all tasks upfront and waits for them to complete,
+        avoiding issues with tracker state accumulating across multiple calls.
+        """
+        # Convert prompts to Conversations
         prompts = prompts_to_conversations(prompts)
-        ids = list(range(len(prompts)))
-        results: list[APIResponse | None] = [None for _ in range(len(prompts))]
-        contexts: list[RequestContext | None] = [None for _ in range(len(prompts))]
-        inflight_tasks: set[asyncio.Task[None]] = set()
-        # Use existing tracker if client has been opened; otherwise open/close automatically
-        tracker: StatusTracker
-        tracker_preopened = self._tracker is not None
-        if tracker_preopened:
-            tracker = self._tracker  # type: ignore[assignment]
-            tracker.add_to_total(len(prompts))
+
+        # Ensure tracker exists (start_nowait will call add_to_total for each task)
+        if self._tracker is None:
+            self.open(total=0, show_progress=show_progress)
+            tracker_preopened = False
         else:
-            self.open(total=len(prompts), show_progress=show_progress)
-            tracker = self._tracker  # type: ignore[assignment]
-        assert tracker is not None
+            tracker_preopened = True
 
-        # Create retry queue for failed requests
-        retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
+        # Start all tasks using start_nowait - tasks will coordinate via shared capacity lock
+        task_ids = []
+        for prompt in prompts:
+            assert isinstance(prompt, Conversation)
+            task_id = self.start_nowait(
+                prompt,
+                tools=tools,
+                cache=cache,
+                use_responses_api=use_responses_api,
+            )
+            task_ids.append(task_id)
 
-        # Calculate sleep time for rate limiting (legacy; gating happens in _wait_for_capacity)
-        seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
+        # Wait for all tasks to complete
+        results = await self.wait_for_all(task_ids)
 
-        # Main dispatch loop - using original pattern but with all prompts
-        next_context = None  # Persist across iterations like original
-        next_is_retry = False  # Track whether next_context is a retry
-        prompts_not_finished = True
-        prompts_iter = iter(zip(ids, prompts))
-
-        while True:
-            # Get next context (retry or new) - only if we don't already have one waiting
-            if next_context is None:
-                if not retry_queue.empty():
-                    next_context = retry_queue.get_nowait()
-                    next_is_retry = True
-                    print(f"Retrying request {next_context.task_id}.")
-                elif prompts_not_finished:
-                    try:
-                        task_id, prompt = next(prompts_iter)
-                        model, sampling_params = self._select_model()
-                        assert isinstance(prompt, Conversation)
-                        next_context = RequestContext(
-                            task_id=task_id,
-                            model_name=model,
-                            prompt=prompt,
-                            sampling_params=sampling_params,
-                            attempts_left=self.max_attempts,
-                            request_timeout=self.request_timeout,
-                            status_tracker=tracker,
-                            tools=tools,
-                            cache=cache,
-                            use_responses_api=use_responses_api,
-                            extra_headers=self.extra_headers,
-                            force_local_mcp=self.force_local_mcp,
-                        )
-
-                        next_is_retry = False
-                    except StopIteration:
-                        prompts_not_finished = False
-
-            # Dispatch using shared capacity gate (consistent with start_nowait)
-            if next_context:
-                # Wait here until we have capacity to launch this context
-                await self._wait_for_capacity(
-                    next_context.num_tokens, tracker, retry=next_is_retry
-                )
-
-                # Launch simplified request processing
-                contexts[next_context.task_id] = next_context
-
-                async def process_and_store(ctx: RequestContext):
-                    try:
-                        response = await self.process_single_request(ctx, retry_queue)
-                        results[ctx.task_id] = response
-                    except Exception as e:
-                        # Create an error response for validation errors and other exceptions
-                        error_response = APIResponse(
-                            id=ctx.task_id,
-                            model_internal=ctx.model_name,
-                            prompt=ctx.prompt,
-                            sampling_params=ctx.sampling_params,
-                            status_code=None,
-                            is_error=True,
-                            error_message=str(e),
-                        )
-                        results[ctx.task_id] = error_response
-                        # Mark task as completed so the main loop can finish
-                        if ctx.status_tracker:
-                            ctx.status_tracker.task_failed(ctx.task_id)
-
-                task = asyncio.create_task(process_and_store(next_context))
-                inflight_tasks.add(task)
-                task.add_done_callback(inflight_tasks.discard)
-                next_context = None  # Reset after successful dispatch
-                next_is_retry = False
-
-            # Update progress - original logic
-            tracker.update_pbar()
-
-            # Check completion: consider final outcomes, not in-progress count
-            # This avoids rare hangs if in-progress is miscounted (e.g., double-increment).
-            if (tracker.num_tasks_succeeded + tracker.num_tasks_failed) >= len(
-                prompts
-            ) and retry_queue.empty():
-                break
-
-            # Yield briefly to allow in-flight tasks to progress
-            await asyncio.sleep(min(0.01, seconds_to_sleep_each_loop))
-
-        if inflight_tasks:
-            await asyncio.gather(*inflight_tasks, return_exceptions=True)
-
+        # Close tracker if we opened it
         if not tracker_preopened:
             self.close()
 
+        # Defensive check: This should rarely happen, but provides a safety net
         for idx, response in enumerate(results):
             if response is None:
-                ctx = contexts[idx]
-                prompt = ctx.prompt if ctx else prompts[idx]
-                sampling_params = (
-                    ctx.sampling_params
-                    if ctx
-                    else self.sampling_params[0]
-                    if self.sampling_params
-                    else SamplingParams()
+                # This should only happen if there's a bug in _run_context
+                print(
+                    f"WARNING: result[{idx}] is None! Creating defensive error response. "
+                    f"Please report this bug."
                 )
-                model_name = ctx.model_name if ctx else self.model_names[0]
-                assert isinstance(
-                    prompt, Conversation
-                ), "expected prompt to be a conversation"
                 results[idx] = APIResponse(
                     id=idx,
-                    model_internal=model_name,
-                    prompt=prompt,
-                    sampling_params=sampling_params,
+                    model_internal=self.model_names[0],
+                    prompt=prompts[idx],  # type: ignore
+                    sampling_params=self.sampling_params[0]
+                    if self.sampling_params
+                    else SamplingParams(),
                     status_code=None,
                     is_error=True,
                     error_message="Internal error: no response produced.",
                 )
 
+        # Handle return format
         if return_completions_only:
             return [r.completion if r is not None else None for r in results]
 
