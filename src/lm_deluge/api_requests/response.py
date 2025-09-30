@@ -14,7 +14,7 @@ class APIResponse:
     # request information
     id: int  # should be unique to the request within a given prompt-processing call
     model_internal: str  # our internal model tag
-    prompt: Conversation | dict
+    prompt: Conversation | dict  # dict if converted to log
     sampling_params: SamplingParams
 
     # http response information
@@ -84,10 +84,37 @@ class APIResponse:
             and api_model.input_cost is not None
             and api_model.output_cost is not None
         ):
+            # Calculate input cost, accounting for cached vs non-cached tokens
+            # Different providers report tokens differently:
+            # - Anthropic/Bedrock: input_tokens is ONLY non-cached, cache_read_tokens is separate
+            # - OpenAI/Gemini: input_tokens INCLUDES cached, cache_read_tokens is a subset
+            cache_read_tokens = self.usage.cache_read_tokens or 0
+
+            if api_model.api_spec in ("anthropic", "bedrock"):
+                # For Anthropic: input_tokens already excludes cache, so use directly
+                non_cached_input_tokens = self.usage.input_tokens
+            else:
+                # For OpenAI/Gemini: input_tokens includes cache, so subtract it
+                non_cached_input_tokens = self.usage.input_tokens - cache_read_tokens
+
             self.cost = (
-                self.usage.input_tokens * api_model.input_cost / 1e6
+                non_cached_input_tokens * api_model.input_cost / 1e6
                 + self.usage.output_tokens * api_model.output_cost / 1e6
             )
+
+            # Add cost for cache read tokens (at reduced rate)
+            if cache_read_tokens > 0 and api_model.cached_input_cost is not None:
+                self.cost += cache_read_tokens * api_model.cached_input_cost / 1e6
+
+            # Add cost for cache write tokens (only for Anthropic)
+            if (
+                self.usage.cache_write_tokens
+                and self.usage.cache_write_tokens > 0
+                and api_model.cache_write_cost is not None
+            ):
+                self.cost += (
+                    self.usage.cache_write_tokens * api_model.cache_write_cost / 1e6
+                )
         elif self.content is not None and self.completion is not None:
             pass
             # print(

@@ -29,7 +29,8 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
-    cached_input_cost: float | None = 0
+    cached_input_cost: float | None = 0  # $ per million cached/read input tokens
+    cache_write_cost: float | None = 0  # $ per million cache write tokens
     input_cost: float | None = 0  # $ per million input tokens
     output_cost: float | None = 0  # $ per million output tokens
     supports_json: bool = False
@@ -89,6 +90,7 @@ def register_model(
     api_spec: str = "openai",
     input_cost: float | None = 0,  # $ per million input tokens
     cached_input_cost: float | None = 0,
+    cache_write_cost: float | None = 0,  # $ per million cache write tokens
     output_cost: float | None = 0,  # $ per million output tokens
     supports_json: bool = False,
     supports_logprobs: bool = False,
@@ -106,6 +108,7 @@ def register_model(
         api_key_env_var=api_key_env_var,
         api_spec=api_spec,
         cached_input_cost=cached_input_cost,
+        cache_write_cost=cache_write_cost,
         input_cost=input_cost,
         output_cost=output_cost,
         supports_json=supports_json,

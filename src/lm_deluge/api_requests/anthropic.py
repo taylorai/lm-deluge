@@ -28,10 +28,6 @@ def _add_beta(headers: dict, beta: str):
 def _build_anthropic_request(
     model: APIModel,
     context: RequestContext,
-    # prompt: Conversation,
-    # tools: list[Tool | dict | MCPServer] | None,
-    # sampling_params: SamplingParams,
-    # cache_pattern: CachePattern | None = None,
 ):
     prompt = context.prompt
     cache_pattern = context.cache
@@ -64,7 +60,8 @@ def _build_anthropic_request(
             "type": "enabled",
             "budget_tokens": budget,
         }
-        request_json.pop("top_p")
+        if "top_p" in request_json:
+            request_json["top_p"] = max(request_json["top_p"], 0.95)
         request_json["temperature"] = 1.0
         request_json["max_tokens"] += budget
     else:
@@ -73,6 +70,11 @@ def _build_anthropic_request(
             print("ignoring reasoning_effort for non-reasoning model")
     if system_message is not None:
         request_json["system"] = system_message
+
+    # handle temp + top_p for opus 4.1/sonnet 4.5
+    if model.name in ["claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805"]:
+        if "temperature" in request_json and "top_p" in request_json:
+            request_json.pop("top_p")
 
     if tools:
         mcp_servers = []
@@ -93,6 +95,9 @@ def _build_anthropic_request(
                     _add_beta(base_headers, "computer-use-2025-01-24")
                 elif tool["type"] == "code_execution_20250522":
                     _add_beta(base_headers, "code-execution-2025-05-22")
+                elif tool["type"] in ["memory_20250818", "clear_tool_uses_20250919"]:
+                    _add_beta(base_headers, "context-management-2025-06-27")
+
             elif isinstance(tool, MCPServer):
                 _add_beta(base_headers, "mcp-client-2025-04-04")
                 mcp_servers.append(tool.for_anthropic())

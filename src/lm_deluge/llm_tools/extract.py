@@ -1,11 +1,12 @@
 import asyncio
 import io
 import json
+import os
 from typing import Any
 
+from lm_deluge.client import _LLMClient
 from lm_deluge.file import File
 
-from ..client import LLMClient
 from ..prompt import Conversation
 from ..util.json import load_json
 
@@ -18,7 +19,7 @@ except ImportError:
 async def extract_async(
     inputs: list[str | Any],
     schema: Any,
-    client: LLMClient,
+    client: _LLMClient,
     document_name: str | None = None,
     object_name: str | None = None,
     show_progress: bool = True,
@@ -32,12 +33,13 @@ async def extract_async(
         raise ValueError("schema must be a pydantic model or a dict.")
 
     # warn if json_mode is not True
+    has_warned = os.environ.get("LM_DELUGE_WARN_JSON_MODE", False)
     for sp in client.sampling_params:
-        if sp.json_mode is False:
+        if sp.json_mode is False and not has_warned:
             print(
                 "Warning: json_mode is False for one or more sampling params. You may get invalid output."
             )
-            break
+            os.environ["LM_DELUGE_WARN_JSON_MODE"] = "True"
     # check_schema(schema_dict) -- figure out later
     if document_name is None:
         document_name = "text"
@@ -111,7 +113,7 @@ async def extract_async(
 def extract(
     inputs: list[str | Any],
     schema: Any,
-    client: LLMClient,
+    client: _LLMClient,
     document_name: str | None = None,
     object_name: str | None = None,
     show_progress: bool = True,

@@ -30,6 +30,7 @@ class _LLMClient(BaseModel):
     """
 
     model_names: str | list[str] = ["gpt-4.1-mini"]
+    name: str | None = None
     max_requests_per_minute: int = 1_000
     max_tokens_per_minute: int = 100_000
     max_concurrent_requests: int = 225
@@ -69,6 +70,7 @@ class _LLMClient(BaseModel):
             max_requests_per_minute=self.max_requests_per_minute,
             max_tokens_per_minute=self.max_tokens_per_minute,
             max_concurrent_requests=self.max_concurrent_requests,
+            client_name=self.name or "LLMClient",
             progress_style=self.progress,
             use_progress_bar=show_progress,
         )
@@ -79,6 +81,22 @@ class _LLMClient(BaseModel):
         if self._tracker:
             self._tracker.log_final_status()
             self._tracker = None
+
+    def reset_tracker(self):
+        """Reset tracker by closing and reopening with fresh state.
+
+        Useful when reusing a client across multiple batches and you want
+        the progress bar to start from 0 instead of showing cumulative totals.
+        """
+        if self._tracker is None:
+            return
+
+        # Close existing tracker (including progress bar)
+        show_progress = self._tracker.use_progress_bar
+        self.close()
+
+        # Create fresh tracker
+        self.open(total=0, show_progress=show_progress)
 
     # NEW! Builder methods
     def with_model(self, model: str):
@@ -152,6 +170,13 @@ class _LLMClient(BaseModel):
             raise NotImplementedError("dynamic model weights not implemented yet")
         # normalize weights
         self.model_weights = [w / sum(self.model_weights) for w in self.model_weights]
+
+        # Auto-generate name if not provided
+        if self.name is None:
+            if len(self.model_names) == 1:
+                self.name = self.model_names[0]
+            else:
+                self.name = "LLMClient"
 
         # Validate logprobs settings across all sampling params
         if self.logprobs or any(sp.logprobs for sp in self.sampling_params):
@@ -353,112 +378,61 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         use_responses_api: bool = False,
     ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
-        # Convert prompts to Conversations - no upfront cache checking for dynamic caching!
+        """Process multiple prompts asynchronously using the start_nowait/wait_for_all backend.
+
+        This implementation creates all tasks upfront and waits for them to complete,
+        avoiding issues with tracker state accumulating across multiple calls.
+        """
+        # Convert prompts to Conversations
         prompts = prompts_to_conversations(prompts)
-        ids = list(range(len(prompts)))
-        results: list[APIResponse | None] = [None for _ in range(len(prompts))]
-        # Use existing tracker if client has been opened; otherwise open/close automatically
-        tracker: StatusTracker
-        tracker_preopened = self._tracker is not None
-        if tracker_preopened:
-            tracker = self._tracker  # type: ignore[assignment]
-            tracker.add_to_total(len(prompts))
+
+        # Ensure tracker exists (start_nowait will call add_to_total for each task)
+        if self._tracker is None:
+            self.open(total=0, show_progress=show_progress)
+            tracker_preopened = False
         else:
-            self.open(total=len(prompts), show_progress=show_progress)
-            tracker = self._tracker  # type: ignore[assignment]
-        assert tracker is not None
+            tracker_preopened = True
 
-        # Create retry queue for failed requests
-        retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
+        # Start all tasks using start_nowait - tasks will coordinate via shared capacity lock
+        task_ids = []
+        for prompt in prompts:
+            assert isinstance(prompt, Conversation)
+            task_id = self.start_nowait(
+                prompt,
+                tools=tools,
+                cache=cache,
+                use_responses_api=use_responses_api,
+            )
+            task_ids.append(task_id)
 
-        # Calculate sleep time for rate limiting (legacy; gating happens in _wait_for_capacity)
-        seconds_to_sleep_each_loop = (60.0 * 0.9) / tracker.max_requests_per_minute
+        # Wait for all tasks to complete
+        results = await self.wait_for_all(task_ids)
 
-        # Main dispatch loop - using original pattern but with all prompts
-        next_context = None  # Persist across iterations like original
-        next_is_retry = False  # Track whether next_context is a retry
-        prompts_not_finished = True
-        prompts_iter = iter(zip(ids, prompts))
-
-        while True:
-            # Get next context (retry or new) - only if we don't already have one waiting
-            if next_context is None:
-                if not retry_queue.empty():
-                    next_context = retry_queue.get_nowait()
-                    next_is_retry = True
-                    print(f"Retrying request {next_context.task_id}.")
-                elif prompts_not_finished:
-                    try:
-                        task_id, prompt = next(prompts_iter)
-                        model, sampling_params = self._select_model()
-                        assert isinstance(prompt, Conversation)
-                        next_context = RequestContext(
-                            task_id=task_id,
-                            model_name=model,
-                            prompt=prompt,
-                            sampling_params=sampling_params,
-                            attempts_left=self.max_attempts,
-                            request_timeout=self.request_timeout,
-                            status_tracker=tracker,
-                            tools=tools,
-                            cache=cache,
-                            use_responses_api=use_responses_api,
-                            extra_headers=self.extra_headers,
-                            force_local_mcp=self.force_local_mcp,
-                        )
-
-                        next_is_retry = False
-                    except StopIteration:
-                        prompts_not_finished = False
-
-            # Dispatch using shared capacity gate (consistent with start_nowait)
-            if next_context:
-                # Wait here until we have capacity to launch this context
-                await self._wait_for_capacity(
-                    next_context.num_tokens, tracker, retry=next_is_retry
-                )
-
-                # Launch simplified request processing
-                async def process_and_store(ctx: RequestContext):
-                    try:
-                        response = await self.process_single_request(ctx, retry_queue)
-                        results[ctx.task_id] = response
-                    except Exception as e:
-                        # Create an error response for validation errors and other exceptions
-                        error_response = APIResponse(
-                            id=ctx.task_id,
-                            model_internal=ctx.model_name,
-                            prompt=ctx.prompt,
-                            sampling_params=ctx.sampling_params,
-                            status_code=None,
-                            is_error=True,
-                            error_message=str(e),
-                        )
-                        results[ctx.task_id] = error_response
-                        # Mark task as completed so the main loop can finish
-                        if ctx.status_tracker:
-                            ctx.status_tracker.task_failed(ctx.task_id)
-
-                asyncio.create_task(process_and_store(next_context))
-                next_context = None  # Reset after successful dispatch
-                next_is_retry = False
-
-            # Update progress - original logic
-            tracker.update_pbar()
-
-            # Check completion: consider final outcomes, not in-progress count
-            # This avoids rare hangs if in-progress is miscounted (e.g., double-increment).
-            if (tracker.num_tasks_succeeded + tracker.num_tasks_failed) >= len(
-                prompts
-            ) and retry_queue.empty():
-                break
-
-            # Yield briefly to allow in-flight tasks to progress
-            await asyncio.sleep(min(0.01, seconds_to_sleep_each_loop))
-
+        # Close tracker if we opened it
         if not tracker_preopened:
             self.close()
 
+        # Defensive check: This should rarely happen, but provides a safety net
+        for idx, response in enumerate(results):
+            if response is None:
+                # This should only happen if there's a bug in _run_context
+                print(
+                    f"WARNING: result[{idx}] is None! Creating defensive error response. "
+                    f"Please report this bug."
+                )
+                results[idx] = APIResponse(
+                    id=idx,
+                    model_internal=self.model_names[0],
+                    prompt=prompts[idx],  # type: ignore
+                    sampling_params=self.sampling_params[0]
+                    if self.sampling_params
+                    else SamplingParams(),
+                    status_code=None,
+                    is_error=True,
+                    error_message="Internal error: no response produced.",
+                )
+
+        # Handle return format
         if return_completions_only:
             return [r.completion if r is not None else None for r in results]
 
@@ -760,6 +734,7 @@ class _LLMClient(BaseModel):
 def LLMClient(
     model_names: str,
     *,
+    name: str | None = None,
     max_requests_per_minute: int = 1_000,
     max_tokens_per_minute: int = 100_000,
     max_concurrent_requests: int = 225,
@@ -786,6 +761,7 @@ def LLMClient(
 def LLMClient(
     model_names: list[str],
     *,
+    name: str | None = None,
     max_requests_per_minute: int = 1_000,
     max_tokens_per_minute: int = 100_000,
     max_concurrent_requests: int = 225,
@@ -811,6 +787,7 @@ def LLMClient(
 def LLMClient(
     model_names: str | list[str] = "gpt-4.1-mini",
     *,
+    name: str | None = None,
     max_requests_per_minute: int = 1_000,
     max_tokens_per_minute: int = 100_000,
     max_concurrent_requests: int = 225,
@@ -848,6 +825,7 @@ def LLMClient(
     # Simply pass everything to the Pydantic constructor
     return _LLMClient(
         model_names=model_names,
+        name=name,
         max_requests_per_minute=max_requests_per_minute,
         max_tokens_per_minute=max_tokens_per_minute,
         max_concurrent_requests=max_concurrent_requests,

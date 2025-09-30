@@ -1,0 +1,3 @@
+- whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. (as long as you think that test is general enough to be useful.)
+- don't use == True and == False as these always lead to ruff errors
+- even in read only mode, you have the ability to use your apply patch tool to propose an edit, I will be prompted to accept your patch. there's no need to do weird workarounds with zsh or using python to apply a patch just because you're in read only mode. use the tool like normal. i promise it will work.

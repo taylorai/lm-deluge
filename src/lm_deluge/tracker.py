@@ -13,7 +13,6 @@ from rich.progress import (
     TaskID,
     TextColumn,
 )
-from rich.text import Text
 from tqdm.auto import tqdm
 
 SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR = 5
@@ -24,6 +23,7 @@ class StatusTracker:
     max_requests_per_minute: int
     max_tokens_per_minute: int
     max_concurrent_requests: int
+    client_name: str = "LLMClient"
     num_tasks_started: int = 0
     num_tasks_in_progress: int = 0
     num_tasks_succeeded: int = 0
@@ -187,14 +187,16 @@ class StatusTracker:
 
     def _init_rich_display(self, total: int):
         """Initialize Rich display components."""
-        self._rich_console = Console()
+        self._rich_console = Console(highlight=False)
+        # Escape square brackets so Rich doesn't interpret them as markup
+        description = f"[bold blue]\\[{self.client_name}][/bold blue] Processing..."
         self._rich_progress = Progress(
             SpinnerColumn(),
-            TextColumn("Processing requests..."),
+            TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             MofNCompleteColumn(),
         )
-        self._rich_task_id = self._rich_progress.add_task("requests", total=total)
+        self._rich_task_id = self._rich_progress.add_task(description, total=total)
         self._rich_stop_event = asyncio.Event()
         self._rich_display_task = asyncio.create_task(self._rich_display_updater())
 
@@ -217,12 +219,17 @@ class StatusTracker:
                     total=self.progress_bar_total,
                 )
 
-                tokens_info = f"TPM Capacity: {self.available_token_capacity / 1000:.1f}k/{self.max_tokens_per_minute / 1000:.1f}k"
-                reqs_info = f"RPM Capacity: {int(self.available_request_capacity)}/{self.max_requests_per_minute}"
-                in_progress = f"In Progress: {int(self.num_tasks_in_progress)}"
-                capacity_text = Text(f"{in_progress} • {tokens_info} • {reqs_info}")
+                tokens_info = f"{self.available_token_capacity / 1000:.1f}k/{self.max_tokens_per_minute / 1000:.1f}k TPM"
+                reqs_info = f"{int(self.available_request_capacity)}/{self.max_requests_per_minute} RPM"
+                in_progress = (
+                    f"   [gold3]In Progress:[/gold3] {int(self.num_tasks_in_progress)} "
+                    + ("requests" if self.num_tasks_in_progress != 1 else "request")
+                )
+                capacity_text = (
+                    f"   [gold3]Capacity:[/gold3] {tokens_info} • {reqs_info}"
+                )
 
-                display = Group(self._rich_progress, capacity_text)
+                display = Group(self._rich_progress, in_progress, capacity_text)
                 live.update(display)
 
                 await asyncio.sleep(0.1)
@@ -252,7 +259,7 @@ class StatusTracker:
             return
         while not self._manual_stop_event.is_set():
             print(
-                f"Completed {self.num_tasks_succeeded}/{self.progress_bar_total} requests"
+                f"[{self.client_name}] Completed {self.num_tasks_succeeded}/{self.progress_bar_total} requests"
             )
             await asyncio.sleep(self.progress_print_interval)
 

@@ -52,6 +52,9 @@ class APIRequestBase(ABC):
         self, base_headers: dict[str, str], exclude_patterns: list[str] | None = None
     ) -> dict[str, str]:
         """Merge extra_headers with base headers, giving priority to extra_headers."""
+        # Filter out None values from base headers (e.g., missing API keys)
+        base_headers = {k: v for k, v in base_headers.items() if v is not None}
+
         if not self.context.extra_headers:
             return base_headers
 
@@ -69,6 +72,9 @@ class APIRequestBase(ABC):
         # Start with base headers, then overlay filtered extra headers (extra takes precedence)
         merged = dict(base_headers)
         merged.update(filtered_extra)
+
+        # Filter out None values from final merged headers
+        merged = {k: v for k, v in merged.items() if v is not None}
         return merged
 
     def handle_success(self, data):

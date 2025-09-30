@@ -18,7 +18,7 @@ async def main():
     for model in models:
         print(f"\n=== {model} ===\n")
 
-        client = LLMClient(model_name=model)
+        client = LLMClient(model)
 
         # Create conversation with file
         from lm_deluge.prompt import Conversation
