@@ -30,6 +30,7 @@ class _LLMClient(BaseModel):
     """
 
     model_names: str | list[str] = ["gpt-4.1-mini"]
+    name: str | None = None
     max_requests_per_minute: int = 1_000
     max_tokens_per_minute: int = 100_000
     max_concurrent_requests: int = 225
@@ -69,6 +70,7 @@ class _LLMClient(BaseModel):
             max_requests_per_minute=self.max_requests_per_minute,
             max_tokens_per_minute=self.max_tokens_per_minute,
             max_concurrent_requests=self.max_concurrent_requests,
+            client_name=self.name or "LLMClient",
             progress_style=self.progress,
             use_progress_bar=show_progress,
         )
@@ -168,6 +170,13 @@ class _LLMClient(BaseModel):
             raise NotImplementedError("dynamic model weights not implemented yet")
         # normalize weights
         self.model_weights = [w / sum(self.model_weights) for w in self.model_weights]
+
+        # Auto-generate name if not provided
+        if self.name is None:
+            if len(self.model_names) == 1:
+                self.name = self.model_names[0]
+            else:
+                self.name = "LLMClient"
 
         # Validate logprobs settings across all sampling params
         if self.logprobs or any(sp.logprobs for sp in self.sampling_params):
@@ -725,6 +734,7 @@ class _LLMClient(BaseModel):
 def LLMClient(
     model_names: str,
     *,
+    name: str | None = None,
     max_requests_per_minute: int = 1_000,
     max_tokens_per_minute: int = 100_000,
     max_concurrent_requests: int = 225,
@@ -751,6 +761,7 @@ def LLMClient(
 def LLMClient(
     model_names: list[str],
     *,
+    name: str | None = None,
     max_requests_per_minute: int = 1_000,
     max_tokens_per_minute: int = 100_000,
     max_concurrent_requests: int = 225,
@@ -776,6 +787,7 @@ def LLMClient(
 def LLMClient(
     model_names: str | list[str] = "gpt-4.1-mini",
     *,
+    name: str | None = None,
     max_requests_per_minute: int = 1_000,
     max_tokens_per_minute: int = 100_000,
     max_concurrent_requests: int = 225,
@@ -813,6 +825,7 @@ def LLMClient(
     # Simply pass everything to the Pydantic constructor
     return _LLMClient(
         model_names=model_names,
+        name=name,
         max_requests_per_minute=max_requests_per_minute,
         max_tokens_per_minute=max_tokens_per_minute,
         max_concurrent_requests=max_concurrent_requests,

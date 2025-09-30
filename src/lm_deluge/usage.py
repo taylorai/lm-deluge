@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -13,8 +12,8 @@ class Usage:
 
     input_tokens: int = 0
     output_tokens: int = 0
-    cache_read_tokens: Optional[int] = None  # Tokens read from cache (Anthropic)
-    cache_write_tokens: Optional[int] = None  # Tokens written to cache (Anthropic)
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
 
     @property
     def total_input_tokens(self) -> int:
@@ -47,18 +46,29 @@ class Usage:
         return cls(
             input_tokens=usage_data.get("input_tokens", 0),
             output_tokens=usage_data.get("output_tokens", 0),
-            cache_read_tokens=usage_data.get("cache_read_input_tokens"),
-            cache_write_tokens=usage_data.get("cache_creation_input_tokens"),
+            cache_read_tokens=usage_data.get("cache_read_input_tokens", 0),
+            cache_write_tokens=usage_data.get("cache_creation_input_tokens", 0),
         )
 
     @classmethod
     def from_openai_usage(cls, usage_data: dict) -> "Usage":
-        """Create Usage from OpenAI API response usage data."""
+        """Create Usage from OpenAI API response usage data.
+
+        OpenAI supports prompt caching - cached tokens appear in prompt_tokens_details.cached_tokens.
+        Caching is automatic for prompts over 1024 tokens.
+        """
+        prompt_tokens_details = usage_data.get("prompt_tokens_details", {})
+        cached_tokens = (
+            prompt_tokens_details.get("cached_tokens", 0)
+            if prompt_tokens_details
+            else 0
+        )
+
         return cls(
             input_tokens=usage_data.get("prompt_tokens", 0),
             output_tokens=usage_data.get("completion_tokens", 0),
-            cache_read_tokens=None,  # OpenAI doesn't support caching yet
-            cache_write_tokens=None,
+            cache_read_tokens=cached_tokens if cached_tokens > 0 else 0,
+            cache_write_tokens=0,  # OpenAI doesn't charge separately for cache writes
         )
 
     @classmethod
@@ -67,18 +77,23 @@ class Usage:
         return cls(
             input_tokens=usage_data.get("prompt_tokens", 0),
             output_tokens=usage_data.get("completion_tokens", 0),
-            cache_read_tokens=None,  # Mistral doesn't support caching
-            cache_write_tokens=None,
+            cache_read_tokens=0,  # Mistral doesn't support caching
+            cache_write_tokens=0,
         )
 
     @classmethod
     def from_gemini_usage(cls, usage_data: dict) -> "Usage":
-        """Create Usage from Gemini API response usage data."""
+        """Create Usage from Gemini API response usage data.
+
+        Gemini supports context caching - cached tokens appear in cachedContentTokenCount.
+        """
+        cached_tokens = usage_data.get("cachedContentTokenCount", 0)
+
         return cls(
             input_tokens=usage_data.get("promptTokenCount", 0),
             output_tokens=usage_data.get("candidatesTokenCount", 0),
-            cache_read_tokens=None,  # Gemini doesn't support caching yet
-            cache_write_tokens=None,
+            cache_read_tokens=cached_tokens if cached_tokens > 0 else 0,
+            cache_write_tokens=0,  # Gemini doesn't charge separately for cache writes
         )
 
     def to_dict(self) -> dict:
@@ -100,8 +115,8 @@ class Usage:
         return cls(
             input_tokens=data.get("input_tokens", 0),
             output_tokens=data.get("output_tokens", 0),
-            cache_read_tokens=data.get("cache_read_tokens"),
-            cache_write_tokens=data.get("cache_write_tokens"),
+            cache_read_tokens=data.get("cache_read_tokens", 0),
+            cache_write_tokens=data.get("cache_write_tokens", 0),
         )
 
     def __add__(self, other: "Usage") -> "Usage":
@@ -111,14 +126,8 @@ class Usage:
             output_tokens=self.output_tokens + other.output_tokens,
             cache_read_tokens=(
                 (self.cache_read_tokens or 0) + (other.cache_read_tokens or 0)
-                if self.cache_read_tokens is not None
-                or other.cache_read_tokens is not None
-                else None
             ),
             cache_write_tokens=(
                 (self.cache_write_tokens or 0) + (other.cache_write_tokens or 0)
-                if self.cache_write_tokens is not None
-                or other.cache_write_tokens is not None
-                else None
             ),
         )

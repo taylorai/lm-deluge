@@ -12,9 +12,13 @@ Run with: python tests/test_real_caching.py
 import asyncio
 import os
 
+import dotenv
+
 from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, Message
 from lm_deluge.tool import Tool
+
+dotenv.load_dotenv()
 
 
 def create_long_system_message() -> str:
@@ -225,7 +229,10 @@ async def test_real_caching_integration():
 
     # First request with caching enabled
     results1 = await client.process_prompts_async(
-        [conv1], tools=tools, cache="system_and_tools", show_progress=False
+        [conv1],
+        tools=tools,  # type: ignore
+        cache="system_and_tools",
+        show_progress=False,
     )
 
     result1 = results1[0]
@@ -238,6 +245,7 @@ async def test_real_caching_integration():
     print(f"   Output tokens: {result1.usage.output_tokens}")
     print(f"   Cache write tokens: {result1.usage.cache_write_tokens}")
     print(f"   Cache read tokens: {result1.usage.cache_read_tokens}")
+    print(f"   Cost: ${result1.cost:.6f}")
 
     # Verify cache write occurred
     assert result1.usage.has_cache_write, "First request should have written to cache"
@@ -261,7 +269,10 @@ async def test_real_caching_integration():
 
     # Second request with same caching setup
     results2 = await client.process_prompts_async(
-        [conv2], tools=tools, cache="system_and_tools", show_progress=False
+        [conv2],
+        tools=tools,  # type: ignore
+        cache="system_and_tools",
+        show_progress=False,
     )
 
     result2 = results2[0]
@@ -274,6 +285,7 @@ async def test_real_caching_integration():
     print(f"   Output tokens: {result2.usage.output_tokens}")
     print(f"   Cache write tokens: {result2.usage.cache_write_tokens}")
     print(f"   Cache read tokens: {result2.usage.cache_read_tokens}")
+    print(f"   Cost: ${result2.cost:.6f}")
 
     # Verify cache read occurred
     assert result2.usage.has_cache_hit, "Second request should have read from cache"
@@ -290,6 +302,10 @@ async def test_real_caching_integration():
     print(f"   Tokens written to cache: {cache_write_first}")
     print(f"   Tokens read from cache: {cache_read_second}")
     print(f"   Cache hit ratio: {cache_read_second / cache_write_first:.2%}")
+    assert result2.cost and result1.cost, "cost is not available"
+    print(
+        f"   Cost savings: ${result1.cost - result2.cost:.6f} ({(1 - result2.cost / result1.cost) * 100:.1f}% reduction)"
+    )
 
     # The cache read should be significant (at least 80% of what was written)
     assert (
@@ -328,7 +344,10 @@ async def test_real_caching_bedrock_integration():
 
     # First request with caching enabled
     results1 = await client.process_prompts_async(
-        [conv1], tools=tools, cache="system_and_tools", show_progress=False
+        [conv1],
+        tools=tools,  # type: ignore
+        cache="system_and_tools",
+        show_progress=False,
     )
 
     result1 = results1[0]
@@ -341,6 +360,7 @@ async def test_real_caching_bedrock_integration():
     print(f"   Output tokens: {result1.usage.output_tokens}")
     print(f"   Cache write tokens: {result1.usage.cache_write_tokens}")
     print(f"   Cache read tokens: {result1.usage.cache_read_tokens}")
+    print(f"   Cost: ${result1.cost:.6f}")
 
     # Verify cache write occurred
     assert result1.usage.has_cache_write, "First request should have written to cache"
@@ -364,7 +384,10 @@ async def test_real_caching_bedrock_integration():
 
     # Second request with same caching setup
     results2 = await client.process_prompts_async(
-        [conv2], tools=tools, cache="system_and_tools", show_progress=False
+        [conv2],
+        tools=tools,  # type: ignore
+        cache="system_and_tools",
+        show_progress=False,
     )
 
     result2 = results2[0]
@@ -377,6 +400,7 @@ async def test_real_caching_bedrock_integration():
     print(f"   Output tokens: {result2.usage.output_tokens}")
     print(f"   Cache write tokens: {result2.usage.cache_write_tokens}")
     print(f"   Cache read tokens: {result2.usage.cache_read_tokens}")
+    print(f"   Cost: ${result2.cost:.6f}")
 
     # Verify cache read occurred
     assert result2.usage.has_cache_hit, "Second request should have read from cache"
@@ -393,6 +417,10 @@ async def test_real_caching_bedrock_integration():
     print(f"   Tokens written to cache: {cache_write_first}")
     print(f"   Tokens read from cache: {cache_read_second}")
     print(f"   Cache hit ratio: {cache_read_second / cache_write_first:.2%}")
+    assert result1.cost and result2.cost, "Costs should be available"
+    print(
+        f"   Cost savings: ${result1.cost - result2.cost:.6f} ({(1 - result2.cost / result1.cost) * 100:.1f}% reduction)"
+    )
 
     # The cache read should be significant (at least 80% of what was written)
     assert (
