@@ -618,23 +618,20 @@ class _LLMClient(BaseModel):
                     mcp_tools = await tool.to_tools()
                     expanded_tools.extend(mcp_tools)
 
-        last_response: APIResponse | None = None
+        response: APIResponse | None = None
 
         for _ in range(max_rounds):
-            responses = await self.process_prompts_async(
-                [conversation],
+            response = await self.start(
+                conversation,
                 tools=tools,  # type: ignore
-                return_completions_only=False,
-                show_progress=show_progress,
             )
 
-            last_response = responses[0]
-            if last_response is None or last_response.content is None:
+            if response is None or response.content is None:
                 break
 
-            conversation = conversation.with_message(last_response.content)
+            conversation = conversation.with_message(response.content)
 
-            tool_calls = last_response.content.tool_calls
+            tool_calls = response.content.tool_calls
             if not tool_calls:
                 break
 
@@ -659,10 +656,10 @@ class _LLMClient(BaseModel):
 
                 conversation.with_tool_result(call.id, result)  # type: ignore
 
-        if last_response is None:
+        if response is None:
             raise RuntimeError("model did not return a response")
 
-        return conversation, last_response
+        return conversation, response
 
     def run_agent_loop_sync(
         self,
