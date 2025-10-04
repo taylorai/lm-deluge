@@ -1,7 +1,7 @@
 from .client import APIResponse, LLMClient, SamplingParams
 from .file import File
 from .prompt import Conversation, Message
-from .tool import Tool
+from .tool import Tool, ToolParams
 
 # dotenv.load_dotenv() - don't do this, fucks with other packages
 
@@ -12,5 +12,6 @@ __all__ = [
     "Conversation",
     "Message",
     "Tool",
+    "ToolParams",
     "File",
 ]

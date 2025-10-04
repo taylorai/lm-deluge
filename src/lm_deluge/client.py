@@ -295,6 +295,7 @@ class _LLMClient(BaseModel):
         # Handle successful response
         if not response.is_error:
             context.status_tracker.task_succeeded(context.task_id)
+            context.status_tracker.track_usage(response)
             # Cache successful responses immediately
             if self.cache and response.completion:
                 # print(f"DEBUG: Caching successful response")
@@ -333,6 +334,8 @@ class _LLMClient(BaseModel):
 
         # No retries left or no retry queue - final failure
         context.status_tracker.task_failed(context.task_id)
+        # Track usage even for failed requests if they made an API call
+        context.status_tracker.track_usage(response)
         context.maybe_callback(response, context.status_tracker)
 
         # Print final error message
@@ -654,7 +657,7 @@ class _LLMClient(BaseModel):
                 if not isinstance(result, (str, dict, list)):
                     result = str(result)
 
-                conversation.add_tool_result(call.id, result)  # type: ignore
+                conversation.with_tool_result(call.id, result)  # type: ignore
 
         if last_response is None:
             raise RuntimeError("model did not return a response")

@@ -33,6 +33,13 @@ class StatusTracker:
     total_requests: int = 0
     retry_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
 
+    # Cumulative usage tracking
+    total_cost: float = 0.0
+    total_input_tokens: int = 0  # non-cached input tokens
+    total_cache_read_tokens: int = 0
+    total_cache_write_tokens: int = 0
+    total_output_tokens: int = 0
+
     # Progress bar configuration
     use_progress_bar: bool = True
     progress_bar_total: int | None = None
@@ -131,6 +138,25 @@ class StatusTracker:
         self.num_tasks_in_progress -= 1
         self.num_tasks_failed += 1
 
+    def track_usage(self, response):
+        """Accumulate usage statistics from a completed request.
+
+        Args:
+            response: APIResponse object containing usage and cost information
+        """
+        if response.cost:
+            self.total_cost += response.cost
+
+        if response.usage:
+            self.total_output_tokens += response.usage.output_tokens
+            self.total_input_tokens += response.usage.input_tokens
+
+            if response.usage.cache_read_tokens:
+                self.total_cache_read_tokens += response.usage.cache_read_tokens
+
+            if response.usage.cache_write_tokens:
+                self.total_cache_write_tokens += response.usage.cache_write_tokens
+
     def log_final_status(self):
         # Close progress bar before printing final status
         self.close_progress_bar()
@@ -143,6 +169,26 @@ class StatusTracker:
             print(
                 f"{self.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
             )
+
+        # Display cumulative usage stats if available
+        if (
+            self.total_cost > 0
+            or self.total_input_tokens > 0
+            or self.total_output_tokens > 0
+        ):
+            usage_parts = []
+            if self.total_cost > 0:
+                usage_parts.append(f"💰 Cost: ${self.total_cost:.4f}")
+            if self.total_input_tokens > 0 or self.total_output_tokens > 0:
+                usage_parts.append(
+                    f"🔡 Tokens: {self.total_input_tokens:,} in / {self.total_output_tokens:,} out"
+                )
+            if self.total_cache_read_tokens > 0:
+                usage_parts.append(f"Cache: {self.total_cache_read_tokens:,} read")
+            if self.total_cache_write_tokens > 0:
+                usage_parts.append(f"{self.total_cache_write_tokens:,} write")
+
+            print("  ", " • ".join(usage_parts))
 
     @property
     def pbar(self) -> tqdm | None:
@@ -229,7 +275,28 @@ class StatusTracker:
                     f"   [gold3]Capacity:[/gold3] {tokens_info} • {reqs_info}"
                 )
 
-                display = Group(self._rich_progress, in_progress, capacity_text)
+                # Format usage stats
+                usage_parts = []
+                if self.total_cost > 0:
+                    usage_parts.append(f"${self.total_cost:.4f}")
+                if self.total_input_tokens > 0 or self.total_output_tokens > 0:
+                    input_k = self.total_input_tokens / 1000
+                    output_k = self.total_output_tokens / 1000
+                    usage_parts.append(f"{input_k:.1f}k in • {output_k:.1f}k out")
+                if self.total_cache_read_tokens > 0:
+                    cache_k = self.total_cache_read_tokens / 1000
+                    usage_parts.append(f"{cache_k:.1f}k cached")
+
+                usage_text = ""
+                if usage_parts:
+                    usage_text = f"   [gold3]Usage:[/gold3] {' • '.join(usage_parts)}"
+
+                if usage_text:
+                    display = Group(
+                        self._rich_progress, in_progress, capacity_text, usage_text
+                    )
+                else:
+                    display = Group(self._rich_progress, in_progress, capacity_text)
                 live.update(display)
 
                 await asyncio.sleep(0.1)

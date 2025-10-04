@@ -1,6 +1,10 @@
 import asyncio
 
+import dotenv
+
 from lm_deluge import Conversation, LLMClient, Message, Tool
+
+dotenv.load_dotenv()
 
 
 def random_number_generator(max_value: int) -> str:

@@ -1,6 +1,11 @@
 import random
-from lm_deluge.tool import Tool
+
+import dotenv
+
 from lm_deluge import LLMClient
+from lm_deluge.tool import Tool
+
+dotenv.load_dotenv()
 
 
 def run_rng(kind: str, n: int | None = None, p: float | None = 0.5) -> str:
@@ -151,7 +156,7 @@ async def test_openai_complete_tool_execution():
     conversation.add(assistant_msg)
 
     # Add tool result using the unified conversation method
-    conversation.add_tool_result(tool_call.id, tool_result)
+    conversation.with_tool_result(tool_call.id, tool_result)
 
     # Step 4: Send the conversation back to get the model's response to the tool result
     follow_up_responses = await client.process_prompts_async(
@@ -218,7 +223,7 @@ async def test_anthropic_complete_tool_execution():
     conversation.add(assistant_msg)
 
     # Add tool result using the unified conversation method
-    conversation.add_tool_result(tool_call.id, tool_result)
+    conversation.with_tool_result(tool_call.id, tool_result)
 
     # Step 4: Send the conversation back to get the model's response to the tool result
     follow_up_responses = await client.process_prompts_async(
@@ -305,12 +310,12 @@ async def test_tool_execution_error_handling():
             raise
 
 
-def add_tool_results_to_conversation(conversation, tool_calls, model_name):
+def with_tool_results_to_conversation(conversation, tool_calls, model_name):
     """Helper function to add tool results to conversation using unified format"""
     # Execute all tools and add results - supports parallel tool calls
     for tool_call in tool_calls:
         tool_result = rng_tool.call(**tool_call.arguments)
-        conversation.add_tool_result(tool_call.id, tool_result)
+        conversation.with_tool_result(tool_call.id, tool_result)
 
 
 async def test_multi_turn_tool_conversation():
@@ -338,7 +343,7 @@ async def test_multi_turn_tool_conversation():
         conversation.add(response.content)
 
         # Add tool results using the helper function
-        add_tool_results_to_conversation(conversation, tool_calls, "gpt-4.1-mini")
+        with_tool_results_to_conversation(conversation, tool_calls, "gpt-4.1-mini")
 
         # Continue conversation - model should respond and potentially make another tool call
         follow_up_responses = await client.process_prompts_async(
@@ -354,7 +359,7 @@ async def test_multi_turn_tool_conversation():
             conversation.add(follow_up_response.content)
 
             # Add tool results for follow-up calls
-            add_tool_results_to_conversation(
+            with_tool_results_to_conversation(
                 conversation, follow_up_tool_calls, "gpt-4.1-mini"
             )
 

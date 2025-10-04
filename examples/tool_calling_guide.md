@@ -110,11 +110,11 @@ async def from_function_example():
                     try:
                         result = tool.call(**tool_call.arguments)
                         print(f"Result: {result}")
-                        conversation.add_tool_result(tool_call.id, result)
+                        conversation.with_tool_result(tool_call.id, result)
                     except Exception as e:
                         error_msg = f"Error: {str(e)}"
                         print(f"Tool error: {error_msg}")
-                        conversation.add_tool_result(tool_call.id, error_msg)
+                        conversation.with_tool_result(tool_call.id, error_msg)
                     break
 
 # Run the example
@@ -130,7 +130,120 @@ asyncio.run(from_function_example())
 - ✅ Keeps function and tool definition in sync
 - ✅ Supports all Python basic types (int, float, str, bool, list, dict)
 
-### Method 2: Manual Tool Definition
+### Method 2: Using ToolParams and Convenience Constructors
+
+For more control over tool parameter schemas without writing verbose JSON Schema manually, use the `ToolParams` helper class:
+
+#### Basic ToolParams Usage
+
+```python
+from lm_deluge.tool import Tool, ToolParams
+from typing import Literal
+
+# Simple constructor with Python types
+params = ToolParams({
+    "city": str,
+    "age": int,
+    "active": bool
+})
+
+def get_user_info(city: str, age: int, active: bool) -> str:
+    return f"User in {city}, age {age}, active: {active}"
+
+tool = Tool.from_params("get_user", params, run=get_user_info)
+```
+
+#### ToolParams with Type Hints and Extras
+
+```python
+from typing import Literal
+
+# Use Literal for enums, list[T] for arrays, etc.
+params = ToolParams({
+    "operation": Literal["add", "subtract", "multiply", "divide"],
+    "numbers": list[int],
+    "metadata": dict[str, str]
+})
+
+# Or use tuple syntax for extra JSON Schema properties
+params = ToolParams({
+    "operation": (str, {"enum": ["add", "sub"], "description": "Math operation"}),
+    "value": (int, {"description": "The value to use", "optional": True})
+})
+```
+
+#### Tool.from_pydantic() - Create Tools from Pydantic Models
+
+```python
+from pydantic import BaseModel
+from lm_deluge.tool import Tool
+
+class WeatherQuery(BaseModel):
+    """Get weather information for a location"""
+    city: str
+    country: str
+    units: str = "celsius"  # Optional with default
+
+def get_weather(city: str, country: str, units: str = "celsius") -> str:
+    return f"Weather in {city}, {country}: 22°{units[0].upper()}"
+
+# Create tool from Pydantic model - uses docstring as description
+weather_tool = Tool.from_pydantic("get_weather", WeatherQuery, run=get_weather)
+
+# Now you can use it
+result = weather_tool.call(city="Paris", country="France")
+print(result)  # Weather in Paris, France: 22°C
+```
+
+#### Tool.from_typed_dict() - Create Tools from TypedDict
+
+```python
+from typing import TypedDict
+from lm_deluge.tool import Tool
+
+class CalculatorInput(TypedDict):
+    a: int
+    b: int
+    operation: str
+
+def calculator(a: int, b: int, operation: str) -> str:
+    if operation == "add":
+        return str(a + b)
+    elif operation == "subtract":
+        return str(a - b)
+    return "Unknown operation"
+
+calc_tool = Tool.from_typed_dict(
+    "calculator",
+    CalculatorInput,
+    description="Perform basic math operations",
+    run=calculator
+)
+```
+
+#### ToolParams.from_json_schema() - Wrap Existing Schemas
+
+```python
+from lm_deluge.tool import ToolParams
+
+# If you already have a JSON Schema
+existing_schema = {
+    "name": {"type": "string", "minLength": 1},
+    "age": {"type": "integer", "minimum": 0, "maximum": 120}
+}
+
+params = ToolParams.from_json_schema(existing_schema, required=["name"])
+tool = Tool.from_params("create_user", params, run=my_function)
+```
+
+**Enhanced Type Support:**
+- ✅ `Literal["a", "b"]` → automatically generates enum
+- ✅ `list[str]`, `list[int]` → proper array schemas with item types
+- ✅ `dict[str, T]` → object schemas with additionalProperties
+- ✅ Tuple syntax for adding descriptions, constraints, etc.
+- ✅ Full backwards compatibility with manual dict construction
+
+### Method 3: Manual Tool Definition
 
 First, let's create a simple tool that generates random numbers:
 
@@ -250,7 +363,7 @@ async def complete_tool_flow():
             print(f"Tool result: {tool_result}")
 
             # Add tool result to conversation - handles all providers automatically
-            conversation.add_tool_result(tool_call.id, tool_result)
+            conversation.with_tool_result(tool_call.id, tool_result)
 
         # Step 3: Get model's response to the tool results
         final_responses = await client.process_prompts_async(
@@ -389,12 +502,12 @@ async def multi_tool_example():
                     print(f"Tool result: {tool_result}")
 
                     # Add tool result using unified method
-                    conversation.add_tool_result(tool_call.id, tool_result)
+                    conversation.with_tool_result(tool_call.id, tool_result)
 
                 except Exception as e:
                     print(f"Tool execution error: {e}")
                     # Add error as tool result
-                    conversation.add_tool_result(tool_call.id, f"Error: {str(e)}")
+                    conversation.with_tool_result(tool_call.id, f"Error: {str(e)}")
 
     print("\n--- Final Conversation ---")
     for i, msg in enumerate(conversation.messages):
@@ -456,7 +569,7 @@ async def error_handling_example():
                 print(f"Tool execution failed: {e}")
 
             # Send result/error back to model
-            conversation.add_tool_result(tool_call.id, result_text)
+            conversation.with_tool_result(tool_call.id, result_text)
 
         # Get model's response to the error
         final_responses = await client.process_prompts_async(
@@ -476,12 +589,12 @@ LM Deluge now provides a unified approach to tool results that works across all 
 
 ```python
 # Always use this unified method - no need to worry about provider differences!
-conversation.add_tool_result(tool_call.id, tool_result)
+conversation.with_tool_result(tool_call.id, tool_result)
 
 # For parallel tool calls, just call it multiple times:
 for tool_call in tool_calls:
     result = execute_tool(tool_call)
-    conversation.add_tool_result(tool_call.id, result)
+    conversation.with_tool_result(tool_call.id, result)
 # Results get grouped internally, then split/converted as needed per provider
 ```
 
@@ -489,7 +602,7 @@ for tool_call in tool_calls:
 - Internally uses "tool" role messages for consistency
 - `to_openai()` splits tool messages into separate messages (OpenAI requirement: one message per result)
 - `to_anthropic()` converts tool messages to user messages (Anthropic requirement)
-- Automatically handles parallel tool calls - just call `add_tool_result()` multiple times
+- Automatically handles parallel tool calls - just call `with_tool_result()` multiple times
 
 ## Best Practices
 

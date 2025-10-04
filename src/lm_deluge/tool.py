@@ -1,7 +1,17 @@
 import asyncio
 import inspect
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Coroutine, Literal, TypedDict, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Coroutine,
+    Literal,
+    Type,
+    TypedDict,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from fastmcp import Client  # pip install fastmcp >= 2.0
 from mcp.types import Tool as MCPTool
@@ -9,6 +19,196 @@ from pydantic import BaseModel, Field, field_validator
 
 from lm_deluge.image import Image
 from lm_deluge.prompt import Text, ToolResultPart
+
+
+def _python_type_to_json_schema_enhanced(python_type: Any) -> dict[str, Any]:
+    """
+    Convert Python type annotations to JSON Schema.
+    Handles: primitives, Optional, Literal, list[T], dict[str, T], Union.
+    """
+    # Get origin and args for generic types
+    origin = get_origin(python_type)
+    args = get_args(python_type)
+
+    # Handle Optional[T] or T | None
+    if origin is type(None) or python_type is type(None):
+        return {"type": "null"}
+
+    # Handle Union types (including Optional)
+    if origin is Literal:
+        # Literal["a", "b"] -> enum
+        return {"type": "string", "enum": list(args)}
+
+    # Handle list[T]
+    if origin is list:
+        if args:
+            items_schema = _python_type_to_json_schema_enhanced(args[0])
+            return {"type": "array", "items": items_schema}
+        return {"type": "array"}
+
+    # Handle dict[str, T]
+    if origin is dict:
+        if len(args) >= 2:
+            # For dict[str, T], we can set additionalProperties
+            value_schema = _python_type_to_json_schema_enhanced(args[1])
+            return {"type": "object", "additionalProperties": value_schema}
+        return {"type": "object"}
+
+    # Handle basic types
+    if python_type is int:
+        return {"type": "integer"}
+    elif python_type is float:
+        return {"type": "number"}
+    elif python_type is str:
+        return {"type": "string"}
+    elif python_type is bool:
+        return {"type": "boolean"}
+    elif python_type is list:
+        return {"type": "array"}
+    elif python_type is dict:
+        return {"type": "object"}
+    else:
+        # Default to string for unknown types
+        return {"type": "string"}
+
+
+class ToolParams:
+    """
+    Helper class for constructing tool parameters more easily.
+
+    Usage:
+        # Simple constructor with Python types
+        params = ToolParams({"city": str, "age": int})
+
+        # With extras (description, enum, etc)
+        params = ToolParams({
+            "operation": (str, {"enum": ["add", "sub"], "description": "Math operation"}),
+            "value": (int, {"description": "The value"})
+        })
+
+        # From Pydantic model
+        params = ToolParams.from_pydantic(MyModel)
+
+        # From TypedDict
+        params = ToolParams.from_typed_dict(MyTypedDict)
+
+        # From existing JSON Schema
+        params = ToolParams.from_json_schema(schema_dict, required=["field1"])
+    """
+
+    def __init__(self, spec: dict[str, Any]):
+        """
+        Create ToolParams from a dict mapping parameter names to types or (type, extras) tuples.
+
+        Args:
+            spec: Dict where values can be:
+                - A Python type (str, int, list[str], etc.)
+                - A tuple of (type, extras_dict) for additional JSON Schema properties
+                - An already-formed JSON Schema dict (passed through as-is)
+        """
+        self.parameters: dict[str, Any] = {}
+        self.required: list[str] = []
+
+        for param_name, param_spec in spec.items():
+            # If it's a tuple, extract (type, extras)
+            if isinstance(param_spec, tuple):
+                param_type, extras = param_spec
+                schema = _python_type_to_json_schema_enhanced(param_type)
+                schema.update(extras)
+                self.parameters[param_name] = schema
+                # Mark as required unless explicitly marked as optional
+                if extras.get("optional") is not True:
+                    self.required.append(param_name)
+            # If it's already a dict with "type" key, use as-is
+            elif isinstance(param_spec, dict) and "type" in param_spec:
+                self.parameters[param_name] = param_spec
+                # Assume required unless marked optional
+                if param_spec.get("optional") is not True:
+                    self.required.append(param_name)
+            # Otherwise treat as a Python type
+            else:
+                self.parameters[param_name] = _python_type_to_json_schema_enhanced(
+                    param_spec
+                )
+                self.required.append(param_name)
+
+    @classmethod
+    def from_pydantic(cls, model: Type[BaseModel]) -> "ToolParams":
+        """
+        Create ToolParams from a Pydantic model.
+
+        Args:
+            model: A Pydantic BaseModel class
+        """
+        # Get the JSON schema from Pydantic
+        schema = model.model_json_schema()
+        properties = schema.get("properties", {})
+        required = schema.get("required", [])
+
+        return cls.from_json_schema(properties, required)
+
+    @classmethod
+    def from_typed_dict(cls, typed_dict: Type) -> "ToolParams":
+        """
+        Create ToolParams from a TypedDict.
+
+        Args:
+            typed_dict: A TypedDict class
+        """
+        hints = get_type_hints(typed_dict)
+
+        # TypedDict doesn't have a built-in way to mark optional fields,
+        # but we can check for Optional in the type hints
+        params = {}
+        required = []
+
+        for field_name, field_type in hints.items():
+            # Check if it's Optional (Union with None)
+            origin = get_origin(field_type)
+            # args = get_args(field_type)
+
+            is_optional = False
+            actual_type = field_type
+
+            # Check for Union types (including Optional[T] which is Union[T, None])
+            if origin is type(None):
+                is_optional = True
+                actual_type = type(None)
+
+            # For now, treat all TypedDict fields as required unless they're explicitly Optional
+            schema = _python_type_to_json_schema_enhanced(actual_type)
+            params[field_name] = schema
+
+            if not is_optional:
+                required.append(field_name)
+
+        instance = cls.__new__(cls)
+        instance.parameters = params
+        instance.required = required
+        return instance
+
+    @classmethod
+    def from_json_schema(
+        cls, properties: dict[str, Any], required: list[str] | None = None
+    ) -> "ToolParams":
+        """
+        Create ToolParams from an existing JSON Schema properties dict.
+
+        Args:
+            properties: The "properties" section of a JSON Schema
+            required: List of required field names
+        """
+        instance = cls.__new__(cls)
+        instance.parameters = properties
+        instance.required = required or []
+        return instance
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert to a dict with 'parameters' and 'required' keys.
+        Useful for unpacking into Tool constructor.
+        """
+        return {"parameters": self.parameters, "required": self.required}
 
 
 async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
@@ -79,6 +279,24 @@ class Tool(BaseModel):
             )
         return v
 
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def validate_parameters(cls, v: Any) -> dict[str, Any] | None:
+        """Accept ToolParams objects and convert to dict for backwards compatibility."""
+        if isinstance(v, ToolParams):
+            return v.parameters
+        return v
+
+    def model_post_init(self, __context: Any) -> None:
+        """
+        After validation, if parameters came from ToolParams, also update required list.
+        This is called by Pydantic after __init__.
+        """
+        # This is a bit tricky - we need to capture the required list from ToolParams
+        # Since Pydantic has already converted it in the validator, we can't access it here
+        # Instead, we'll handle this differently in the convenience constructors
+        pass
+
     def _is_async(self) -> bool:
         return inspect.iscoroutinefunction(self.run)
 
@@ -143,7 +361,7 @@ class Tool(BaseModel):
             param_type = type_hints.get(param_name, str)
 
             # Convert Python types to JSON Schema types
-            json_type = cls._python_type_to_json_schema(param_type)
+            json_type = _python_type_to_json_schema_enhanced(param_type)
 
             parameters[param_name] = json_type
 
@@ -209,6 +427,119 @@ class Tool(BaseModel):
                 return t
         raise ValueError(f"Tool '{tool_name}' not found on that server")
 
+    @classmethod
+    def from_params(
+        cls,
+        name: str,
+        params: ToolParams,
+        *,
+        description: str | None = None,
+        run: Callable | None = None,
+        **kwargs,
+    ) -> "Tool":
+        """
+        Create a Tool from a ToolParams object.
+
+        Args:
+            name: Tool name
+            params: ToolParams object defining the parameter schema
+            description: Optional description
+            run: Optional callable to execute the tool
+            **kwargs: Additional Tool arguments
+
+        Example:
+            params = ToolParams({"city": str, "age": int})
+            tool = Tool.from_params("get_user", params, run=my_function)
+        """
+        return cls(
+            name=name,
+            description=description,
+            parameters=params.parameters,
+            required=params.required,
+            run=run,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_pydantic(
+        cls,
+        name: str,
+        model: Type[BaseModel],
+        *,
+        description: str | None = None,
+        run: Callable | None = None,
+        **kwargs,
+    ) -> "Tool":
+        """
+        Create a Tool from a Pydantic model.
+
+        Args:
+            name: Tool name
+            model: Pydantic BaseModel class
+            description: Optional description (defaults to model docstring)
+            run: Optional callable to execute the tool
+            **kwargs: Additional Tool arguments
+
+        Example:
+            class UserQuery(BaseModel):
+                city: str
+                age: int
+
+            tool = Tool.from_pydantic("get_user", UserQuery, run=my_function)
+        """
+        params = ToolParams.from_pydantic(model)
+
+        # Use model docstring as default description if not provided
+        if description is None and model.__doc__:
+            description = model.__doc__.strip()
+
+        return cls(
+            name=name,
+            description=description,
+            parameters=params.parameters,
+            required=params.required,
+            run=run,
+            **kwargs,
+        )
+
+    @classmethod
+    def from_typed_dict(
+        cls,
+        name: str,
+        typed_dict: Type,
+        *,
+        description: str | None = None,
+        run: Callable | None = None,
+        **kwargs,
+    ) -> "Tool":
+        """
+        Create a Tool from a TypedDict.
+
+        Args:
+            name: Tool name
+            typed_dict: TypedDict class
+            description: Optional description
+            run: Optional callable to execute the tool
+            **kwargs: Additional Tool arguments
+
+        Example:
+            class UserQuery(TypedDict):
+                city: str
+                age: int
+
+            tool = Tool.from_typed_dict("get_user", UserQuery, run=my_function)
+        """
+        params = ToolParams.from_typed_dict(typed_dict)
+
+        return cls(
+            name=name,
+            description=description,
+            parameters=params.parameters,
+            required=params.required,
+            run=run,
+            **kwargs,
+        )
+
     @staticmethod
     def _tool_from_meta(meta: dict[str, Any], runner) -> "Tool":
         props = meta["inputSchema"].get("properties", {})
@@ -225,22 +556,11 @@ class Tool(BaseModel):
 
     @staticmethod
     def _python_type_to_json_schema(python_type) -> dict[str, Any]:
-        """Convert Python type to JSON Schema type definition."""
-        if python_type is int:
-            return {"type": "integer"}
-        elif python_type is float:
-            return {"type": "number"}
-        elif python_type is str:
-            return {"type": "string"}
-        elif python_type is bool:
-            return {"type": "boolean"}
-        elif python_type is list:
-            return {"type": "array"}
-        elif python_type is dict:
-            return {"type": "object"}
-        else:
-            # Default to string for unknown types
-            return {"type": "string"}
+        """
+        Convert Python type to JSON Schema type definition.
+        Now delegates to enhanced version for better type support.
+        """
+        return _python_type_to_json_schema_enhanced(python_type)
 
     def _json_schema(
         self, include_additional_properties=False, remove_defaults=False

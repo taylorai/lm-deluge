@@ -144,8 +144,8 @@ class ToolResult:
     def oa_chat(
         self,
     ) -> dict:  # OpenAI Chat Completions - tool results are separate messages
-        print("serializing toolresult with oa_chat...")
-        print("typeof self.result:", type(self.result))
+        # print("serializing toolresult with oa_chat...")
+        # print("typeof self.result:", type(self.result))
         if isinstance(self.result, str):
             return {
                 "role": "tool",
@@ -174,8 +174,7 @@ class ToolResult:
             raise ValueError("result type not supported")
 
     def oa_resp(self) -> dict:  # OpenAI Responses
-        print("serializing toolresult with oa_chat...")
-        print("typeof self.result:", type(self.result))
+        # print("typeof self.result:", type(self.result))
         # if normal (not built-in just return the regular output
         if not self.built_in:
             result = (
@@ -466,7 +465,7 @@ class Message:
         self.parts.append(ToolCall(id=id, name=name, arguments=arguments))
         return self
 
-    def add_tool_result(
+    def with_tool_result(
         self, tool_call_id: str, result: str | list[ToolResultPart]
     ) -> "Message":
         """Append a tool result block and return self for chaining."""
@@ -1189,11 +1188,11 @@ class Conversation:
         """
         if self.messages and self.messages[-1].role == "tool":
             # Append to existing tool message (parallel tool calls)
-            self.messages[-1].add_tool_result(tool_call_id, result)
+            self.messages[-1].with_tool_result(tool_call_id, result)
         else:
             # Create new tool message
             tool_msg = Message("tool", [])
-            tool_msg.add_tool_result(tool_call_id, result)
+            tool_msg.with_tool_result(tool_call_id, result)
             self.messages.append(tool_msg)
         return self
 

@@ -75,11 +75,11 @@ async def basic_mcp_example():
                         # Use acall for async MCP tools
                         result = await tool.acall(**tool_call.arguments)
                         print(f"Tool result: {str(result)[:200]}...")
-                        conversation.add_tool_result(tool_call.id, str(result))
+                        conversation.with_tool_result(tool_call.id, str(result))
                     except Exception as e:
                         error_msg = f"Error calling {tool_call.name}: {str(e)}"
                         print(error_msg)
-                        conversation.add_tool_result(tool_call.id, error_msg)
+                        conversation.with_tool_result(tool_call.id, error_msg)
                     break
 
 # Run the example
