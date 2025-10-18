@@ -1,14 +1,14 @@
 """Test GPT-OSS on AWS Bedrock functionality."""
 
-import sys
-import os
 import asyncio
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from lm_deluge.models import APIModel
-from lm_deluge import LLMClient, Message, Conversation
+from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.api_requests.base import APIResponse
+from lm_deluge.models import APIModel
 
 
 def test_gpt_oss_bedrock_models_in_registry():
@@ -41,11 +41,12 @@ def test_gpt_oss_bedrock_models_in_registry():
 def test_bedrock_request_handles_openai_models():
     """Test that BedrockRequest can handle OpenAI models."""
     from lm_deluge.api_requests.bedrock import BedrockRequest
-    from lm_deluge.request_context import RequestContext
     from lm_deluge.config import SamplingParams
+    from lm_deluge.request_context import RequestContext
 
     model_name = "gpt-oss-120b-bedrock"
     model = APIModel.from_registry(model_name)
+    assert model
 
     # Create a minimal request context
     context = RequestContext(

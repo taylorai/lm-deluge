@@ -369,7 +369,7 @@ class _LLMClient(BaseModel):
         tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
         use_responses_api: bool = ...,
-    ) -> list[APIResponse | None]: ...
+    ) -> list[APIResponse]: ...
 
     async def process_prompts_async(
         self,
@@ -380,7 +380,7 @@ class _LLMClient(BaseModel):
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
         use_responses_api: bool = False,
-    ) -> list[APIResponse | None] | list[str | None] | dict[str, int]:
+    ) -> list[APIResponse] | list[str | None] | dict[str, int]:
         """Process multiple prompts asynchronously using the start_nowait/wait_for_all backend.
 
         This implementation creates all tasks upfront and waits for them to complete,
@@ -516,28 +516,40 @@ class _LLMClient(BaseModel):
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
         use_responses_api: bool = False,
-    ) -> APIResponse | None:
+    ) -> APIResponse:
         task_id = self.start_nowait(
             prompt, tools=tools, cache=cache, use_responses_api=use_responses_api
         )
         return await self.wait_for(task_id)
 
-    async def wait_for(self, task_id: int) -> APIResponse | None:
+    async def wait_for(self, task_id: int) -> APIResponse:
         task = self._tasks.get(task_id)
         if task:
             return await task
-        return self._results.get(task_id)
+        res = self._results.get(task_id)
+        if res:
+            return res
+        else:
+            return APIResponse(
+                id=-1,
+                model_internal="",
+                prompt=Conversation([]),
+                sampling_params=SamplingParams(),
+                status_code=500,
+                is_error=True,
+                error_message="Task not found",
+            )
 
     async def wait_for_all(
         self, task_ids: Sequence[int] | None = None
-    ) -> list[APIResponse | None]:
+    ) -> list[APIResponse]:
         if task_ids is None:
             task_ids = list(self._tasks.keys())
         return [await self.wait_for(tid) for tid in task_ids]
 
     async def as_completed(
         self, task_ids: Sequence[int] | None = None
-    ) -> AsyncGenerator[tuple[int, APIResponse | None], None]:
+    ) -> AsyncGenerator[tuple[int, APIResponse], None]:
         """Yield ``(task_id, result)`` pairs as tasks complete.
 
         Args:
@@ -561,7 +573,9 @@ class _LLMClient(BaseModel):
         for task in list(tasks_map.keys()):
             if task.done():
                 tid = tasks_map.pop(task)
-                yield tid, self._results.get(tid, await task)
+                task_result = self._results.get(tid, await task)
+                assert task_result
+                yield tid, task_result
 
         while tasks_map:
             done, _ = await asyncio.wait(
@@ -569,7 +583,9 @@ class _LLMClient(BaseModel):
             )
             for task in done:
                 tid = tasks_map.pop(task)
-                yield tid, self._results.get(tid, await task)
+                task_result = self._results.get(tid, await task)
+                assert task_result
+                yield tid, task_result
 
     async def stream(
         self,

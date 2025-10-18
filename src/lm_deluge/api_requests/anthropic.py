@@ -72,7 +72,7 @@ def _build_anthropic_request(
         request_json["system"] = system_message
 
     # handle temp + top_p for opus 4.1/sonnet 4.5
-    if model.name in ["claude-sonnet-4-5-20250929", "claude-opus-4-1-20250805"]:
+    if "4-1" in model.name or "4-5" in model.name:
         if "temperature" in request_json and "top_p" in request_json:
             request_json.pop("top_p")
 

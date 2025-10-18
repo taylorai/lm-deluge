@@ -1,0 +1,31 @@
+import asyncio
+
+import dotenv
+
+import lm_deluge
+
+dotenv.load_dotenv()
+
+
+async def main():
+    client = lm_deluge.LLMClient("deepseek-r1-openrouter", max_new_tokens=2048)
+
+    res = await client.process_prompts_async(["so long, and thanks for all the fish!"])
+    # print(res)
+    print("✅ Got completion:", res[0].completion)
+
+    client = lm_deluge.LLMClient("deepseek-3.1-openrouter", max_new_tokens=2048)
+
+    res = await client.process_prompts_async(["so long, and thanks for all the fish!"])
+    # print(res)
+    print("✅ Got completion:", res[0].completion)
+
+    client = lm_deluge.LLMClient("deepseek-3.2-openrouter", max_new_tokens=2048)
+
+    res = await client.process_prompts_async(["so long, and thanks for all the fish!"])
+    # print(res)
+    print("✅ Got completion:", res[0].completion)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

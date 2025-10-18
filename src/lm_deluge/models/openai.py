@@ -77,8 +77,6 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 3.0,
         "output_cost": 12.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "o3": {
@@ -93,8 +91,6 @@ OPENAI_MODELS = {
         "input_cost": 2.0,
         "cached_input_cost": 0.50,
         "output_cost": 8.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "o4-mini": {
@@ -109,8 +105,6 @@ OPENAI_MODELS = {
         "input_cost": 1.1,
         "cached_input_cost": 0.275,
         "output_cost": 4.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "gpt-4.1": {
@@ -125,8 +119,6 @@ OPENAI_MODELS = {
         "input_cost": 2.0,
         "cached_input_cost": 0.50,
         "output_cost": 8.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gpt-4.1-mini": {
@@ -141,8 +133,6 @@ OPENAI_MODELS = {
         "input_cost": 0.4,
         "cached_input_cost": 0.10,
         "output_cost": 1.6,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gpt-4.1-nano": {
@@ -157,8 +147,6 @@ OPENAI_MODELS = {
         "input_cost": 0.1,
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gpt-4.5": {
@@ -172,8 +160,6 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 75.0,
         "output_cost": 150.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "o3-mini": {
@@ -188,8 +174,6 @@ OPENAI_MODELS = {
         "input_cost": 1.1,
         "cached_input_cost": 0.55,
         "output_cost": 4.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "o1": {
@@ -204,8 +188,6 @@ OPENAI_MODELS = {
         "input_cost": 15.0,
         "cached_input_cost": 7.50,
         "output_cost": 60.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "o1-preview": {
@@ -219,8 +201,6 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 15.0,
         "output_cost": 60.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "o1-mini": {
@@ -235,8 +215,6 @@ OPENAI_MODELS = {
         "input_cost": 1.1,
         "cached_input_cost": 0.55,
         "output_cost": 4.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "gpt-4o": {
@@ -251,8 +229,6 @@ OPENAI_MODELS = {
         "input_cost": 2.50,
         "cached_input_cost": 1.25,
         "output_cost": 10.0,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 30_000_000,
     },
     "gpt-4o-mini": {
         "id": "gpt-4o-mini",
@@ -266,8 +242,6 @@ OPENAI_MODELS = {
         "input_cost": 0.15,
         "cached_input_cost": 0.075,
         "output_cost": 0.6,
-        "requests_per_minute": 60_000,
-        "tokens_per_minute": 250_000_000,
     },
     "gpt-3.5-turbo": {
         "id": "gpt-3.5-turbo",
@@ -280,8 +254,6 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 40_000,
-        "tokens_per_minute": 75_000_000,
     },
     "gpt-4-turbo": {
         "id": "gpt-4-turbo",
@@ -294,8 +266,6 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 10.0,
         "output_cost": 30.0,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 1_500_000,
     },
     "gpt-4": {
         "id": "gpt-4",
@@ -308,8 +278,6 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 30.0,
         "output_cost": 60.0,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 300_000,
     },
     "gpt-4-32k": {
         "id": "gpt-4-32k",
@@ -322,7 +290,5 @@ OPENAI_MODELS = {
         "api_spec": "openai",
         "input_cost": 60.0,
         "output_cost": 120.0,
-        "requests_per_minute": 1_000,
-        "tokens_per_minute": 150_000,
     },
 }

@@ -20,8 +20,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 3.0,
         "output_cost": 7.0,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
     },
     "deepseek-v3-together": {
         "id": "deepseek-v3-together",
@@ -32,8 +30,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 1.25,
         "output_cost": 1.25,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
     },
     "qwen-3-235b-together": {
         "id": "qwen-3-235b-together",
@@ -44,8 +40,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.2,
         "output_cost": 0.6,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
     },
     "qwen-2.5-vl-together": {
         "id": "qwen-2.5-vl-together",
@@ -56,8 +50,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 1.95,
         "output_cost": 8.0,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
     },
     "llama-4-maverick-together": {
         "id": "llama-4-maverick-together",
@@ -68,8 +60,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.27,
         "output_cost": 0.85,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
     },
     "llama-4-scout-together": {
         "id": "llama-4-scout-together",
@@ -80,8 +70,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.18,
         "output_cost": 0.59,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
     },
     "gpt-oss-120b-together": {
         "id": "gpt-oss-120b-together",
@@ -92,8 +80,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.18,
         "output_cost": 0.59,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
         "reasoning_model": True,
     },
     "gpt-oss-20b-together": {
@@ -105,8 +91,6 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.18,
         "output_cost": 0.59,
-        "requests_per_minute": None,
-        "tokens_per_minute": None,
         "reasoning_model": True,
     },
 }

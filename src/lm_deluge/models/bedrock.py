@@ -16,8 +16,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 0.25,
         "output_cost": 1.25,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 8_000_000,
     },
     "claude-3.5-haiku-bedrock": {
         "id": "claude-3.5-haiku-bedrock",
@@ -28,8 +26,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 0.25,
         "output_cost": 1.25,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 8_000_000,
     },
     "claude-3.5-sonnet-bedrock": {
         "id": "claude-3.5-sonnet-bedrock",
@@ -40,8 +36,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 3.0,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": False,
     },
     "claude-3.6-sonnet-bedrock": {
@@ -53,8 +47,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 3.0,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": False,
     },
     "claude-3.7-sonnet-bedrock": {
@@ -66,8 +58,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 3.0,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
     "claude-4-sonnet-bedrock": {
@@ -79,8 +69,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 3.0,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
     "claude-4-opus-bedrock": {
@@ -92,8 +80,6 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 3.0,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
     # GPT-OSS on AWS Bedrock

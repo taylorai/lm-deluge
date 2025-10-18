@@ -10,6 +10,18 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-4.5-haiku": {
+        "id": "claude-4.5-haiku",
+        "name": "claude-haiku-4-5-20251001",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 1.0,
+        "cached_input_cost": 0.10,
+        "cache_write_cost": 1.25,
+        "output_cost": 3.0,
+    },
     "claude-4.5-sonnet": {
         "id": "claude-4.5-sonnet",
         "name": "claude-sonnet-4-5-20250929",
@@ -21,8 +33,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
     },
     "claude-4.1-opus": {
         "id": "claude-4.1-opus",
@@ -35,8 +45,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 1.50,
         "cache_write_cost": 18.75,
         "output_cost": 75.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
     "claude-4-opus": {
@@ -50,8 +58,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 1.50,
         "cache_write_cost": 18.75,
         "output_cost": 75.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
     "claude-4-sonnet": {
@@ -65,8 +71,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
     },
     "claude-3.7-sonnet": {
         "id": "claude-3.7-sonnet",
@@ -79,8 +83,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
         "reasoning_model": True,
     },
     "claude-3.6-sonnet": {
@@ -94,8 +96,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
     },
     "claude-3.5-sonnet": {
         "id": "claude-3.5-sonnet",
@@ -108,8 +108,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
     },
     "claude-3-opus": {
         "id": "claude-3-opus",
@@ -120,8 +118,6 @@ ANTHROPIC_MODELS = {
         "api_spec": "anthropic",
         "input_cost": 15.0,
         "output_cost": 75.0,
-        "requests_per_minute": 4_000,
-        "tokens_per_minute": 400_000,
     },
     "claude-3.5-haiku": {
         "id": "claude-3.5-haiku",
@@ -134,8 +130,6 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.08,
         "cache_write_cost": 1.00,
         "output_cost": 4.00,
-        "requests_per_minute": 20_000,
-        "tokens_per_minute": 4_000_000,  # supposed to be this but they fucked up
     },
     "claude-3-haiku": {
         "id": "claude-3-haiku",
@@ -148,7 +142,5 @@ ANTHROPIC_MODELS = {
         "cache_write_cost": 0.30,
         "cached_input_cost": 0.03,
         "output_cost": 1.25,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": 4_000_000,  # supposed to be this but they fucked up
     },
 }

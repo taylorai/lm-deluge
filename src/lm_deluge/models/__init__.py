@@ -38,9 +38,9 @@ class APIModel:
     supports_responses: bool = False
     reasoning_model: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
-    tokens_per_minute: int | None = None
-    requests_per_minute: int | None = None
-    gpus: list[str] | None = None
+    # tokens_per_minute: int | None = None
+    # requests_per_minute: int | None = None
+    # gpus: list[str] | None = None
 
     @classmethod
     def from_registry(cls, name: str):
@@ -97,8 +97,8 @@ def register_model(
     supports_responses: bool = False,
     reasoning_model: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
-    tokens_per_minute: int | None = None,
-    requests_per_minute: int | None = None,
+    # tokens_per_minute: int | None = None,
+    # requests_per_minute: int | None = None,
 ) -> APIModel:
     """Register a model configuration and return the created APIModel."""
     model = APIModel(
@@ -116,8 +116,8 @@ def register_model(
         supports_responses=supports_responses,
         reasoning_model=reasoning_model,
         regions=regions,
-        tokens_per_minute=tokens_per_minute,
-        requests_per_minute=requests_per_minute,
+        # tokens_per_minute=tokens_per_minute,
+        # requests_per_minute=requests_per_minute,
     )
     registry[model.id] = model
     return model

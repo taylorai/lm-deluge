@@ -16,8 +16,6 @@ META_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.0,
         "output_cost": 0.0,
-        "requests_per_minute": 3_000,
-        "tokens_per_minute": 1_000_000,
         "reasoning_model": False,
     },
     "llama-4-maverick": {
@@ -30,8 +28,6 @@ META_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.0,
         "output_cost": 0.0,
-        "requests_per_minute": 3_000,
-        "tokens_per_minute": 1_000_000,
         "reasoning_model": False,
     },
     "llama-3.3-70b": {
@@ -44,8 +40,6 @@ META_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.0,
         "output_cost": 0.0,
-        "requests_per_minute": 3_000,
-        "tokens_per_minute": 1_000_000,
         "reasoning_model": False,
     },
     "llama-3.3-8b": {
@@ -58,8 +52,6 @@ META_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.0,
         "output_cost": 0.0,
-        "requests_per_minute": 3_000,
-        "tokens_per_minute": 1_000_000,
         "reasoning_model": False,
     },
 }

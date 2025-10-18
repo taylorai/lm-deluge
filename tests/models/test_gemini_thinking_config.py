@@ -22,4 +22,3 @@ def test_gemini_no_reasoning_effort():
     assert thinking is not None
     assert thinking.get("includeThoughts") is False
     assert thinking.get("thinkingBudget") == 0
-

@@ -41,10 +41,10 @@ GROQ_MODELS = {
     },
     "kimi-k2-groq": {
         "id": "kimi-k2-groq",
-        "name": "moonshotai/kimi-k2-instruct",
+        "name": "moonshotai/kimi-k2-instruct-0905",
         "api_base": "https://api.groq.com/openai/v1",
         "api_key_env_var": "GROQ_API_KEY",
-        "supports_json": False,
+        "supports_json": True,
         "api_spec": "openai",
     },
     "gpt-oss-120b-groq": {

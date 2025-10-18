@@ -20,8 +20,6 @@ GOOGLE_MODELS = {
         "input_cost": 0.1,
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gemini-2.0-flash-lite-compat": {
@@ -34,8 +32,6 @@ GOOGLE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.075,
         "output_cost": 0.3,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gemini-2.5-pro-compat": {
@@ -49,8 +45,6 @@ GOOGLE_MODELS = {
         "input_cost": 1.25,
         "cached_input_cost": 0.31,
         "output_cost": 10.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "gemini-2.5-flash-compat": {
@@ -64,8 +58,6 @@ GOOGLE_MODELS = {
         "input_cost": 0.3,
         "cached_input_cost": 0.075,
         "output_cost": 2.5,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "gemini-2.5-flash-lite-compat": {
@@ -79,8 +71,6 @@ GOOGLE_MODELS = {
         "input_cost": 0.1,
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     # Native Gemini API versions with file support
@@ -95,8 +85,6 @@ GOOGLE_MODELS = {
         "input_cost": 0.1,
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gemini-2.0-flash-lite": {
@@ -109,8 +97,6 @@ GOOGLE_MODELS = {
         "api_spec": "gemini",
         "input_cost": 0.075,
         "output_cost": 0.3,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": False,
     },
     "gemini-2.5-pro": {
@@ -124,8 +110,6 @@ GOOGLE_MODELS = {
         "input_cost": 1.25,
         "cached_input_cost": 0.31,
         "output_cost": 10.0,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "gemini-2.5-flash": {
@@ -139,8 +123,6 @@ GOOGLE_MODELS = {
         "input_cost": 0.3,
         "cached_input_cost": 0.075,
         "output_cost": 2.5,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
     "gemini-2.5-flash-lite": {
@@ -154,8 +136,6 @@ GOOGLE_MODELS = {
         "input_cost": 0.1,
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
-        "requests_per_minute": 20,
-        "tokens_per_minute": 100_000,
         "reasoning_model": True,
     },
 }

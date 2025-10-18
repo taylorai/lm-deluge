@@ -15,8 +15,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "aya-expanse-32b": {
         "id": "aya-expanse-32b",
@@ -26,8 +24,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "aya-vision-8b": {
         "id": "aya-vision-8b",
@@ -37,8 +33,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "aya-vision-32b": {
         "id": "aya-vision-32b",
@@ -48,8 +42,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "command-a": {
         "id": "command-a",
@@ -59,8 +51,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "command-r-7b": {
         "id": "command-r-cohere",
@@ -70,8 +60,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "command-r": {
         "id": "command-r",
@@ -81,8 +69,6 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
     "command-r-plus": {
         "id": "command-r-plus",
@@ -92,7 +78,5 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 3.0,
         "output_cost": 15.0,
-        "requests_per_minute": 10_000,
-        "tokens_per_minute": None,
     },
 }
