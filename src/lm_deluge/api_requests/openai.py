@@ -1,7 +1,6 @@
 import json
 import os
 import traceback as tb
-import warnings
 from types import SimpleNamespace
 
 import aiohttp
@@ -9,6 +8,7 @@ from aiohttp import ClientResponse
 
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
+from lm_deluge.warnings import maybe_warn
 
 from ..config import SamplingParams
 from ..models import APIModel
@@ -75,9 +75,8 @@ async def _build_oa_chat_request(
         request_json["reasoning_effort"] = effort
     else:
         if sampling_params.reasoning_effort:
-            warnings.warn(
-                f"Ignoring reasoning_effort param for non-reasoning model: {model.name}"
-            )
+            maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=context.model_name)
+
     if sampling_params.logprobs:
         request_json["logprobs"] = True
         if sampling_params.top_logprobs is not None:
@@ -105,8 +104,10 @@ class OpenAIRequest(APIRequestBase):
 
         # Warn if cache is specified for non-Anthropic model
         if self.context.cache is not None:
-            warnings.warn(
-                f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
+            maybe_warn(
+                "WARN_CACHING_UNSUPPORTED",
+                model_name=self.context.model_name,
+                cache_param=self.context.cache,
             )
         self.model = APIModel.from_registry(self.context.model_name)
 
@@ -283,9 +284,7 @@ async def _build_oa_responses_request(
         }
     else:
         if sampling_params.reasoning_effort:
-            warnings.warn(
-                f"Ignoring reasoning_effort for non-reasoning model: {model.id}"
-            )
+            maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=context.model_name)
 
     if sampling_params.json_mode and model.supports_json:
         request_json["text"] = {"format": {"type": "json_object"}}
@@ -322,8 +321,10 @@ class OpenAIResponsesRequest(APIRequestBase):
         super().__init__(context)
         # Warn if cache is specified for non-Anthropic model
         if self.context.cache is not None:
-            warnings.warn(
-                f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
+            maybe_warn(
+                "WARN_CACHING_UNSUPPORTED",
+                model_name=self.context.model_name,
+                cache_param=self.context.cache,
             )
         self.model = APIModel.from_registry(self.context.model_name)
 
@@ -526,8 +527,10 @@ async def stream_chat(
     extra_headers: dict[str, str] | None = None,
 ):
     if cache is not None:
-        warnings.warn(
-            f"Cache parameter '{cache}' is only supported for Anthropic models, ignoring for {model_name}"
+        maybe_warn(
+            "WARN_CACHING_UNSUPPORTED",
+            model_name=model_name,
+            cache_param=cache,
         )
 
     model = APIModel.from_registry(model_name)

@@ -1,8 +1,9 @@
 import json
 import os
-import warnings
 
 from aiohttp import ClientResponse
+
+from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
 from ..prompt import Message
@@ -17,8 +18,10 @@ class MistralRequest(APIRequestBase):
 
         # Warn if cache is specified for non-Anthropic model
         if self.context.cache is not None:
-            warnings.warn(
-                f"Cache parameter '{self.context.cache}' is only supported for Anthropic models, ignoring for {self.context.model_name}"
+            maybe_warn(
+                "WARN_CACHING_UNSUPPORTED",
+                model_name=self.context.model_name,
+                cache_param=self.context.cache,
             )
         self.model = APIModel.from_registry(self.context.model_name)
 
@@ -38,13 +41,9 @@ class MistralRequest(APIRequestBase):
             "max_tokens": self.context.sampling_params.max_new_tokens,
         }
         if self.context.sampling_params.reasoning_effort:
-            warnings.warn(
-                f"Ignoring reasoning_effort param for non-reasoning model: {self.context.model_name}"
-            )
+            maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=self.context.model_name)
         if self.context.sampling_params.logprobs:
-            warnings.warn(
-                f"Ignoring logprobs param for non-logprobs model: {self.context.model_name}"
-            )
+            maybe_warn("WARN_LOGPROBS_UNSUPPORTED", model_name=self.context.model_name)
         if self.context.sampling_params.json_mode and self.model.supports_json:
             self.request_json["response_format"] = {"type": "json_object"}
 

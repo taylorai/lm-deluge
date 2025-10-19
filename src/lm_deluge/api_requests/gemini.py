@@ -1,11 +1,12 @@
 import json
 import os
-import warnings
 from typing import Any
+
 from aiohttp import ClientResponse
 
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
+from lm_deluge.warnings import maybe_warn
 
 from ..config import SamplingParams
 from ..models import APIModel
@@ -54,9 +55,7 @@ async def _build_gemini_request(
 
     else:
         if sampling_params.reasoning_effort:
-            warnings.warn(
-                f"Ignoring reasoning_effort param for non-reasoning model: {model.name}"
-            )
+            maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=model.name)
 
     # Add tools if provided
     if tools:
@@ -76,8 +75,10 @@ class GeminiRequest(APIRequestBase):
 
         # Warn if cache is specified for Gemini model
         if self.context.cache is not None:
-            warnings.warn(
-                f"Cache parameter '{self.context.cache}' is not supported for Gemini models, ignoring for {self.context.model_name}"
+            maybe_warn(
+                "WARN_CACHING_UNSUPPORTED",
+                model_name=self.context.model_name,
+                cache_param=self.context.cache,
             )
 
         self.model = APIModel.from_registry(self.context.model_name)

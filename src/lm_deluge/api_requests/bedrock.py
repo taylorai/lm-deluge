@@ -1,9 +1,10 @@
 import asyncio
 import json
 import os
-import warnings
 
 from aiohttp import ClientResponse
+
+from lm_deluge.warnings import maybe_warn
 
 try:
     from requests_aws4auth import AWS4Auth
@@ -187,9 +188,7 @@ async def _build_openai_bedrock_request(
     # Note: GPT-OSS on Bedrock doesn't support response_format parameter
     # Even though the model supports JSON, we can't use the response_format parameter
     if sampling_params.json_mode and model.supports_json:
-        warnings.warn(
-            f"JSON mode requested for {model.name} but response_format parameter not supported on Bedrock"
-        )
+        maybe_warn("WARN_JSON_MODE_UNSUPPORTED", model_name=model.name)
 
     if tools:
         request_tools = []
