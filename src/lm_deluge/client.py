@@ -1,5 +1,14 @@
 import asyncio
-from typing import Any, AsyncGenerator, Callable, Literal, Self, Sequence, overload
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Literal,
+    Self,
+    Sequence,
+    cast,
+    overload,
+)
 
 import numpy as np
 import yaml
@@ -12,7 +21,12 @@ from lm_deluge.batches import (
     submit_batches_oa,
     wait_for_batch_completion_async,
 )
-from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
+from lm_deluge.prompt import (
+    CachePattern,
+    Conversation,
+    Prompt,
+    prompts_to_conversations,
+)
 from lm_deluge.tool import MCPServer, Tool
 
 from .api_requests.base import APIResponse
@@ -40,6 +54,9 @@ class _LLMClient(BaseModel):
     request_timeout: int = 30
     cache: Any = None
     extra_headers: dict[str, str] | None = None
+    extra_body: dict[str, str] | None = None
+    use_responses_api: bool = False
+    background: bool = False
     # sampling params - if provided, and sampling_params is not,
     # these override the defaults
     temperature: float = 0.75
@@ -256,13 +273,6 @@ class _LLMClient(BaseModel):
             # Idle wait before next capacity check. Aim for ~RPM spacing.
             await asyncio.sleep(max(60.0 / self.max_requests_per_minute, 0.01))
 
-    async def _execute_request(self, context: RequestContext) -> APIResponse:
-        """Create and send a single API request using the provided context."""
-        model_obj = APIModel.from_registry(context.model_name)
-        request = model_obj.make_request(context)
-        response = await request.execute_once()
-        return response
-
     async def process_single_request(
         self, context: RequestContext, retry_queue: asyncio.Queue | None = None
     ) -> APIResponse:
@@ -290,7 +300,9 @@ class _LLMClient(BaseModel):
         # Execute single request
         assert context.status_tracker
         context.status_tracker.update_pbar()
-        response = await self._execute_request(context)
+        model_obj = APIModel.from_registry(context.model_name)
+        request = model_obj.make_request(context)
+        response = await request.execute_once()
 
         # Handle successful response
         if not response.is_error:
@@ -350,36 +362,33 @@ class _LLMClient(BaseModel):
     @overload
     async def process_prompts_async(
         self,
-        prompts: Sequence[str | list[dict] | Conversation],
+        prompts: Prompt | list[Prompt],
         *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
-        use_responses_api: bool = ...,
     ) -> list[str | None]: ...
 
     @overload
     async def process_prompts_async(
         self,
-        prompts: Sequence[str | list[dict] | Conversation],
+        prompts: Prompt | list[Prompt],
         *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
-        use_responses_api: bool = ...,
     ) -> list[APIResponse]: ...
 
     async def process_prompts_async(
         self,
-        prompts: Sequence[str | list[dict] | Conversation],
+        prompts: Prompt | list[Prompt],
         *,
         return_completions_only: bool = False,
         show_progress: bool = True,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
-        use_responses_api: bool = False,
     ) -> list[APIResponse] | list[str | None] | dict[str, int]:
         """Process multiple prompts asynchronously using the start_nowait/wait_for_all backend.
 
@@ -387,7 +396,9 @@ class _LLMClient(BaseModel):
         avoiding issues with tracker state accumulating across multiple calls.
         """
         # Convert prompts to Conversations
-        prompts = prompts_to_conversations(prompts)
+        if not isinstance(prompts, list):
+            prompts = [prompts]
+        prompts = prompts_to_conversations(cast(list[Prompt], prompts))
 
         # Ensure tracker exists (start_nowait will call add_to_total for each task)
         if self._tracker is None:
@@ -404,7 +415,6 @@ class _LLMClient(BaseModel):
                 prompt,
                 tools=tools,
                 cache=cache,
-                use_responses_api=use_responses_api,
             )
             task_ids.append(task_id)
 
@@ -443,13 +453,12 @@ class _LLMClient(BaseModel):
 
     def process_prompts_sync(
         self,
-        prompts: Sequence[str | list[dict] | Conversation],
+        prompts: Prompt | list[Prompt],
         *,
         return_completions_only: bool = False,
         show_progress=True,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
-        use_responses_api: bool = False,
     ):
         return asyncio.run(
             self.process_prompts_async(
@@ -458,7 +467,6 @@ class _LLMClient(BaseModel):
                 show_progress=show_progress,
                 tools=tools,
                 cache=cache,
-                use_responses_api=use_responses_api,
             )
         )
 
@@ -478,18 +486,17 @@ class _LLMClient(BaseModel):
 
     def start_nowait(
         self,
-        prompt: str | Conversation,
+        prompt: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
-        use_responses_api: bool = False,
     ) -> int:
         tracker = self._get_tracker()
         task_id = self._next_task_id
         self._next_task_id += 1
         model, sampling_params = self._select_model()
-        if isinstance(prompt, str):
-            prompt = Conversation.user(prompt)
+        prompt = prompts_to_conversations([prompt])[0]
+        assert isinstance(prompt, Conversation)
         context = RequestContext(
             task_id=task_id,
             model_name=model,
@@ -500,7 +507,8 @@ class _LLMClient(BaseModel):
             status_tracker=tracker,
             tools=tools,
             cache=cache,
-            use_responses_api=use_responses_api,
+            use_responses_api=self.use_responses_api,
+            background=self.background,
             extra_headers=self.extra_headers,
             force_local_mcp=self.force_local_mcp,
         )
@@ -515,11 +523,8 @@ class _LLMClient(BaseModel):
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
-        use_responses_api: bool = False,
     ) -> APIResponse:
-        task_id = self.start_nowait(
-            prompt, tools=tools, cache=cache, use_responses_api=use_responses_api
-        )
+        task_id = self.start_nowait(prompt, tools=tools, cache=cache)
         return await self.wait_for(task_id)
 
     async def wait_for(self, task_id: int) -> APIResponse:
@@ -698,7 +703,7 @@ class _LLMClient(BaseModel):
 
     async def submit_batch_job(
         self,
-        prompts: Sequence[str | list[dict] | Conversation],
+        prompts: Prompt | list[Prompt],
         *,
         tools: list[Tool] | None = None,
         cache: CachePattern | None = None,

@@ -1,4 +1,5 @@
 import asyncio
+import time
 import traceback
 from abc import ABC, abstractmethod
 
@@ -82,15 +83,91 @@ class APIRequestBase(ABC):
         if self.context.status_tracker:
             self.context.status_tracker.task_succeeded(self.context.task_id)
 
+    async def _execute_once_background_mode(self) -> APIResponse:
+        """
+        ONLY for OpenAI responses API. Implement the
+        start -> poll -> result style of request.
+        """
+        assert self.context.status_tracker, "no status tracker"
+        start_time = time.time()
+        async with aiohttp.ClientSession() as session:
+            last_status: str | None = None
+
+            try:
+                self.context.status_tracker.total_requests += 1
+                assert self.url is not None, "URL is not set"
+                async with session.post(
+                    url=self.url,
+                    headers=self.request_header,
+                    json=self.request_json,
+                ) as http_response:
+                    # make sure we created the Response object
+                    http_response.raise_for_status()
+                    data = await http_response.json()
+                    response_id = data["id"]
+                    last_status = data["status"]
+
+                while True:
+                    if time.time() - start_time > self.context.request_timeout:
+                        # cancel the response
+                        async with session.post(
+                            url=f"{self.url}/{response_id}/cancel",
+                            headers=self.request_header,
+                        ) as http_response:
+                            http_response.raise_for_status()
+
+                        return APIResponse(
+                            id=self.context.task_id,
+                            model_internal=self.context.model_name,
+                            prompt=self.context.prompt,
+                            sampling_params=self.context.sampling_params,
+                            status_code=None,
+                            is_error=True,
+                            error_message="Request timed out (terminated by client).",
+                            content=None,
+                            usage=None,
+                        )
+                    # poll for the response
+                    await asyncio.sleep(5.0)
+                    async with session.get(
+                        url=f"{self.url}/{response_id}",
+                        headers=self.request_header,
+                    ) as http_response:
+                        http_response.raise_for_status()
+                        data = await http_response.json()
+
+                        if data["status"] != last_status:
+                            print(
+                                f"Background req {id} status updated to: {data['status']}"
+                            )
+                            last_status = data["status"]
+                        if last_status not in ["queued", "in_progress"]:
+                            return await self.handle_response(http_response)
+
+            except Exception as e:
+                raise_if_modal_exception(e)
+                tb = traceback.format_exc()
+                print(tb)
+                return APIResponse(
+                    id=self.context.task_id,
+                    model_internal=self.context.model_name,
+                    prompt=self.context.prompt,
+                    sampling_params=self.context.sampling_params,
+                    status_code=None,
+                    is_error=True,
+                    error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                    content=None,
+                    usage=None,
+                )
+
     async def execute_once(self) -> APIResponse:
         """Send the HTTP request once and return the parsed APIResponse."""
         await self.build_request()
         assert self.context.status_tracker
-        # try:
-        #     dumped = json.dumps(self.request_json)
-        # except Exception:
-        #     print("couldn't serialize request json")
-        #     print(self.request_json)
+
+        if self.context.background:
+            return await self._execute_once_background_mode()
+
         try:
             self.context.status_tracker.total_requests += 1
             timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)

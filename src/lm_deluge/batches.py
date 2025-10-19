@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Literal, Sequence
+from typing import Literal, cast
 
 import aiohttp
 from rich.console import Console
@@ -16,7 +16,12 @@ from lm_deluge.api_requests.anthropic import _build_anthropic_request
 from lm_deluge.api_requests.openai import _build_oa_chat_request
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel, registry
-from lm_deluge.prompt import CachePattern, Conversation, prompts_to_conversations
+from lm_deluge.prompt import (
+    CachePattern,
+    Conversation,
+    Prompt,
+    prompts_to_conversations,
+)
 from lm_deluge.request_context import RequestContext
 
 
@@ -166,14 +171,17 @@ async def _submit_anthropic_batch(file_path: str, headers: dict, model: str):
 async def create_batch_files_oa(
     model: str,
     sampling_params: SamplingParams,
-    prompts: Sequence[str | list[dict] | Conversation],
+    prompts: Prompt | list[Prompt],
     batch_size: int = 50_000,
     destination: str | None = None,  # if none provided, temp files
 ):
     MAX_BATCH_SIZE_BYTES = 200 * 1024 * 1024  # 200MB
     MAX_BATCH_SIZE_ITEMS = batch_size
 
-    prompts = prompts_to_conversations(prompts)
+    if not isinstance(prompts, list):
+        prompts = [prompts]
+
+    prompts = prompts_to_conversations(cast(list[Prompt], prompts))
     if any(p is None for p in prompts):
         raise ValueError("All prompts must be valid.")
 
@@ -251,14 +259,17 @@ async def create_batch_files_oa(
 async def submit_batches_oa(
     model: str,
     sampling_params: SamplingParams,
-    prompts: Sequence[str | list[dict] | Conversation],
+    prompts: Prompt | list[Prompt],
     batch_size: int = 50_000,
 ):
     """Write OpenAI batch requests to a file and submit."""
     MAX_BATCH_SIZE_BYTES = 200 * 1024 * 1024  # 200MB
     MAX_BATCH_SIZE_ITEMS = batch_size
 
-    prompts = prompts_to_conversations(prompts)
+    if not isinstance(prompts, list):
+        prompts = [prompts]
+
+    prompts = prompts_to_conversations(cast(list[Prompt], prompts))
     if any(p is None for p in prompts):
         raise ValueError("All prompts must be valid.")
 
@@ -342,7 +353,7 @@ async def submit_batches_oa(
 async def submit_batches_anthropic(
     model: str,
     sampling_params: SamplingParams,
-    prompts: Sequence[str | list[dict] | Conversation],
+    prompts: Prompt | list[Prompt],
     *,
     cache: CachePattern | None = None,
     batch_size=100_000,
@@ -362,7 +373,10 @@ async def submit_batches_anthropic(
     MAX_BATCH_SIZE_ITEMS = batch_size
 
     # Convert prompts to Conversations
-    prompts = prompts_to_conversations(prompts)
+    if not isinstance(prompts, list):
+        prompts = [prompts]
+
+    prompts = prompts_to_conversations(cast(list[Prompt], prompts))
 
     request_headers = None
     batch_tasks = []

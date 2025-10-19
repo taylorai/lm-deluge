@@ -2,7 +2,7 @@ import io
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal, TypeAlias
 
 import tiktoken
 import xxhash
@@ -1495,9 +1495,21 @@ class Conversation:
         return cls(msgs)
 
 
-def prompts_to_conversations(prompts: Sequence[str | list[dict] | Conversation]):
-    if any(isinstance(x, list) for x in prompts):
-        raise ValueError("can't convert list[dict] to conversation yet")
-    return [  # type: ignore
-        Conversation.user(p) if isinstance(p, str) else p for p in prompts
-    ]
+Prompt: TypeAlias = str | list[dict] | Message | Conversation
+
+
+def prompts_to_conversations(prompts: list[Prompt]) -> list[Prompt]:
+    converted = []
+    for prompt in prompts:
+        if isinstance(prompt, Conversation):
+            converted.append(prompt)
+        elif isinstance(prompt, Message):
+            converted.append(Conversation([prompt]))
+        elif isinstance(prompt, str):
+            converted.append(Conversation.user(prompt))
+        elif isinstance(prompt, list):
+            conv, provider = Conversation.from_unknown(prompt)
+            converted.append(conv)
+        else:
+            raise ValueError(f"Unknown prompt type {type(prompt)}")
+    return converted

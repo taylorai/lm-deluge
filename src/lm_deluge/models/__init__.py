@@ -62,7 +62,7 @@ class APIModel:
             raise ValueError("no regions to sample")
         random.sample(regions, 1, counts=weights)[0]
 
-    def make_request(self, context: RequestContext):  # -> "APIRequestBase"
+    def make_request(self, context: RequestContext):
         from ..api_requests.common import CLASSES
 
         api_spec = self.api_spec

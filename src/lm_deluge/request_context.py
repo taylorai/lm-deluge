@@ -26,28 +26,22 @@ class RequestContext:
 
     # Infrastructure
     status_tracker: StatusTracker | None = None
-    results_arr: list[Any] | None = (
-        None  # list["APIRequestBase"] but avoiding circular import
-    )
+    # avoiding circular import
+    results_arr: list[Any] | None = None  # list["APIRequestBase"]
     callback: Callable | None = None
 
     # Optional features
     tools: list | None = None
     cache: CachePattern | None = None
     use_responses_api: bool = False
+    background: bool = False
+    service_tier: str | None = None
     extra_headers: dict[str, str] | None = None
+    extra_body: dict[str, Any] | None = None
     force_local_mcp: bool = False
 
     # Computed properties
     cache_key: str = field(init=False)
-    # num_tokens: int = field(init=False)
-
-    # def __post_init__(self):
-    #     # Compute cache key from prompt fingerprint
-    #     # self.cache_key = self.prompt.fingerprint
-
-    #     # Compute token count
-    #     self.num_tokens =
 
     @cached_property
     def num_tokens(self):
