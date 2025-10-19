@@ -68,6 +68,10 @@ class RequestContext:
             "tools": self.tools,
             "cache": self.cache,
             "use_responses_api": self.use_responses_api,
+            "background": self.background,
+            "service_tier": self.service_tier,
+            "extra_headers": self.extra_headers,
+            "extra_body": self.extra_body,
             "force_local_mcp": self.force_local_mcp,
         }
 

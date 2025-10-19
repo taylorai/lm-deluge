@@ -362,33 +362,36 @@ class _LLMClient(BaseModel):
     @overload
     async def process_prompts_async(
         self,
-        prompts: Prompt | list[Prompt],
+        prompts: Prompt | Sequence[Prompt],
         *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
     ) -> list[str | None]: ...
 
     @overload
     async def process_prompts_async(
         self,
-        prompts: Prompt | list[Prompt],
+        prompts: Prompt | Sequence[Prompt],
         *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
         cache: CachePattern | None = ...,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
     ) -> list[APIResponse]: ...
 
     async def process_prompts_async(
         self,
-        prompts: Prompt | list[Prompt],
+        prompts: Prompt | Sequence[Prompt],
         *,
         return_completions_only: bool = False,
         show_progress: bool = True,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> list[APIResponse] | list[str | None] | dict[str, int]:
         """Process multiple prompts asynchronously using the start_nowait/wait_for_all backend.
 
@@ -397,8 +400,8 @@ class _LLMClient(BaseModel):
         """
         # Convert prompts to Conversations
         if not isinstance(prompts, list):
-            prompts = [prompts]
-        prompts = prompts_to_conversations(cast(list[Prompt], prompts))
+            prompts = prompts = cast(Sequence[Prompt], [prompts])
+        prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
 
         # Ensure tracker exists (start_nowait will call add_to_total for each task)
         if self._tracker is None:
@@ -409,12 +412,14 @@ class _LLMClient(BaseModel):
 
         # Start all tasks using start_nowait - tasks will coordinate via shared capacity lock
         task_ids = []
+        assert isinstance(prompts, Sequence)
         for prompt in prompts:
             assert isinstance(prompt, Conversation)
             task_id = self.start_nowait(
                 prompt,
                 tools=tools,
                 cache=cache,
+                service_tier=service_tier,
             )
             task_ids.append(task_id)
 
@@ -453,7 +458,7 @@ class _LLMClient(BaseModel):
 
     def process_prompts_sync(
         self,
-        prompts: Prompt | list[Prompt],
+        prompts: Prompt | Sequence[Prompt],
         *,
         return_completions_only: bool = False,
         show_progress=True,
@@ -490,6 +495,7 @@ class _LLMClient(BaseModel):
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> int:
         tracker = self._get_tracker()
         task_id = self._next_task_id
@@ -509,6 +515,7 @@ class _LLMClient(BaseModel):
             cache=cache,
             use_responses_api=self.use_responses_api,
             background=self.background,
+            service_tier=service_tier,
             extra_headers=self.extra_headers,
             force_local_mcp=self.force_local_mcp,
         )
@@ -523,8 +530,11 @@ class _LLMClient(BaseModel):
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> APIResponse:
-        task_id = self.start_nowait(prompt, tools=tools, cache=cache)
+        task_id = self.start_nowait(
+            prompt, tools=tools, cache=cache, service_tier=service_tier
+        )
         return await self.wait_for(task_id)
 
     async def wait_for(self, task_id: int) -> APIResponse:
@@ -703,7 +713,7 @@ class _LLMClient(BaseModel):
 
     async def submit_batch_job(
         self,
-        prompts: Prompt | list[Prompt],
+        prompts: Prompt | Sequence[Prompt],
         *,
         tools: list[Tool] | None = None,
         cache: CachePattern | None = None,
@@ -765,6 +775,8 @@ def LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    use_responses_api: bool = False,
+    background: bool = False,
     temperature: float = 0.75,
     top_p: float = 1.0,
     json_mode: bool = False,
@@ -792,6 +804,8 @@ def LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    use_responses_api: bool = False,
+    background: bool = False,
     temperature: float = 0.75,
     top_p: float = 1.0,
     json_mode: bool = False,
@@ -818,6 +832,8 @@ def LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    use_responses_api: bool = False,
+    background: bool = False,
     temperature: float = 0.75,
     top_p: float = 1.0,
     json_mode: bool = False,
@@ -856,6 +872,8 @@ def LLMClient(
         request_timeout=request_timeout,
         cache=cache,
         extra_headers=extra_headers,
+        use_responses_api=use_responses_api,
+        background=background,
         temperature=temperature,
         top_p=top_p,
         json_mode=json_mode,

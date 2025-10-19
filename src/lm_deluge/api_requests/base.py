@@ -138,7 +138,7 @@ class APIRequestBase(ABC):
 
                         if data["status"] != last_status:
                             print(
-                                f"Background req {id} status updated to: {data['status']}"
+                                f"Background req {response_id} status updated to: {data['status']}"
                             )
                             last_status = data["status"]
                         if last_status not in ["queued", "in_progress"]:

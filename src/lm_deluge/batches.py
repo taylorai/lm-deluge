@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Literal, cast
+from typing import Literal, Sequence, cast
 
 import aiohttp
 from rich.console import Console
@@ -171,7 +171,7 @@ async def _submit_anthropic_batch(file_path: str, headers: dict, model: str):
 async def create_batch_files_oa(
     model: str,
     sampling_params: SamplingParams,
-    prompts: Prompt | list[Prompt],
+    prompts: Prompt | Sequence[Prompt],
     batch_size: int = 50_000,
     destination: str | None = None,  # if none provided, temp files
 ):
@@ -179,9 +179,10 @@ async def create_batch_files_oa(
     MAX_BATCH_SIZE_ITEMS = batch_size
 
     if not isinstance(prompts, list):
-        prompts = [prompts]
+        prompts = cast(Sequence[Prompt], [prompts])
 
-    prompts = prompts_to_conversations(cast(list[Prompt], prompts))
+    prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
+    assert isinstance(prompts, Sequence)
     if any(p is None for p in prompts):
         raise ValueError("All prompts must be valid.")
 
@@ -259,7 +260,7 @@ async def create_batch_files_oa(
 async def submit_batches_oa(
     model: str,
     sampling_params: SamplingParams,
-    prompts: Prompt | list[Prompt],
+    prompts: Prompt | Sequence[Prompt],
     batch_size: int = 50_000,
 ):
     """Write OpenAI batch requests to a file and submit."""
@@ -267,9 +268,10 @@ async def submit_batches_oa(
     MAX_BATCH_SIZE_ITEMS = batch_size
 
     if not isinstance(prompts, list):
-        prompts = [prompts]
+        prompts = prompts = cast(Sequence[Prompt], [prompts])
 
-    prompts = prompts_to_conversations(cast(list[Prompt], prompts))
+    prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
+    assert isinstance(prompts, Sequence)
     if any(p is None for p in prompts):
         raise ValueError("All prompts must be valid.")
 
@@ -353,7 +355,7 @@ async def submit_batches_oa(
 async def submit_batches_anthropic(
     model: str,
     sampling_params: SamplingParams,
-    prompts: Prompt | list[Prompt],
+    prompts: Prompt | Sequence[Prompt],
     *,
     cache: CachePattern | None = None,
     batch_size=100_000,
@@ -374,15 +376,15 @@ async def submit_batches_anthropic(
 
     # Convert prompts to Conversations
     if not isinstance(prompts, list):
-        prompts = [prompts]
+        prompts = prompts = cast(Sequence[Prompt], [prompts])
 
-    prompts = prompts_to_conversations(cast(list[Prompt], prompts))
+    prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
 
     request_headers = None
     batch_tasks = []
     current_batch = []
     current_batch_size = 0
-
+    assert isinstance(prompts, Sequence)
     for idx, prompt in enumerate(prompts):
         assert isinstance(prompt, Conversation)
         context = RequestContext(

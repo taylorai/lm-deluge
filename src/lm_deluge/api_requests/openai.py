@@ -30,6 +30,26 @@ async def _build_oa_chat_request(
         "temperature": sampling_params.temperature,
         "top_p": sampling_params.top_p,
     }
+    if context.service_tier:
+        assert context.service_tier in [
+            "auto",
+            "default",
+            "flex",
+            "priority",
+        ], f"Invalid service tier: {context.service_tier}"
+        # flex is only supported for o3, o4-mini, gpt-5 models
+        if context.service_tier == "flex":
+            model_supports_flex = any(x in model.id for x in ["o3", "o4-mini", "gpt-5"])
+            if not model_supports_flex:
+                print(
+                    f"WARNING: service_tier='flex' only supported for o3, o4-mini, gpt-5. "
+                    f"Using 'auto' instead for model {model.id}."
+                )
+                request_json["service_tier"] = "auto"
+            else:
+                request_json["service_tier"] = context.service_tier
+        else:
+            request_json["service_tier"] = context.service_tier
     # set max_tokens or max_completion_tokens dep. on provider
     if "cohere" in model.api_base:
         request_json["max_tokens"] = sampling_params.max_new_tokens
@@ -213,9 +233,6 @@ class OpenAIRequest(APIRequestBase):
 async def _build_oa_responses_request(
     model: APIModel,
     context: RequestContext,
-    # prompt: Conversation,
-    # tools: list[Tool] | None,
-    # sampling_params: SamplingParams,
 ):
     prompt = context.prompt
     sampling_params = context.sampling_params
@@ -226,7 +243,28 @@ async def _build_oa_responses_request(
         "input": openai_responses_format["input"],
         "temperature": sampling_params.temperature,
         "top_p": sampling_params.top_p,
+        "background": context.background or False,
     }
+    if context.service_tier:
+        assert context.service_tier in [
+            "auto",
+            "default",
+            "flex",
+            "priority",
+        ], f"Invalid service tier: {context.service_tier}"
+        # flex is only supported for o3, o4-mini, gpt-5 models
+        if context.service_tier == "flex":
+            model_supports_flex = any(x in model.id for x in ["o3", "o4-mini", "gpt-5"])
+            if not model_supports_flex:
+                print(
+                    f"WARNING: service_tier='flex' only supported for o3, o4-mini, gpt-5. "
+                    f"Model {model.id} doesn't support flex. Using 'auto' instead."
+                )
+                request_json["service_tier"] = "auto"
+            else:
+                request_json["service_tier"] = context.service_tier
+        else:
+            request_json["service_tier"] = context.service_tier
     if sampling_params.max_new_tokens:
         request_json["max_output_tokens"] = sampling_params.max_new_tokens
 

@@ -2,7 +2,7 @@ import io
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, TypeAlias
+from typing import Literal, Sequence, TypeAlias
 
 import tiktoken
 import xxhash
@@ -1498,7 +1498,7 @@ class Conversation:
 Prompt: TypeAlias = str | list[dict] | Message | Conversation
 
 
-def prompts_to_conversations(prompts: list[Prompt]) -> list[Prompt]:
+def prompts_to_conversations(prompts: Sequence[Prompt]) -> Sequence[Prompt]:
     converted = []
     for prompt in prompts:
         if isinstance(prompt, Conversation):
