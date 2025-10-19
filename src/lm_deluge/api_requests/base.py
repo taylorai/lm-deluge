@@ -7,6 +7,7 @@ import aiohttp
 from aiohttp import ClientResponse
 
 from ..errors import raise_if_modal_exception
+from ..models.openai import OPENAI_MODELS
 from ..request_context import RequestContext
 from .response import APIResponse
 
@@ -165,7 +166,11 @@ class APIRequestBase(ABC):
         await self.build_request()
         assert self.context.status_tracker
 
-        if self.context.background:
+        if (
+            self.context.background
+            and self.context.use_responses_api
+            and self.context.model_name in OPENAI_MODELS
+        ):
             return await self._execute_once_background_mode()
 
         try:

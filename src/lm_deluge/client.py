@@ -188,6 +188,11 @@ class _LLMClient(BaseModel):
         # normalize weights
         self.model_weights = [w / sum(self.model_weights) for w in self.model_weights]
 
+        # background mode only allowed for responses api
+        if self.background:
+            assert (
+                self.use_responses_api
+            ), "background mode only allowed for responses api"
         # Auto-generate name if not provided
         if self.name is None:
             if len(self.model_names) == 1:

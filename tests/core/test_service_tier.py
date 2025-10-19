@@ -238,6 +238,7 @@ async def test_service_tier_multiple_requests():
                 print(f"✗ Request {i} failed: {result.error_message}")
                 all_success = False
             else:
+                assert result.completion, "no completion"
                 print(f"✓ Request {i} succeeded: {result.completion[:50]}...")
 
         if all_success:
