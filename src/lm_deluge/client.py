@@ -150,8 +150,29 @@ class _LLMClient(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def fix_lists(cls, data) -> "_LLMClient":
+        # Parse reasoning effort from model name suffixes (e.g., "gpt-5-high")
+        # Only applies when a single model string is provided
         if isinstance(data.get("model_names"), str):
+            model_name = data["model_names"]
+            reasoning_effort_suffixes = {
+                "-low": "low",
+                "-medium": "medium",
+                "-high": "high",
+            }
+
+            for suffix, effort in reasoning_effort_suffixes.items():
+                if model_name.endswith(suffix):
+                    # Extract base model name by removing suffix
+                    base_model = model_name[: -len(suffix)]
+                    data["model_names"] = base_model
+
+                    # Set reasoning_effort if not already explicitly set
+                    if data.get("reasoning_effort") is None:
+                        data["reasoning_effort"] = effort
+                    break
+
             data["model_names"] = [data["model_names"]]
+
         if not isinstance(data.get("sampling_params", []), list):
             data["sampling_params"] = [data["sampling_params"]]
         if "sampling_params" not in data or len(data.get("sampling_params", [])) == 0:

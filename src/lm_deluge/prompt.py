@@ -9,6 +9,7 @@ import xxhash
 
 from lm_deluge.file import File
 from lm_deluge.image import Image, MediaType
+from lm_deluge.warnings import deprecated
 
 CachePattern = Literal[
     "tools_only",
@@ -415,12 +416,17 @@ class Message:
 
         return cls(role, parts)
 
-    def add_text(self, content: str) -> "Message":
+    def with_text(self, content: str) -> "Message":
         """Append a text block and return self for chaining."""
         self.parts.append(Text(content))
         return self
 
-    def add_image(
+    @deprecated("with_text")
+    def add_text(self, content: str) -> "Message":
+        """Append a text block and return self for chaining."""
+        return self.with_text(content)
+
+    def with_image(
         self,
         data: bytes | str | Path | io.BytesIO | Image,
         *,
@@ -446,7 +452,27 @@ class Message:
         self.parts.append(img)
         return self
 
-    def add_file(
+    @deprecated("with_image")
+    def add_image(
+        self,
+        data: bytes | str | Path | io.BytesIO | Image,
+        *,
+        media_type: MediaType | None = None,
+        detail: Literal["low", "high", "auto"] = "auto",
+        max_size: int | None = None,
+    ) -> "Message":
+        """
+        Append an image block and return self for chaining.
+
+        If max_size is provided, the image will be resized so that its longer
+        dimension equals max_size, but only if the longer dimension is currently
+        larger than max_size.
+        """
+        return self.with_image(
+            data=data, media_type=media_type, detail=detail, max_size=max_size
+        )
+
+    def with_file(
         self,
         data: bytes | str | Path | io.BytesIO,
         *,
@@ -460,10 +486,28 @@ class Message:
         self.parts.append(file)
         return self
 
-    def add_tool_call(self, id: str, name: str, arguments: dict) -> "Message":
+    @deprecated("with_file")
+    def add_file(
+        self,
+        data: bytes | str | Path | io.BytesIO,
+        *,
+        media_type: str | None = None,
+        filename: str | None = None,
+    ) -> "Message":
+        """
+        Append a file block and return self for chaining.
+        """
+        return self.with_file(data, media_type=media_type, filename=filename)
+
+    def with_tool_call(self, id: str, name: str, arguments: dict) -> "Message":
         """Append a tool call block and return self for chaining."""
         self.parts.append(ToolCall(id=id, name=name, arguments=arguments))
         return self
+
+    @deprecated("with_tool_call")
+    def add_tool_call(self, id: str, name: str, arguments: dict) -> "Message":
+        """Append a tool call block and return self for chaining."""
+        return self.with_tool_call(id, name, arguments)
 
     def with_tool_result(
         self, tool_call_id: str, result: str | list[ToolResultPart]
@@ -472,10 +516,22 @@ class Message:
         self.parts.append(ToolResult(tool_call_id=tool_call_id, result=result))
         return self
 
-    def add_thinking(self, content: str) -> "Message":
+    @deprecated("with_tool_result")
+    def add_tool_result(
+        self, tool_call_id: str, result: str | list[ToolResultPart]
+    ) -> "Message":
+        """Append a tool result block and return self for chaining."""
+        return self.with_tool_result(tool_call_id, result)
+
+    def with_thinking(self, content: str) -> "Message":
         """Append a thinking block and return self for chaining."""
         self.parts.append(Thinking(content=content))
         return self
+
+    @deprecated("with_thinking")
+    def add_thinking(self, content: str) -> "Message":
+        """Append a thinking block and return self for chaining."""
+        return self.with_thinking(content)
 
     # -------- convenient constructors --------
     @classmethod
@@ -488,25 +544,25 @@ class Message:
     ) -> "Message":
         res = cls("user", [])
         if text is not None:
-            res.add_text(text)
+            res.with_text(text)
         if image is not None:
-            res.add_image(image)
+            res.with_image(image)
         if file is not None:
-            res.add_file(file)
+            res.with_file(file)
         return res
 
     @classmethod
     def system(cls, text: str | None = None) -> "Message":
         res = cls("system", [])
         if text is not None:
-            res.add_text(text)
+            res.with_text(text)
         return res
 
     @classmethod
     def ai(cls, text: str | None = None) -> "Message":
         res = cls("assistant", [])
         if text is not None:
-            res.add_text(text)
+            res.with_text(text)
         return res
 
     # ──── provider-specific constructors ───
@@ -698,9 +754,9 @@ class Conversation:
     ) -> "Conversation":
         msg = Message.user(text)
         if image is not None:
-            msg.add_image(image)
+            msg.with_image(image)
         if file is not None:
-            msg.add_file(file)
+            msg.with_file(file)
         return cls([msg])
 
     @classmethod
@@ -1211,11 +1267,11 @@ class Conversation:
                 for i, tool_result in enumerate(m.tool_results):
                     images = tool_result.get_images()
                     if len(images) > 0:
-                        user_msg.add_text(
+                        user_msg.with_text(
                             f"[Images for Tool Call {tool_result.tool_call_id}]"
                         )
                         for img in images:
-                            user_msg.add_image(img)
+                            user_msg.with_image(img)
 
             else:
                 result.append(m.oa_chat())

@@ -10,6 +10,20 @@ OPENAI_MODELS = {
     #                ░███
     #                █████
     #               ░░░░░
+    "gpt-5-codex": {
+        "id": "gpt-5-codex",
+        "name": "gpt-5-codex",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": False,
+        "supports_logprobs": True,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 1.25,
+        "cached_input_cost": 0.125,
+        "output_cost": 10.0,
+        "reasoning_model": True,
+    },
     "gpt-5": {
         "id": "gpt-5",
         "name": "gpt-5",
@@ -78,6 +92,20 @@ OPENAI_MODELS = {
         "input_cost": 3.0,
         "output_cost": 12.0,
         "reasoning_model": False,
+    },
+    "codex-mini-latest": {
+        "id": "codex-mini-latest",
+        "name": "codex-mini-latest",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 1.5,
+        "cached_input_cost": 0.375,
+        "output_cost": 6.0,
+        "reasoning_model": True,
     },
     "o3": {
         "id": "o3",
