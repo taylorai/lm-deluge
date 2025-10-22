@@ -117,12 +117,119 @@ class _LLMClient(BaseModel):
 
     # NEW! Builder methods
     def with_model(self, model: str):
-        self.model_names = [model]
+        self._update_models([model])
         return self
 
     def with_models(self, models: list[str]):
-        self.model_names = models
+        self._update_models(models)
         return self
+
+    def _update_models(self, models: list[str]) -> None:
+        normalized, per_model_efforts = self._normalize_model_names(models)
+        if self.reasoning_effort is None:
+            unique_efforts = {eff for eff in per_model_efforts if eff is not None}
+            if len(normalized) == 1 and per_model_efforts[0] is not None:
+                self.reasoning_effort = per_model_efforts[0]
+            elif (
+                len(unique_efforts) == 1
+                and len(unique_efforts) != 0
+                and None not in per_model_efforts
+            ):
+                self.reasoning_effort = next(iter(unique_efforts))  # type: ignore
+        self.model_names = normalized
+        self._align_sampling_params(per_model_efforts)
+        self._reset_model_weights()
+
+    def _normalize_model_names(
+        self, models: list[str]
+    ) -> tuple[list[str], list[Literal["low", "medium", "high"] | None]]:
+        reasoning_effort_suffixes: dict[str, Literal["low", "medium", "high"]] = {
+            "-low": "low",
+            "-medium": "medium",
+            "-high": "high",
+        }
+        normalized: list[str] = []
+        efforts: list[Literal["low", "medium", "high"] | None] = []
+
+        for name in models:
+            base_name = name
+            effort: Literal["low", "medium", "high"] | None = None
+            for suffix, candidate in reasoning_effort_suffixes.items():
+                if name.endswith(suffix) and len(name) > len(suffix):
+                    base_name = name[: -len(suffix)]
+                    effort = candidate
+                    break
+            normalized.append(base_name)
+            efforts.append(effort)
+
+        return normalized, efforts
+
+    def _align_sampling_params(
+        self, per_model_efforts: list[Literal["low", "medium", "high"] | None]
+    ) -> None:
+        if len(per_model_efforts) < len(self.model_names):
+            per_model_efforts = per_model_efforts + [None] * (
+                len(self.model_names) - len(per_model_efforts)
+            )
+
+        if not self.model_names:
+            self.sampling_params = []
+            return
+
+        if not self.sampling_params:
+            self.sampling_params = []
+
+        if len(self.sampling_params) == 0:
+            for _ in self.model_names:
+                self.sampling_params.append(
+                    SamplingParams(
+                        temperature=self.temperature,
+                        top_p=self.top_p,
+                        json_mode=self.json_mode,
+                        max_new_tokens=self.max_new_tokens,
+                        reasoning_effort=self.reasoning_effort,
+                        logprobs=self.logprobs,
+                        top_logprobs=self.top_logprobs,
+                    )
+                )
+        elif len(self.sampling_params) == 1 and len(self.model_names) > 1:
+            base_param = self.sampling_params[0]
+            self.sampling_params = [
+                base_param.model_copy(deep=True) for _ in self.model_names
+            ]
+        elif len(self.sampling_params) != len(self.model_names):
+            base_param = self.sampling_params[0]
+            self.sampling_params = [
+                base_param.model_copy(deep=True) for _ in self.model_names
+            ]
+
+        if self.reasoning_effort is not None:
+            for sp in self.sampling_params:
+                sp.reasoning_effort = self.reasoning_effort
+        else:
+            for sp, effort in zip(self.sampling_params, per_model_efforts):
+                if effort is not None:
+                    sp.reasoning_effort = effort
+
+    def _reset_model_weights(self) -> None:
+        if not self.model_names:
+            self.model_weights = []
+            return
+
+        if isinstance(self.model_weights, list):
+            if len(self.model_weights) == len(self.model_names) and any(
+                self.model_weights
+            ):
+                total = sum(self.model_weights)
+                if total == 0:
+                    self.model_weights = [
+                        1 / len(self.model_names) for _ in self.model_names
+                    ]
+                else:
+                    self.model_weights = [w / total for w in self.model_weights]
+                return
+        # Fallback to uniform distribution
+        self.model_weights = [1 / len(self.model_names) for _ in self.model_names]
 
     def with_limits(
         self,
