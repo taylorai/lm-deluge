@@ -474,7 +474,7 @@ class Message:
 
     def with_file(
         self,
-        data: bytes | str | Path | io.BytesIO,
+        data: bytes | str | Path | io.BytesIO | File,
         *,
         media_type: str | None = None,
         filename: str | None = None,
@@ -482,14 +482,17 @@ class Message:
         """
         Append a file block and return self for chaining.
         """
-        file = File(data, media_type=media_type, filename=filename)
+        if not isinstance(data, File):
+            file = File(data, media_type=media_type, filename=filename)
+        else:
+            file = data
         self.parts.append(file)
         return self
 
     @deprecated("with_file")
     def add_file(
         self,
-        data: bytes | str | Path | io.BytesIO,
+        data: bytes | str | Path | io.BytesIO | File,
         *,
         media_type: str | None = None,
         filename: str | None = None,
