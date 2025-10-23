@@ -16,10 +16,10 @@ async def test_openai_image_gen():
     # Test with a regular GPT model using responses API
     try:
         # Use a model with responses API enabled
-        client = LLMClient("gpt-4.1-mini", request_timeout=75)
+        # Note: use_responses_api is set at the client level, not per-request
+        client = LLMClient("gpt-4.1-mini", request_timeout=75, use_responses_api=True)
         results = await client.process_prompts_async(
             prompts=["Make an image of a cat"],
-            use_responses_api=True,  # Enable responses API
             tools=[image_generation_openai()],
         )
         print("got results")

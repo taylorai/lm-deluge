@@ -42,6 +42,14 @@ def _build_anthropic_request(
         "content-type": "application/json",
     }
 
+    # Check if any messages contain uploaded files (file_id)
+    # If so, add the files-api beta header
+    for msg in prompt.messages:
+        for file in msg.files:
+            if file.is_remote and file.remote_provider == "anthropic":
+                _add_beta(base_headers, "files-api-2025-04-14")
+                break
+
     request_json = {
         "model": model.name,
         "messages": messages,

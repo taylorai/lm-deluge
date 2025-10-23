@@ -31,7 +31,7 @@ from lm_deluge.tool import MCPServer, Tool
 
 from .api_requests.base import APIResponse
 from .config import SamplingParams
-from .models import APIModel, registry
+from .models import APIModel, register_model, registry
 from .request_context import RequestContext
 from .tracker import StatusTracker
 
@@ -152,11 +152,14 @@ class _LLMClient(BaseModel):
         efforts: list[Literal["low", "medium", "high"] | None] = []
 
         for name in models:
-            base_name = name
+            # First, handle OpenRouter prefix
+            base_name = self._preprocess_openrouter_model(name)
+
+            # Then, handle reasoning effort suffixes
             effort: Literal["low", "medium", "high"] | None = None
             for suffix, candidate in reasoning_effort_suffixes.items():
-                if name.endswith(suffix) and len(name) > len(suffix):
-                    base_name = name[: -len(suffix)]
+                if base_name.endswith(suffix) and len(base_name) > len(suffix):
+                    base_name = base_name[: -len(suffix)]
                     effort = candidate
                     break
             normalized.append(base_name)
@@ -254,13 +257,46 @@ class _LLMClient(BaseModel):
     def models(self):
         return self.model_names  # why? idk
 
+    @staticmethod
+    def _preprocess_openrouter_model(model_name: str) -> str:
+        """Process openrouter: prefix and register model if needed."""
+        if model_name.startswith("openrouter:"):
+            slug = model_name.split(":", 1)[1]  # Everything after "openrouter:"
+            # Create a unique id by replacing slashes with hyphens
+            model_id = f"openrouter-{slug.replace('/', '-')}"
+
+            # Register the model if not already in registry
+            if model_id not in registry:
+                register_model(
+                    id=model_id,
+                    name=slug,  # The full slug sent to OpenRouter API (e.g., "openrouter/andromeda-alpha")
+                    api_base="https://openrouter.ai/api/v1",
+                    api_key_env_var="OPENROUTER_API_KEY",
+                    api_spec="openai",
+                    supports_json=True,
+                    supports_logprobs=False,
+                    supports_responses=False,
+                    input_cost=0,  # Unknown costs for generic models
+                    cached_input_cost=0,
+                    cache_write_cost=0,
+                    output_cost=0,
+                )
+
+            return model_id
+        return model_name
+
     @model_validator(mode="before")
     @classmethod
     def fix_lists(cls, data) -> "_LLMClient":
-        # Parse reasoning effort from model name suffixes (e.g., "gpt-5-high")
-        # Only applies when a single model string is provided
-        if isinstance(data.get("model_names"), str):
-            model_name = data["model_names"]
+        # Process model_names - handle both strings and lists
+        model_names = data.get("model_names")
+
+        if isinstance(model_names, str):
+            # Single model as string
+            # First, handle OpenRouter prefix
+            model_name = cls._preprocess_openrouter_model(model_names)
+
+            # Then handle reasoning effort suffix (e.g., "gpt-5-high")
             reasoning_effort_suffixes = {
                 "-low": "low",
                 "-medium": "medium",
@@ -271,14 +307,23 @@ class _LLMClient(BaseModel):
                 if model_name.endswith(suffix):
                     # Extract base model name by removing suffix
                     base_model = model_name[: -len(suffix)]
-                    data["model_names"] = base_model
+                    model_name = base_model
 
                     # Set reasoning_effort if not already explicitly set
                     if data.get("reasoning_effort") is None:
                         data["reasoning_effort"] = effort
                     break
 
-            data["model_names"] = [data["model_names"]]
+            data["model_names"] = [model_name]
+
+        elif isinstance(model_names, list):
+            # List of models - process each one
+            processed_models = []
+            for model_name in model_names:
+                # Handle OpenRouter prefix for each model
+                processed_model = cls._preprocess_openrouter_model(model_name)
+                processed_models.append(processed_model)
+            data["model_names"] = processed_models
 
         if not isinstance(data.get("sampling_params", []), list):
             data["sampling_params"] = [data["sampling_params"]]
