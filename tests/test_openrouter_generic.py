@@ -154,7 +154,7 @@ def test_generic_openrouter_with_existing_models():
 async def test_generic_openrouter_live_api():
     """Live integration test with actual OpenRouter API."""
     # Use z-ai/glm-4.6:exacto as requested - a stable model that won't be removed
-    client = LLMClient("openrouter:z-ai/glm-4.6:exacto", max_new_tokens=100)
+    client = LLMClient("openrouter:z-ai/glm-4.6:exacto", max_new_tokens=1_500)
 
     # Verify the model was registered correctly
     model_id = "openrouter-z-ai-glm-4.6:exacto"
@@ -169,6 +169,29 @@ async def test_generic_openrouter_live_api():
     assert len(results) > 0
     assert results[0].completion
     print(f"✓ Live API response: {results[0].completion}")
+
+
+async def test_generic_openrouter_suffix_in_name_live_api():
+    """Ensure slugs ending with '-high' stay intact when they are real model ids."""
+    client = LLMClient("openrouter:openai/o4-mini-high", max_new_tokens=1_500)
+
+    trimmed_candidate = "openrouter-openai-o4-mini"
+    preserved_id = "openrouter-openai-o4-mini-high"
+
+    # Trimmed version should not be auto-registered, preserved slug should be.
+    assert trimmed_candidate not in registry
+    assert preserved_id in registry
+    assert registry[preserved_id].name == "openai/o4-mini-high"
+
+    # Client should keep the preserved id and avoid setting reasoning effort.
+    assert client.model_names == [preserved_id]
+    assert client.reasoning_effort is None
+
+    # Make a simple API request to confirm the model works end-to-end.
+    results = await client.process_prompts_async(["Reply with the single word: howdy."])
+    assert results
+    assert results[0].completion
+    print(f"✓ Suffix-in-name live response: {results[0].completion}")
 
 
 async def main():
@@ -202,6 +225,10 @@ async def main():
 
     print("\nRunning test_generic_openrouter_live_api...")
     await test_generic_openrouter_live_api()
+    print("✓ Passed")
+
+    print("\nRunning test_generic_openrouter_suffix_in_name_live_api...")
+    await test_generic_openrouter_suffix_in_name_live_api()
     print("✓ Passed")
 
     print("\n✅ All tests passed!")

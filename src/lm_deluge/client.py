@@ -3,6 +3,7 @@ from typing import (
     Any,
     AsyncGenerator,
     Callable,
+    ClassVar,
     Literal,
     Self,
     Sequence,
@@ -42,6 +43,12 @@ class _LLMClient(BaseModel):
     Internal LLMClient implementation using Pydantic.
     Keeps all validation, serialization, and existing functionality.
     """
+
+    _REASONING_SUFFIXES: ClassVar[dict[str, Literal["low", "medium", "high"]]] = {
+        "-low": "low",
+        "-medium": "medium",
+        "-high": "high",
+    }
 
     model_names: str | list[str] = ["gpt-4.1-mini"]
     name: str | None = None
@@ -143,26 +150,15 @@ class _LLMClient(BaseModel):
     def _normalize_model_names(
         self, models: list[str]
     ) -> tuple[list[str], list[Literal["low", "medium", "high"] | None]]:
-        reasoning_effort_suffixes: dict[str, Literal["low", "medium", "high"]] = {
-            "-low": "low",
-            "-medium": "medium",
-            "-high": "high",
-        }
         normalized: list[str] = []
         efforts: list[Literal["low", "medium", "high"] | None] = []
 
         for name in models:
-            # First, handle OpenRouter prefix
             base_name = self._preprocess_openrouter_model(name)
-
-            # Then, handle reasoning effort suffixes
-            effort: Literal["low", "medium", "high"] | None = None
-            for suffix, candidate in reasoning_effort_suffixes.items():
-                if base_name.endswith(suffix) and len(base_name) > len(suffix):
-                    base_name = base_name[: -len(suffix)]
-                    effort = candidate
-                    break
-            normalized.append(base_name)
+            trimmed_name, effort = self.__class__._strip_reasoning_suffix_if_registered(
+                base_name
+            )
+            normalized.append(trimmed_name)
             efforts.append(effort)
 
         return normalized, efforts
@@ -297,22 +293,9 @@ class _LLMClient(BaseModel):
             model_name = cls._preprocess_openrouter_model(model_names)
 
             # Then handle reasoning effort suffix (e.g., "gpt-5-high")
-            reasoning_effort_suffixes = {
-                "-low": "low",
-                "-medium": "medium",
-                "-high": "high",
-            }
-
-            for suffix, effort in reasoning_effort_suffixes.items():
-                if model_name.endswith(suffix):
-                    # Extract base model name by removing suffix
-                    base_model = model_name[: -len(suffix)]
-                    model_name = base_model
-
-                    # Set reasoning_effort if not already explicitly set
-                    if data.get("reasoning_effort") is None:
-                        data["reasoning_effort"] = effort
-                    break
+            model_name, effort = cls._strip_reasoning_suffix_if_registered(model_name)
+            if effort and data.get("reasoning_effort") is None:
+                data["reasoning_effort"] = effort
 
             data["model_names"] = [model_name]
 
@@ -322,6 +305,9 @@ class _LLMClient(BaseModel):
             for model_name in model_names:
                 # Handle OpenRouter prefix for each model
                 processed_model = cls._preprocess_openrouter_model(model_name)
+                processed_model, _ = cls._strip_reasoning_suffix_if_registered(
+                    processed_model
+                )
                 processed_models.append(processed_model)
             data["model_names"] = processed_models
 
@@ -342,6 +328,18 @@ class _LLMClient(BaseModel):
         if len(data["model_names"]) > 1 and len(data["sampling_params"]) == 1:
             data["sampling_params"] = data["sampling_params"] * len(data["model_names"])
         return data
+
+    @classmethod
+    def _strip_reasoning_suffix_if_registered(
+        cls, model_name: str
+    ) -> tuple[str, Literal["low", "medium", "high"] | None]:
+        """Remove reasoning suffix only when the trimmed model already exists."""
+        for suffix, effort in cls._REASONING_SUFFIXES.items():
+            if model_name.endswith(suffix) and len(model_name) > len(suffix):
+                candidate = model_name[: -len(suffix)]
+                if candidate in registry:
+                    return candidate, effort
+        return model_name, None
 
     @model_validator(mode="after")
     def validate_client(self) -> Self:
