@@ -478,6 +478,8 @@ class Message:
         *,
         media_type: str | None = None,
         filename: str | None = None,
+        # remote: bool = False,
+        # provider: Literal["openai", "anthropic", "google"] | None = None,
     ) -> "Message":
         """
         Append a file block and return self for chaining.
@@ -486,6 +488,7 @@ class Message:
             file = File(data, media_type=media_type, filename=filename)
         else:
             file = data
+
         self.parts.append(file)
         return self
 
@@ -501,6 +504,30 @@ class Message:
         Append a file block and return self for chaining.
         """
         return self.with_file(data, media_type=media_type, filename=filename)
+
+    async def with_remote_file(
+        self,
+        data: bytes | str | Path | io.BytesIO | File,
+        *,
+        media_type: str | None = None,
+        filename: str | None = None,
+        provider: Literal["openai", "anthropic", "google"] = "openai",
+    ):
+        if not isinstance(data, File):
+            file = File(data, media_type=media_type, filename=filename)
+        else:
+            file = data
+
+        if not file.is_remote:
+            file = await file.as_remote(provider=provider)
+        else:
+            if file.remote_provider != provider:
+                raise ValueError(
+                    f"File is already remote with provider {file.remote_provider}, cannot change provider"
+                )
+
+        self.parts.append(file)
+        return self
 
     def with_tool_call(self, id: str, name: str, arguments: dict) -> "Message":
         """Append a tool call block and return self for chaining."""
