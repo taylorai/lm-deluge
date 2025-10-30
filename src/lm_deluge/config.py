@@ -8,7 +8,7 @@ class SamplingParams(BaseModel):
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 512
-    reasoning_effort: Literal["low", "medium", "high", "none", None] = None
+    reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
     logprobs: bool = False
     top_logprobs: int | None = None
 
