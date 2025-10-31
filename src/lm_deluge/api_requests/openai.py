@@ -184,7 +184,8 @@ class OpenAIRequest(APIRequestBase):
 
                     content = Message("assistant", parts)
 
-                    usage = Usage.from_openai_usage(data["usage"])
+                    if "usage" in data and data["usage"] is not None:
+                        usage = Usage.from_openai_usage(data["usage"])
                     if (
                         self.context.sampling_params.logprobs
                         and "logprobs" in data["choices"][0]
