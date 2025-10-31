@@ -472,7 +472,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                         content = Message("assistant", parts)
 
                         # Extract usage information
-                        if "usage" in data:
+                        if "usage" in data and data["usage"] is not None:
                             usage = Usage.from_openai_usage(data["usage"])
 
                 except Exception as e:
