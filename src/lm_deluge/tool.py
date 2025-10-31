@@ -239,6 +239,9 @@ async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
 
     tools: list[Tool] = []
     for m in metas:
+        # Extract definitions from the schema (could be $defs or definitions)
+        definitions = m.inputSchema.get("$defs") or m.inputSchema.get("definitions")
+
         tools.append(
             Tool(
                 name=m.name,
@@ -246,6 +249,7 @@ async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
                 parameters=m.inputSchema.get("properties", {}),
                 required=m.inputSchema.get("required", []),
                 additionalProperties=m.inputSchema.get("additionalProperties"),
+                definitions=definitions,
                 run=make_runner(m.name),
             )
         )
@@ -268,6 +272,8 @@ class Tool(BaseModel):
     is_built_in: bool = False
     type: str | None = None
     built_in_args: dict[str, Any] = Field(default_factory=dict)
+    # JSON Schema definitions (for $ref support)
+    definitions: dict[str, Any] | None = None
 
     @field_validator("name")
     @classmethod
@@ -562,6 +568,34 @@ class Tool(BaseModel):
         """
         return _python_type_to_json_schema_enhanced(python_type)
 
+    def _is_strict_mode_compatible(self) -> bool:
+        """
+        Check if this tool's schema is compatible with OpenAI strict mode.
+        Strict mode requires all objects to have defined properties.
+        """
+
+        def has_undefined_objects(schema: dict | list | Any) -> bool:
+            """Recursively check for objects without defined properties."""
+            if isinstance(schema, dict):
+                # Check if this is an object type without properties
+                if schema.get("type") == "object":
+                    # If additionalProperties is True or properties is missing/empty
+                    if schema.get("additionalProperties") is True:
+                        return True
+                    if "properties" not in schema or not schema["properties"]:
+                        return True
+                # Recursively check nested schemas
+                for value in schema.values():
+                    if has_undefined_objects(value):
+                        return True
+            elif isinstance(schema, list):
+                for item in schema:
+                    if has_undefined_objects(item):
+                        return True
+            return False
+
+        return not has_undefined_objects(self.parameters or {})
+
     def _json_schema(
         self, include_additional_properties=False, remove_defaults=False
     ) -> dict[str, Any]:
@@ -614,6 +648,14 @@ class Tool(BaseModel):
         else:
             processed_parameters = self.parameters
 
+        # Process definitions too
+        if self.definitions and include_additional_properties:
+            processed_definitions = _add_additional_properties_recursive(
+                self.definitions, remove_defaults
+            )
+        else:
+            processed_definitions = self.definitions
+
         res = {
             "type": "object",
             "properties": processed_parameters,
@@ -623,6 +665,10 @@ class Tool(BaseModel):
         if include_additional_properties:
             res["additionalProperties"] = False
 
+        # Include definitions if present (for $ref support)
+        if processed_definitions:
+            res["$defs"] = processed_definitions
+
         return res
 
     # ---------- dumpers ----------
@@ -631,6 +677,11 @@ class Tool(BaseModel):
     ) -> dict[str, Any]:
         if self.is_built_in:
             return {"type": self.type, **self.built_in_args, **kwargs}
+
+        # Check if schema is compatible with strict mode
+        if strict and not self._is_strict_mode_compatible():
+            strict = False
+
         if strict:
             # For strict mode, remove defaults and make all parameters required
             schema = self._json_schema(
