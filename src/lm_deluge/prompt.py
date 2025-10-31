@@ -329,6 +329,18 @@ class Message:
         """Get all thinking parts with proper typing."""
         return [part for part in self.parts if part.type == "thinking"]  # type: ignore
 
+    # @staticmethod
+    # def dump_part(part: Part):
+    #     if isinstance(value, Text):
+    #         return {"type": "text", "text": value.text}
+    #     if isinstance(value, Image):
+    #         w, h = value.size
+    #         return {"type": "image", "tag": f"<Image ({w}×{h})>"}
+    #     if isinstance(value, File):
+    #         size = value.size
+    #         return {"type": "file", "tag": f"<File ({size} bytes)>"}
+    #     return repr(value)
+
     def to_log(self) -> dict:
         """
         Return a JSON-serialisable dict that fully captures the message.

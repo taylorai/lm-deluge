@@ -90,6 +90,9 @@ def _build_anthropic_request(
         for tool in tools:
             if isinstance(tool, Tool):
                 tool_definitions.append(tool.dump_for("anthropic"))
+            elif isinstance(tool, dict) and "url" in tool:
+                _add_beta(base_headers, "mcp-client-2025-04-04")
+                mcp_servers.append(tool)
             elif isinstance(tool, dict):
                 tool_definitions.append(tool)
                 # add betas if needed
