@@ -602,7 +602,8 @@ class Tool(BaseModel):
         def _add_additional_properties_recursive(
             schema: dict | list | Any, remove_defaults: bool = False
         ) -> dict | list | Any:
-            """Recursively add additionalProperties: false to all object-type schemas."""
+            """Recursively add additionalProperties: false to all object-type schemas.
+            In strict mode (when remove_defaults=True), also makes all properties required."""
             if isinstance(schema, dict):
                 # Copy the dictionary to avoid modifying the original
                 new_schema = schema.copy()
@@ -617,6 +618,10 @@ class Tool(BaseModel):
                 # If this is an object type schema, set additionalProperties: false
                 if new_schema.get("type") == "object":
                     new_schema["additionalProperties"] = False
+
+                    # In strict mode, all properties must be required
+                    if remove_defaults and "properties" in new_schema:
+                        new_schema["required"] = list(new_schema["properties"].keys())
 
                 # Remove default values if requested (for strict mode)
                 if remove_defaults and "default" in new_schema:

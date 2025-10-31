@@ -87,6 +87,16 @@ def test_tool_with_defs():
         "default" not in search_call["properties"]["limit"]
     ), "default should be removed in strict mode"
 
+    # Verify limit was added to required (all properties must be required in strict mode)
+    assert (
+        "limit" in search_call["required"]
+    ), "limit should be in required array in strict mode"
+    assert set(search_call["required"]) == {
+        "index",
+        "queries",
+        "limit",
+    }, "all properties should be required in strict mode"
+
     print("✅ Tool with $defs serialization test passed!")
     print("\nSerialized schema:")
     print(json.dumps(openai_format, indent=2))
