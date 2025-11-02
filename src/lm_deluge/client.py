@@ -702,7 +702,7 @@ class _LLMClient(BaseModel):
 
     async def start(
         self,
-        prompt: str | Conversation,
+        prompt: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         cache: CachePattern | None = None,
@@ -780,12 +780,12 @@ class _LLMClient(BaseModel):
 
     async def stream(
         self,
-        prompt: str | Conversation,
+        prompt: Prompt,
         tools: list[Tool | dict | MCPServer] | None = None,
     ):
         model, sampling_params = self._select_model()
-        if isinstance(prompt, str):
-            prompt = Conversation.user(prompt)
+        prompt = prompts_to_conversations([prompt])[0]
+        assert isinstance(prompt, Conversation)
         async for item in stream_chat(
             model, prompt, sampling_params, tools, None, self.extra_headers
         ):
@@ -799,7 +799,7 @@ class _LLMClient(BaseModel):
 
     async def run_agent_loop(
         self,
-        conversation: str | Conversation,
+        conversation: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
@@ -812,8 +812,9 @@ class _LLMClient(BaseModel):
         instances or built‑in tool dictionaries.
         """
 
-        if isinstance(conversation, str):
-            conversation = Conversation.user(conversation)
+        if not isinstance(conversation, Conversation):
+            conversation = prompts_to_conversations([conversation])[0]
+            assert isinstance(conversation, Conversation)
 
         # Expand MCPServer objects to their constituent tools for tool execution
         expanded_tools: list[Tool] = []
@@ -870,7 +871,7 @@ class _LLMClient(BaseModel):
 
     def run_agent_loop_sync(
         self,
-        conversation: str | Conversation,
+        conversation: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
