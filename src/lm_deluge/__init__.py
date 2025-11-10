@@ -4,7 +4,13 @@ from .prompt import Conversation, Message
 from .tool import Tool, ToolParams
 
 try:
-    from .mock_openai import MockAsyncOpenAI  # noqa
+    from .mock_openai import (  # noqa
+        APIError,
+        APITimeoutError,
+        BadRequestError,
+        MockAsyncOpenAI,
+        RateLimitError,
+    )
 
     _has_openai = True
 except ImportError:
@@ -24,4 +30,12 @@ __all__ = [
 ]
 
 if _has_openai:
-    __all__.append("MockAsyncOpenAI")
+    __all__.extend(
+        [
+            "MockAsyncOpenAI",
+            "APIError",
+            "APITimeoutError",
+            "BadRequestError",
+            "RateLimitError",
+        ]
+    )

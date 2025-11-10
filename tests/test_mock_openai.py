@@ -34,7 +34,21 @@ async def test_client_structure():
     assert hasattr(client.chat.completions, "create")
     assert callable(client.chat.completions.create)
 
+    # Verify OpenAI-compatible attributes exist
+    assert hasattr(client, "base_url")
+    assert hasattr(client, "api_key")
+    assert hasattr(client, "organization")
+    assert hasattr(client, "project")
+    assert hasattr(client, "timeout")
+    assert hasattr(client, "max_retries")
+    assert hasattr(client, "default_headers")
+
+    # Verify default values
+    assert client.base_url == "https://api.openai.com/v1"
+    assert client.max_retries == 2
+
     print("   Client structure verified - has chat.completions.create")
+    print("   OpenAI-compatible attributes verified (base_url, api_key, etc.)")
 
 
 async def test_basic_completion():
@@ -308,6 +322,111 @@ async def test_json_mode():
         print(f"   ⚠️  Response was not valid JSON: {content}")
 
 
+async def test_text_completions():
+    """Test text completions API (legacy API)."""
+    print("\n✓ Testing text completions...")
+
+    # Skip if no API key
+    if not os.getenv("OPENAI_API_KEY"):
+        print("   ⚠️  Skipping: OPENAI_API_KEY not set")
+        return
+
+    client = MockAsyncOpenAI(model="gpt-4o-mini")
+    response = await client.completions.create(
+        model="gpt-4o-mini",
+        prompt="Say hello in one word:",
+        temperature=0.0,
+        max_tokens=10,
+    )
+
+    assert isinstance(response, __import__("openai").types.Completion)
+    assert response.object == "text_completion"
+    assert len(response.choices) == 1
+    assert response.choices[0].text is not None
+    print(f"   Text completion: {response.choices[0].text}")
+
+
+async def test_close_method():
+    """Test that close() method exists and works."""
+    print("\n✓ Testing close() method...")
+
+    client = MockAsyncOpenAI(model="gpt-4o-mini")
+    # Should not raise an error
+    await client.close()
+    print("   close() method works")
+
+
+async def test_subclassing():
+    """Test that MockAsyncOpenAI can be subclassed."""
+    print("\n✓ Testing subclassing...")
+
+    class CustomClient(MockAsyncOpenAI):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.custom_attr = "custom"
+
+    client = CustomClient(model="gpt-4o-mini", api_key="test-key")
+    assert client.custom_attr == "custom"
+    assert client.api_key == "test-key"
+    assert hasattr(client, "chat")
+    print("   Subclassing works correctly")
+
+
+async def test_http_client_parameter():
+    """Test that http_client parameter is accepted."""
+    print("\n✓ Testing http_client parameter...")
+
+    # Mock http client
+    class MockHttpClient:
+        pass
+
+    http_client = MockHttpClient()
+    client = MockAsyncOpenAI(model="gpt-4o-mini", http_client=http_client)
+    assert client.http_client is http_client
+    print("   http_client parameter works")
+
+
+async def test_exception_imports():
+    """Test that OpenAI exceptions are available."""
+    print("\n✓ Testing exception imports...")
+
+    from lm_deluge.mock_openai import (
+        APIError,
+        APITimeoutError,
+        BadRequestError,
+        RateLimitError,
+    )
+
+    # Verify they are the right types
+    assert APIError is not None
+    assert APITimeoutError is not None
+    assert BadRequestError is not None
+    assert RateLimitError is not None
+    print("   All exception types imported successfully")
+
+
+async def test_verifiers_like_initialization():
+    """Test initialization pattern used by Verifiers library."""
+    print("\n✓ Testing Verifiers-like initialization...")
+
+    # Simulate Verifiers initialization pattern
+    client = MockAsyncOpenAI(
+        base_url="https://api.openai.com/v1",
+        api_key="test-key",
+        max_retries=3,
+        http_client=None,
+    )
+
+    # Verify attributes
+    assert str(client.base_url) == "https://api.openai.com/v1"
+    assert client.api_key == "test-key"
+    assert client.max_retries == 3
+
+    print(f"   base_url: {client.base_url}")
+    print(f"   api_key: {client.api_key}")
+    print("   Verifiers-like initialization works")
+
+
 async def run_all_tests():
     """Run all tests."""
     print("=" * 60)
@@ -315,7 +434,14 @@ async def run_all_tests():
     print("=" * 60)
 
     tests = [
-        test_client_structure,  # No API key needed
+        # No API key needed
+        test_client_structure,
+        test_close_method,
+        test_subclassing,
+        test_http_client_parameter,
+        test_exception_imports,
+        test_verifiers_like_initialization,
+        # API key needed
         test_basic_completion,
         test_streaming,
         test_tool_calling,
@@ -324,6 +450,7 @@ async def run_all_tests():
         test_multi_turn_conversation,
         test_with_different_provider,
         test_json_mode,
+        test_text_completions,
     ]
 
     failed = []

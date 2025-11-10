@@ -25,13 +25,20 @@ import uuid
 from typing import Any, AsyncIterator, Literal, Union, overload
 
 try:
+    from openai import (
+        APIError,
+        APITimeoutError,
+        BadRequestError,
+        RateLimitError,
+    )
+    from openai.types import Completion
     from openai.types.chat import (
         ChatCompletion,
         ChatCompletionChunk,
         ChatCompletionMessage,
         ChatCompletionMessageToolCall,
     )
-    from openai.types.chat.chat_completion import Choice as CompletionChoice
+    from openai.types.chat.chat_completion import Choice as ChatCompletionChoice
     from openai.types.chat.chat_completion_chunk import (
         Choice as ChunkChoice,
         ChoiceDelta,
@@ -39,12 +46,22 @@ try:
         ChoiceDeltaToolCallFunction,
     )
     from openai.types.chat.chat_completion_message_tool_call import Function
+    from openai.types.completion_choice import CompletionChoice as TextCompletionChoice
     from openai.types.completion_usage import CompletionUsage
 except ImportError:
     raise ImportError(
         "The openai package is required to use MockAsyncOpenAI. "
         "Install it with: pip install lm-deluge[openai]"
     )
+
+# Re-export exceptions for compatibility
+__all__ = [
+    "MockAsyncOpenAI",
+    "APIError",
+    "APITimeoutError",
+    "BadRequestError",
+    "RateLimitError",
+]
 
 from lm_deluge.client import LLMClient
 from lm_deluge.prompt import Conversation, Message, Part, Text, ToolCall, ToolResult
@@ -114,7 +131,7 @@ def _response_to_chat_completion(
             role="assistant",
             content=response.error_message or "Error occurred",
         )
-        choice = CompletionChoice(
+        choice = ChatCompletionChoice(
             index=0,
             message=message,
             finish_reason="stop",  # or could use "error" but that's not standard
@@ -164,7 +181,7 @@ def _response_to_chat_completion(
     )
 
     # Create choice
-    choice = CompletionChoice(
+    choice = ChatCompletionChoice(
         index=0,
         message=message,
         finish_reason=response.finish_reason or "stop",
@@ -383,6 +400,105 @@ class MockCompletions:
             return _response_to_chat_completion(response, model)
 
 
+class MockTextCompletions:
+    """Mock text completions resource for legacy completions API."""
+
+    def __init__(self, parent: "MockAsyncOpenAI"):
+        self._parent = parent
+
+    async def create(
+        self,
+        *,
+        model: str,
+        prompt: str | list[str],
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        top_p: float | None = None,
+        seed: int | None = None,
+        n: int | None = None,
+        stop: str | list[str] | None = None,
+        **kwargs: Any,
+    ) -> Completion:
+        """
+        Create a text completion using lm-deluge's LLMClient.
+
+        Args:
+            model: Model identifier
+            prompt: Text prompt or list of prompts
+            temperature: Sampling temperature
+            max_tokens: Max tokens to generate
+            top_p: Nucleus sampling parameter
+            seed: Random seed
+            n: Number of completions (currently ignored, always returns 1)
+            stop: Stop sequences
+            **kwargs: Other parameters
+
+        Returns:
+            Completion object
+        """
+        # Get or create client for this model
+        client = self._parent._get_or_create_client(model)
+
+        # Handle single prompt
+        if isinstance(prompt, list):
+            # For now, just use the first prompt
+            prompt = prompt[0] if prompt else ""
+
+        # Convert prompt to Conversation
+        conversation = Conversation([Message(role="user", parts=[Text(prompt)])])
+
+        # Build sampling params
+        sampling_kwargs = {}
+        if temperature is not None:
+            sampling_kwargs["temperature"] = temperature
+        if max_tokens is not None:
+            sampling_kwargs["max_new_tokens"] = max_tokens
+        if top_p is not None:
+            sampling_kwargs["top_p"] = top_p
+        if seed is not None:
+            sampling_kwargs["seed"] = seed
+
+        # Create client with merged params if needed
+        if sampling_kwargs:
+            merged_params = {**self._parent._default_sampling_params, **sampling_kwargs}
+            client = self._parent._create_client_with_params(model, merged_params)
+
+        # Execute request
+        response = await client.start(conversation)
+
+        # Convert to Completion format
+        completion_text = None
+        if response.content:
+            text_parts = [p.text for p in response.content.parts if isinstance(p, Text)]
+            if text_parts:
+                completion_text = "".join(text_parts)
+
+        # Create choice
+        choice = TextCompletionChoice(
+            index=0,
+            text=completion_text or "",
+            finish_reason=response.finish_reason or "stop",
+        )
+
+        # Create usage
+        usage = None
+        if response.usage:
+            usage = CompletionUsage(
+                prompt_tokens=response.usage.input_tokens,
+                completion_tokens=response.usage.output_tokens,
+                total_tokens=response.usage.input_tokens + response.usage.output_tokens,
+            )
+
+        return Completion(
+            id=f"cmpl-{uuid.uuid4().hex[:24]}",
+            choices=[choice],
+            created=int(time.time()),
+            model=model,
+            object="text_completion",
+            usage=usage,
+        )
+
+
 class MockChat:
     """Mock chat resource that provides access to completions."""
 
@@ -414,23 +530,50 @@ class MockAsyncOpenAI:
 
     Args:
         model: Default model to use (can be overridden in create())
+        api_key: API key (optional, for compatibility)
+        organization: Organization ID (optional, for compatibility)
+        project: Project ID (optional, for compatibility)
+        base_url: Base URL (defaults to OpenAI's URL for compatibility)
+        timeout: Request timeout (optional, for compatibility)
+        max_retries: Max retries (defaults to 2 for compatibility)
+        default_headers: Default headers (optional, for compatibility)
         temperature: Default temperature
         max_completion_tokens: Default max completion tokens
         top_p: Default top_p
+        seed: Default seed for deterministic sampling
         **kwargs: Additional parameters passed to LLMClient
     """
 
     def __init__(
         self,
         *,
-        model: str,
+        model: str | None = None,
+        api_key: str | None = None,
+        organization: str | None = None,
+        project: str | None = None,
+        base_url: str | None = None,
+        timeout: float | None = None,
+        max_retries: int | None = None,
+        default_headers: dict[str, str] | None = None,
+        http_client: Any | None = None,
         temperature: float | None = None,
         max_completion_tokens: int | None = None,
         top_p: float | None = None,
         seed: int | None = None,
         **kwargs: Any,
     ):
-        self._default_model = model
+        # OpenAI-compatible attributes
+        self.api_key = api_key
+        self.organization = organization
+        self.project = project
+        self.base_url = base_url or "https://api.openai.com/v1"
+        self.timeout = timeout
+        self.max_retries = max_retries or 2
+        self.default_headers = default_headers
+        self.http_client = http_client
+
+        # Internal attributes
+        self._default_model = model or "gpt-4o-mini"
         self._default_sampling_params = {}
 
         if temperature is not None:
@@ -449,10 +592,11 @@ class MockAsyncOpenAI:
         self._clients: dict[str, Any] = {}
 
         # Create the default client
-        self._clients[model] = self._create_client(model)
+        self._clients[self._default_model] = self._create_client(self._default_model)
 
         # Create nested resources
         self._chat = MockChat(self)
+        self._completions = MockTextCompletions(self)
 
     def _create_client(self, model: str) -> Any:
         """Create a new LLMClient for the given model."""
@@ -480,3 +624,18 @@ class MockAsyncOpenAI:
     def chat(self) -> MockChat:
         """Access the chat resource."""
         return self._chat
+
+    @property
+    def completions(self) -> MockTextCompletions:
+        """Access the text completions resource."""
+        return self._completions
+
+    async def close(self) -> None:
+        """
+        Close the client and clean up resources.
+
+        This is provided for compatibility with AsyncOpenAI's close() method.
+        Currently a no-op as LLMClient instances don't need explicit cleanup.
+        """
+        # No cleanup needed for LLMClient instances
+        pass
