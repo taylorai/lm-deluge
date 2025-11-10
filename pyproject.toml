@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "lm_deluge"
-version = "0.0.67"
+version = "0.0.69"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
@@ -31,6 +31,9 @@ dependencies = [
     "rich",
     # "textual>=0.58.0"
 ]
+
+[project.optional-dependencies]
+openai = ["openai>=1.0.0"]
 
 # [project.scripts]
 # deluge = "lm_deluge.cli:main"

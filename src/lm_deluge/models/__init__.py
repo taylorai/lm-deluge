@@ -15,7 +15,9 @@ from .fireworks import FIREWORKS_MODELS
 from .google import GOOGLE_MODELS
 from .grok import XAI_MODELS
 from .groq import GROQ_MODELS
+from .kimi import KIMI_MODELS
 from .meta import META_MODELS
+from .minimax import MINIMAX_MODELS
 from .mistral import MISTRAL_MODELS
 from .openai import OPENAI_MODELS
 from .openrouter import OPENROUTER_MODELS
@@ -132,7 +134,9 @@ for model_dict in [
     FIREWORKS_MODELS,
     GOOGLE_MODELS,
     XAI_MODELS,
+    KIMI_MODELS,
     META_MODELS,
+    MINIMAX_MODELS,
     MISTRAL_MODELS,
     OPENAI_MODELS,
     OPENROUTER_MODELS,

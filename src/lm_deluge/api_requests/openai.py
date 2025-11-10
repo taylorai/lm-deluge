@@ -381,7 +381,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                         output = data.get("output", [])
                         if not output:
                             is_error = True
-                            error_message = "No output in response"
+                            error_message = f"No output in response. Status: {data.get('status')}, error: {data.get('error')}, incomplete details: {data.get('incomplete_details')}"
                         else:
                             # Process each output item
                             for item in output:
