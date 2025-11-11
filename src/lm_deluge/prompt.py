@@ -848,14 +848,16 @@ class Conversation:
             if content is None:
                 return parts
             if isinstance(content, str):
-                parts.append(Text(content))
+                if content.strip():
+                    parts.append(Text(content))
                 return parts
 
             for block in content:
                 block_type = block.get("type")
                 if block_type in text_types:
                     text_value = block.get("text") or block.get(block_type) or ""
-                    parts.append(Text(text_value))
+                    if text_value.strip():
+                        parts.append(Text(text_value))
                 elif block_type in image_types:
                     parts.append(_to_image_from_url(block))
                 elif block_type in file_types:
@@ -1001,7 +1003,8 @@ class Conversation:
                             )
                         )
 
-            conversation_messages.append(Message(mapped_role, parts))
+            if parts:
+                conversation_messages.append(Message(mapped_role, parts))
 
         return cls(conversation_messages)
 

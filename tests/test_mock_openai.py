@@ -427,6 +427,107 @@ async def test_verifiers_like_initialization():
     print("   Verifiers-like initialization works")
 
 
+async def test_tool_conversion():
+    """Test that OpenAI tools are converted to lm-deluge format."""
+    print("\n✓ Testing tool conversion...")
+
+    from lm_deluge.mock_openai import _openai_tools_to_lm_deluge
+
+    # OpenAI tool format
+    openai_tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get the weather for a location",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "location": {
+                            "type": "string",
+                            "description": "The city name",
+                        },
+                        "units": {
+                            "type": "string",
+                            "enum": ["celsius", "fahrenheit"],
+                        },
+                    },
+                    "required": ["location"],
+                },
+            },
+        }
+    ]
+
+    # Convert to lm-deluge format
+    lm_tools = _openai_tools_to_lm_deluge(openai_tools)
+
+    # Verify conversion
+    assert len(lm_tools) == 1
+    tool = lm_tools[0]
+    assert tool.name == "get_weather"
+    assert tool.description == "Get the weather for a location"
+    assert "location" in tool.parameters
+    assert "units" in tool.parameters
+    assert tool.required == ["location"]
+
+    print("   Tool conversion works correctly")
+    print(f"   Tool name: {tool.name}")
+    print(f"   Parameters: {list(tool.parameters.keys())}")
+
+
+async def test_tool_result_role_conversion():
+    """Test that tool result messages are converted from role='tool' to role='user'."""
+    print("\n✓ Testing tool result role conversion...")
+
+    from lm_deluge.mock_openai import _messages_to_conversation
+
+    # OpenAI format with tool call and result
+    openai_messages = [
+        {"role": "user", "content": "What's the weather?"},
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_123",
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "arguments": '{"location": "NYC"}',
+                    },
+                }
+            ],
+        },
+        {
+            "role": "tool",
+            "tool_call_id": "call_123",
+            "content": "The weather is sunny, 72°F",
+        },
+        {"role": "assistant", "content": "The weather in NYC is sunny and 72°F."},
+    ]
+
+    # Convert to lm-deluge format
+    conversation = _messages_to_conversation(openai_messages)
+
+    # Verify conversion
+    assert len(conversation.messages) == 4
+    assert conversation.messages[0].role == "user"
+    assert conversation.messages[1].role == "assistant"
+    # The tool result message should be converted to role="user" (not "tool")
+    assert (
+        conversation.messages[2].role == "user"
+    ), "Tool result should be in user message"
+    # Message should have ONLY the ToolResult part (not Text)
+    assert len(conversation.messages[2].parts) == 1
+    assert hasattr(conversation.messages[2].parts[0], "tool_call_id")
+    assert conversation.messages[2].parts[0].tool_call_id == "call_123"
+    assert conversation.messages[2].parts[0].result == "The weather is sunny, 72°F"
+    assert conversation.messages[3].role == "assistant"
+
+    print("   Tool result role conversion works correctly")
+    print("   OpenAI role='tool' → lm-deluge role='user' ✓")
+
+
 async def run_all_tests():
     """Run all tests."""
     print("=" * 60)
@@ -441,6 +542,8 @@ async def run_all_tests():
         test_http_client_parameter,
         test_exception_imports,
         test_verifiers_like_initialization,
+        test_tool_conversion,
+        test_tool_result_role_conversion,
         # API key needed
         test_basic_completion,
         test_streaming,

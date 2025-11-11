@@ -41,6 +41,8 @@ try:
     from openai.types.chat.chat_completion import Choice as ChatCompletionChoice
     from openai.types.chat.chat_completion_chunk import (
         Choice as ChunkChoice,
+    )
+    from openai.types.chat.chat_completion_chunk import (
         ChoiceDelta,
         ChoiceDeltaToolCall,
         ChoiceDeltaToolCallFunction,
@@ -63,56 +65,61 @@ __all__ = [
     "RateLimitError",
 ]
 
-from lm_deluge.client import LLMClient
-from lm_deluge.prompt import Conversation, Message, Part, Text, ToolCall, ToolResult
+from lm_deluge.client import LLMClient, _LLMClient
+from lm_deluge.prompt import CachePattern, Conversation, Message, Text, ToolCall
+from lm_deluge.tool import Tool
+
+
+def _openai_tools_to_lm_deluge(tools: list[dict[str, Any]]) -> list[Tool]:
+    """
+    Convert OpenAI tool format to lm-deluge Tool objects.
+
+    OpenAI format:
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get weather",
+                "parameters": {
+                    "type": "object",
+                    "properties": {...},
+                    "required": [...]
+                }
+            }
+        }
+
+    lm-deluge format:
+        Tool(
+            name="get_weather",
+            description="Get weather",
+            parameters={...properties...},
+            required=[...]
+        )
+    """
+    lm_tools = []
+    for tool in tools:
+        if tool.get("type") == "function":
+            func = tool["function"]
+            params_schema = func.get("parameters", {})
+
+            # Extract properties and required from the parameters schema
+            properties = params_schema.get("properties", {})
+            required = params_schema.get("required", [])
+
+            lm_tool = Tool(
+                name=func["name"],
+                description=func.get("description"),
+                parameters=properties if properties else None,
+                required=required,
+            )
+            lm_tools.append(lm_tool)
+
+    return lm_tools
 
 
 def _messages_to_conversation(messages: list[dict[str, Any]]) -> Conversation:
     """Convert OpenAI messages format to lm-deluge Conversation."""
-    conv_messages = []
-
-    for msg in messages:
-        role = msg["role"]
-        content = msg.get("content")
-        tool_calls = msg.get("tool_calls")
-        tool_call_id = msg.get("tool_call_id")
-
-        parts: list[Part] = []
-
-        # Handle regular content
-        if content:
-            if isinstance(content, str):
-                parts.append(Text(content))
-            elif isinstance(content, list):
-                # Multi-part content (text, images, etc.)
-                for item in content:
-                    if item.get("type") == "text":
-                        parts.append(Text(item["text"]))
-                    # Could add image support here later
-
-        # Handle tool calls (from assistant)
-        if tool_calls:
-            for tc in tool_calls:
-                # Parse arguments from JSON string to dict
-                args_str = tc["function"]["arguments"]
-                args_dict = (
-                    json.loads(args_str) if isinstance(args_str, str) else args_str
-                )
-                parts.append(
-                    ToolCall(
-                        id=tc["id"],
-                        name=tc["function"]["name"],
-                        arguments=args_dict,
-                    )
-                )
-
-        # Handle tool results (from tool role)
-        if role == "tool" and tool_call_id:
-            parts.append(ToolResult(tool_call_id=tool_call_id, result=content or ""))
-
-        conv_messages.append(Message(role=role, parts=parts))
-
-    return Conversation(messages=conv_messages)
+    return Conversation.from_openai_chat(messages)
 
 
 def _response_to_chat_completion(
@@ -346,7 +353,7 @@ class MockCompletions:
             ChatCompletion (non-streaming) or AsyncIterator[ChatCompletionChunk] (streaming)
         """
         # Get or create client for this model
-        client = self._parent._get_or_create_client(model)
+        client: _LLMClient = self._parent._get_or_create_client(model)
 
         # Convert messages to Conversation
         conversation = _messages_to_conversation(messages)
@@ -377,26 +384,19 @@ class MockCompletions:
         # Convert tools if provided
         lm_tools = None
         if tools:
-            # For now, just pass through - lm-deluge will handle the format
-            lm_tools = tools
+            # Convert from OpenAI format to lm-deluge Tool objects
+            lm_tools = _openai_tools_to_lm_deluge(tools)
 
         # Execute request
         if stream:
-            # Streaming mode
-            request_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
-            # Note: client.stream() is an async generator, not a coroutine
-            # We can directly wrap it
-            stream_iter = client.stream(conversation, tools=lm_tools)
-            # Verify it's a generator, not a coroutine
-            if hasattr(stream_iter, "__anext__"):
-                return _AsyncStreamWrapper(stream_iter, model, request_id)
-            else:
-                # If it's a coroutine, we need to await it first
-                # But this shouldn't happen with the current implementation
-                raise TypeError(f"Expected async generator, got {type(stream_iter)}")
+            raise RuntimeError("streaming not supported")
         else:
             # Non-streaming mode
-            response = await client.start(conversation, tools=lm_tools)
+            response = await client.start(
+                conversation,
+                tools=lm_tools,  # type: ignore
+                cache=self._parent.cache_pattern,  # type: ignore
+            )
             return _response_to_chat_completion(response, model)
 
 
@@ -437,7 +437,7 @@ class MockTextCompletions:
             Completion object
         """
         # Get or create client for this model
-        client = self._parent._get_or_create_client(model)
+        client: _LLMClient = self._parent._get_or_create_client(model)
 
         # Handle single prompt
         if isinstance(prompt, list):
@@ -464,7 +464,7 @@ class MockTextCompletions:
             client = self._parent._create_client_with_params(model, merged_params)
 
         # Execute request
-        response = await client.start(conversation)
+        response = await client.start(conversation, cache=self._parent.cache_pattern)  # type: ignore
 
         # Convert to Completion format
         completion_text = None
@@ -477,7 +477,7 @@ class MockTextCompletions:
         choice = TextCompletionChoice(
             index=0,
             text=completion_text or "",
-            finish_reason=response.finish_reason or "stop",
+            finish_reason=response.finish_reason or "stop",  # type: ignore
         )
 
         # Create usage
@@ -560,6 +560,7 @@ class MockAsyncOpenAI:
         max_completion_tokens: int | None = None,
         top_p: float | None = None,
         seed: int | None = None,
+        cache_pattern: CachePattern | None = None,
         **kwargs: Any,
     ):
         # OpenAI-compatible attributes
@@ -571,6 +572,7 @@ class MockAsyncOpenAI:
         self.max_retries = max_retries or 2
         self.default_headers = default_headers
         self.http_client = http_client
+        self.cache_pattern = cache_pattern
 
         # Internal attributes
         self._default_model = model or "gpt-4o-mini"
