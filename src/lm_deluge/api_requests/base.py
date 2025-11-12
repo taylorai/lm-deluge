@@ -90,9 +90,32 @@ class APIRequestBase(ABC):
         start -> poll -> result style of request.
         """
         assert self.context.status_tracker, "no status tracker"
-        start_time = time.time()
+        poll_interval = 5.0
+        attempt_start = time.monotonic()
+        deadline = attempt_start + self.context.request_timeout
+        response_id: str | None = None
+        last_status: str | None = None
+
         async with aiohttp.ClientSession() as session:
-            last_status: str | None = None
+
+            async def cancel_response(reason: str) -> None:
+                nonlocal response_id
+                if not response_id:
+                    return
+                cancel_url = f"{self.url}/{response_id}/cancel"
+                try:
+                    async with session.post(
+                        url=cancel_url,
+                        headers=self.request_header,
+                    ) as cancel_response:
+                        cancel_response.raise_for_status()
+                    print(f"Background req {response_id} cancelled: {reason}")
+                except (
+                    Exception
+                ) as cancel_err:  # pragma: no cover - best effort logging
+                    print(
+                        f"Failed to cancel background req {response_id}: {cancel_err}"
+                    )
 
             try:
                 self.context.status_tracker.total_requests += 1
@@ -109,14 +132,11 @@ class APIRequestBase(ABC):
                     last_status = data["status"]
 
                 while True:
-                    if time.time() - start_time > self.context.request_timeout:
-                        # cancel the response
-                        async with session.post(
-                            url=f"{self.url}/{response_id}/cancel",
-                            headers=self.request_header,
-                        ) as http_response:
-                            http_response.raise_for_status()
-
+                    now = time.monotonic()
+                    remaining = deadline - now
+                    if remaining <= 0:
+                        elapsed = now - attempt_start
+                        await cancel_response(f"timed out after {elapsed:.1f}s")
                         return APIResponse(
                             id=self.context.task_id,
                             model_internal=self.context.model_name,
@@ -128,8 +148,9 @@ class APIRequestBase(ABC):
                             content=None,
                             usage=None,
                         )
+
                     # poll for the response
-                    await asyncio.sleep(5.0)
+                    await asyncio.sleep(min(poll_interval, max(remaining, 0)))
                     async with session.get(
                         url=f"{self.url}/{response_id}",
                         headers=self.request_header,
@@ -146,6 +167,8 @@ class APIRequestBase(ABC):
                             return await self.handle_response(http_response)
 
             except Exception as e:
+                if response_id:
+                    await cancel_response(f"errored: {type(e).__name__}")
                 raise_if_modal_exception(e)
                 tb = traceback.format_exc()
                 print(tb)
