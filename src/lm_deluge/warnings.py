@@ -7,6 +7,8 @@ WARNINGS: dict[str, str] = {
     "WARN_REASONING_UNSUPPORTED": "Ignoring reasoning_effort param for non-reasoning model: {model_name}.",
     "WARN_CACHING_UNSUPPORTED": "Cache parameter '{cache_param}' is not supported, ignoring for {model_name}.",
     "WARN_LOGPROBS_UNSUPPORTED": "Ignoring logprobs param for non-logprobs model: {model_name}",
+    "WARN_MINIMAL_TO_LOW": "'minimal' reasoning effort only allowed for gpt-5 models. Setting to 'low' for {model_name}.",
+    "WARN_MINIMAL_TO_NONE": "GPT-5.1 models don't support 'minimal' reasoning effort. Converting to 'none' for {model_name}.",
 }
 
 

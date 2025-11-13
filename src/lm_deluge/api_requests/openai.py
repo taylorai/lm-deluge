@@ -67,10 +67,12 @@ async def _build_oa_chat_request(
                 effort = "minimal"
             else:
                 effort = "low"
-        if effort == "minimal" and "gpt-5" not in model.id:
-            print(
-                "WARNING: 'minimal' reasoning effort only allowed for gpt-5. setting to 'low'."
-            )
+        # GPT-5.1 models don't support 'minimal', they support 'none' instead
+        if effort == "minimal" and "gpt-5.1" in model.id:
+            maybe_warn("WARN_MINIMAL_TO_NONE", model_name=context.model_name)
+            effort = "none"
+        elif effort == "minimal" and "gpt-5" not in model.id:
+            maybe_warn("WARN_MINIMAL_TO_LOW", model_name=context.model_name)
             effort = "low"
         request_json["reasoning_effort"] = effort
     else:
@@ -271,16 +273,24 @@ async def _build_oa_responses_request(
         request_json["max_output_tokens"] = sampling_params.max_new_tokens
 
     if model.reasoning_model:
-        if sampling_params.reasoning_effort in [None, "none"]:
+        effort = sampling_params.reasoning_effort
+        if effort in [None, "none"]:
             # gemini models can switch reasoning off
             if "gemini" in model.id:
-                sampling_params.reasoning_effort = "none"
+                effort = "none"
             else:
-                sampling_params.reasoning_effort = "low"
+                effort = "low"
+        # GPT-5.1 models don't support 'minimal', they support 'none' instead
+        if effort == "minimal" and "gpt-5.1" in model.id:
+            maybe_warn("WARN_MINIMAL_TO_NONE", model_name=context.model_name)
+            effort = "none"
+        elif effort == "minimal" and "gpt-5" not in model.id:
+            maybe_warn("WARN_MINIMAL_TO_LOW", model_name=context.model_name)
+            effort = "low"
         request_json["temperature"] = 1.0
         request_json["top_p"] = 1.0
         request_json["reasoning"] = {
-            "effort": sampling_params.reasoning_effort,
+            "effort": effort,
             "summary": "auto",
         }
     else:

@@ -44,10 +44,14 @@ class _LLMClient(BaseModel):
     Keeps all validation, serialization, and existing functionality.
     """
 
-    _REASONING_SUFFIXES: ClassVar[dict[str, Literal["low", "medium", "high"]]] = {
+    _REASONING_SUFFIXES: ClassVar[
+        dict[str, Literal["low", "medium", "high", "minimal", "none"]]
+    ] = {
         "-low": "low",
         "-medium": "medium",
         "-high": "high",
+        "-minimal": "minimal",
+        "-none": "none",
     }
 
     model_names: str | list[str] = ["gpt-4.1-mini"]
@@ -149,9 +153,11 @@ class _LLMClient(BaseModel):
 
     def _normalize_model_names(
         self, models: list[str]
-    ) -> tuple[list[str], list[Literal["low", "medium", "high"] | None]]:
+    ) -> tuple[
+        list[str], list[Literal["low", "medium", "high", "minimal", "none"] | None]
+    ]:
         normalized: list[str] = []
-        efforts: list[Literal["low", "medium", "high"] | None] = []
+        efforts: list[Literal["low", "medium", "high", "minimal", "none"] | None] = []
 
         for name in models:
             base_name = self._preprocess_openrouter_model(name)
@@ -164,7 +170,10 @@ class _LLMClient(BaseModel):
         return normalized, efforts
 
     def _align_sampling_params(
-        self, per_model_efforts: list[Literal["low", "medium", "high"] | None]
+        self,
+        per_model_efforts: list[
+            Literal["low", "medium", "high", "minimal", "none"] | None
+        ],
     ) -> None:
         if len(per_model_efforts) < len(self.model_names):
             per_model_efforts = per_model_efforts + [None] * (
@@ -332,7 +341,7 @@ class _LLMClient(BaseModel):
     @classmethod
     def _strip_reasoning_suffix_if_registered(
         cls, model_name: str
-    ) -> tuple[str, Literal["low", "medium", "high"] | None]:
+    ) -> tuple[str, Literal["low", "medium", "high", "minimal", "none"] | None]:
         """Remove reasoning suffix only when the trimmed model already exists."""
         for suffix, effort in cls._REASONING_SUFFIXES.items():
             if model_name.endswith(suffix) and len(model_name) > len(suffix):
@@ -364,6 +373,15 @@ class _LLMClient(BaseModel):
             assert (
                 self.use_responses_api
             ), "background mode only allowed for responses api"
+
+        # codex models require responses api
+        for model_name in self.model_names:
+            if "codex" in model_name.lower() and not self.use_responses_api:
+                raise ValueError(
+                    f"Model '{model_name}' requires use_responses_api=True. "
+                    "Codex models are only available via the Responses API."
+                )
+
         # Auto-generate name if not provided
         if self.name is None:
             if len(self.model_names) == 1:
