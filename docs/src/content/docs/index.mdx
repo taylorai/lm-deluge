@@ -1,0 +1,58 @@
+---
+title: LM Deluge
+description: A lightweight Python library for maxing out your rate limits with LLM providers.
+template: splash
+hero:
+  tagline: Max out your rate limits with massive concurrency and intelligent throttling
+  image:
+    file: ../../assets/houston.webp
+  actions:
+    - text: Get Started
+      link: /getting-started/quickstart/
+      icon: right-arrow
+    - text: View on GitHub
+      link: https://github.com/trytaylor/lm-deluge
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Key Features
+
+<CardGrid stagger>
+	<Card title="Unified Client" icon="puzzle">
+		Send prompts to all major LLM providers (OpenAI, Anthropic, Google, Cohere) with a single client interface.
+	</Card>
+	<Card title="Massive Concurrency" icon="rocket">
+		Set max_tokens_per_minute and max_requests_per_minute, then let it fly. Automatic throttling and retry logic.
+	</Card>
+	<Card title="Spray Across Models" icon="random">
+		Configure multiple models from any provider(s) with sampling weights. The client samples a model for each request.
+	</Card>
+	<Card title="Tool Use & MCP" icon="seti:config">
+		Unified API for tools across all providers. Instantiate tools from MCP servers with built-in call interfaces.
+	</Card>
+	<Card title="Convenient Messages" icon="comment">
+		No more looking up how to build messages lists. Conversation and Message classes work seamlessly.
+	</Card>
+	<Card title="Caching" icon="magnifier">
+		Save completions in local or distributed cache to avoid repeated LLM calls on the same input.
+	</Card>
+</CardGrid>
+
+## Quick Example
+
+```python
+from lm_deluge import LLMClient
+
+client = LLMClient("gpt-4o-mini")
+resps = client.process_prompts_sync(["Hello, world!"])
+print(resps[0].completion)
+```
+
+## Why LM Deluge?
+
+LM Deluge is designed for **batch inference at scale**. If you need to process thousands of prompts as fast as possible while respecting rate limits, this is for you. It's not for streaming chat applications - there are plenty of other packages for that.
+
+The library handles all the complexity of rate limiting, retries, and provider-specific quirks so you can focus on your application logic.
