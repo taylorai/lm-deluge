@@ -5,15 +5,20 @@ description: How to install and set up LM Deluge
 
 ## Installation
 
-Install LM Deluge using pip:
+Install LM Deluge using pip (Python 3.10+):
 
 ```bash
-pip install lm-deluge
+python -m pip install -U lm-deluge
 ```
+
+Optional extras:
+
+- `pip install plyvel` if you want LevelDB-backed local caching
+- `pip install pdf2image pillow` if you plan to turn PDFs into images via `Image.from_pdf`
 
 ## API Keys
 
-The package relies on environment variables for API keys. We recommend using a `.env` file in your project root. `LLMClient` will automatically load the `.env` file when imported.
+LM Deluge reads API keys from environment variables so the client can contact each provider directly. Load them at process startup (for example with [`python-dotenv`](https://pypi.org/project/python-dotenv/)) and pass the values down to your workers, CLI scripts, or notebook kernels.
 
 ### Required Environment Variables
 
@@ -26,16 +31,18 @@ OPENAI_API_KEY=sk-...
 # Anthropic
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Google AI Studio
-GOOGLE_API_KEY=...
+# Google AI Studio (Gemini)
+GEMINI_API_KEY=...
 
 # Cohere
 COHERE_API_KEY=...
 
-# Meta
-META_API_KEY=...
+# OpenRouter (any model prefixed with openrouter:)
+OPENROUTER_API_KEY=...
 
-# AWS Bedrock
+# Meta, Groq, DeepSeek, etc. use provider-specific keys defined in src/lm_deluge/models
+
+# AWS Bedrock (for Amazon-hosted Anthropic and Meta models)
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 ```
@@ -48,7 +55,15 @@ Create a `.env` file in your project root:
 # .env
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=...
+GEMINI_API_KEY=...
+```
+
+Load the file inside your application:
+
+```python
+import dotenv
+
+dotenv.load_dotenv()
 ```
 
 ## Verification
@@ -56,11 +71,14 @@ GOOGLE_API_KEY=...
 Verify your installation by running a simple test:
 
 ```python
+import dotenv
 from lm_deluge import LLMClient
 
-client = LLMClient("gpt-4o-mini")
-resp = client.process_prompts_sync(["Say hello!"])
-print(resp[0].completion)
+dotenv.load_dotenv()
+
+client = LLMClient("gpt-4.1-mini")
+responses = client.process_prompts_sync(["Say hello!"])
+print(responses[0].completion)
 ```
 
 If you see a response from the model, you're all set!

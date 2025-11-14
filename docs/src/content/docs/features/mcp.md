@@ -18,36 +18,43 @@ The Model Context Protocol (MCP) is a standard for exposing tools and resources 
 Connect to a local MCP server and load its tools:
 
 ```python
+import asyncio
 from lm_deluge import LLMClient, Tool
 
-# Connect to filesystem MCP server
-filesystem_tools = Tool.from_mcp(
-    "filesystem",
-    command="npx",
-    args=["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"]
-)
+async def load_filesystem_tools():
+    tools = await Tool.from_mcp(
+        "filesystem",
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"],
+    )
 
-# Use the tools with any model
-client = LLMClient("gpt-4o-mini")
-resps = client.process_prompts_sync(
-    ["List the files in the current directory"],
-    tools=filesystem_tools
-)
+    client = LLMClient("gpt-4o-mini")
+    response = client.process_prompts_sync(
+        ["List the files under /tmp"],
+        tools=tools,
+    )[0]
+    print(response.completion)
+
+asyncio.run(load_filesystem_tools())
 ```
+
+`Tool.from_mcp()` is asynchronous because it contacts the MCP server to enumerate the available tools.
 
 ### Remote MCP Server
 
 Connect to remote MCP servers via HTTPS:
 
 ```python
-import os
+import asyncio, os
 from lm_deluge import Tool
 
-# Connect to Exa MCP server
-exa_tools = Tool.from_mcp(
-    "exa",
-    url=f"https://mcp.exa.ai/mcp?exaApiKey={os.getenv('EXA_API_KEY')}"
-)
+async def load_exa_tools():
+    return await Tool.from_mcp(
+        "exa",
+        url=f"https://mcp.exa.ai/mcp?exaApiKey={os.getenv('EXA_API_KEY')}",
+    )
+
+exa_tools = asyncio.run(load_exa_tools())
 ```
 
 ## Loading from MCP Config
@@ -55,7 +62,7 @@ exa_tools = Tool.from_mcp(
 You can load all tools from a Claude Desktop-style MCP config:
 
 ```python
-import os
+import asyncio, os
 from lm_deluge import Tool
 
 config = {
@@ -68,43 +75,41 @@ config = {
         },
         "filesystem": {
             "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/Documents"]
-        }
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/Documents"],
+        },
     }
 }
 
-# Load all tools from all servers
-all_tools = Tool.from_mcp_config(config)
+all_tools = asyncio.run(Tool.from_mcp_config(config))
 ```
 
 ## Calling MCP Tools
 
-MCP tools come with built-in `call` and `acall` methods:
+MCP tools behave like any other `Tool` once loaded:
 
 ```python
-# Get tools from MCP server
-tools = Tool.from_mcp(
-    "filesystem",
-    command="npx",
-    args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
-)
+import asyncio
+from lm_deluge import LLMClient, Tool
 
-# Use with LLM
-client = LLMClient("gpt-4o-mini")
-resps = client.process_prompts_sync(
-    ["List the files in the directory"],
-    tools=tools
-)
+async def main():
+    tools = await Tool.from_mcp(
+        "filesystem",
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+    )
 
-# Call the tools
-for tool_call in resps[0].tool_calls:
-    tool_to_call = [t for t in tools if t.name == tool_call.name][0]
+    client = LLMClient("gpt-4o-mini")
+    response = client.process_prompts_sync(
+        ["List the files in the directory"],
+        tools=tools,
+    )[0]
 
-    # Synchronous
-    result = tool_to_call.call(**tool_call.arguments)
+    if response.content:
+        for call in response.content.tool_calls:
+            tool = next(t for t in tools if t.name == call.name)
+            print(tool.call(**call.arguments))
 
-    # Or asynchronous
-    result = await tool_to_call.acall(**tool_call.arguments)
+asyncio.run(main())
 ```
 
 ## Agent Loop with MCP Tools
@@ -116,22 +121,43 @@ import asyncio
 from lm_deluge import LLMClient, Tool, Conversation
 
 async def main():
-    # Load MCP tools
-    tools = Tool.from_mcp(
+    tools = await Tool.from_mcp(
         "filesystem",
         command="npx",
-        args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"]
+        args=["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
     )
 
     client = LLMClient("gpt-4o-mini")
     conv = Conversation.user("Create a file called test.txt with the content 'Hello World'")
 
-    # Agent loop will automatically call the MCP tools
     conv, resp = await client.run_agent_loop(conv, tools=tools)
     print(resp.content.completion)
 
 asyncio.run(main())
 ```
+
+## Passing MCP Servers Directly
+
+Some providers (OpenAI Responses, Anthropic Messages) can connect to MCP servers themselves. Use `lm_deluge.tool.MCPServer` when you want the provider to invoke the server instead of LM Deluge:
+
+```python
+from lm_deluge import LLMClient
+from lm_deluge.tool import MCPServer
+
+server = MCPServer(
+    name="exa",
+    url="https://mcp.exa.ai/mcp",
+    headers={"Authorization": "Bearer ..."},
+)
+
+client = LLMClient("gpt-4.1-mini", use_responses_api=True)
+response = client.process_prompts_sync(
+    ["Use Exa to search for the latest research on fusion."],
+    tools=[server],
+)[0]
+```
+
+Set `force_local_mcp=True` on the client to expand every `MCPServer` into regular tools locally, even when the provider supports remote connections.
 
 ## Popular MCP Servers
 
@@ -153,4 +179,4 @@ Some popular MCP servers you can use:
 ## Next Steps
 
 - Learn about [Tool Use](/features/tools/) for creating custom tools
-- Explore [Files & Images](/features/files-images/) for multimodal inputs
+- Build multimodal prompts in [Conversation Builder](/core/conversations/)

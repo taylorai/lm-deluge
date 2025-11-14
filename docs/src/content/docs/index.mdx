@@ -1,11 +1,11 @@
 ---
-title: LM Deluge
+title: lm-deluge
 description: A lightweight Python library for maxing out your rate limits with LLM providers.
 template: splash
 hero:
-  tagline: Max out your rate limits with massive concurrency and intelligent throttling
+  tagline: Universal LLM client library designed to help you max out your rate limits with massive concurrency and intelligent throttling.
   image:
-    file: ../../assets/houston.webp
+    file: ../../assets/mascot.png
   actions:
     - text: Get Started
       link: /getting-started/quickstart/
@@ -22,10 +22,10 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 <CardGrid stagger>
 	<Card title="Unified Client" icon="puzzle">
-		Send prompts to all major LLM providers (OpenAI, Anthropic, Google, Cohere) with a single client interface.
+		Send prompts to all major LLM providers (OpenAI, Anthropic, Google, and more) with a single client interface.
 	</Card>
 	<Card title="Massive Concurrency" icon="rocket">
-		Set max_tokens_per_minute and max_requests_per_minute, then let it fly. Automatic throttling and retry logic.
+		Set your rate limits, then let it fly. Automatic throttling and retry logic.
 	</Card>
 	<Card title="Spray Across Models" icon="random">
 		Configure multiple models from any provider(s) with sampling weights. The client samples a model for each request.
@@ -34,7 +34,7 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 		Unified API for tools across all providers. Instantiate tools from MCP servers with built-in call interfaces.
 	</Card>
 	<Card title="Convenient Messages" icon="comment">
-		No more looking up how to build messages lists. Conversation and Message classes work seamlessly.
+		No more Googling how to build messages lists. Conversation and Message classes work seamlessly for all providers.
 	</Card>
 	<Card title="Caching" icon="magnifier">
 		Save completions in local or distributed cache to avoid repeated LLM calls on the same input.
@@ -43,9 +43,18 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 
 ## Quick Example
 
+First, install with pip:
+
+```bash
+pip install lm-deluge
+```
+
+Then, make your first API request.
+
 ```python
 from lm_deluge import LLMClient
 
+# you'll need OPENAI_API_KEY set in the environment!
 client = LLMClient("gpt-4o-mini")
 resps = client.process_prompts_sync(["Hello, world!"])
 print(resps[0].completion)
@@ -53,6 +62,4 @@ print(resps[0].completion)
 
 ## Why LM Deluge?
 
-LM Deluge is designed for **batch inference at scale**. If you need to process thousands of prompts as fast as possible while respecting rate limits, this is for you. It's not for streaming chat applications - there are plenty of other packages for that.
-
-The library handles all the complexity of rate limiting, retries, and provider-specific quirks so you can focus on your application logic.
+LM Deluge is designed for **batch inference at scale**. If you need to process thousands of prompts as fast as possible while respecting rate limits, this is for you. The library handles all the complexity of rate limiting, retries, and provider-specific quirks so you can focus on your application logic.

@@ -5,14 +5,14 @@ description: Function calling and tool use across all providers
 
 ## Overview
 
-LM Deluge provides a unified API for tool use across all LLM providers. Define tools once and use them with any model.
+LM Deluge provides a unified API for tool use across all LLM providers. Define tools once and use them with any model, whether you pass a pure Python function, a Pydantic model, or an MCP server.
 
 ## Creating Tools from Functions
 
 The easiest way to create a tool is from a Python function:
 
 ```python
-from lm_deluge import LLMClient, Tool
+from lm_deluge import Conversation, LLMClient, Tool
 
 def get_weather(city: str) -> str:
     """Get the current weather for a city."""
@@ -21,54 +21,56 @@ def get_weather(city: str) -> str:
 tool = Tool.from_function(get_weather)
 
 client = LLMClient("claude-3-haiku")
-resps = client.process_prompts_sync(
-    ["What's the weather in Paris?"],
-    tools=[tool]
-)
+response = client.process_prompts_sync(
+    [Conversation.user("What's the weather in Paris?")],
+    tools=[tool],
+)[0]
 
-# Iterate over tool calls in the response
-for tool_call in resps[0].tool_calls:
-    print(tool_call.name, tool_call.arguments)
+if response.content:
+    for call in response.content.tool_calls:
+        print(call.name, call.arguments)
 ```
 
-## Tool Schema
+`Tool.from_function()` introspects type hints and docstrings to produce a JSON Schema automatically. Provide optional arguments such as `name` or `description` if you want to override the defaults.
 
-The `Tool.from_function` method automatically generates a schema from the function's type hints and docstring:
+## Tool Schema Options
+
+The `Tool` helpers all end up producing the same JSON Schema. Pick the one that matches your workflow:
+
+- `Tool.from_function(callable)` – uses the function signature and docstring.
+- `Tool.from_params(name, ToolParams(...))` – build schemas programmatically.
+- `Tool.from_pydantic(name, BaseModel)` – reuse Pydantic models.
+- `Tool.from_typed_dict(name, TypedDict)` – wrap typed dictionaries.
 
 ```python
-def calculate_tip(bill_amount: float, tip_percentage: float = 20.0) -> float:
-    """
-    Calculate the tip amount for a bill.
+from pydantic import BaseModel
 
-    Args:
-        bill_amount: The total bill amount
-        tip_percentage: The tip percentage (default 20%)
-    """
-    return bill_amount * (tip_percentage / 100)
+class CalculateTip(BaseModel):
+    bill_amount: float
+    tip_percentage: float = 20.0
 
-tool = Tool.from_function(calculate_tip)
+tip_tool = Tool.from_pydantic("calculate_tip", CalculateTip)
 ```
 
 ## Calling Tools
 
-Tools returned by the model can be called directly:
+Tools returned by the model can be executed immediately:
 
 ```python
-resps = client.process_prompts_sync(
+response = client.process_prompts_sync(
     ["Calculate a 15% tip on a $50 bill"],
-    tools=[tool]
-)
+    tools=[tip_tool],
+)[0]
 
-for tool_call in resps[0].tool_calls:
-    # Find the tool definition
-    tool_to_call = [t for t in [tool] if t.name == tool_call.name][0]
+if response.content:
+    for call in response.content.tool_calls:
+        print(tip_tool.call(**call.arguments))
 
-    # Call it synchronously
-    result = tool_to_call.call(**tool_call.arguments)
-
-    # Or asynchronously
-    result = await tool_to_call.acall(**tool_call.arguments)
+async def run_async_call(call):
+    return await tip_tool.acall(**call.arguments)
 ```
+
+Use `.call()` for synchronous helpers and `.acall()` inside async applications. LM Deluge automatically detects whether your tool function is async and will run it on the appropriate event loop.
 
 ## Agent Loop
 
@@ -121,22 +123,35 @@ resps = client.process_prompts_sync(
 )
 ```
 
-## Computer Use (Anthropic)
+## Built-in Tools and Computer Use
 
-LM Deluge supports Claude's Computer Use API:
+Several providers expose built-in tools via special schemas. Import them from `lm_deluge.built_in_tools` and pass them through the `tools` argument just like regular `Tool` objects.
 
 ```python
-client = LLMClient("claude-3-5-sonnet")
+from lm_deluge import LLMClient
+from lm_deluge.built_in_tools.openai import computer_use_openai
 
-resps = client.process_prompts_sync(
-    ["Click the submit button"],
-    computer_use=True  # Enables computer use tools
-)
+client = LLMClient("openai-computer-use-preview", use_responses_api=True)
+response = client.process_prompts_sync(
+    ["Open a browser and search for the Europa Clipper mission."],
+    tools=[computer_use_openai(display_width=1440, display_height=900)],
+)[0]
 ```
 
-This provides the model with tools to control the computer (click, type, take screenshots, etc.).
+Anthropic’s computer-use beta tools are enabled the same way: pass `Tool.built_in("computer_use")` or reuse the helpers from `lm_deluge.built_in_tools`. LM Deluge injects the extra headers and tool schemas required by each provider.
+
+## MCP Servers and Tool Lists
+
+The `tools` argument accepts more than just `Tool` instances:
+
+- Raw provider tool dictionaries (for OpenAI computer use, web search previews, etc.)
+- `MCPServer` objects, which let providers call a remote MCP server directly (Anthropic + OpenAI Responses)
+- Pre-expanded MCP tools (see [MCP Integration](/features/mcp/))
+
+When you pass an `MCPServer`, LM Deluge forwards the descriptor to providers that support native MCP connections or expands it locally if you set `force_local_mcp=True` on the client.
 
 ## Next Steps
 
-- Learn about [MCP Integration](/features/mcp/) to use tools from MCP servers
-- Explore [Files & Images](/features/files-images/) for multimodal inputs
+- Learn about [MCP Integration](/features/mcp/) to connect to local or remote MCP servers
+- Build multimodal prompts in [Conversation Builder](/core/conversations/)
+- Inspect `client.run_agent_loop()` patterns in [Advanced Workflows](/guides/advanced-usage/)

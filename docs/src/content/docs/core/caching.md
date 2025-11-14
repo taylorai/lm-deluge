@@ -5,49 +5,45 @@ description: Local and provider-side caching to save costs and time
 
 ## Overview
 
-LM Deluge supports two types of caching:
+LM Deluge supports two complementary types of caching:
 
-1. **Provider-side caching**: Uses Anthropic's prompt caching (discounted but not free)
-2. **Local caching**: Saves responses locally to avoid repeated API calls (completely free)
+1. **Local caching**: store `APIResponse` objects locally so repeated prompts avoid the network entirely.
+2. **Provider-side caching**: ask Anthropic to cache specific parts of the prompt so you pay the discounted cached-token rate.
 
 ## Local Caching
 
-The `lm_deluge.cache` module includes LevelDB, SQLite, and custom dictionary-based caches to store completions locally:
+Pass any object with a `get(prompt: Conversation)` and `put(prompt, response)` method into `LLMClient(cache=...)`. The built-in caches live in `lm_deluge.cache`:
 
 ```python
 from lm_deluge import LLMClient
-from lm_deluge.cache import SQLiteCache
+from lm_deluge.cache import SqliteCache
 
-# Create a persistent cache
-cache = SQLiteCache("my_cache.db")
-
-client = LLMClient("gpt-4o-mini", cache=cache)
+client = LLMClient("gpt-4.1-mini", cache=SqliteCache("my_cache.db"))
 
 # First call hits the API
-resps = client.process_prompts_sync(["What is 2+2?"])
+responses = client.process_prompts_sync(["What is 2+2?"])
 
-# Second call uses cached response (instant, free)
-resps = client.process_prompts_sync(["What is 2+2?"])
+# Second call returns instantly
+responses = client.process_prompts_sync(["What is 2+2?"])
 ```
 
 ### Cache Backends
 
+- **SqliteCache** (`lm_deluge.cache.SqliteCache`) – Stores responses inside a single SQLite file. Requires no extra dependencies and is ideal for sharing a cache between batch runs.
+- **LevelDBCache** (`lm_deluge.cache.LevelDBCache`) – Uses LevelDB for large caches. Install `plyvel` to enable it. Provide a directory path and LM Deluge handles serialization for you.
+- **DistributedDictCache** – Wrap a dictionary-like object that exposes `.get(key)` and `.put(key, value)` (for example Modal's distributed dict). The cache key is automatically namespaced by the `cache_key` argument.
+
 ```python
-from lm_deluge.cache import SQLiteCache, LevelDBCache, DictCache
+from modal import Dict
+from lm_deluge.cache import LevelDBCache, DistributedDictCache
 
-# SQLite (persistent, good for most use cases)
-cache = SQLiteCache("cache.db")
-
-# LevelDB (persistent, faster for large datasets)
-cache = LevelDBCache("cache_dir")
-
-# Dict (in-memory, temporary)
-cache = DictCache()
+ldb_cache = LevelDBCache("./cache-dir")
+modal_cache = DistributedDictCache(Dict(), cache_key="project-x")
 ```
 
 ### Important Notes
 
-- **Cross-batch only**: Caching currently works across different `process_prompts_*` calls, not within the same batch
+- **Cross-batch only**: caches are consulted before each HTTP call, so duplicate prompts inside the same batch will still make new requests until the first one finishes.
 - **Exact matches**: The cache key includes the full prompt and sampling parameters
 - **Cost savings**: Cached responses are completely free - no API call is made
 
@@ -76,7 +72,7 @@ conv = (
 client = LLMClient("claude-3-5-sonnet")
 resps = client.process_prompts_sync(
     [conv],
-    cache="system_and_tools"  # Cache system message and tools
+    cache="system_and_tools"  # Cache system message and tools collectively
 )
 ```
 
@@ -119,4 +115,5 @@ resps = client.process_prompts_sync(
 ## Next Steps
 
 - Learn about [Tool Use](/features/tools/) for function calling
-- Explore [MCP Integration](/features/mcp/) for advanced tooling
+- Explore [Local caches vs. provider caching in Client Basics](/core/configuring-client/)
+- Combine caching with [Advanced Workflows](/guides/advanced-usage/) to speed up retries and batching
