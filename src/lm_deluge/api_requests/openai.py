@@ -83,8 +83,25 @@ async def _build_oa_chat_request(
         request_json["logprobs"] = True
         if sampling_params.top_logprobs is not None:
             request_json["top_logprobs"] = sampling_params.top_logprobs
-    if sampling_params.json_mode and model.supports_json:
+
+    # Handle structured outputs (output_schema takes precedence over json_mode)
+    if context.output_schema:
+        if model.supports_json:
+            request_json["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "response",
+                    "schema": context.output_schema,
+                    "strict": True,
+                },
+            }
+        else:
+            print(
+                f"WARNING: Model {model.name} does not support structured outputs. Ignoring output_schema."
+            )
+    elif sampling_params.json_mode and model.supports_json:
         request_json["response_format"] = {"type": "json_object"}
+
     if tools:
         request_tools = []
         for tool in tools:
