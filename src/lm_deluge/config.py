@@ -7,7 +7,7 @@ class SamplingParams(BaseModel):
     temperature: float = 0.0
     top_p: float = 1.0
     json_mode: bool = False
-    max_new_tokens: int = 512
+    max_new_tokens: int = 2_048
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
     logprobs: bool = False
     top_logprobs: int | None = None

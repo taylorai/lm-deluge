@@ -61,6 +61,10 @@ export default defineConfig({
           label: "Reference",
           items: [{ label: "API Reference", slug: "reference/api" }],
         },
+        {
+          label: "Project Updates",
+          items: [{ label: "Changelog", slug: "changelog" }],
+        },
       ],
     }),
   ],

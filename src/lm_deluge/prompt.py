@@ -1195,13 +1195,23 @@ class Conversation:
 
     @classmethod
     def from_unknown(
-        cls, messages: list[dict], *, system: str | list[dict] | None = None
+        cls, messages: list[dict] | dict, *, system: str | list[dict] | None = None
     ) -> tuple["Conversation", str]:
         """Attempt to convert provider-formatted messages without knowing the provider.
 
         Returns the parsed conversation together with the provider label that succeeded
-        ("openai" or "anthropic").
+        ("openai", "anthropic", or "log").
         """
+
+        # Check if input is in log format (output from to_log())
+        if isinstance(messages, dict) and "messages" in messages:
+            return cls.from_log(messages), "log"
+
+        # Ensure messages is a list for provider detection
+        if not isinstance(messages, list):
+            raise ValueError(
+                "messages must be a list of dicts or a dict with 'messages' key"
+            )
 
         def _detect_provider() -> str:
             has_openai_markers = False

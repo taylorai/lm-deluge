@@ -1,0 +1,66 @@
+---
+title: Changelog
+description: Highlights from recent lm-deluge releases.
+---
+
+LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
+
+## 0.0.73 · 2025-11-13
+
+- Added the GPT-5.1 family (standard, Codex, Codex Mini) with pricing metadata and marked them as reasoning models so they Just Work with `LLMClient`.
+- Extended reasoning suffix parsing to accept `-minimal` and `-none`, enforced that Codex variants must run against the Responses API, and added guard rails that convert unsupported efforts to the closest valid value with clear warnings.
+- Updated the OpenAI request builders plus the warning system so GPT-5.1 downgrades from `minimal` to `none` transparently while older models downgrade to `low`, and added coverage for the new models (`tests/models/test_gpt_5_1.py`).
+
+## 0.0.72 · 2025-11-11
+
+- Background requests now honour `request_timeout` precisely: polling uses a monotonic clock, cancels the remote response before erroring, and surfaces a structured timeout `APIResponse` instead of hanging jobs.
+- Cancellation is best-effort logged when failures happen so you can trace leaked jobs during debugging.
+
+## 0.0.71 · 2025-11-10
+
+- `Conversation.from_openai_chat()` now filters out whitespace-only text blocks and skips empty messages so bad payloads from upstream providers no longer crash tool execution.
+- `MockAsyncOpenAI` does a real conversion from OpenAI tool definitions into lm-deluge `Tool` objects, wires them through `LLMClient.start()`, and carries the active `CachePattern`, so you can run copilot-style tools under tests without custom glue.
+- Added a focused test suite for the mock client (`tests/test_mock_openai.py`) that exercises the OpenAI-compatible surface area.
+
+## 0.0.70 · 2025-11-09
+
+- Packaging now re-exports AsyncOpenAI-style exception classes (`APIError`, `APITimeoutError`, `BadRequestError`, `RateLimitError`) so verifier harnesses can catch them directly from `lm_deluge`.
+- `MockAsyncOpenAI` gained full parity with the official `AsyncOpenAI` signature: you can pass `api_key`, `organization`, `project`, custom base URLs, and call the legacy `.completions.create()` path in addition to chat completions.
+- Added an async `close()` noop for compatibility together with extensive tests to ensure verifier integrations behave as expected.
+
+## 0.0.69 · 2025-11-09
+
+- Introduced the optional `lm-deluge[openai]` extra and shipped the first cut of `MockAsyncOpenAI`, giving you an on-device OpenAI-compatible client backed by `LLMClient`.
+- Registered the first Moonshot/Kimi (`kimi-k2`, `kimi-k2-turbo`, `kimi-k2-thinking`, `kimi-k2-thinking-turbo`) and MiniMax (`minimax-m2`) models so you can swap between those providers without custom API wrappers.
+- Added regression tests for the new models (`tests/models/test_kimi_and_minimax.py`) to make sure they stay callable.
+
+## 0.0.67 · 2025-10-31
+
+- Hardened `OpenAIResponsesRequest.handle_response()` so truncated/incomplete streaming payloads now produce actionable error messages (with the provider’s `incomplete_details`) instead of JSON parsing failures, and ensured the dangling await in the OpenAI client path is fixed.
+- Added dedicated coverage in `tests/core/test_incomplete_response.py` for both the incomplete and the successful response paths.
+
+## 0.0.66 · 2025-10-31
+
+- When you pass MCP server dictionaries (with a `url` key) through `tools` for Anthropic models, the client now automatically moves them into the `mcp_servers` array and sets the right beta header, so Anthropics’ MCP integration works without any manual request massaging.
+
+## 0.0.65 · 2025-10-30
+
+- Tightened the strict-mode JSON Schema generator for tools: when `strict=True`, nested object schemas (including those inside `$defs`) have `additionalProperties: false`, defaults are stripped, and every property is marked `required`, matching OpenAI’s schema contract.
+- Backed the change with new tests in `tests/core/test_tool_defs.py` to ensure tools with and without `$defs` serialize correctly.
+
+## 0.0.64 · 2025-10-30
+
+- Added first-class `$defs`/`definitions` support to `Tool` plus the MCP loader so complex tool schemas with references survive serialization.
+- `Tool.for_openai_completions()` now automatically includes `$defs`, rejects schemas that can’t run in strict mode, and sets `additionalProperties: false` so OpenAI’s strict JSON schema validation passes out of the box.
+
+## 0.0.63 · 2025-10-30
+
+- `SamplingParams` and `LLMClient` accept `reasoning_effort="minimal"` (and `"none"`) so you can target the more efficient reasoning tiers exposed by OpenAI without hand-editing objects.
+- Added regression coverage in `tests/core/test_reasoning_effort_minimal.py`.
+
+## 0.0.62 · 2025-10-23
+
+- `Message.with_file()` / `add_file()` now accept existing `File` objects, letting you build up prompts from pre-signed files without duplicates.
+- Added `Message.with_remote_file()` to turn local bytes/paths into provider-hosted files asynchronously (with provider guard rails), making it easy to keep Anthropic/OpenAI file references in sync when constructing conversations.
+
+Looking for something older? Run `git log --oneline` or inspect the GitHub release feed—this page will continue to backfill as new releases ship.
