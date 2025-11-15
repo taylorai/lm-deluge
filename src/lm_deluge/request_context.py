@@ -32,6 +32,7 @@ class RequestContext:
 
     # Optional features
     tools: list | None = None
+    output_schema: dict | None = None
     cache: CachePattern | None = None
     use_responses_api: bool = False
     background: bool = False
@@ -66,6 +67,7 @@ class RequestContext:
             "results_arr": self.results_arr,
             "callback": self.callback,
             "tools": self.tools,
+            "output_schema": self.output_schema,
             "cache": self.cache,
             "use_responses_api": self.use_responses_api,
             "background": self.background,

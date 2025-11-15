@@ -11,6 +11,7 @@ class SamplingParams(BaseModel):
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
     logprobs: bool = False
     top_logprobs: int | None = None
+    strict_tools: bool = True
 
     def to_vllm(self):
         try:

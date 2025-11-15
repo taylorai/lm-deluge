@@ -5,6 +5,7 @@ import pytest
 from lm_deluge.prompt import (
     Conversation,
     Image,
+    Message,
     Text,
     Thinking,
     ToolCall,
@@ -114,7 +115,10 @@ def test_from_openai_chat_parses_multimodal_and_tools(tiny_png_base64: str):
 
     final_assistant = convo.messages[4]
     assert final_assistant.role == "assistant"
-    assert final_assistant.parts[0].text == "It's 70F and sunny."
+    first_part = final_assistant.parts[0]
+    assert isinstance(first_part, Text), "should be text"
+    assert first_part.text == "It's 70F and sunny."
+    assert isinstance(auto_convo.messages[-1].parts[0], Text), "should be text"
     assert auto_convo.messages[-1].parts[0].text == "It's 70F and sunny."
 
 
@@ -202,6 +206,7 @@ def test_from_anthropic_parses_tool_use_and_thinking(tiny_png_base64: str):
     assert final_assistant.role == "assistant"
     assert isinstance(final_assistant.parts[0], Text)
     assert final_assistant.parts[0].text == "Breezy with highs around 70."
+    assert isinstance(auto_convo.messages[-1].parts[0], Text), "should be text"
     assert auto_convo.messages[-1].parts[0].text == "Breezy with highs around 70."
 
 
@@ -209,9 +214,9 @@ def test_from_unknown_handles_log_format():
     """Test that from_unknown() can handle the log format from to_log()."""
     # Create a conversation with various content types
     original_convo = Conversation()
-    original_convo.add(original_convo.system("You are a helpful assistant."))
+    original_convo.add(Message.system("You are a helpful assistant."))
 
-    user_msg = original_convo.user("What's the weather?")
+    user_msg = original_convo.add(Message.user("What's the weather?"))
     user_msg.with_tool_call(
         id="call_1", name="get_weather", arguments={"location": "Boston"}
     )

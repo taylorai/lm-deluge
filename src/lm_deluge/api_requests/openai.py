@@ -89,11 +89,20 @@ async def _build_oa_chat_request(
         request_tools = []
         for tool in tools:
             if isinstance(tool, Tool):
-                request_tools.append(tool.dump_for("openai-completions"))
+                request_tools.append(
+                    tool.dump_for(
+                        "openai-completions", strict=sampling_params.strict_tools
+                    )
+                )
             elif isinstance(tool, MCPServer):
                 as_tools = await tool.to_tools()
                 request_tools.extend(
-                    [t.dump_for("openai-completions") for t in as_tools]
+                    [
+                        t.dump_for(
+                            "openai-completions", strict=sampling_params.strict_tools
+                        )
+                        for t in as_tools
+                    ]
                 )
         request_json["tools"] = request_tools
     return request_json

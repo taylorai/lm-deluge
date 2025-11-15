@@ -723,7 +723,7 @@ class Tool(BaseModel):
             "parameters": self._json_schema(include_additional_properties=True),
         }
 
-    def for_anthropic(self, **kwargs) -> dict[str, Any]:
+    def for_anthropic(self, *, strict: bool = True, **kwargs) -> dict[str, Any]:
         # built-in tools have "name", "type", maybe metadata
         if self.is_built_in:
             return {
@@ -732,11 +732,33 @@ class Tool(BaseModel):
                 **self.built_in_args,
                 **kwargs,
             }
-        return {
-            "name": self.name,
-            "description": self.description,
-            "input_schema": self._json_schema(),
-        }
+
+        # Check if schema is compatible with strict mode
+        if strict and not self._is_strict_mode_compatible():
+            strict = False
+
+        if strict:
+            # For strict mode, remove defaults and make all parameters required
+            schema = self._json_schema(
+                include_additional_properties=True, remove_defaults=True
+            )
+            schema["required"] = list(
+                (self.parameters or {}).keys()
+            )  # All parameters required in strict mode
+
+            return {
+                "name": self.name,
+                "description": self.description,
+                "input_schema": schema,
+                "strict": True,
+            }
+        else:
+            # For non-strict mode, use the original required list
+            return {
+                "name": self.name,
+                "description": self.description,
+                "input_schema": self._json_schema(),
+            }
 
     def for_google(self) -> dict[str, Any]:
         """
@@ -763,7 +785,7 @@ class Tool(BaseModel):
         if provider == "openai-completions":
             return self.for_openai_completions(**kw)
         if provider == "anthropic":
-            return self.for_anthropic()
+            return self.for_anthropic(**kw)
         if provider == "google":
             return self.for_google()
         raise ValueError(provider)

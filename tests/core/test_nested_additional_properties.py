@@ -69,10 +69,10 @@ def test_nested_additional_properties():
     options_schema = items_schema["properties"]["options"]
     assert options_schema["additionalProperties"] is False
 
-    # Test Anthropic format (should NOT have additionalProperties)
-    anthropic_format = tool.for_anthropic()
+    # Test Anthropic format with strict=False (should NOT have additionalProperties)
+    anthropic_format = tool.for_anthropic(strict=False)
 
-    # Anthropic format should not include additionalProperties
+    # Anthropic format without strict mode should not include additionalProperties
     assert "additionalProperties" not in anthropic_format["input_schema"]
 
     items_schema = anthropic_format["input_schema"]["properties"]["requests"]["items"]
@@ -80,6 +80,18 @@ def test_nested_additional_properties():
 
     options_schema = items_schema["properties"]["options"]
     assert "additionalProperties" not in options_schema
+
+    # Test Anthropic format with strict=True (should HAVE additionalProperties)
+    anthropic_strict = tool.for_anthropic(strict=True)
+
+    # Anthropic format with strict mode should include additionalProperties
+    assert anthropic_strict["input_schema"]["additionalProperties"] is False
+
+    items_schema = anthropic_strict["input_schema"]["properties"]["requests"]["items"]
+    assert items_schema["additionalProperties"] is False
+
+    options_schema = items_schema["properties"]["options"]
+    assert options_schema["additionalProperties"] is False
 
 
 def test_simple_schema_unchanged():
@@ -104,8 +116,8 @@ def test_simple_schema_unchanged():
     assert params["count"] == {"type": "integer"}
 
 
-def test_no_additional_properties_when_flag_false():
-    """Test that additionalProperties is not added when include_additional_properties=False."""
+def test_no_additional_properties_when_strict_false():
+    """Test that additionalProperties is not added when strict=False."""
 
     tool = Tool(
         name="test_tool",
@@ -116,10 +128,10 @@ def test_no_additional_properties_when_flag_false():
         required=["data"],
     )
 
-    # Test Anthropic format (which doesn't set include_additional_properties=True)
-    anthropic_format = tool.for_anthropic()
+    # Test Anthropic format with strict=False
+    anthropic_format = tool.for_anthropic(strict=False)
 
-    # Should not have additionalProperties anywhere
+    # Should not have additionalProperties anywhere when strict=False
     assert "additionalProperties" not in anthropic_format["input_schema"]
 
     data_schema = anthropic_format["input_schema"]["properties"]["data"]
@@ -129,5 +141,5 @@ def test_no_additional_properties_when_flag_false():
 if __name__ == "__main__":
     test_nested_additional_properties()
     test_simple_schema_unchanged()
-    test_no_additional_properties_when_flag_false()
+    test_no_additional_properties_when_strict_false()
     print("✓ All nested additionalProperties tests passed!")

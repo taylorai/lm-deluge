@@ -84,12 +84,37 @@ def _build_anthropic_request(
         if "temperature" in request_json and "top_p" in request_json:
             request_json.pop("top_p")
 
+    # Handle structured outputs (output_format)
+    if context.output_schema:
+        if model.supports_json:
+            _add_beta(base_headers, "structured-outputs-2025-11-13")
+            request_json["output_format"] = {
+                "type": "json_schema",
+                "schema": context.output_schema,
+            }
+        else:
+            print(
+                f"WARNING: Model {model.name} does not support structured outputs. Ignoring output_schema."
+            )
+    elif sampling_params.json_mode:
+        # Anthropic doesn't support basic json_mode without a schema
+        print(
+            "WARNING: Anthropic does not support basic json_mode without a schema. "
+            "Use output_schema parameter for structured JSON outputs."
+        )
+
+    # Add beta header for strict tools when enabled
+    if tools and sampling_params.strict_tools and model.supports_json:
+        _add_beta(base_headers, "structured-outputs-2025-11-13")
+
     if tools:
         mcp_servers = []
         tool_definitions = []
         for tool in tools:
             if isinstance(tool, Tool):
-                tool_definitions.append(tool.dump_for("anthropic"))
+                # Only use strict mode if model supports structured outputs
+                use_strict = sampling_params.strict_tools and model.supports_json
+                tool_definitions.append(tool.dump_for("anthropic", strict=use_strict))
             elif isinstance(tool, dict) and "url" in tool:
                 _add_beta(base_headers, "mcp-client-2025-04-04")
                 mcp_servers.append(tool)

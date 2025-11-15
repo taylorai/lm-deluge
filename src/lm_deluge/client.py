@@ -561,6 +561,7 @@ class _LLMClient(BaseModel):
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
+        output_schema: dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
     ) -> list[str | None]: ...
@@ -573,6 +574,7 @@ class _LLMClient(BaseModel):
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
+        output_schema: dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
     ) -> list[APIResponse]: ...
@@ -584,6 +586,7 @@ class _LLMClient(BaseModel):
         return_completions_only: bool = False,
         show_progress: bool = True,
         tools: list[Tool | dict | MCPServer] | None = None,
+        output_schema: dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> list[APIResponse] | list[str | None] | dict[str, int]:
@@ -612,6 +615,7 @@ class _LLMClient(BaseModel):
             task_id = self.start_nowait(
                 prompt,
                 tools=tools,
+                output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
             )
@@ -688,6 +692,7 @@ class _LLMClient(BaseModel):
         prompt: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
+        output_schema: dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> int:
@@ -706,6 +711,7 @@ class _LLMClient(BaseModel):
             request_timeout=self.request_timeout,
             status_tracker=tracker,
             tools=tools,
+            output_schema=output_schema,
             cache=cache,
             use_responses_api=self.use_responses_api,
             background=self.background,
@@ -723,11 +729,16 @@ class _LLMClient(BaseModel):
         prompt: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
+        output_schema: dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> APIResponse:
         task_id = self.start_nowait(
-            prompt, tools=tools, cache=cache, service_tier=service_tier
+            prompt,
+            tools=tools,
+            output_schema=output_schema,
+            cache=cache,
+            service_tier=service_tier,
         )
         return await self.wait_for(task_id)
 
