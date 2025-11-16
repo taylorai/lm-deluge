@@ -9,7 +9,10 @@ from aiohttp import ClientResponse
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.warnings import maybe_warn
-from lm_deluge.util.schema import to_strict_json_schema, transform_schema_for_openai
+from lm_deluge.util.schema import (
+    prepare_output_schema,
+    transform_schema_for_openai,
+)
 
 from ..config import SamplingParams
 from ..models import APIModel
@@ -88,21 +91,9 @@ async def _build_oa_chat_request(
     # Handle structured outputs (output_schema takes precedence over json_mode)
     if context.output_schema:
         if model.supports_json:
-            # Convert Pydantic model to JSON schema if needed
-            if hasattr(context.output_schema, "model_json_schema"):
-                # It's a Pydantic model
-                base_schema = to_strict_json_schema(context.output_schema)  # type: ignore
-            else:
-                # Already a dict, just apply strict mode transformations
-                from lm_deluge.util.schema import _ensure_strict_json_schema
+            base_schema = prepare_output_schema(context.output_schema)
 
-                base_schema = _ensure_strict_json_schema(
-                    context.output_schema,
-                    path=(),
-                    root=context.output_schema,  # type: ignore
-                )
-
-            # Apply OpenAI-specific transformations (move unsupported constraints to description)
+            # Apply OpenAI-specific transformations (currently passthrough with copy)
             transformed_schema = transform_schema_for_openai(base_schema)
 
             request_json["response_format"] = {
@@ -344,21 +335,9 @@ async def _build_oa_responses_request(
     # Handle structured outputs (output_schema takes precedence over json_mode)
     if context.output_schema:
         if model.supports_json:
-            # Convert Pydantic model to JSON schema if needed
-            if hasattr(context.output_schema, "model_json_schema"):
-                # It's a Pydantic model
-                base_schema = to_strict_json_schema(context.output_schema)  # type: ignore
-            else:
-                # Already a dict, just apply strict mode transformations
-                from lm_deluge.util.schema import _ensure_strict_json_schema
+            base_schema = prepare_output_schema(context.output_schema)
 
-                base_schema = _ensure_strict_json_schema(
-                    context.output_schema,
-                    path=(),
-                    root=context.output_schema,  # type: ignore
-                )
-
-            # Apply OpenAI-specific transformations (move unsupported constraints to description)
+            # Apply OpenAI-specific transformations (currently passthrough with copy)
             transformed_schema = transform_schema_for_openai(base_schema)
 
             request_json["text"] = {

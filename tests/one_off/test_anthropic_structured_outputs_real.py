@@ -178,6 +178,99 @@ async def test_anthropic_strict_tools_disabled_real():
     print("\n🎉 strict_tools=False test PASSED!")
 
 
+async def test_anthropic_constraints_and_additional_properties_real():
+    """Exercise constraint-heavy schemas against the real Anthropic API."""
+
+    print("\n🧪 Testing constraint-heavy schema with REAL Anthropic API call...")
+
+    client = LLMClient("claude-4.5-sonnet")
+
+    output_schema = {
+        "type": "object",
+        "properties": {
+            "profile": {
+                "type": "object",
+                "properties": {
+                    "full_name": {"type": "string", "minLength": 5},
+                    "age": {"type": "integer", "minimum": 21, "maximum": 70},
+                    "preferred_languages": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 1,
+                        "maxItems": 3,
+                    },
+                },
+                "required": ["full_name", "age", "preferred_languages"],
+                "additionalProperties": False,
+            },
+            "contact": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "format": "email"},
+                    "phone": {
+                        "type": ["string", "null"],
+                        "pattern": r"^\+1-\d{3}-\d{4}$",
+                    },
+                },
+                "required": ["email", "phone"],
+                "additionalProperties": False,
+            },
+            "risk_assessment": {
+                "type": "object",
+                "properties": {
+                    "score": {"type": "number", "minimum": 0, "maximum": 1},
+                    "needs_manual_review": {"type": "boolean"},
+                },
+                "required": ["score", "needs_manual_review"],
+                "additionalProperties": False,
+            },
+        },
+        "required": ["profile", "contact", "risk_assessment"],
+        "additionalProperties": False,
+    }
+
+    prompt = (
+        "Convert this vetting note into the schema. Candidate Jane Roe is 42 years"
+        " old, speaks English and Spanish, email jane.roe@example.com, phone"
+        " +1-555-7321. Her risk score should be 0.64 and she currently requires"
+        " manual review."
+    )
+
+    responses = await client.process_prompts_async(
+        [prompt], output_schema=output_schema, return_completions_only=False
+    )
+
+    response = responses[0]
+    assert not response.is_error, f"API call failed: {response.error_message}"
+
+    completion = response.completion
+    assert completion is not None, "Completion text expected"
+
+    parsed = json.loads(completion)
+    expected_top_keys = {"profile", "contact", "risk_assessment"}
+    assert set(parsed.keys()) == expected_top_keys
+
+    profile = parsed["profile"]
+    assert set(profile.keys()) == {"full_name", "age", "preferred_languages"}
+    assert len(profile["full_name"]) >= 5
+    assert 21 <= profile["age"] <= 70
+    assert 1 <= len(profile["preferred_languages"]) <= 3
+    assert all(isinstance(lang, str) for lang in profile["preferred_languages"])
+
+    contact = parsed["contact"]
+    assert set(contact.keys()) == {"email", "phone"}
+    assert "@" in contact["email"]
+    if contact["phone"] is not None:
+        assert contact["phone"].startswith("+1-")
+
+    risk = parsed["risk_assessment"]
+    assert isinstance(risk["score"], (int, float))
+    assert 0 <= risk["score"] <= 1
+    assert isinstance(risk["needs_manual_review"], bool)
+
+    print("✅ Anthropic constraint-heavy schema validated successfully!")
+
+
 async def test_anthropic_combined_output_and_tools_real():
     """Test using both output_schema and tools together (should fail or warn)."""
     print("\n🧪 Testing combined output_schema and tools with REAL API call...")
@@ -312,6 +405,7 @@ async def main():
         await test_anthropic_json_outputs_real()
         await test_anthropic_strict_tools_real()
         await test_anthropic_strict_tools_disabled_real()
+        await test_anthropic_constraints_and_additional_properties_real()
         await test_anthropic_combined_output_and_tools_real()
         await test_anthropic_complex_schema_real()
 

@@ -11,6 +11,7 @@ Key functions:
 
 from __future__ import annotations
 
+import copy
 import inspect
 from typing import Any, TypeGuard, TYPE_CHECKING, Type
 
@@ -105,6 +106,38 @@ def to_strict_json_schema(model: Type["BaseModel"]) -> dict[str, Any]:
 
     schema = model.model_json_schema()
     return _ensure_strict_json_schema(schema, path=(), root=schema)
+
+
+def prepare_output_schema(
+    schema_obj: Type["BaseModel"] | dict[str, Any],
+) -> dict[str, Any]:
+    """Normalize a user-provided schema into strict JSON schema form.
+
+    Args:
+        schema_obj: Either a Pydantic BaseModel subclass or a JSON schema dict.
+
+    Returns:
+        A strict JSON schema suitable for provider-specific transformation.
+
+    Notes:
+        Dict schemas are deep-copied before normalization so the caller's
+        original object is left untouched.
+    """
+
+    if is_pydantic_model(schema_obj):
+        return to_strict_json_schema(schema_obj)  # type: ignore[arg-type]
+
+    if is_dict(schema_obj):
+        schema_copy = copy.deepcopy(schema_obj)
+        return _ensure_strict_json_schema(
+            schema_copy,
+            path=(),
+            root=schema_copy,
+        )
+
+    raise TypeError(
+        "output_schema must be a Pydantic BaseModel subclass or a JSON schema dict"
+    )
 
 
 def _ensure_strict_json_schema(
@@ -269,30 +302,21 @@ def _move_constraints_to_description(
 
 
 def transform_schema_for_openai(schema: dict[str, Any]) -> dict[str, Any]:
-    """Transform a JSON schema for OpenAI's structured output requirements.
+    """Return a deep copy of the schema for OpenAI requests.
 
-    OpenAI's structured outputs don't support certain numeric and string
-    constraints. This function removes those constraints and adds them to
-    the description field instead.
-
-    Args:
-        schema: The JSON schema to transform
-
-    Returns:
-        The transformed schema
+    OpenAI Structured Outputs currently support the standard constraints we
+    rely on (min/max length, numeric bounds, etc.), so we intentionally leave
+    the schema untouched apart from copying it to prevent downstream mutation.
     """
-    # Make a copy to avoid modifying the input
-    schema = {**schema}
 
-    # Recursively process the schema
-    return _transform_schema_recursive_openai(schema, schema)
+    return copy.deepcopy(schema)
 
 
-def _transform_schema_recursive_openai(
+def _transform_schema_recursive_anthropic(
     json_schema: dict[str, Any],
     root: dict[str, Any],
 ) -> dict[str, Any]:
-    """Recursively transform schema for OpenAI."""
+    """Recursively strip unsupported constraints for Anthropic."""
     if not is_dict(json_schema):
         return json_schema
 
@@ -300,13 +324,13 @@ def _transform_schema_recursive_openai(
     if "$defs" in json_schema and is_dict(json_schema["$defs"]):
         for def_name, def_schema in json_schema["$defs"].items():
             if is_dict(def_schema):
-                _transform_schema_recursive_openai(def_schema, root)
+                _transform_schema_recursive_anthropic(def_schema, root)
 
     # Process definitions
     if "definitions" in json_schema and is_dict(json_schema["definitions"]):
         for def_name, def_schema in json_schema["definitions"].items():
             if is_dict(def_schema):
-                _transform_schema_recursive_openai(def_schema, root)
+                _transform_schema_recursive_anthropic(def_schema, root)
 
     typ = json_schema.get("type")
 
@@ -328,46 +352,41 @@ def _transform_schema_recursive_openai(
             ],
         )
     elif typ == "array":
-        # OpenAI supports minItems and maxItems, so we don't move them
-        pass
+        _move_constraints_to_description(
+            json_schema,
+            [
+                "minItems",
+                "maxItems",
+            ],
+        )
 
     # Recursively process nested schemas
     if "properties" in json_schema and is_dict(json_schema["properties"]):
         for prop_name, prop_schema in json_schema["properties"].items():
             if is_dict(prop_schema):
-                _transform_schema_recursive_openai(prop_schema, root)
+                _transform_schema_recursive_anthropic(prop_schema, root)
 
     if "items" in json_schema and is_dict(json_schema["items"]):
-        _transform_schema_recursive_openai(json_schema["items"], root)
+        _transform_schema_recursive_anthropic(json_schema["items"], root)
 
     if "anyOf" in json_schema and isinstance(json_schema["anyOf"], list):
         for variant in json_schema["anyOf"]:
             if is_dict(variant):
-                _transform_schema_recursive_openai(variant, root)
+                _transform_schema_recursive_anthropic(variant, root)
 
     if "allOf" in json_schema and isinstance(json_schema["allOf"], list):
         for entry in json_schema["allOf"]:
             if is_dict(entry):
-                _transform_schema_recursive_openai(entry, root)
+                _transform_schema_recursive_anthropic(entry, root)
 
     return json_schema
 
 
 def transform_schema_for_anthropic(schema: dict[str, Any]) -> dict[str, Any]:
-    """Transform a JSON schema for Anthropic's structured output requirements.
+    """Transform a JSON schema for Anthropic's structured output requirements."""
 
-    Anthropic has similar constraints to OpenAI. This function removes
-    unsupported constraints and adds them to descriptions.
-
-    Args:
-        schema: The JSON schema to transform
-
-    Returns:
-        The transformed schema
-    """
-    # Anthropic has very similar requirements to OpenAI for now
-    # If they diverge in the future, we can update this function
-    return transform_schema_for_openai(schema)
+    schema_copy = copy.deepcopy(schema)
+    return _transform_schema_recursive_anthropic(schema_copy, schema_copy)
 
 
 def get_json_schema(obj: Type["BaseModel"] | dict[str, Any]) -> dict[str, Any]:

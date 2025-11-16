@@ -222,6 +222,113 @@ async def test_openai_complex_schema_real():
     print("\n🎉 Complex schema test PASSED!")
 
 
+async def test_openai_constraints_and_additional_properties_real():
+    """Exercise additionalProperties + constraint-heavy schema with OpenAI."""
+
+    print("\n🧪 Testing constraint-heavy schema with REAL OpenAI API call...")
+
+    client = LLMClient("gpt-4o-mini")
+
+    output_schema = {
+        "type": "object",
+        "properties": {
+            "profile": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "minLength": 3,
+                        "pattern": r"^@[a-z0-9_]+$",
+                    },
+                    "age": {"type": "integer", "minimum": 18, "maximum": 90},
+                    "city": {"type": "string"},
+                    "tags": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 2,
+                        "maxItems": 4,
+                    },
+                },
+                "required": ["username", "age", "city", "tags"],
+                "additionalProperties": False,
+            },
+            "scores": {
+                "type": "array",
+                "items": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+                "minItems": 2,
+                "maxItems": 3,
+            },
+            "status": {"type": "string", "enum": ["active", "inactive"]},
+            "nickname": {"type": ["string", "null"]},
+            "metadata": {
+                "type": "object",
+                "properties": {
+                    "timezone": {
+                        "type": "string",
+                        "pattern": r"^UTC[+-]\\d{1,2}$",
+                    },
+                    "needs_follow_up": {"type": "boolean"},
+                },
+                "required": ["timezone", "needs_follow_up"],
+                "additionalProperties": False,
+            },
+        },
+        "required": ["profile", "scores", "status", "nickname", "metadata"],
+        "additionalProperties": False,
+    }
+
+    prompt = (
+        "Summarize this CRM note into the schema. The user handle is @galactic_jane,"
+        " age 34, based in Seattle. She identifies as both an engineer and mentor,"
+        " so include both tags. Engagement scores should include code and design"
+        " normalized between 0 and 1. Her status is active, she currently has"
+        " no nickname, she is in timezone UTC-7, and she needs follow up."
+    )
+
+    responses = await client.process_prompts_async(
+        [prompt], output_schema=output_schema, return_completions_only=False
+    )
+
+    response = responses[0]
+    assert not response.is_error, f"API call failed: {response.error_message}"
+
+    completion = response.completion
+    assert completion is not None, "Response should include completion text"
+
+    parsed = json.loads(completion)
+    expected_top_keys = {"profile", "scores", "status", "nickname", "metadata"}
+    assert set(parsed.keys()) == expected_top_keys, "Top-level keys must match schema"
+
+    profile = parsed["profile"]
+    assert set(profile.keys()) == {"username", "age", "city", "tags"}
+    assert profile["username"].startswith("@"), "Username must start with @"
+    assert len(profile["username"]) >= 3
+    assert 18 <= profile["age"] <= 90
+    assert profile["city"].lower().startswith("seattle")
+    assert 2 <= len(profile["tags"]) <= 4
+    assert all(isinstance(tag, str) for tag in profile["tags"])
+
+    scores = parsed["scores"]
+    assert 2 <= len(scores) <= 3
+    assert all(isinstance(score, (int, float)) for score in scores)
+    assert all(0 <= score <= 1 for score in scores)
+
+    assert parsed["status"] in {"active", "inactive"}
+    nickname = parsed["nickname"]
+    assert nickname is None or isinstance(nickname, str)
+
+    metadata = parsed["metadata"]
+    assert set(metadata.keys()) == {"timezone", "needs_follow_up"}
+    assert metadata["timezone"].startswith("UTC")
+    assert isinstance(metadata["needs_follow_up"], bool)
+
+    print("✅ Constraint-heavy schema validated successfully!")
+
+
 async def test_openai_json_mode_vs_structured_outputs():
     """Test that output_schema takes precedence over json_mode."""
     print("\n🧪 Testing json_mode vs structured outputs precedence...")
@@ -273,6 +380,7 @@ async def main():
         await test_openai_json_outputs_real()
         await test_openai_strict_tools_real()
         await test_openai_complex_schema_real()
+        await test_openai_constraints_and_additional_properties_real()
         await test_openai_json_mode_vs_structured_outputs()
 
         print("\n" + "=" * 70)

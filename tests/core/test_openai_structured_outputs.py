@@ -59,8 +59,15 @@ def test_openai_chat_structured_outputs_precedence():
 
     assert request_json["response_format"]["type"] == "json_schema"
     json_schema = request_json["response_format"]["json_schema"]
-    assert json_schema["schema"] == schema
+    transformed = json_schema["schema"]
     assert json_schema["strict"] is True
+
+    # Strict mode should ensure all fields are required and additionalProperties is False
+    assert set(transformed["required"]) == {"title", "tags"}
+    assert transformed["additionalProperties"] is False
+
+    # Original schema should remain unchanged
+    assert schema["required"] == ["title"]
 
 
 def test_openai_chat_json_mode_without_schema():
@@ -106,7 +113,10 @@ def test_openai_responses_structured_outputs_and_strict_tools():
 
     format_spec = request_json["text"]["format"]
     assert format_spec["type"] == "json_schema"
-    assert format_spec["schema"] == schema
+    transformed = format_spec["schema"]
+    assert transformed is not schema
+    assert transformed["additionalProperties"] is False
+    assert set(transformed["required"]) == {"result", "score"}
     first_tool = request_json["tools"][0]
     assert first_tool["strict"] is True
     params = first_tool["parameters"]

@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Literal
 
 from lm_deluge.util.schema import (
+    prepare_output_schema,
     to_strict_json_schema,
     transform_schema_for_openai,
     transform_schema_for_anthropic,
@@ -130,8 +131,8 @@ def test_literal_types():
     print("✅ Literal types test passed!")
 
 
-def test_constraints_moved_to_description():
-    """Test that unsupported constraints are moved to description."""
+def test_anthropic_constraints_moved_to_description():
+    """Anthropic transformer should move unsupported constraints to description."""
 
     # Create a raw schema with constraints
     schema = {
@@ -152,10 +153,16 @@ def test_constraints_moved_to_description():
                 "type": "number",
                 "multipleOf": 0.5,
             },
+            "tags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 3,
+            },
         },
     }
 
-    transformed = transform_schema_for_openai(schema)
+    transformed = transform_schema_for_anthropic(schema)
 
     # Constraints should be removed from age
     assert "minimum" not in transformed["properties"]["age"]
@@ -176,7 +183,96 @@ def test_constraints_moved_to_description():
     assert "multipleOf" not in transformed["properties"]["score"]
     assert "description" in transformed["properties"]["score"]
 
-    print("✅ Constraints moved to description test passed!")
+    # Array constraints should also be moved
+    assert "minItems" not in transformed["properties"]["tags"]
+    assert "maxItems" not in transformed["properties"]["tags"]
+    assert "description" in transformed["properties"]["tags"]
+
+    print("✅ Anthropic constraints moved to description test passed!")
+
+
+def test_openai_preserves_constraints():
+    """OpenAI transformer should retain supported constraints."""
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "age": {"type": "integer", "minimum": 0, "maximum": 120},
+            "username": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 20,
+            },
+        },
+    }
+
+    transformed = transform_schema_for_openai(schema)
+
+    assert transformed is not schema
+    assert transformed["properties"]["age"]["minimum"] == 0
+    assert transformed["properties"]["age"]["maximum"] == 120
+    assert transformed["properties"]["username"]["minLength"] == 3
+    assert transformed["properties"]["username"]["maxLength"] == 20
+
+    print("✅ OpenAI preserves constraints test passed!")
+
+
+def test_prepare_output_schema_does_not_mutate_input_dict():
+    """prepare_output_schema should leave the caller's dict untouched."""
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string"},
+            "tags": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["title"],
+    }
+
+    normalized = prepare_output_schema(schema)
+
+    # Original schema remains unchanged
+    assert schema["required"] == ["title"]
+
+    # Normalized schema should have strict requirements
+    assert set(normalized["required"]) == {"title", "tags"}
+    assert normalized["additionalProperties"] is False
+
+    print("✅ prepare_output_schema leaves input dict untouched test passed!")
+
+
+def test_prepare_output_schema_sets_additional_properties_on_nested_objects():
+    """Nested objects should receive additionalProperties: false when missing."""
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "profile": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "prefs": {
+                        "type": "object",
+                        "properties": {
+                            "theme": {"type": "string"},
+                        },
+                    },
+                },
+            }
+        },
+    }
+
+    normalized = prepare_output_schema(schema)
+
+    profile = normalized["properties"]["profile"]
+    assert profile["additionalProperties"] is False
+    assert set(profile["required"]) == {"name", "prefs"}
+
+    prefs = profile["properties"]["prefs"]
+    assert prefs["additionalProperties"] is False
+    assert set(prefs["required"]) == {"theme"}
+
+    print("✅ Nested additionalProperties enforcement test passed!")
 
 
 def test_additional_properties_added():
@@ -355,8 +451,8 @@ def test_anthropic_transform():
     print("✅ Anthropic transformation test passed!")
 
 
-def test_field_with_description_and_constraints():
-    """Test that existing descriptions are preserved when constraints are added."""
+def test_openai_preserves_description_with_constraints():
+    """OpenAI transform keeps descriptions intact and leaves constraints in place."""
 
     class ModelWithConstraints(BaseModel):
         age: int = Field(description="The person's age", ge=0, le=120)
@@ -364,14 +460,31 @@ def test_field_with_description_and_constraints():
     schema = ModelWithConstraints.model_json_schema()
     transformed = transform_schema_for_openai(schema)
 
+    age_prop = transformed["properties"]["age"]
+    age_desc = age_prop.get("description", "")
+
+    assert "person's age" in age_desc
+    assert age_prop["minimum"] == 0
+    assert age_prop["maximum"] == 120
+
+    print("✅ OpenAI preserves descriptions with constraints test passed!")
+
+
+def test_anthropic_adds_constraints_to_description_when_present():
+    """Anthropic transform should append constraint info to existing descriptions."""
+
+    class ModelWithConstraints(BaseModel):
+        age: int = Field(description="The person's age", ge=0, le=120)
+
+    schema = ModelWithConstraints.model_json_schema()
+    transformed = transform_schema_for_anthropic(schema)
+
     age_desc = transformed["properties"]["age"].get("description", "")
 
-    # Original description should be preserved
     assert "person's age" in age_desc
-    # Constraints should be added
-    assert "minimum" in age_desc or "exclusiveMinimum" in age_desc
+    assert "minimum" in age_desc or "maximum" in age_desc
 
-    print("✅ Field with description and constraints test passed!")
+    print("✅ Anthropic appends constraints into descriptions test passed!")
 
 
 def test_allof_flattening():
@@ -427,7 +540,7 @@ if __name__ == "__main__":
     print()
     test_literal_types()
     print()
-    test_constraints_moved_to_description()
+    test_anthropic_constraints_moved_to_description()
     print()
     test_additional_properties_added()
     print()
@@ -447,7 +560,7 @@ if __name__ == "__main__":
     print()
     test_anthropic_transform()
     print()
-    test_field_with_description_and_constraints()
+    test_openai_preserves_description_with_constraints()
     print()
     test_allof_flattening()
     print()

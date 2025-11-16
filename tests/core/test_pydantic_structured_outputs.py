@@ -167,8 +167,8 @@ def test_anthropic_with_pydantic_model():
     print("✅ Anthropic with Pydantic model test passed!")
 
 
-def test_constraints_moved_to_description():
-    """Test that field constraints are moved to descriptions."""
+def test_openai_preserves_constraints():
+    """OpenAI requests should retain supported constraints from the schema."""
     model = APIModel.from_registry("gpt-4o-mini")
     context = _make_context(PersonWithConstraints)
 
@@ -178,23 +178,70 @@ def test_constraints_moved_to_description():
 
     schema = request_json["response_format"]["json_schema"]["schema"]
 
-    # Check that constraints were removed from the schema
-    # but their info should be in the description
     age_prop = schema["properties"]["age"]
-    assert "minimum" not in age_prop and "exclusiveMinimum" not in age_prop
-    assert "maximum" not in age_prop and "exclusiveMaximum" not in age_prop
-    # Description should mention the constraints
+    assert age_prop["minimum"] == 0
+    assert age_prop["maximum"] == 150
+
+    name_prop = schema["properties"]["name"]
+    assert name_prop["minLength"] == 1
+    assert name_prop["maxLength"] == 100
+
+    print("✅ OpenAI preserves constraints test passed!")
+
+
+def test_anthropic_moves_constraints_to_description():
+    """Anthropic requests should move unsupported constraints to descriptions."""
+
+    model = APIModel.from_registry("claude-4.5-sonnet")
+    context = _make_context(PersonWithConstraints)
+
+    request_json, _ = _build_anthropic_request(model, context)
+
+    schema = request_json["output_format"]["schema"]
+
+    age_prop = schema["properties"]["age"]
+    assert "minimum" not in age_prop
+    assert "maximum" not in age_prop
     assert "description" in age_prop
 
     name_prop = schema["properties"]["name"]
     assert "minLength" not in name_prop
     assert "maxLength" not in name_prop
-    # Description should exist (constraints added)
-    if "description" in name_prop:
-        # Constraints should be mentioned
-        pass
+    assert "description" in name_prop
 
-    print("✅ Constraints moved to description test passed!")
+    print("✅ Anthropic moves constraints to description test passed!")
+
+
+def test_anthropic_array_constraints_moved_to_description():
+    """Anthropic should move array min/max constraints into descriptions."""
+
+    model = APIModel.from_registry("claude-4.5-sonnet")
+
+    schema_dict = {
+        "type": "object",
+        "properties": {
+            "tags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 1,
+                "maxItems": 3,
+            }
+        },
+        "required": ["tags"],
+    }
+
+    context = _make_context(schema_dict)
+
+    request_json, _ = _build_anthropic_request(model, context)
+
+    schema = request_json["output_format"]["schema"]
+    tags_prop = schema["properties"]["tags"]
+
+    assert "minItems" not in tags_prop
+    assert "maxItems" not in tags_prop
+    assert "description" in tags_prop
+
+    print("✅ Anthropic array constraints moved to description test passed!")
 
 
 def test_nested_pydantic_model():
@@ -371,7 +418,11 @@ if __name__ == "__main__":
     print()
     test_anthropic_with_pydantic_model()
     print()
-    test_constraints_moved_to_description()
+    test_openai_preserves_constraints()
+    print()
+    test_anthropic_moves_constraints_to_description()
+    print()
+    test_anthropic_array_constraints_moved_to_description()
     print()
     test_nested_pydantic_model()
     print()
