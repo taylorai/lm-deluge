@@ -561,7 +561,7 @@ class _LLMClient(BaseModel):
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
-        output_schema: dict | None = ...,
+        output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
     ) -> list[str | None]: ...
@@ -574,7 +574,7 @@ class _LLMClient(BaseModel):
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         tools: list[Tool | dict | MCPServer] | None = ...,
-        output_schema: dict | None = ...,
+        output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
     ) -> list[APIResponse]: ...
@@ -586,7 +586,7 @@ class _LLMClient(BaseModel):
         return_completions_only: bool = False,
         show_progress: bool = True,
         tools: list[Tool | dict | MCPServer] | None = None,
-        output_schema: dict | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> list[APIResponse] | list[str | None] | dict[str, int]:
@@ -661,7 +661,7 @@ class _LLMClient(BaseModel):
         return_completions_only: bool = False,
         show_progress=True,
         tools: list[Tool | dict | MCPServer] | None = None,
-        output_schema: dict | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
     ):
         return asyncio.run(
@@ -694,7 +694,7 @@ class _LLMClient(BaseModel):
         prompt: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
-        output_schema: dict | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> int:
@@ -731,7 +731,7 @@ class _LLMClient(BaseModel):
         prompt: Prompt,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
-        output_schema: dict | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> APIResponse:

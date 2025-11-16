@@ -12,6 +12,7 @@ from lm_deluge.prompt import (
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
+from lm_deluge.util.schema import to_strict_json_schema, transform_schema_for_anthropic
 
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse
@@ -87,10 +88,27 @@ def _build_anthropic_request(
     # Handle structured outputs (output_format)
     if context.output_schema:
         if model.supports_json:
+            # Convert Pydantic model to JSON schema if needed
+            if hasattr(context.output_schema, "model_json_schema"):
+                # It's a Pydantic model
+                base_schema = to_strict_json_schema(context.output_schema)  # type: ignore
+            else:
+                # Already a dict, just apply strict mode transformations
+                from lm_deluge.util.schema import _ensure_strict_json_schema
+
+                base_schema = _ensure_strict_json_schema(
+                    context.output_schema,
+                    path=(),
+                    root=context.output_schema,  # type: ignore
+                )
+
+            # Apply Anthropic-specific transformations (move unsupported constraints to description)
+            transformed_schema = transform_schema_for_anthropic(base_schema)
+
             _add_beta(base_headers, "structured-outputs-2025-11-13")
             request_json["output_format"] = {
                 "type": "json_schema",
-                "schema": context.output_schema,
+                "schema": transformed_schema,
             }
         else:
             print(

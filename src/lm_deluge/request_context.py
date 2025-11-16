@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Callable
+from typing import Any, Callable, TYPE_CHECKING
 
 from .config import SamplingParams
 from .prompt import CachePattern, Conversation
 from .tracker import StatusTracker
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
 
 
 @dataclass
@@ -32,7 +35,7 @@ class RequestContext:
 
     # Optional features
     tools: list | None = None
-    output_schema: dict | None = None
+    output_schema: "type[BaseModel] | dict | None" = None
     cache: CachePattern | None = None
     use_responses_api: bool = False
     background: bool = False
