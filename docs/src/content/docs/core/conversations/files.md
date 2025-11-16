@@ -45,7 +45,7 @@ Every `File` records:
 
 - `media_type`: inferred automatically if omitted (defaults to PDF)
 - `filename`: derived from the path/URL unless provided
-- `fingerprint`: SHA64 of the bytes (or `provider:file_id` for remote files) which participates in local cache keys
+- `fingerprint`: xxHash 64-bit hash of the bytes (or `provider:file_id` for remote files) which participates in local cache keys
 - `size`: number of bytes, available even after uploads
 
 ## Upload Management

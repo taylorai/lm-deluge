@@ -26,7 +26,7 @@ register_model(
 )
 ```
 
-The `api_spec` must match a key in `lm_deluge.api_requests.common.CLASSES` (`"openai"`, `"openai-responses"`, `"anthropic"`, `"google"`, etc.). Once registered, you can pass the new `id` to `LLMClient` like any other model.
+The `api_spec` must match a key in `lm_deluge.api_requests.common.CLASSES` (`"openai"`, `"openai-responses"`, `"anthropic"`, `"gemini"`, `"mistral"`, `"bedrock"`). Once registered, you can pass the new `id` to `LLMClient` like any other model.
 
 ## Loading from Dict or YAML
 

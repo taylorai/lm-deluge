@@ -192,6 +192,6 @@ Built-in caches live in `lm_deluge.cache`:
 
 - `SqliteCache(path, cache_key="default")`
 - `LevelDBCache(path=None, cache_key="default")`
-- `DistributedDictCache(mapping, cache_key="default")`
+- `DistributedDictCache(cache, cache_key="default")`
 
 Each cache fingerprints the entire `Conversation` (including `SamplingParams`) to avoid false positives.

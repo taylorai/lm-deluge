@@ -27,7 +27,7 @@ print(next(iter(registry.values())))
 | `lm_deluge.models.meta` | Meta Llama models (direct API) | `META_API_KEY` |
 | `lm_deluge.models.deepseek` | DeepSeek | `DEEPSEEK_API_KEY` |
 | `lm_deluge.models.groq` | Groq-hosted Llama and Mixtral | `GROQ_API_KEY` |
-| `lm_deluge.models.grok` | xAI Grok models | `XAI_API_KEY` |
+| `lm_deluge.models.grok` | xAI Grok models | `GROK_API_KEY` |
 | `lm_deluge.models.fireworks` | Fireworks-hosted models | `FIREWORKS_API_KEY` |
 | `lm_deluge.models.together` | Together.ai models | `TOGETHER_API_KEY` |
 | `lm_deluge.models.cerebras` | Cerebras inference | `CEREBRAS_API_KEY` |
