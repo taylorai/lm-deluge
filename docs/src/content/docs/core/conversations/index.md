@@ -74,7 +74,7 @@ These helpers power retries and logging—`APIResponse` automatically stores `Co
 
 ## Counting Tokens
 
-`Conversation.count_tokens(max_new_tokens)` uses the same tokenizers as the runtime to estimate the total input and output budget. The scheduler uses this number when deciding whether a request can launch, but you can also call it yourself:
+`Conversation.count_tokens(max_new_tokens)` uses the same GPT-4 tokenizer heuristic that the scheduler relies on (with a flat per-image cost) to estimate the total input and output budget. It is an approximation, but it is the value LM Deluge actually enforces when deciding whether a request can launch, so you can call it yourself to see what the scheduler will use:
 
 ```python
 tokens = conv.count_tokens(max_new_tokens=512)

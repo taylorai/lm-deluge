@@ -48,14 +48,14 @@ print(data["summary"], data["priority"])
 
 - **Anthropic** (`claude-4.5`, `claude-4.1`, etc.) adds the `structured-outputs-2025-11-13` beta header plus `output_format=json_schema`. Models that cannot comply print a warning and fall back to free-form text.
 - **OpenAI Chat Completions** use the `response_format=json_schema` payload with `strict=True`. The Responses API mirrors this via `text.format`.
-- **Bedrock** Anthropic/OpenAI adapters forward prompts and tools but skip structured outputs for now because AWS hasn’t released the feature—calls print a warning instead of breaking.
+- **Bedrock** Anthropic/OpenAI adapters forward prompts and tools but skip structured outputs entirely for now because AWS hasn’t released the feature—the schema is dropped so requests keep working, just without validation.
 
 | Provider | Supported APIs | Notes |
 | --- | --- | --- |
 | Anthropic (direct) | Messages | Requires models with `supports_json`. |
 | OpenAI | Chat, Responses | Schema takes precedence over `json_mode`. |
-| Anthropic via Bedrock | Not yet | Falls back with a warning. |
-| OpenAI via Bedrock | Not yet | `json_mode` unsupported today. |
+| Anthropic via Bedrock | Not yet | Schema is ignored because AWS hasn’t enabled structured outputs. |
+| OpenAI via Bedrock | Not yet | Schema is ignored; `json_mode` remains unsupported. |
 
 ## Working with Tools
 
@@ -81,6 +81,6 @@ responses = client.process_prompts_sync(
 
 ## Troubleshooting Tips
 
-- Providers that don’t list `supports_json=True` in `lm_deluge.models` simply ignore `output_schema`; you’ll see a warning in the console when that happens.
+- For OpenAI or Anthropic models that lack `supports_json=True`, LM Deluge logs a warning before falling back to free-form text. Other providers currently drop the schema silently because their APIs do not expose structured outputs yet.
 - Keep schemas tight—mark `additionalProperties: False` whenever possible so the model knows it cannot inject surprise fields.
 - If the model returns invalid JSON, call `response.completion` to inspect the raw text or check `response.raw_response` for the provider’s diagnostic message.

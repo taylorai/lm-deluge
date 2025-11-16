@@ -44,7 +44,7 @@ async def fan_out(prompts):
 asyncio.run(fan_out(["fact 1", "fact 2", "fact 3"]))
 ```
 
-`StatusTracker.open()`/`close()` let you reuse a single progress bar across multiple batches, and `reset_tracker()` zeros out the counters when you want a fresh display.
+`client.open()`/`client.close()` let you reuse a single progress bar across multiple batches, and `reset_tracker()` zeros out the counters when you want a fresh display.
 
 ## Batch Jobs (OpenAI & Anthropic)
 
