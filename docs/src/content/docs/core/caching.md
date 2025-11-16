@@ -100,9 +100,9 @@ Note: Cache reads are discounted but not free. Check Anthropic's pricing for cur
 You can use both local and provider-side caching:
 
 ```python
-from lm_deluge.cache import SQLiteCache
+from lm_deluge.cache import SqliteCache
 
-cache = SQLiteCache("cache.db")
+cache = SqliteCache("cache.db")
 client = LLMClient("claude-3-5-sonnet", cache=cache)
 
 # Uses both local cache and Anthropic's prompt caching
