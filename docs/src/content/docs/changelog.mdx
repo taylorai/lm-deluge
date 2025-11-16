@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.75 · 2025-11-16
+
+- `output_schema` now accepts raw JSON Schemas *or* Pydantic `BaseModel` subclasses. `lm_deluge.util.schema.prepare_output_schema()` handles the conversion to strict JSON Schema (adds `additionalProperties: false`, expands `$defs`, keeps optional fields nullable, etc.) and feeds both Anthropic and OpenAI builders, with coverage in `tests/core/test_schema_transformations.py` and `tests/core/test_pydantic_structured_outputs.py`.
+- Anthropic/OpenAI structured output requests now share the same normalization path so provider quirks stay isolated—unsupported Anthropic constraints move into descriptions while OpenAI keeps the tight grammar untouched. Regression suites for the chat and Responses APIs plus new real-run harnesses (`tests/one_off/test_anthropic_structured_outputs_real.py`, `tests/one_off/test_openai_structured_outputs_real.py`) make sure the wiring keeps working.
+- Shipped `examples/pydantic_structured_outputs_example.py` and refreshed the structured outputs docs so teams can drop a Pydantic model into `LLMClient.process_prompts_*()` without hand-rolling schemas or worrying about mutation.
+
 ## 0.0.74 · 2025-11-15
 
 - Structured outputs landed across Anthropic and OpenAI: `LLMClient(..., output_schema=...)` now pushes the JSON Schema to Claude (complete with the `structured-outputs-2025-11-13` beta and strict-tool gating) and to both OpenAI chat *and* Responses API requests, with schema precedence over `json_mode` everywhere.

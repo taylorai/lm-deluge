@@ -216,18 +216,16 @@ def test_from_unknown_handles_log_format():
     original_convo = Conversation()
     original_convo.add(Message.system("You are a helpful assistant."))
 
-    user_msg = original_convo.add(Message.user("What's the weather?"))
+    user_msg = Message.user("What's the weather?")
     user_msg.with_tool_call(
         id="call_1", name="get_weather", arguments={"location": "Boston"}
     )
     original_convo.add(user_msg)
 
-    assistant_msg = original_convo.ai("Let me check that for you.")
+    assistant_msg = Message.ai("Let me check that for you.")
     assistant_msg.with_thinking("I should call the weather API.")
     original_convo.add(assistant_msg)
 
-    tool_msg = original_convo.messages[-1]
-    assert tool_msg.role == "tool"
     original_convo.with_tool_result("call_1", "It's 65F and cloudy in Boston.")
 
     # Convert to log format

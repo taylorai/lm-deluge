@@ -3,7 +3,7 @@ title: Structured Outputs
 description: Return JSON that matches your schema across Anthropic and OpenAI.
 ---
 
-Structured outputs let you hand the model a JSON Schema and receive validated JSON—no fragile regex or post-processing. LM Deluge exposes this through the `output_schema` parameter on `LLMClient` so you can enable it per request without rewriting prompts.
+Structured outputs let you hand the model a JSON Schema (or now, a Pydantic model) and receive validated JSON—no fragile regex or post-processing. LM Deluge exposes this through the `output_schema` parameter on `LLMClient` so you can enable it per request without rewriting prompts.
 
 ## Quick Start
 
@@ -39,10 +39,37 @@ data = json.loads(raw)
 print(data["summary"], data["priority"])
 ```
 
-- Pass any JSON Schema object via `output_schema`.
+- Pass any JSON Schema object via `output_schema` **or** hand LM Deluge a `pydantic.BaseModel` subclass and it will build the strict schema for you.
 - `json_mode=True` still works, but `output_schema` always wins when both are provided so the schema remains authoritative.
 - `response.completion` holds the raw JSON string from the provider—call `json.loads(response.completion)` (after handling the
   `None` case) to convert it into Python objects.
+
+## Passing a Pydantic model
+
+```python
+from typing import Literal
+
+from pydantic import BaseModel, Field
+from lm_deluge import LLMClient
+
+class Task(BaseModel):
+    title: str
+    priority: Literal["low", "medium", "high"]
+    eta_hours: float = Field(ge=0, description="Estimated hours to finish")
+    notes: list[str]
+
+client = LLMClient("gpt-4o-mini")
+result = client.process_prompts_sync(
+    ["Propose a task for reviewing the release notes."],
+    output_schema=Task,        # 👈 pass the model directly
+    return_completions_only=True,
+    show_progress=False,
+)[0]
+```
+
+- Under the hood `lm_deluge.util.schema.prepare_output_schema()` converts your model to JSON Schema, recursively adds `additionalProperties: false`, marks every property `required` (so keys are always present), and still preserves `Optional[...]` by keeping `null` in the type/`anyOf`.
+- Anthropic requests reuse the same schema but strip unsupported constraints (min/max length, regexes, etc.) into the `description` field while OpenAI keeps the original grammar untouched. This matches the behavior in `tests/core/test_pydantic_structured_outputs.py`.
+- Because LM Deluge deep-copies the schema during normalization, you can safely reuse the same Pydantic class or dict without worrying about mutations. See `examples/pydantic_structured_outputs_example.py` for end-to-end recipes, including nested models and validation.
 
 ## Under the Hood
 

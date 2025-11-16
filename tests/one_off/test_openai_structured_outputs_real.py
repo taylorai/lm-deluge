@@ -3,11 +3,12 @@
 
 import asyncio
 import json
+
 import dotenv
 
 from lm_deluge import LLMClient
-from lm_deluge.tool import Tool
 from lm_deluge.config import SamplingParams
+from lm_deluge.tool import Tool
 
 dotenv.load_dotenv()
 
@@ -350,7 +351,7 @@ async def test_openai_json_mode_vs_structured_outputs():
 
     response1 = responses1[0]
     assert not response1.is_error, "Structured output should work"
-    parsed1 = json.loads(response1.completion)
+    parsed1 = json.loads(response1.completion)  # type: ignore
     assert "result" in parsed1, "Should match schema"
     print(f"✅ Structured outputs work: {parsed1}")
 
@@ -364,7 +365,7 @@ async def test_openai_json_mode_vs_structured_outputs():
 
     response2 = responses2[0]
     assert not response2.is_error, "JSON mode should work"
-    parsed2 = json.loads(response2.completion)
+    parsed2 = json.loads(response2.completion)  # type: ignore
     print(f"✅ JSON mode works: {parsed2}")
 
     print("\n🎉 JSON mode vs structured outputs test PASSED!")
