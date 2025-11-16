@@ -67,7 +67,7 @@ OpenAI, Anthropic, and Gemini are supported out of the box. LM Deluge automatica
 
 ## Files in Tool Results
 
-Tool functions can return `File` objects or reference remote file IDs. LM Deluge forwards those outputs through `ToolResult` so you can feed them back into subsequent tool calls or new prompts.
+Tool results currently support text and image parts. If your tool produces a file, include a link or provider `file_id` in the textual payload (or upload it separately and attach it to the next user message) so the model can reference it later.
 
 ## Provider Limitations
 

@@ -43,6 +43,7 @@ LLMClient(
 Key parameters:
 
 - `sampling_params`: list of `SamplingParams` to apply per model. If omitted, defaults derived from `temperature`, `top_p`, and `max_new_tokens` are used.
+- `model_weights`: provide explicit floats or `'uniform'` for equal sampling. The `'dynamic'` literal is reserved for a future auto-balancing mode and currently raises `NotImplementedError` if selected.
 - `cache`: any object exposing `get(prompt: Conversation) -> APIResponse | None` and `put(prompt, response) -> None`.
 - `use_responses_api`: switch OpenAI models to `/responses` (required for computer-use and Codex models).
 - `background`: only valid with `use_responses_api=True`; polls background jobs until completion.
