@@ -661,6 +661,7 @@ class _LLMClient(BaseModel):
         return_completions_only: bool = False,
         show_progress=True,
         tools: list[Tool | dict | MCPServer] | None = None,
+        output_schema: dict | None = None,
         cache: CachePattern | None = None,
     ):
         return asyncio.run(
@@ -669,6 +670,7 @@ class _LLMClient(BaseModel):
                 return_completions_only=return_completions_only,
                 show_progress=show_progress,
                 tools=tools,
+                output_schema=output_schema,
                 cache=cache,
             )
         )

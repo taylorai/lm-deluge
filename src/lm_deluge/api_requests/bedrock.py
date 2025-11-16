@@ -106,7 +106,8 @@ async def _build_anthropic_bedrock_request(
         tool_definitions = []
         for tool in tools:
             if isinstance(tool, Tool):
-                tool_definitions.append(tool.dump_for("anthropic"))
+                # Bedrock doesn't have the strict-mode betas Anthropic exposes yet
+                tool_definitions.append(tool.dump_for("anthropic", strict=False))
             elif isinstance(tool, dict):
                 tool_definitions.append(tool)
                 # add betas if needed
@@ -124,7 +125,9 @@ async def _build_anthropic_bedrock_request(
                 # Convert to individual tools locally (like OpenAI does)
                 individual_tools = await tool.to_tools()
                 for individual_tool in individual_tools:
-                    tool_definitions.append(individual_tool.dump_for("anthropic"))
+                    tool_definitions.append(
+                        individual_tool.dump_for("anthropic", strict=False)
+                    )
 
         # Add cache control to last tool if tools_only caching is specified
         if cache_pattern == "tools_only" and tool_definitions:
@@ -194,11 +197,11 @@ async def _build_openai_bedrock_request(
         request_tools = []
         for tool in tools:
             if isinstance(tool, Tool):
-                request_tools.append(tool.dump_for("openai-completions"))
+                request_tools.append(tool.dump_for("openai-completions", strict=False))
             elif isinstance(tool, MCPServer):
                 as_tools = await tool.to_tools()
                 request_tools.extend(
-                    [t.dump_for("openai-completions") for t in as_tools]
+                    [t.dump_for("openai-completions", strict=False) for t in as_tools]
                 )
         request_json["tools"] = request_tools
 

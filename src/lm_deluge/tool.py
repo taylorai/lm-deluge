@@ -713,15 +713,38 @@ class Tool(BaseModel):
         """just an alias for the above"""
         return self.for_openai_completions(strict=strict, **kwargs)
 
-    def for_openai_responses(self, **kwargs) -> dict[str, Any]:
+    def for_openai_responses(self, *, strict: bool = True, **kwargs) -> dict[str, Any]:
         if self.is_built_in:
             return {"type": self.type, **self.built_in_args, **kwargs}
-        return {
-            "type": "function",
-            "name": self.name,
-            "description": self.description,
-            "parameters": self._json_schema(include_additional_properties=True),
-        }
+
+        # Check if schema is compatible with strict mode
+        if strict and not self._is_strict_mode_compatible():
+            strict = False
+
+        if strict:
+            # For strict mode, remove defaults and make all parameters required
+            schema = self._json_schema(
+                include_additional_properties=True, remove_defaults=True
+            )
+            schema["required"] = list(
+                (self.parameters or {}).keys()
+            )  # All parameters required in strict mode
+
+            return {
+                "type": "function",
+                "name": self.name,
+                "description": self.description,
+                "parameters": schema,
+                "strict": True,
+            }
+        else:
+            # For non-strict mode, use the original required list
+            return {
+                "type": "function",
+                "name": self.name,
+                "description": self.description,
+                "parameters": self._json_schema(include_additional_properties=True),
+            }
 
     def for_anthropic(self, *, strict: bool = True, **kwargs) -> dict[str, Any]:
         # built-in tools have "name", "type", maybe metadata
@@ -781,7 +804,7 @@ class Tool(BaseModel):
         **kw,
     ) -> dict[str, Any]:
         if provider == "openai-responses":
-            return self.for_openai_responses()
+            return self.for_openai_responses(**kw)
         if provider == "openai-completions":
             return self.for_openai_completions(**kw)
         if provider == "anthropic":

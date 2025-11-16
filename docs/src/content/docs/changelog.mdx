@@ -5,6 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.74 · 2025-11-15
+
+- Structured outputs landed across Anthropic and OpenAI: `LLMClient(..., output_schema=...)` now pushes the JSON Schema to Claude (complete with the `structured-outputs-2025-11-13` beta and strict-tool gating) and to both OpenAI chat *and* Responses API requests, with schema precedence over `json_mode` everywhere.
+- Tightened tool serialization so strict schemas only turn on when providers actually support it (Bedrock always forces non-strict) and made MCP-backed OpenAI Responses runs share the same strict/non-strict behavior; covered by fresh suites in `tests/core/test_openai_structured_outputs.py` and `tests/core/test_bedrock_requests.py`.
+- `process_prompts_sync()` forwards `output_schema`, and the new regression test (`tests/core/test_process_prompts_sync.py`) ensures future changes keep the sync/async surfaces aligned.
+- Added one-off real API coverage for OpenAI structured outputs plus a battery of deterministic unit tests so regressions in schema handling or strict tooling are caught automatically.
+
 ## 0.0.73 · 2025-11-13
 
 - Added the GPT-5.1 family (standard, Codex, Codex Mini) with pricing metadata and marked them as reasoning models so they Just Work with `LLMClient`.

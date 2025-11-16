@@ -323,7 +323,22 @@ async def _build_oa_responses_request(
         if sampling_params.reasoning_effort:
             maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=context.model_name)
 
-    if sampling_params.json_mode and model.supports_json:
+    # Handle structured outputs (output_schema takes precedence over json_mode)
+    if context.output_schema:
+        if model.supports_json:
+            request_json["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": "response",
+                    "schema": context.output_schema,
+                    "strict": True,
+                }
+            }
+        else:
+            print(
+                f"WARNING: Model {model.name} does not support structured outputs. Ignoring output_schema."
+            )
+    elif sampling_params.json_mode and model.supports_json:
         request_json["text"] = {"format": {"type": "json_object"}}
 
     # Handle tools
@@ -331,7 +346,9 @@ async def _build_oa_responses_request(
     # Add regular function tools
     for tool in tools or []:
         if isinstance(tool, Tool):
-            request_tools.append(tool.dump_for("openai-responses"))
+            request_tools.append(
+                tool.dump_for("openai-responses", strict=sampling_params.strict_tools)
+            )
         elif isinstance(tool, dict):
             # if computer use, make sure model supports it
             if tool["type"] == "computer_use_preview":
@@ -343,7 +360,14 @@ async def _build_oa_responses_request(
         elif isinstance(tool, MCPServer):
             if context.force_local_mcp:
                 as_tools = await tool.to_tools()
-                request_tools.extend([t.dump_for("openai-responses") for t in as_tools])
+                request_tools.extend(
+                    [
+                        t.dump_for(
+                            "openai-responses", strict=sampling_params.strict_tools
+                        )
+                        for t in as_tools
+                    ]
+                )
             else:
                 request_tools.append(tool.for_openai_responses())
 
