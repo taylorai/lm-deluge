@@ -58,7 +58,7 @@ Key parameters:
 | `start_nowait(prompt, *, tools=None, cache=None, service_tier=None)` | Queue a single prompt and return a task ID immediately. |
 | `wait_for(task_id)` / `wait_for_all(task_ids=None)` | Await one or many tasks. |
 | `as_completed(task_ids=None)` | Async generator yielding `(task_id, APIResponse)` pairs as soon as tasks finish. |
-| `stream(prompt, *, tools=None)` | Async iterator that yields streamed text chunks followed by the final `APIResponse`. |
+| `stream(prompt, *, tools=None)` | Streams chunks to stdout and resolves to the final `APIResponse` (see `stream_chat` for a generator). |
 | `run_agent_loop(conversation, *, tools=None, max_rounds=5)` | Executes tool calls automatically until the model stops asking for tools. |
 | `run_agent_loop_sync(...)` | Synchronous wrapper for the agent loop. |
 | `submit_batch_job(prompts, *, tools=None, cache=None, batch_size=50_000)` | Submit prompts through OpenAI or Anthropic batch APIs. |
@@ -76,14 +76,15 @@ SamplingParams(
     temperature: float = 0.0,
     top_p: float = 1.0,
     json_mode: bool = False,
-    max_new_tokens: int = 512,
+    max_new_tokens: int = 2_048,
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
+    strict_tools: bool = True,
 )
 ```
 
-`SamplingParams.to_vllm()` converts the structure to a `vllm.SamplingParams` instance when you want to reuse configurations locally.
+`strict_tools=True` ensures OpenAI/Anthropic tool definitions stay in strict mode unless you disable it per request. `SamplingParams.to_vllm()` converts the structure to a `vllm.SamplingParams` instance when you want to reuse configurations locally.
 
 ## Conversation & Message
 

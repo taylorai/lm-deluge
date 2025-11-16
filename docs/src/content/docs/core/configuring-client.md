@@ -65,6 +65,7 @@ multi_client = LLMClient(
 - `json_mode=True` places OpenAI and Gemini into JSON-object responses if the model supports it.
 - `reasoning_effort` lets you request `"low"`, `"medium"`, `"high"`, `"minimal"`, or `"none"` on reasoning models (`o4`, `gpt-5`, `claude-3.5`, etc.).
 - `logprobs` + `top_logprobs` enable token-level probabilities across all models that support it; the client validates that every model in the pool allows logprobs and adjusts each `SamplingParams` instance for you.
+- `strict_tools` keeps OpenAI/Anthropic tool definitions in strict mode (removing defaults) unless you explicitly disable it.
 
 You can provide one `SamplingParams` for every model or a single entry that LM Deluge clones.
 
@@ -103,7 +104,7 @@ The tracker also exposes cumulative totals through each `APIResponse.usage` so y
 
 - `process_prompts_sync` wraps the async version with `asyncio.run()` for convenience. Use `process_prompts_async` in notebooks or async services.
 - `start()` / `start_nowait()` enqueue individual prompts and return task IDs that you can `await` later or multiplex using `wait_for_all()` and `as_completed()`.
-- `stream()` yields incremental chunks from OpenAI-compatible chat models using the `stream_chat` helper.
+- `stream()` streams OpenAI-compatible chat tokens to stdout and returns the final response; call `stream_chat` directly when you need an async generator of chunks.
 - `run_agent_loop()` executes tool calls until the model returns a final answer, mutating your `Conversation` along the way.
 
 See [Advanced Workflows](/guides/advanced-usage/) for code samples that combine these primitives.

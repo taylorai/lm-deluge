@@ -7,7 +7,7 @@ Once you understand the basics, LM Deluge gives you lower-level primitives so yo
 
 ## Streaming Responses
 
-`LLMClient.stream()` yields incremental chunks from OpenAI-compatible chat models. Text arrives as strings and the final `APIResponse` closes the iterator:
+`LLMClient.stream()` streams incremental chunks from OpenAI-compatible chat models to stdout and returns the final `APIResponse` once the stream completes. Use it when you want simple console streaming without wiring up your own event loop:
 
 ```python
 import asyncio
@@ -15,14 +15,13 @@ from lm_deluge import Conversation, LLMClient
 
 async def stream_once():
     client = LLMClient("gpt-4.1-mini")
-    async for item in client.stream(Conversation.user("Count to five")):
-        if isinstance(item, str):
-            print(item, end="", flush=True)
-        else:
-            print("\nFinal response:", item.completion)
+    final = await client.stream(Conversation.user("Count to five"))
+    print("\nFinal response:", final.completion)
 
 asyncio.run(stream_once())
 ```
+
+Need fine-grained access to each streamed chunk? Call `lm_deluge.api_requests.openai.stream_chat()` directly—it's an async generator that yields every delta string followed by the final `APIResponse` object.
 
 ## Starting Tasks Manually
 

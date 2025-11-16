@@ -8,6 +8,8 @@ Structured outputs let you hand the model a JSON Schema and receive validated JS
 ## Quick Start
 
 ```python
+import json
+
 from lm_deluge import LLMClient
 
 client = LLMClient("gpt-4o-mini")
@@ -32,13 +34,15 @@ response = client.process_prompts_sync(
     show_progress=False,
 )[0]
 
-data = response.json()
+raw = response.completion or "{}"
+data = json.loads(raw)
 print(data["summary"], data["priority"])
 ```
 
 - Pass any JSON Schema object via `output_schema`.
 - `json_mode=True` still works, but `output_schema` always wins when both are provided so the schema remains authoritative.
-- `response.json()` raises if the provider returned invalid JSON, saving you from manual parsing.
+- `response.completion` holds the raw JSON string from the provider—call `json.loads(response.completion)` (after handling the
+  `None` case) to convert it into Python objects.
 
 ## Under the Hood
 
