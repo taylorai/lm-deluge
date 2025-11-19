@@ -23,7 +23,7 @@
 pip install lm-deluge
 ```
 
-The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GOOGLE_API_KEY`. `LLMClient` will automatically load the `.env` file when imported; we recommend using that to set the environment variables. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GEMINI_API_KEY`. `LLMClient` will automatically load the `.env` file when imported; we recommend using that to set the environment variables. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 ## Quickstart
 
@@ -32,9 +32,9 @@ The package relies on environment variables for API keys. Typical variables incl
 ```python
 from lm_deluge import LLMClient
 
-client = LLMClient("gpt-4o-mini")
+client = LLMClient("gpt-4.1-mini")
 resps = client.process_prompts_sync(["Hello, world!"])
-print(resp[0].completion)
+print(resps[0].completion)
 ```
 
 ## Spraying Across Models
@@ -45,13 +45,13 @@ To distribute your requests across models, just provide a list of more than one 
 from lm_deluge import LLMClient
 
 client = LLMClient(
-    ["gpt-4o-mini", "claude-3-haiku"],
+    ["gpt-4.1-mini", "claude-3-haiku"],
     max_requests_per_minute=10_000
 )
 resps = client.process_prompts_sync(
     ["Hello, ChatGPT!", "Hello, Claude!"]
 )
-print(resp[0].completion)
+print(resps[0].completion)
 ```
 
 ## Configuration

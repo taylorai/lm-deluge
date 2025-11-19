@@ -55,7 +55,7 @@ Then, make your first API request.
 from lm_deluge import LLMClient
 
 # you'll need OPENAI_API_KEY set in the environment!
-client = LLMClient("gpt-4o-mini")
+client = LLMClient("gpt-4.1-mini")
 resps = client.process_prompts_sync(["Hello, world!"])
 print(resps[0].completion)
 ```

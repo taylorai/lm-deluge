@@ -262,6 +262,7 @@ class _LLMClient(BaseModel):
             self.max_tokens_per_minute = max_tokens_per_minute
         if max_concurrent_requests:
             self.max_concurrent_requests = max_concurrent_requests
+        return self
 
     def _get_tracker(self) -> StatusTracker:
         if self._tracker is None:

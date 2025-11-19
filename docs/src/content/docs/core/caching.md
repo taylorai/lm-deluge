@@ -44,7 +44,7 @@ modal_cache = DistributedDictCache(Dict(), cache_key="project-x")
 ### Important Notes
 
 - **Cross-batch only**: caches are consulted before each HTTP call, so duplicate prompts inside the same batch will still make new requests until the first one finishes.
-- **Exact matches**: Keys are derived **only** from the serialized `Conversation`, so changing the sampling parameters will still hit the same entry.
+- **Exact matches**: Keys are derived **only** from the serialized `Conversation` (messages, images, files, etc.). Sampling parameters (temperature, max_new_tokens, etc.) are **not** included in the cache key, so changing these parameters will still hit the same cache entry. This means if you cache a prompt with `temperature=0.5` and later request the same prompt with `temperature=1.0`, you'll get the cached response from the first request.
 - **Cost savings**: Cached responses are completely free - no API call is made
 
 Example:

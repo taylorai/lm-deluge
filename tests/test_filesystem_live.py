@@ -45,7 +45,7 @@ async def test_filesystem_manager_live_flow():
     )
 
     manager_tools = manager.get_tools()
-    conv, resp = await client.run_agent_loop(conv, tools=manager_tools, max_rounds=8)
+    conv, resp = await client.run_agent_loop(conv, tools=manager_tools, max_rounds=8)  # type: ignore
 
     assert resp.completion, "Model should return a completion after tool use"
     expected_content = "Title: Filesystem Integration Test\nStatus: blue\nAction: done"

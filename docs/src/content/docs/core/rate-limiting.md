@@ -38,7 +38,7 @@ When spraying across multiple models, the rate limits apply to the **client as a
 
 ```python
 client = LLMClient(
-    ["gpt-4o-mini", "claude-3-haiku", "gemini-1.5-flash"],
+    ["gpt-4.1-mini", "claude-4.5-haiku", "gemini-2.5-flash"],
     max_requests_per_minute=10_000,  # Shared across all models
     max_tokens_per_minute=500_000,
 )

@@ -25,6 +25,7 @@ LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    extra_body: dict[str, str] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
     temperature: float = 0.75,
@@ -48,6 +49,7 @@ Key parameters:
 - `use_responses_api`: switch OpenAI models to `/responses` (required for computer-use and Codex models).
 - `background`: only valid with `use_responses_api=True`; polls background jobs until completion.
 - `extra_headers`: merged into every HTTP request (useful for beta headers or OpenAI organization routing).
+- `extra_body`: merged into every HTTP request body (useful for provider-specific parameters).
 
 ### Core Methods
 
@@ -67,6 +69,9 @@ Key parameters:
 | `submit_batch_job(prompts, *, tools=None, cache=None, batch_size=50_000)` | Submit prompts through OpenAI or Anthropic batch APIs. |
 | `wait_for_batch_job(batch_ids, provider)` | Poll batch jobs until they complete. |
 | `open(total=None, show_progress=True)` / `close()` / `reset_tracker()` | Manage the underlying `StatusTracker`.
+| `with_limits(max_requests_per_minute=None, max_tokens_per_minute=None, max_concurrent_requests=None)` | Update rate limits on an existing client instance. Returns `self` for chaining.
+| `from_dict(config_dict)` | Class method to create a client from a dictionary configuration.
+| `from_yaml(file_path)` | Class method to create a client from a YAML configuration file.
 
 `service_tier` can be supplied to `process_prompts_*`, `start()`, and `start_nowait()` for OpenAI models (`"auto"`, `"default"`, `"flex"`, `"priority"`).
 
@@ -188,18 +193,10 @@ Conveniences:
 
 ## Cache Interface
 
-Pass a cache implementation into the client constructor to enable local caching:
-
-```python
-class CacheProto:
-    def get(self, prompt: Conversation) -> APIResponse | None: ...
-    def put(self, prompt: Conversation, response: APIResponse) -> None: ...
-```
-
-Built-in caches live in `lm_deluge.cache`:
+Pass a cache implementation into the client constructor to enable local caching. Built-in caches live in `lm_deluge.cache`:
 
 - `SqliteCache(path, cache_key="default")`
 - `LevelDBCache(path=None, cache_key="default")`
 - `DistributedDictCache(cache, cache_key="default")`
 
-Each cache fingerprints the entire `Conversation` (including `SamplingParams`) to avoid false positives.
+Each cache fingerprints only the `Conversation` content (messages, images, files, etc.) to generate cache keys. **Note:** Sampling parameters (temperature, max_new_tokens, etc.) are NOT included in the cache key, so changing these parameters will still hit the same cache entry. This is intentional—the cache stores responses based on the prompt content alone.
