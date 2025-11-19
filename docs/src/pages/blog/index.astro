@@ -1,0 +1,156 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+
+const blogPosts = (await getCollection('blog'))
+	.filter((post) => !post.data.draft)
+	.sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime());
+---
+
+<Layout title="Blog">
+	<div class="blog-container">
+		<header class="blog-header">
+			<h1>Blog</h1>
+			<p class="blog-description">Updates, tutorials, and insights about LM Deluge</p>
+		</header>
+
+		<div class="blog-posts">
+			{blogPosts.map((post) => (
+				<article class="blog-post-card">
+					<a href={`/blog/${post.slug}`} class="blog-post-link">
+						<h2 class="blog-post-title">{post.data.title}</h2>
+						<p class="blog-post-description">{post.data.description}</p>
+						<div class="blog-post-meta">
+							<time datetime={post.data.pubDate.toISOString()}>
+								{post.data.pubDate.toLocaleDateString('en-US', {
+									year: 'numeric',
+									month: 'long',
+									day: 'numeric',
+								})}
+							</time>
+							{post.data.author && <span class="blog-post-author">by {post.data.author}</span>}
+							{post.data.tags.length > 0 && (
+								<div class="blog-post-tags">
+									{post.data.tags.map((tag) => (
+										<span class="blog-tag">{tag}</span>
+									))}
+								</div>
+							)}
+						</div>
+					</a>
+				</article>
+			))}
+		</div>
+
+		{blogPosts.length === 0 && (
+			<p class="blog-empty">No blog posts yet. Check back soon!</p>
+		)}
+	</div>
+</Layout>
+
+<style>
+	.blog-container {
+		max-width: 800px;
+		margin: 0 auto;
+		padding: 2rem;
+	}
+
+	.blog-header {
+		margin-bottom: 3rem;
+		text-align: center;
+	}
+
+	.blog-header h1 {
+		font-size: 2.5rem;
+		margin-bottom: 0.5rem;
+		color: var(--sl-color-text);
+	}
+
+	.blog-description {
+		font-size: 1.125rem;
+		color: var(--sl-color-gray-2);
+	}
+
+	.blog-posts {
+		display: flex;
+		flex-direction: column;
+		gap: 2rem;
+	}
+
+	.blog-post-card {
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 8px;
+		padding: 1.5rem;
+		transition: all 0.2s ease;
+		background: var(--sl-color-white);
+	}
+
+	.blog-post-card:hover {
+		border-color: var(--sl-color-accent);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+		transform: translateY(-2px);
+	}
+
+	.blog-post-link {
+		text-decoration: none;
+		color: inherit;
+		display: block;
+	}
+
+	.blog-post-title {
+		font-size: 1.5rem;
+		margin-bottom: 0.5rem;
+		color: var(--sl-color-text);
+	}
+
+	.blog-post-description {
+		color: var(--sl-color-gray-2);
+		margin-bottom: 1rem;
+		line-height: 1.6;
+	}
+
+	.blog-post-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+		align-items: center;
+		font-size: 0.875rem;
+		color: var(--sl-color-gray-1);
+	}
+
+	.blog-post-author {
+		color: var(--sl-color-gray-1);
+	}
+
+	.blog-post-tags {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+	}
+
+	.blog-tag {
+		background: var(--sl-color-accent-low);
+		color: var(--sl-color-accent);
+		padding: 0.25rem 0.75rem;
+		border-radius: 4px;
+		font-size: 0.75rem;
+		font-weight: 500;
+	}
+
+	.blog-empty {
+		text-align: center;
+		color: var(--sl-color-gray-2);
+		padding: 3rem;
+	}
+
+	@media (max-width: 768px) {
+		.blog-container {
+			padding: 1rem;
+		}
+
+		.blog-header h1 {
+			font-size: 2rem;
+		}
+	}
+</style>
+

@@ -15,14 +15,9 @@ export default defineConfig({
         },
       ],
       sidebar: [
-        {
-          label: "Getting Started",
-          items: [
-            { label: "Introduction", slug: "index" },
-            { label: "Installation", slug: "getting-started/installation" },
-            { label: "Quick Start", slug: "getting-started/quickstart" },
-          ],
-        },
+        { label: "Introduction", link: "/" },
+        { label: "Installation", link: "/getting-started/installation/" },
+        { label: "Quick Start", link: "/getting-started/quickstart/" },
         {
           label: "Configuring the Client",
           items: [
@@ -58,14 +53,9 @@ export default defineConfig({
             { label: "Using Custom Models", slug: "reference/custom-models" },
           ],
         },
-        {
-          label: "Reference",
-          items: [{ label: "API Reference", slug: "reference/api" }],
-        },
-        {
-          label: "Project Updates",
-          items: [{ label: "Changelog", slug: "changelog" }],
-        },
+        { label: "API Reference", link: "/reference/api/" },
+        { label: "Changelog", link: "/changelog/" },
+        { label: "Blog", link: "/blog" },
       ],
     }),
   ],
