@@ -18,7 +18,7 @@ The easiest way to include a file in your conversation:
 ```python
 from lm_deluge import LLMClient, Conversation
 
-client = LLMClient(model="claude-3-5-sonnet-20241022")
+client = LLMClient(model="claude-4.5-sonnet")
 
 # Create conversation with a file
 conversation = Conversation.user(

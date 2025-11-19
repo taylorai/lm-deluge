@@ -32,7 +32,7 @@ import asyncio
 from lm_deluge import Conversation, LLMClient
 
 async def fan_out(prompts):
-    client = LLMClient("claude-3-5-sonnet", name="batch-job")
+    client = LLMClient("claude-4.5-sonnet", name="batch-job")
     client.open(total=len(prompts))
     task_ids = [client.start_nowait(Conversation.user(p)) for p in prompts]
 

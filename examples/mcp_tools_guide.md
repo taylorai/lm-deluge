@@ -107,7 +107,7 @@ async def single_tool_mcp_example():
     print(f"Parameters: {list(search_tool.parameters.keys())}")
 
     # Use the tool directly
-    client = LLMClient("claude-3-haiku")
+    client = LLMClient("claude-4.5-haiku")
 
     prompt = "Search for information about the best hiking trails in Yosemite National Park"
 

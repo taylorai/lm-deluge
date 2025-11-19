@@ -47,7 +47,7 @@ These helpers convert the nested `sampling_params` dicts into `SamplingParams` o
 
 ## Dynamic OpenRouter Models
 
-Any model ID that starts with `openrouter:` (for example `openrouter:anthropic/claude-3.5-sonnet`) is registered automatically at runtime. LM Deluge replaces the slash with `-` to build a unique ID, stores the new model in the registry, and forwards the request through the OpenRouter API using `OPENROUTER_API_KEY`.
+Any model ID that starts with `openrouter:` (for example `openrouter:anthropic/claude-4.5-sonnet`) is registered automatically at runtime. LM Deluge replaces the slash with `-` to build a unique ID, stores the new model in the registry, and forwards the request through the OpenRouter API using `OPENROUTER_API_KEY`.
 
 ## Custom Sampling Strategies
 

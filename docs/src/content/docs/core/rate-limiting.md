@@ -69,7 +69,7 @@ Set `request_timeout` to avoid hanging on slow responses:
 
 ```python
 client = LLMClient(
-    "claude-3.5-sonnet",
+    "claude-4.5-sonnet",
     request_timeout=60,
 )
 ```

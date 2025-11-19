@@ -29,7 +29,7 @@ from lm_deluge import LLMClient, Conversation
 async def computer_use_example():
     # Create client with Claude model that supports Computer Use
     client = LLMClient(
-        model_names=["claude-4-sonnet"],  # or claude-3-5-sonnet-20241022, claude-3.7-sonnet
+        model_names=["claude-4-sonnet"],  # or claude-4.5-sonnet, claude-3.7-sonnet
         max_requests_per_minute=10,
         max_tokens_per_minute=50000,  # Higher limits recommended for CU
         max_concurrent_requests=1
@@ -191,7 +191,7 @@ Computer Use typically involves multiple interactions. Here's how to handle mult
 ```python
 async def multi_turn_computer_use():
     client = LLMClient(
-        model_names=["claude-3-5-sonnet-20241022"],
+        model_names=["claude-4.5-sonnet"],
         max_requests_per_minute=10,
         max_tokens_per_minute=100000,  # Higher for long conversations
         max_concurrent_requests=1
@@ -327,7 +327,7 @@ results = await client.process_prompts_async(
 ```python
 async def robust_computer_use():
     client = LLMClient(
-        model_names=["claude-3-5-sonnet-20241022"],
+        model_names=["claude-4.5-sonnet"],
         max_requests_per_minute=10,
         max_tokens_per_minute=50000,
         max_concurrent_requests=1,

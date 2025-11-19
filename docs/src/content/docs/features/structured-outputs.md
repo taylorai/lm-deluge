@@ -208,7 +208,7 @@ class ProductReview(BaseModel):
         # Prevent the model from adding extra fields
         extra = "forbid"
 
-client = LLMClient("claude-sonnet-4")
+client = LLMClient("claude-4-sonnet")
 
 response = client.process_prompts_sync(
     ["Analyze this customer review: 'Great product! Works as advertised. 5 stars!'"],

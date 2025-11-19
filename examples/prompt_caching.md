@@ -17,7 +17,7 @@ Anthropic's prompt caching allows you to cache parts of your prompt on their ser
 from lm_deluge import LLMClient, Conversation, Message
 
 # Create a client - prompt caching works with any Anthropic model
-client = LLMClient("claude-3-5-sonnet")
+client = LLMClient("claude-4.5-sonnet")
 
 # Create a conversation with a long system prompt
 conv = Conversation.system("""
@@ -172,7 +172,7 @@ import asyncio
 from lm_deluge import LLMClient
 
 async def demonstrate_cost_savings():
-    client = LLMClient("claude-3-5-sonnet")
+    client = LLMClient("claude-4.5-sonnet")
 
     # Long system prompt (expensive to process repeatedly)
     long_system_prompt = "You are an expert data scientist..." * 100  # Very long prompt

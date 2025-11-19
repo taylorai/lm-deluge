@@ -69,7 +69,7 @@ conv = (
     .add(Message.user("How do I use asyncio.gather?"))
 )
 
-client = LLMClient("claude-3-5-sonnet")
+client = LLMClient("claude-4.5-sonnet")
 resps = client.process_prompts_sync(
     [conv],
     cache="system_and_tools"  # Cache system message and tools collectively
@@ -103,7 +103,7 @@ You can use both local and provider-side caching:
 from lm_deluge.cache import SqliteCache
 
 cache = SqliteCache("cache.db")
-client = LLMClient("claude-3-5-sonnet", cache=cache)
+client = LLMClient("claude-4.5-sonnet", cache=cache)
 
 # Uses both local cache and Anthropic's prompt caching
 resps = client.process_prompts_sync(

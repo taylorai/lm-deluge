@@ -45,7 +45,7 @@ To distribute your requests across models, just provide a list of more than one 
 from lm_deluge import LLMClient
 
 client = LLMClient(
-    ["gpt-4.1-mini", "claude-3-haiku"],
+    ["gpt-4.1-mini", "claude-4.5-haiku"],
     max_requests_per_minute=10_000
 )
 resps = client.process_prompts_sync(
@@ -152,7 +152,7 @@ def get_weather(city: str) -> str:
     return f"The weather in {city} is sunny and 72°F"
 
 tool = Tool.from_function(get_weather)
-client = LLMClient("claude-3-haiku")
+client = LLMClient("claude-4.5-haiku")
 resps = client.process_prompts_sync(
     ["What's the weather in Paris?"],
     tools=[tool]
@@ -226,7 +226,7 @@ conv = (
 )
 
 # Use prompt caching to cache system message and tools
-client = LLMClient("claude-3-5-sonnet")
+client = LLMClient("claude-4.5-sonnet")
 resps = client.process_prompts_sync(
     [conv],
     cache="system_and_tools"  # Cache system message and any tools

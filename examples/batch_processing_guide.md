@@ -22,7 +22,7 @@ from lm_deluge import LLMClient
 
 # Initialize client with a single model
 client = LLMClient(
-    model_names=["gpt-4o-mini"],  # or "claude-3-5-haiku-latest" for Anthropic
+    model_names=["gpt-4o-mini"],  # or "claude-4.5-haiku" for Anthropic
     max_requests_per_minute=10000,
     max_tokens_per_minute=1000000,
     max_concurrent_requests=100
@@ -59,7 +59,7 @@ from lm_deluge import LLMClient
 
 async def process_batches():
     client = LLMClient(
-        model_names=["claude-3-5-haiku-latest"],
+        model_names=["claude-4.5-haiku"],
         max_requests_per_minute=10000,
         max_tokens_per_minute=1000000,
         max_concurrent_requests=100
@@ -165,7 +165,7 @@ def get_weather(location: str) -> str:
 weather_tool = Tool.from_function(get_weather)
 
 client = LLMClient(
-    model_names=["claude-3-5-sonnet-latest"],
+    model_names=["claude-4.5-sonnet"],
     max_requests_per_minute=10000,
     max_tokens_per_minute=1000000,
     max_concurrent_requests=100
@@ -195,7 +195,7 @@ from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, CachePattern
 
 client = LLMClient(
-    model_names=["claude-3-5-sonnet-latest"],
+    model_names=["claude-4.5-sonnet"],
     max_requests_per_minute=10000,
     max_tokens_per_minute=1000000,
     max_concurrent_requests=100
@@ -270,7 +270,7 @@ for result in results:
 ## Cost Optimization Tips
 
 1. **Batch similar requests**: Group prompts that will likely generate similar-length responses
-2. **Use appropriate models**: Smaller models (gpt-4o-mini, claude-3-5-haiku) are ideal for batch processing
+2. **Use appropriate models**: Smaller models (gpt-4o-mini, claude-4.5-haiku) are ideal for batch processing
 3. **Leverage caching**: For Anthropic, use cache patterns to reduce costs on repeated content
 4. **Monitor token usage**: Check the token counts in results to optimize future batches
 

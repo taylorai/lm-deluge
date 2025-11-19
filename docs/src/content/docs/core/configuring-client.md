@@ -32,7 +32,7 @@ Load pre-defined settings without writing code by using `LLMClient.from_dict()` 
 
 ```python
 config = {
-    "model_names": ["claude-3.5-sonnet"],
+    "model_names": ["claude-4.5-sonnet"],
     "sampling_params": {"temperature": 0.4, "max_new_tokens": 300},
     "max_concurrent_requests": 400,
 }
@@ -45,7 +45,7 @@ Pass a list of model IDs to spray traffic. Provide `model_weights` when you need
 
 ```python
 multi_client = LLMClient(
-    ["gpt-4.1-mini", "claude-3-haiku", "gemini-1.5-flash"],
+    ["gpt-4.1-mini", "claude-4.5-haiku", "gemini-2.5-flash"],
     model_weights=[0.6, 0.2, 0.2],
     sampling_params=[
         SamplingParams(temperature=0.2, max_new_tokens=200),
@@ -63,7 +63,7 @@ multi_client = LLMClient(
 
 - `temperature`, `top_p`, and `max_new_tokens` feed directly into the request bodies.
 - `json_mode=True` places OpenAI and Gemini into JSON-object responses if the model supports it.
-- `reasoning_effort` lets you request `"low"`, `"medium"`, `"high"`, `"minimal"`, or `"none"` on reasoning models (`o4`, `gpt-5`, `claude-3.5`, etc.).
+- `reasoning_effort` lets you request `"low"`, `"medium"`, `"high"`, `"minimal"`, or `"none"` on reasoning models (`o4-mini`, `gpt-5`, `claude-4.5`, etc.).
 - `logprobs` + `top_logprobs` enable token-level probabilities across all models that support it; the client validates that every model in the pool allows logprobs and adjusts each `SamplingParams` instance for you.
 - `strict_tools` keeps OpenAI/Anthropic tool definitions in strict mode (removing defaults) unless you explicitly disable it.
 

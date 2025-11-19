@@ -28,7 +28,7 @@ prompts = [
     "Draft a commit message for refactoring the cache layer.",
 ]
 
-client = LLMClient("claude-3-5-sonnet")
+client = LLMClient("claude-4.5-sonnet")
 results = client.process_prompts_sync(prompts)
 
 for resp in results:
@@ -45,7 +45,7 @@ Pass a list of model IDs to sample a model per request. Provide `model_weights` 
 from lm_deluge import LLMClient
 
 client = LLMClient(
-    ["gpt-4.1-mini", "claude-3-haiku", "gemini-1.5-flash"],
+    ["gpt-4.1-mini", "claude-4.5-haiku", "gemini-2.5-flash"],
     model_weights=[0.5, 0.25, 0.25],
     max_requests_per_minute=8_000,
 )

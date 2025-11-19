@@ -69,7 +69,7 @@ async def from_function_example():
     tip_tool = Tool.from_function(calculate_tip)
     coin_tool = Tool.from_function(flip_coin)
 
-    client = LLMClient("gpt-4o-mini")  # or "claude-3-haiku"
+    client = LLMClient("gpt-4o-mini")  # or "claude-4.5-haiku"
 
     prompt = """
     I had dinner and the bill was $47.50. Can you:
@@ -299,7 +299,7 @@ Here's how to use the tool with a simple request:
 ```python
 async def simple_tool_example():
     # Create a client
-    client = LLMClient("gpt-4.1-mini")  # or "claude-3-haiku"
+    client = LLMClient("gpt-4.1-mini")  # or "claude-4.5-haiku"
 
     # Make a request that will trigger tool usage
     prompt = "I need a random number between 0 and 10. Please use the random_generator tool."
@@ -448,7 +448,7 @@ calculator_spec = Tool(
 )
 
 async def multi_tool_example():
-    client = LLMClient("claude-3-haiku")
+    client = LLMClient("claude-4.5-haiku")
 
     prompt = """
     I'm planning a trip to Paris. Can you:

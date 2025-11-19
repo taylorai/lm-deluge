@@ -20,7 +20,7 @@ def get_weather(city: str) -> str:
 
 tool = Tool.from_function(get_weather)
 
-client = LLMClient("claude-3-haiku")
+client = LLMClient("claude-4.5-haiku")
 response = client.process_prompts_sync(
     [Conversation.user("What's the weather in Paris?")],
     tools=[tool],
