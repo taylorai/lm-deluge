@@ -166,6 +166,75 @@ resps = client.process_prompts_sync(
 )
 ```
 
+## Stateful Todo Lists
+
+Give models a persistent scratchpad for tracking work by wiring in the `TodoManager`. It exposes read/write tools (`todowrite`, `todoread`) that store todos in memory and enforce consistent schemas, which keeps the model honest about progress.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.llm_tools.todos import TodoManager
+
+async def main():
+    manager = TodoManager()
+    client = LLMClient("gpt-4.1-mini")
+
+    conv = Conversation.user(
+        "Plan today's coding session. Use the todowrite/todoread tools to create a task list, "
+        "keep only one item in_progress at a time, and mark items complete as soon as they finish."
+    )
+
+    conv, resp = await client.run_agent_loop(conv, tools=manager.get_tools())
+    for todo in manager.get_todos():
+        print(todo.content, todo.status, todo.priority)
+
+asyncio.run(main())
+```
+
+Tips:
+
+- The manager normalizes status/priority casing and generates UUIDs automatically.
+- Pass `TodoManager(todos=[...])` to seed the list or customize the tool names via `write_tool_name` / `read_tool_name`.
+- `manager.get_todos()` returns strongly typed `TodoItem` objects, making it easy to build dashboards or surface progress in a UI.
+
+## Delegating Work with Subagents
+
+`SubAgentManager` lets the main model spin up dedicated subagents (often on cheaper models) via three tools: `start_subagent`, `check_subagent`, and `wait_for_subagent`. Each subagent runs its own agent loop and can use its own tool belt.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient, Tool
+from lm_deluge.llm_tools.subagents import SubAgentManager
+
+async def main():
+    def search_web(query: str) -> str:
+        return f"Search results for {query}"
+
+    def summarize(text: str) -> str:
+        return f"Summary: {text[:50]}..."
+
+    research_tools = [Tool.from_function(search_web), Tool.from_function(summarize)]
+    subagent_client = LLMClient("gpt-4o-mini")
+    manager = SubAgentManager(client=subagent_client, tools=research_tools, max_rounds=3)
+
+    main_client = LLMClient("gpt-4.1-mini")
+    conv = Conversation.user(
+        "Research three potential suppliers in parallel. Start a subagent per supplier, "
+        "check their status intermittently, then wait for each result and summarize."
+    )
+
+    conv, resp = await main_client.run_agent_loop(conv, tools=manager.get_tools())
+    print(resp.completion)
+
+asyncio.run(main())
+```
+
+Use cases include:
+
+- Delegating specialized work (search, calculations) to a separate tool stack.
+- Running long-lived subtasks in parallel while the main agent keeps chatting.
+- Keeping expensive context on the primary model while subagents operate with short prompts.
+
 ## Built-in Tools and Computer Use
 
 Several providers expose built-in tools via special schemas. Import them from `lm_deluge.built_in_tools` and pass them through the `tools` argument just like regular `Tool` objects.

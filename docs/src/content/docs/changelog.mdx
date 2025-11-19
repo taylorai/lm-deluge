@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.76 · 2025-11-18
+
+- Introduced `SubAgentManager`, a trio of tools (`start_subagent`, `check_subagent`, `wait_for_subagent`) that lets a primary agent delegate work to cheaper models; real-world coverage lives in `tests/core/test_subagent_manager.py` and the new Agent guide sections spell out the workflow.
+- Shipped `TodoManager`/`TodoItem`/`TodoStatus`/`TodoPriority`, giving LLMs a first-class todo scratchpad they can mutate via `todowrite`/`todoread`; the integration suite in `tests/core/test_todo_manager.py` ensures models follow the protocol.
+- `_LLMClient` now exposes `start_agent_loop_nowait()` + `wait_for_agent_loop()` around a new `AgentLoopResponse`, so you can launch parallel loops and gather the `(Conversation, APIResponse)` later; `tests/core/test_agent_loop.py` adds scenarios for concurrent loops and the docs (features, agents guide, API reference) walk through the new APIs.
+
 ## 0.0.75 · 2025-11-16
 
 - `output_schema` now accepts raw JSON Schemas *or* Pydantic `BaseModel` subclasses. `lm_deluge.util.schema.prepare_output_schema()` handles the conversion to strict JSON Schema (adds `additionalProperties: false`, expands `$defs`, keeps optional fields nullable, etc.) and feeds both Anthropic and OpenAI builders, with coverage in `tests/core/test_schema_transformations.py` and `tests/core/test_pydantic_structured_outputs.py`.

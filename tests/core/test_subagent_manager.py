@@ -144,3 +144,34 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+async def test_check_subagent_reports_task_failure():
+    """Ensure _check_subagent surfaces exceptions even when no result was stored."""
+
+    class DummyClient:
+        def __init__(self):
+            self._results = {}
+            self._tasks = {}
+
+    client = DummyClient()
+    manager = SubAgentManager(client=client, tools=[], max_rounds=1)
+
+    agent_id = 123
+    manager.subagents[agent_id] = {
+        "status": "running",
+        "conversation": None,
+        "response": None,
+        "error": None,
+    }
+
+    loop = asyncio.get_running_loop()
+    failing_task = loop.create_future()
+    failing_task.set_exception(RuntimeError("boom"))
+    client._tasks[agent_id] = failing_task
+
+    status = await manager._check_subagent(agent_id)
+    assert status.startswith("Error:")
+    agent = manager.subagents[agent_id]
+    assert agent["status"] == "error"
+    assert agent["error"] == "boom"

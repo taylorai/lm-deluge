@@ -125,6 +125,11 @@ Instances expose `.call(**kwargs)` and `.acall(**kwargs)` which automatically pi
 
 `MCPServer(name, url, token=None, configuration=None, headers=None)` wraps an MCP server description. Pass `force_local_mcp=True` to the `LLMClient` to expand the server locally, or rely on provider-native MCP support when available.
 
+Utility managers in `lm_deluge.llm_tools` provide ready-made tool suites:
+
+- `TodoManager` exposes `todowrite`/`todoread` handlers for maintaining a structured todo list during long sessions (see `TodoItem`, `TodoPriority`, and `TodoStatus` for strongly typed entries).
+- `SubAgentManager` registers `start_subagent`, `check_subagent`, and `wait_for_subagent` tools so the main model can delegate parallel agent loops to cheaper models without manual orchestration.
+
 ## File & Image
 
 `File` and `Image` encapsulate binary content.

@@ -1,5 +1,5 @@
 from lm_deluge.api_requests.base import APIResponse
-from lm_deluge.client import _LLMClient
+from lm_deluge.client import AgentLoopResponse, _LLMClient
 from lm_deluge.prompt import Conversation, prompts_to_conversations
 from lm_deluge.tool import Tool
 
@@ -71,6 +71,22 @@ class SubAgentManager:
 
         return task_id
 
+    def _finalize_subagent_result(
+        self, agent_id: int, result: AgentLoopResponse
+    ) -> str:
+        """Update subagent tracking state from a finished agent loop."""
+        agent = self.subagents[agent_id]
+        agent["conversation"] = result.conversation
+        agent["response"] = result.final_response
+
+        if result.final_response.is_error:
+            agent["status"] = "error"
+            agent["error"] = result.final_response.error_message
+            return f"Error: {agent['error']}"
+
+        agent["status"] = "finished"
+        return result.final_response.completion or "Subagent finished with no output"
+
     async def _check_subagent(self, agent_id: int) -> str:
         """Check the status of a subagent.
 
@@ -95,24 +111,27 @@ class SubAgentManager:
             # Try to check if it's done
             try:
                 # Check if the task exists in client's results
-                if agent_id in self.client._results:
-                    result = self.client._results[agent_id]
-                    # Import here to avoid circular dependency
-                    from lm_deluge.client import AgentLoopResponse
+                stored_result = self.client._results.get(agent_id)
+                if isinstance(stored_result, AgentLoopResponse):
+                    return self._finalize_subagent_result(agent_id, stored_result)
 
-                    if isinstance(result, AgentLoopResponse):
-                        agent["conversation"] = result.conversation
-                        agent["response"] = result.final_response
-                        if result.final_response.is_error:
-                            agent["status"] = "error"
-                            agent["error"] = result.final_response.error_message
-                            return f"Error: {agent['error']}"
-                        else:
-                            agent["status"] = "finished"
-                            return (
-                                result.final_response.completion
-                                or "Subagent finished with no output"
-                            )
+                task = self.client._tasks.get(agent_id)
+                if task and task.done():
+                    try:
+                        task_result = task.result()
+                    except Exception as e:
+                        agent["status"] = "error"
+                        agent["error"] = str(e)
+                        return f"Error: {agent['error']}"
+
+                    if isinstance(task_result, AgentLoopResponse):
+                        return self._finalize_subagent_result(agent_id, task_result)
+
+                    agent["status"] = "error"
+                    agent["error"] = (
+                        f"Unexpected task result type: {type(task_result).__name__}"
+                    )
+                    return f"Error: {agent['error']}"
 
                 # Still running
                 return f"Subagent {agent_id} is still running. Call this tool again to check status."

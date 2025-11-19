@@ -93,6 +93,43 @@ This pattern is useful for:
 - **Batch processing**: Process many tasks in parallel
 - **Background work**: Start an agent loop and do other work while it runs
 
+## Delegating to Subagents
+
+Large tasks often benefit from spinning off independent workers. `SubAgentManager` exposes tools that let the primary agent start subagents, poll progress, and wait for results without writing orchestration code yourself.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient, Tool
+from lm_deluge.llm_tools.subagents import SubAgentManager
+
+async def main():
+    def search_docs(query: str) -> str:
+        return f"Docs for {query}"
+
+    research_tools = [Tool.from_function(search_docs)]
+    subagent_client = LLMClient("gpt-4o-mini")
+    manager = SubAgentManager(client=subagent_client, tools=research_tools)
+
+    main_client = LLMClient("gpt-4o")
+    conv = Conversation.user(
+        "Research three rival products. Start a subagent per product, use check_subagent to poll, "
+        "then wait_for_subagent once you have all the data, and summarize everything."
+    )
+
+    conv, resp = await main_client.run_agent_loop(conv, tools=manager.get_tools())
+    print(resp.completion)
+
+asyncio.run(main())
+```
+
+Tool semantics:
+
+- `start_subagent(task=...)` returns a task ID for a brand-new agent loop (running on the manager's client/tools).
+- `check_subagent(agent_id=...)` lets the main agent poll progress and keep chatting while the subagent continues running.
+- `wait_for_subagent(agent_id=...)` blocks until the subagent finishes and returns its final output (or error message).
+
+Use this pattern to dispatch long searches, structured research, or code-generation jobs to cheaper models while the main agent focuses on the conversation.
+
 ## Controlling Agent Behavior
 
 ### Max Rounds

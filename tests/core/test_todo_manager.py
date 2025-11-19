@@ -5,7 +5,7 @@ import asyncio
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.todos import TodoManager
+from lm_deluge.llm_tools.todos import TodoItem, TodoManager
 
 dotenv.load_dotenv()
 
@@ -107,3 +107,15 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+def test_todo_item_treats_cancelled_as_inactive():
+    """Ensure cancelled todos no longer count as active work."""
+    todo = TodoItem(
+        content="skip task",
+        status="cancelled",
+        priority="low",
+    )
+
+    assert todo.status == "cancelled"
+    assert todo.is_active() is False
