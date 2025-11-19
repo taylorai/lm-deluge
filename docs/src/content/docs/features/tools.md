@@ -74,7 +74,9 @@ Use `.call()` for synchronous helpers and `.acall()` inside async applications. 
 
 ## Agent Loop
 
-LM Deluge includes a built-in agent loop that automatically executes tool calls:
+LM Deluge includes a built-in agent loop that automatically executes tool calls. This is useful when you want the model to use tools iteratively without manually managing the conversation flow.
+
+### Basic Agent Loop
 
 ```python
 import asyncio
@@ -97,7 +99,48 @@ The agent loop will:
 1. Send the conversation to the model
 2. If the model calls tools, execute them
 3. Add the tool results to the conversation
-4. Repeat until the model returns a final response
+4. Repeat until the model returns a final response (up to `max_rounds`, default 5)
+
+### Parallel Agent Loops
+
+For running multiple agent loops concurrently, use the `start_agent_loop_nowait()` and `wait_for_agent_loop()` APIs:
+
+```python
+import asyncio
+from lm_deluge import LLMClient, Tool, Conversation
+
+async def main():
+    tools = [Tool.from_function(get_weather)]
+    client = LLMClient("gpt-4o-mini")
+
+    # Start multiple agent loops without waiting
+    task_ids = []
+    for city in ["London", "Paris", "Tokyo"]:
+        conv = Conversation.user(f"What's the weather in {city}?")
+        task_id = client.start_agent_loop_nowait(conv, tools=tools)
+        task_ids.append(task_id)
+
+    # Wait for all to complete
+    for task_id in task_ids:
+        conv, resp = await client.wait_for_agent_loop(task_id)
+        print(resp.content.completion)
+
+asyncio.run(main())
+```
+
+This pattern allows you to:
+- Start multiple agent loops in parallel
+- Perform other work while agent loops are running
+- Collect results as they complete or in a specific order
+
+### When to Use Agent Loops
+
+Agent loops are ideal for:
+- **Multi-step tasks**: Tasks requiring sequential tool calls (e.g., "search for a topic, then summarize the results")
+- **Complex workflows**: Situations where the model needs to decide which tools to use based on previous results
+- **Interactive agents**: Building chatbots or assistants that can use tools autonomously
+
+For simple single-turn tool calls, you may prefer using `process_prompts_async()` directly and handling tool execution manually.
 
 ## Multiple Tools
 

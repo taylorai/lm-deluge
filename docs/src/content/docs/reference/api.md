@@ -60,7 +60,9 @@ Key parameters:
 | `wait_for(task_id)` / `wait_for_all(task_ids=None)` | Await one or many tasks. |
 | `as_completed(task_ids=None)` | Async generator yielding `(task_id, APIResponse)` pairs as soon as tasks finish. |
 | `stream(prompt, *, tools=None)` | Streams chunks to stdout and resolves to the final `APIResponse` (see `stream_chat` for a generator). |
-| `run_agent_loop(conversation, *, tools=None, max_rounds=5)` | Executes tool calls automatically until the model stops asking for tools. |
+| `run_agent_loop(conversation, *, tools=None, max_rounds=5)` | Executes tool calls automatically until the model stops asking for tools. Equivalent to `start_agent_loop_nowait()` + `wait_for_agent_loop()`. |
+| `start_agent_loop_nowait(conversation, *, tools=None, max_rounds=5)` | Start an agent loop without waiting. Returns a task ID that can be used with `wait_for_agent_loop()`. |
+| `wait_for_agent_loop(task_id)` | Wait for an agent loop task to complete. Returns `(Conversation, APIResponse)`. |
 | `run_agent_loop_sync(...)` | Synchronous wrapper for the agent loop. |
 | `submit_batch_job(prompts, *, tools=None, cache=None, batch_size=50_000)` | Submit prompts through OpenAI or Anthropic batch APIs. |
 | `wait_for_batch_job(batch_ids, provider)` | Poll batch jobs until they complete. |

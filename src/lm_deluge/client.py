@@ -1,4 +1,5 @@
 import asyncio
+from dataclasses import dataclass
 from typing import (
     Any,
     AsyncGenerator,
@@ -35,6 +36,14 @@ from .config import SamplingParams
 from .models import APIModel, register_model, registry
 from .request_context import RequestContext
 from .tracker import StatusTracker
+
+
+@dataclass
+class AgentLoopResponse:
+    """Wrapper for agent loop results to distinguish from single request results."""
+
+    conversation: Conversation
+    final_response: APIResponse
 
 
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
@@ -88,7 +97,9 @@ class _LLMClient(BaseModel):
     # Internal state for async task handling
     _next_task_id: int = PrivateAttr(default=0)
     _tasks: dict[int, asyncio.Task] = PrivateAttr(default_factory=dict)
-    _results: dict[int, APIResponse] = PrivateAttr(default_factory=dict)
+    _results: dict[int, APIResponse | AgentLoopResponse] = PrivateAttr(
+        default_factory=dict
+    )
     _tracker: StatusTracker | None = PrivateAttr(default=None)
     _capacity_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
 
@@ -747,11 +758,11 @@ class _LLMClient(BaseModel):
     async def wait_for(self, task_id: int) -> APIResponse:
         task = self._tasks.get(task_id)
         if task:
-            return await task
-        res = self._results.get(task_id)
-        if res:
-            return res
+            result = await task
         else:
+            result = self._results.get(task_id)
+
+        if result is None:
             return APIResponse(
                 id=-1,
                 model_internal="",
@@ -761,6 +772,11 @@ class _LLMClient(BaseModel):
                 is_error=True,
                 error_message="Task not found",
             )
+
+        assert isinstance(
+            result, APIResponse
+        ), f"Expected APIResponse, got {type(result)}. Use wait_for_agent_loop for agent loop tasks."
+        return result
 
     async def wait_for_all(
         self, task_ids: Sequence[int] | None = None
@@ -797,6 +813,9 @@ class _LLMClient(BaseModel):
                 tid = tasks_map.pop(task)
                 task_result = self._results.get(tid, await task)
                 assert task_result
+                assert isinstance(
+                    task_result, APIResponse
+                ), f"Expected APIResponse, got {type(task_result)}. as_completed() only works with single requests, not agent loops."
                 yield tid, task_result
 
         while tasks_map:
@@ -807,6 +826,9 @@ class _LLMClient(BaseModel):
                 tid = tasks_map.pop(task)
                 task_result = self._results.get(tid, await task)
                 assert task_result
+                assert isinstance(
+                    task_result, APIResponse
+                ), f"Expected APIResponse, got {type(task_result)}. as_completed() only works with single requests, not agent loops."
                 yield tid, task_result
 
     async def stream(
@@ -828,24 +850,15 @@ class _LLMClient(BaseModel):
                     return self.postprocess(item)
                 return item
 
-    async def run_agent_loop(
+    async def _run_agent_loop_internal(
         self,
-        conversation: Prompt,
+        task_id: int,
+        conversation: Conversation,
         *,
         tools: list[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
-        show_progress: bool = False,
-    ) -> tuple[Conversation, APIResponse]:
-        """Run a simple agent loop until no more tool calls are returned.
-
-        The provided ``conversation`` will be mutated and returned alongside the
-        final ``APIResponse`` from the model. ``tools`` may include ``Tool``
-        instances or built‑in tool dictionaries.
-        """
-
-        if not isinstance(conversation, Conversation):
-            conversation = prompts_to_conversations([conversation])[0]
-            assert isinstance(conversation, Conversation)
+    ) -> AgentLoopResponse:
+        """Internal method to run agent loop and return wrapped result."""
 
         # Expand MCPServer objects to their constituent tools for tool execution
         expanded_tools: list[Tool] = []
@@ -898,7 +911,75 @@ class _LLMClient(BaseModel):
         if response is None:
             raise RuntimeError("model did not return a response")
 
-        return conversation, response
+        result = AgentLoopResponse(conversation=conversation, final_response=response)
+        self._results[task_id] = result
+        return result
+
+    def start_agent_loop_nowait(
+        self,
+        conversation: Prompt,
+        *,
+        tools: list[Tool | dict | MCPServer] | None = None,
+        max_rounds: int = 5,
+    ) -> int:
+        """Start an agent loop without waiting for it to complete.
+
+        Returns a task_id that can be used with wait_for_agent_loop().
+        """
+        if not isinstance(conversation, Conversation):
+            conversation = prompts_to_conversations([conversation])[0]
+            assert isinstance(conversation, Conversation)
+
+        task_id = self._next_task_id
+        self._next_task_id += 1
+
+        task = asyncio.create_task(
+            self._run_agent_loop_internal(
+                task_id, conversation, tools=tools, max_rounds=max_rounds
+            )
+        )
+        self._tasks[task_id] = task
+        return task_id
+
+    async def wait_for_agent_loop(
+        self, task_id: int
+    ) -> tuple[Conversation, APIResponse]:
+        """Wait for an agent loop task to complete.
+
+        Returns the conversation and final response from the agent loop.
+        """
+        task = self._tasks.get(task_id)
+        if task:
+            result = await task
+        else:
+            result = self._results.get(task_id)
+
+        if result is None:
+            raise RuntimeError(f"Agent loop task {task_id} not found")
+
+        assert isinstance(
+            result, AgentLoopResponse
+        ), f"Expected AgentLoopResponse, got {type(result)}"
+        return result.conversation, result.final_response
+
+    async def run_agent_loop(
+        self,
+        conversation: Prompt,
+        *,
+        tools: list[Tool | dict | MCPServer] | None = None,
+        max_rounds: int = 5,
+        show_progress: bool = False,
+    ) -> tuple[Conversation, APIResponse]:
+        """Run a simple agent loop until no more tool calls are returned.
+
+        The provided ``conversation`` will be mutated and returned alongside the
+        final ``APIResponse`` from the model. ``tools`` may include ``Tool``
+        instances or built‑in tool dictionaries.
+        """
+        task_id = self.start_agent_loop_nowait(
+            conversation, tools=tools, max_rounds=max_rounds
+        )
+        return await self.wait_for_agent_loop(task_id)
 
     def run_agent_loop_sync(
         self,

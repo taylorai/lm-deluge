@@ -2,10 +2,13 @@ import asyncio
 import json
 import os
 
+import dotenv
 import xxhash
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import MCPServer, Tool
+
+dotenv.load_dotenv()
 
 
 def reverse_string(text: str):
@@ -166,15 +169,84 @@ async def pdf_search_mcp_agent():
     print("mcp loop worked")
 
 
+async def test_agent_loop_nowait():
+    """Test the start_agent_loop_nowait and wait_for_agent_loop APIs."""
+    client = LLMClient("gpt-4.1-mini")
+
+    # Test with simple agent loop
+    conv1 = Conversation.user(
+        "Reverse each of the following strings using the reverse string tool. "
+        "Then, return all of the reversed strings in your final message. "
+        "\n - 'HELLO'"
+        "\n - 'WORLD'"
+    )
+
+    # Start without waiting
+    task_id = client.start_agent_loop_nowait(conv1, tools=[reverse_tool])
+
+    # Can start other tasks while the first is running
+    conv2 = Conversation.user(
+        "Use the hash tool to hash the string 'TEST' and return the result."
+    )
+    task_id2 = client.start_agent_loop_nowait(conv2, tools=[hash_tool])
+
+    # Wait for first task
+    conv1_result, resp1 = await client.wait_for_agent_loop(task_id)
+    assert resp1.completion
+    rev = reverse_string(resp1.completion)
+    assert "HELLO" in rev
+    assert "WORLD" in rev
+    assert len(conv1_result.messages) >= 4
+
+    # Wait for second task
+    conv2_result, resp2 = await client.wait_for_agent_loop(task_id2)
+    assert resp2.completion
+    expected = hash_string("TEST")
+    assert expected in resp2.completion
+
+    print("agent loop nowait/wait_for APIs worked")
+
+
+async def test_parallel_agent_loops():
+    """Test running multiple agent loops in parallel."""
+    client = LLMClient("gpt-4.1-mini")
+
+    # Start multiple agent loops
+    task_ids = []
+    for i in range(3):
+        conv = Conversation.user(
+            f"Use the hash tool to hash the string 'INPUT{i}' and return just the hash."
+        )
+        task_id = client.start_agent_loop_nowait(conv, tools=[hash_tool])
+        task_ids.append(task_id)
+
+    # Wait for all to complete
+    results = []
+    for task_id in task_ids:
+        conv, resp = await client.wait_for_agent_loop(task_id)
+        results.append((conv, resp))
+
+    # Verify all completed
+    assert len(results) == 3
+    for i, (conv, resp) in enumerate(results):
+        assert resp.completion
+        expected = hash_string(f"INPUT{i}")
+        assert expected in resp.completion
+
+    print("parallel agent loops worked")
+
+
 # this should break due to multi-modal responses
 
 
 async def main():
-    # await simple_agent_loop()
-    # await sequential_agent_loop()
+    await simple_agent_loop()
+    await sequential_agent_loop()
+    await test_agent_loop_nowait()
+    await test_parallel_agent_loops()
     # await mcp_agent_loop()
     # await fulltext_search_mcp_agent()
-    await pdf_search_mcp_agent()
+    # await pdf_search_mcp_agent()
 
 
 if __name__ == "__main__":
