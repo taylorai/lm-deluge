@@ -5,6 +5,17 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.78 · 2025-11-19
+
+- Fixed `FilesystemManager.read_file` so empty files no longer throw range errors when agents omit `end_line`; blank files now return an empty snippet and accurate metadata instead of failing mid-run.
+- Added regression coverage in `tests/test_filesystem.py::test_filesystem_manager_reads_empty_files` to lock the behavior down.
+
+## 0.0.77 · 2025-11-19
+
+- Added `FilesystemManager`, an in-memory virtual workspace + tool wrapper that gives agents sandboxed `read_file` / `write_file` / `list_dir` / `grep` / `apply_patch` capabilities without touching the host filesystem; the implementation lives in `lm_deluge.llm_tools.filesystem`.
+- Landed regression coverage in `tests/test_filesystem.py` plus a scripted live scenario in `tests/test_filesystem_live.py` so refactors keep the tool contract intact.
+- Documented the new manager throughout the README, feature guide, and API reference so it is easy to wire into existing agent loops (including tips on seeding backends, exporting workspaces, and disabling commands per session).
+
 ## 0.0.76 · 2025-11-18
 
 - Introduced `SubAgentManager`, a trio of tools (`start_subagent`, `check_subagent`, `wait_for_subagent`) that lets a primary agent delegate work to cheaper models; real-world coverage lives in `tests/core/test_subagent_manager.py` and the new Agent guide sections spell out the workflow.

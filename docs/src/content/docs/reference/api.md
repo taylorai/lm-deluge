@@ -127,6 +127,7 @@ Instances expose `.call(**kwargs)` and `.acall(**kwargs)` which automatically pi
 
 Utility managers in `lm_deluge.llm_tools` provide ready-made tool suites:
 
+- `FilesystemManager` exposes a sandboxed `filesystem` tool (`read_file`, `write_file`, `delete_path`, `list_dir`, `grep`, `apply_patch`) backed by an in-memory workspace or any custom `WorkspaceBackend`.
 - `TodoManager` exposes `todowrite`/`todoread` handlers for maintaining a structured todo list during long sessions (see `TodoItem`, `TodoPriority`, and `TodoStatus` for strongly typed entries).
 - `SubAgentManager` registers `start_subagent`, `check_subagent`, and `wait_for_subagent` tools so the main model can delegate parallel agent loops to cheaper models without manual orchestration.
 

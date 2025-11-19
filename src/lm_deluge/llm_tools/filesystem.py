@@ -307,7 +307,8 @@ class FilesystemManager:
         start = start_line or 1
         end = end_line or total_lines
         if end < start:
-            raise ValueError("end_line must be greater than or equal to start_line")
+            if not (total_lines == 0 and end_line is None and start == 1):
+                raise ValueError("end_line must be greater than or equal to start_line")
 
         if start == 1 and end >= total_lines:
             snippet = content

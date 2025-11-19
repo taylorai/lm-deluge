@@ -73,6 +73,21 @@ def test_filesystem_manager_tool_roundtrip():
     assert error_payload["error"] == "FileNotFoundError"
 
 
+def test_filesystem_manager_reads_empty_files():
+    backend = InMemoryWorkspaceBackend({"empty.txt": ""})
+    manager = FilesystemManager(backend=backend, tool_name="fs")
+    tool = manager.get_tools()[0]
+
+    payload = json.loads(tool.run(command="read_file", path="empty.txt"))
+    assert payload["ok"]
+    result = payload["result"]
+    assert result["content"] == ""
+    assert result["total_lines"] == 0
+    assert result["start_line"] == 1
+    assert result["end_line"] == 0
+    assert result["character_count"] == 0
+
+
 def test_filesystem_manager_dump(tmp_path):
     backend = InMemoryWorkspaceBackend(
         {"src/main.py": "print('hi')", "README.md": "# title"}

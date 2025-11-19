@@ -197,6 +197,39 @@ Tips:
 - Pass `TodoManager(todos=[...])` to seed the list or customize the tool names via `write_tool_name` / `read_tool_name`.
 - `manager.get_todos()` returns strongly typed `TodoItem` objects, making it easy to build dashboards or surface progress in a UI.
 
+## Virtual Filesystem Sandboxes
+
+`FilesystemManager` gives an agent a scratch workspace it can safely edit via a single `filesystem` tool. The tool supports `read_file`, `write_file`, `delete_path`, `list_dir`, `grep`, and even OpenAI-style `apply_patch` payloads, so you can script multi-step refactors without exposing the real project tree.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.llm_tools.filesystem import FilesystemManager, InMemoryWorkspaceBackend
+
+async def main():
+    # Seed the virtual workspace with an in-memory backend
+    backend = InMemoryWorkspaceBackend({"README.md": "# scratch"})
+    manager = FilesystemManager(backend=backend, tool_name="fs")
+    client = LLMClient("gpt-4.1-mini")
+
+    conv = Conversation.user(
+        "Use the fs tool to inspect README.md, append a TODO section, "
+        "list the workspace, and summarize what changed."
+    )
+
+    conv, resp = await client.run_agent_loop(conv, tools=manager.get_tools())
+    print(resp.completion)
+    print("README preview:", backend.read_file("README.md"))
+
+asyncio.run(main())
+```
+
+Tips:
+
+- Pass `exclude={"apply_patch"}` (or any subset) to `manager.get_tools()` to disable risky commands for a session.
+- Call `manager.dump("/tmp/export")` to copy the virtual workspace to disk for debugging or regression snapshots.
+- Swap in a custom `WorkspaceBackend` implementation if you want to proxy file operations into an existing sandbox instead of the default in-memory store.
+
 ## Delegating Work with Subagents
 
 `SubAgentManager` lets the main model spin up dedicated subagents (often on cheaper models) via three tools: `start_subagent`, `check_subagent`, and `wait_for_subagent`. Each subagent runs its own agent loop and can use its own tool belt.
