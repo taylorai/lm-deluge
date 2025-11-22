@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.79 · 2025-11-22
+
+- Gemini 3 requests now send `thinkingLevel="low"` when callers specify `reasoning_effort="none"` or `"minimal"`, avoiding unexpected high-effort reasoning (and cost) when users explicitly ask for lightweight runs.
+- Documented the new sandbox utilities (`ModalSandbox` and `DaytonaSandbox`) so agents can execute commands in managed remote environments with optional network blocking, stdout capture, file I/O, and preview tunnels.
+
 ## 0.0.78 · 2025-11-19
 
 - Fixed `FilesystemManager.read_file` so empty files no longer throw range errors when agents omit `end_line`; blank files now return an empty snippet and accurate metadata instead of failing mid-run.

@@ -230,6 +230,37 @@ Tips:
 - Call `manager.dump("/tmp/export")` to copy the virtual workspace to disk for debugging or regression snapshots.
 - Swap in a custom `WorkspaceBackend` implementation if you want to proxy file operations into an existing sandbox instead of the default in-memory store.
 
+## Remote Sandboxes (Modal + Daytona)
+
+`ModalSandbox` and `DaytonaSandbox` let agents run commands in managed remote environments instead of the host machine. Both expose a tool belt you can pass directly into an agent loop; Modal provides `bash`/`read_stdout`/`tunnel`, while Daytona adds file read/write, directory listing, preview links, and working-directory helpers. You can block network access up front when creating a Modal sandbox.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.llm_tools.sandbox import ModalSandbox
+
+async def main():
+    # Network is blocked; the sandbox cleans itself up when the object is deleted
+    sandbox = ModalSandbox(block_network=True)
+    tools = sandbox.get_tools()
+
+    client = LLMClient("gpt-4.1-mini")
+    conv = Conversation.user(
+        "Use the bash tool to run `echo sandboxes rock`, then read stdout to report it back."
+    )
+
+    conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=4)
+    print(resp.completion)
+
+asyncio.run(main())
+```
+
+Tips:
+
+- Use `with ModalSandbox(...):` or `async with DaytonaSandbox(...):` to guarantee cleanup; both classes also provide a best-effort destructor.
+- `DaytonaSandbox` needs your Daytona API creds and will start a sandbox on first use; reuse a shared instance for multiple tests to avoid churn.
+- Call `tunnel` (Modal) or `get_preview_link` (Daytona) to expose a port if you allow networking; skip these when you keep sandboxes air-gapped.
+
 ## Delegating Work with Subagents
 
 `SubAgentManager` lets the main model spin up dedicated subagents (often on cheaper models) via three tools: `start_subagent`, `check_subagent`, and `wait_for_subagent`. Each subagent runs its own agent loop and can use its own tool belt.

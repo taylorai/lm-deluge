@@ -74,6 +74,23 @@ def test_gemini_3_thinking_level_medium():
     assert thinking_config.get("thinkingLevel") == "medium"
 
 
+def test_gemini_3_thinking_level_none():
+    """Gemini 3 should use thinkingLevel=low for reasoning_effort='none'."""
+    model = APIModel.from_registry("gemini-3-pro-preview")
+    convo = Conversation.user("Hello")
+    request = asyncio.run(
+        _build_gemini_request(
+            model,
+            convo,
+            None,
+            SamplingParams(reasoning_effort="none"),
+        )
+    )
+    thinking_config = request["generationConfig"].get("thinkingConfig")
+    assert thinking_config is not None
+    assert thinking_config.get("thinkingLevel") == "low"
+
+
 def test_gemini_3_default_thinking_level():
     """Gemini 3 should default to high thinking level when reasoning_effort is None."""
     model = APIModel.from_registry("gemini-3-pro-preview")
@@ -115,6 +132,7 @@ if __name__ == "__main__":
     test_gemini_3_thinking_level_high()
     test_gemini_3_thinking_level_low()
     test_gemini_3_thinking_level_medium()
+    test_gemini_3_thinking_level_none()
     test_gemini_3_default_thinking_level()
     test_gemini_25_still_uses_thinking_budget()
     print("All tests passed!")

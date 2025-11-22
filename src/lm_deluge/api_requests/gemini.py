@@ -59,8 +59,10 @@ async def _build_gemini_request(
 
         if is_gemini_3:
             # Gemini 3 uses thinkingLevel instead of thinkingBudget
-            if effort is None or effort == "none":
-                # For Gemini 3, default to high thinking level when reasoning is enabled
+            if effort in {"none", "minimal"}:
+                thinking_config = {"thinkingLevel": "low"}
+            elif effort is None:
+                # Default to high when reasoning is enabled but no preference was provided
                 thinking_config = {"thinkingLevel": "high"}
             else:
                 # Map reasoning_effort to thinkingLevel

@@ -23,7 +23,7 @@ async def main():
     print("✅ Got completion:", res[0].completion)
 
     # Verify the model can do basic math
-    assert "391" in res[0].completion, "Model should calculate 17 * 23 = 391"
+    assert "391" in res[0].completion, "Model should calculate 17 * 23 = 391"  # type: ignore
 
     print("✅ olmo-3-32b-think test passed!")
 

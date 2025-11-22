@@ -222,8 +222,8 @@ class DaytonaSandbox:
             self.sandbox = sandboxes.items[0]
         else:
             # Create new sandbox with default configuration
-            params = CreateSandboxBaseParams(language=self.language)
-            self.sandbox = await self.client.create(params)
+            params = CreateSandboxBaseParams(language=self.language)  # type: ignore
+            self.sandbox = await self.client.create(params)  # type: ignore
             self.sandbox_id = self.sandbox.id
 
         # Start sandbox if needed
@@ -336,7 +336,7 @@ class DaytonaSandbox:
                 return f"No files matching '{pattern}' found in {path}"
 
             # Format the matches
-            files = [match.path for match in matches]
+            files = [match.file for match in matches]
             return "\n".join(files)
         else:
             # API: list_files(path) -> List[FileInfo]
