@@ -138,4 +138,19 @@ GOOGLE_MODELS = {
         "output_cost": 0.4,
         "reasoning_model": True,
     },
+    # Gemini 3 models - advanced reasoning with thought signatures
+    "gemini-3-pro-preview": {
+        "id": "gemini-3-pro-preview",
+        "name": "gemini-3-pro-preview",
+        "api_base": "https://generativelanguage.googleapis.com/v1alpha",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 2.0,  # <200k tokens
+        "cached_input_cost": 0.5,  # estimated
+        "output_cost": 12.0,  # <200k tokens
+        # Note: >200k tokens pricing is $4/$18 per million
+        "reasoning_model": True,
+    },
 }

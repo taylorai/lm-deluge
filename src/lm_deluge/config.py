@@ -12,6 +12,13 @@ class SamplingParams(BaseModel):
     logprobs: bool = False
     top_logprobs: int | None = None
     strict_tools: bool = True
+    # Gemini 3 only - controls multimodal vision processing fidelity
+    media_resolution: (
+        Literal[
+            "media_resolution_low", "media_resolution_medium", "media_resolution_high"
+        ]
+        | None
+    ) = None
 
     def to_vllm(self):
         try:

@@ -61,6 +61,8 @@ class ToolCall:
     built_in: bool = False
     built_in_type: str | None = None
     extra_body: dict | None = None
+    # for gemini 3 - thought signatures to maintain reasoning context
+    thought_signature: str | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -93,7 +95,10 @@ class ToolCall:
         }
 
     def gemini(self) -> dict:
-        return {"functionCall": {"name": self.name, "args": self.arguments}}
+        result = {"functionCall": {"name": self.name, "args": self.arguments}}
+        if self.thought_signature is not None:
+            result["thoughtSignature"] = self.thought_signature  # type: ignore
+        return result
 
     def mistral(self) -> dict:
         return {
@@ -253,6 +258,8 @@ class Thinking:
     type: str = field(init=False, default="thinking")
     # for openai - to keep conversation chain
     raw_payload: dict | None = None
+    # for gemini 3 - thought signatures to maintain reasoning context
+    thought_signature: str | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -270,7 +277,10 @@ class Thinking:
         return {"type": "thinking", "thinking": self.content}
 
     def gemini(self) -> dict:
-        return {"text": f"[Thinking: {self.content}]"}
+        result = {"text": f"[Thinking: {self.content}]"}
+        if self.thought_signature is not None:
+            result["thoughtSignature"] = self.thought_signature
+        return result
 
     def mistral(self) -> dict:
         return {"type": "text", "text": f"[Thinking: {self.content}]"}
@@ -374,14 +384,15 @@ class Message:
                 size = p.size
                 content_blocks.append({"type": "file", "tag": f"<File ({size} bytes)>"})
             elif isinstance(p, ToolCall):
-                content_blocks.append(
-                    {
-                        "type": "tool_call",
-                        "id": p.id,
-                        "name": p.name,
-                        "arguments": _json_safe(p.arguments),
-                    }
-                )
+                tool_call_block = {
+                    "type": "tool_call",
+                    "id": p.id,
+                    "name": p.name,
+                    "arguments": _json_safe(p.arguments),
+                }
+                if p.thought_signature is not None:
+                    tool_call_block["thought_signature"] = p.thought_signature
+                content_blocks.append(tool_call_block)
             elif isinstance(p, ToolResult):
                 content_blocks.append(
                     {
@@ -391,7 +402,10 @@ class Message:
                     }
                 )
             elif isinstance(p, Thinking):
-                content_blocks.append({"type": "thinking", "content": p.content})
+                thinking_block = {"type": "thinking", "content": p.content}
+                if p.thought_signature is not None:
+                    thinking_block["thought_signature"] = p.thought_signature
+                content_blocks.append(thinking_block)
 
         return {"role": self.role, "content": content_blocks}
 
@@ -415,14 +429,24 @@ class Message:
                 parts.append(Text(p["tag"]))
             elif p["type"] == "tool_call":
                 parts.append(
-                    ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
+                    ToolCall(
+                        id=p["id"],
+                        name=p["name"],
+                        arguments=p["arguments"],
+                        thought_signature=p.get("thought_signature"),
+                    )
                 )
             elif p["type"] == "tool_result":
                 parts.append(
                     ToolResult(tool_call_id=p["tool_call_id"], result=p["result"])
                 )
             elif p["type"] == "thinking":
-                parts.append(Thinking(content=p["content"]))
+                parts.append(
+                    Thinking(
+                        content=p["content"],
+                        thought_signature=p.get("thought_signature"),
+                    )
+                )
             else:
                 raise ValueError(f"Unknown part type {p['type']!r}")
 
@@ -1546,14 +1570,15 @@ class Conversation:
                         {"type": "file", "tag": f"<File ({size} bytes)>"}
                     )
                 elif isinstance(p, ToolCall):
-                    content_blocks.append(
-                        {
-                            "type": "tool_call",
-                            "id": p.id,
-                            "name": p.name,
-                            "arguments": p.arguments,
-                        }
-                    )
+                    tool_call_block = {
+                        "type": "tool_call",
+                        "id": p.id,
+                        "name": p.name,
+                        "arguments": p.arguments,
+                    }
+                    if p.thought_signature is not None:
+                        tool_call_block["thought_signature"] = p.thought_signature
+                    content_blocks.append(tool_call_block)
                 elif isinstance(p, ToolResult):
                     content_blocks.append(
                         {
@@ -1565,7 +1590,10 @@ class Conversation:
                         }
                     )
                 elif isinstance(p, Thinking):
-                    content_blocks.append({"type": "thinking", "content": p.content})
+                    thinking_block = {"type": "thinking", "content": p.content}
+                    if p.thought_signature is not None:
+                        thinking_block["thought_signature"] = p.thought_signature
+                    content_blocks.append(thinking_block)
             serialized.append({"role": msg.role, "content": content_blocks})
 
         return {"messages": serialized}
@@ -1590,14 +1618,24 @@ class Conversation:
                     parts.append(Text(p["tag"]))
                 elif p["type"] == "tool_call":
                     parts.append(
-                        ToolCall(id=p["id"], name=p["name"], arguments=p["arguments"])
+                        ToolCall(
+                            id=p["id"],
+                            name=p["name"],
+                            arguments=p["arguments"],
+                            thought_signature=p.get("thought_signature"),
+                        )
                     )
                 elif p["type"] == "tool_result":
                     parts.append(
                         ToolResult(tool_call_id=p["tool_call_id"], result=p["result"])
                     )
                 elif p["type"] == "thinking":
-                    parts.append(Thinking(content=p["content"]))
+                    parts.append(
+                        Thinking(
+                            content=p["content"],
+                            thought_signature=p.get("thought_signature"),
+                        )
+                    )
                 else:
                     raise ValueError(f"Unknown part type {p['type']!r}")
 

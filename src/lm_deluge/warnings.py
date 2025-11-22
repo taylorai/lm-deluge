@@ -9,6 +9,8 @@ WARNINGS: dict[str, str] = {
     "WARN_LOGPROBS_UNSUPPORTED": "Ignoring logprobs param for non-logprobs model: {model_name}",
     "WARN_MINIMAL_TO_LOW": "'minimal' reasoning effort only allowed for gpt-5 models. Setting to 'low' for {model_name}.",
     "WARN_MINIMAL_TO_NONE": "GPT-5.1 models don't support 'minimal' reasoning effort. Converting to 'none' for {model_name}.",
+    "WARN_MEDIA_RESOLUTION_UNSUPPORTED": "media_resolution parameter is only supported for Gemini 3 models, ignoring for {model_name}.",
+    "WARN_GEMINI3_MISSING_SIGNATURE": "Gemini 3 thought signature missing in {part_type}, injecting dummy signature 'context_engineering_is_the_way_to_go' to avoid API error.",
 }
 
 

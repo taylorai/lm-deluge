@@ -61,4 +61,14 @@ OPENROUTER_MODELS = {
         "cache_write_cost": 0.6,
         "output_cost": 2.20,
     },
+    "olmo-3-32b-think-openrouter": {
+        "id": "olmo-3-32b-think-openrouter",
+        "name": "allenai/olmo-3-32b-think",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 0.2,
+        "output_cost": 35,
+    },
 }

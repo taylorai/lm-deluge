@@ -23,6 +23,21 @@ async def _build_gemini_request(
 ) -> dict:
     system_message, messages = prompt.to_gemini()
 
+    # For Gemini 3, inject dummy signatures when missing for function calls
+    is_gemini_3 = "gemini-3" in model.name.lower()
+    if is_gemini_3:
+        dummy_sig = "context_engineering_is_the_way_to_go"
+        for msg in messages:
+            if "parts" in msg:
+                for part in msg["parts"]:
+                    # For function calls, inject dummy signature if missing
+                    if "functionCall" in part and "thoughtSignature" not in part:
+                        part["thoughtSignature"] = dummy_sig
+                        maybe_warn(
+                            "WARN_GEMINI3_MISSING_SIGNATURE",
+                            part_type="function call",
+                        )
+
     request_json = {
         "contents": messages,
         "generationConfig": {
@@ -40,17 +55,42 @@ async def _build_gemini_request(
     if model.reasoning_model:
         thinking_config: dict[str, Any] | None = None
         effort = sampling_params.reasoning_effort
-        if effort is None or effort == "none":
-            budget = 128 if "2.5-pro" in model.id else 0
-            # Explicitly disable thoughts when no effort is requested
-            thinking_config = {"includeThoughts": False, "thinkingBudget": budget}
+        is_gemini_3 = "gemini-3" in model.name.lower()
+
+        if is_gemini_3:
+            # Gemini 3 uses thinkingLevel instead of thinkingBudget
+            if effort is None or effort == "none":
+                # For Gemini 3, default to high thinking level when reasoning is enabled
+                thinking_config = {"thinkingLevel": "high"}
+            else:
+                # Map reasoning_effort to thinkingLevel
+                level_map = {
+                    "minimal": "low",
+                    "low": "low",
+                    "medium": "medium",  # Will work when supported
+                    "high": "high",
+                }
+                thinking_level = level_map.get(effort, "high")
+                thinking_config = {"thinkingLevel": thinking_level}
         else:
-            thinking_config = {"includeThoughts": True}
-            if effort in {"minimal", "low", "medium", "high"} and "flash" in model.id:
-                budget = {"minimal": 256, "low": 1024, "medium": 4096, "high": 16384}[
-                    effort
-                ]
-                thinking_config["thinkingBudget"] = budget
+            # Gemini 2.5 uses thinkingBudget (legacy)
+            if effort is None or effort == "none":
+                budget = 128 if "2.5-pro" in model.id else 0
+                # Explicitly disable thoughts when no effort is requested
+                thinking_config = {"includeThoughts": False, "thinkingBudget": budget}
+            else:
+                thinking_config = {"includeThoughts": True}
+                if (
+                    effort in {"minimal", "low", "medium", "high"}
+                    and "flash" in model.id
+                ):
+                    budget = {
+                        "minimal": 256,
+                        "low": 1024,
+                        "medium": 4096,
+                        "high": 16384,
+                    }[effort]
+                    thinking_config["thinkingBudget"] = budget
         request_json["generationConfig"]["thinkingConfig"] = thinking_config
 
     else:
@@ -65,6 +105,21 @@ async def _build_gemini_request(
     # Handle JSON mode
     if sampling_params.json_mode and model.supports_json:
         request_json["generationConfig"]["responseMimeType"] = "application/json"
+
+    # Handle media_resolution for Gemini 3 (requires v1alpha)
+    if sampling_params.media_resolution is not None:
+        is_gemini_3 = "gemini-3" in model.name.lower()
+        if is_gemini_3:
+            # Add global media resolution to generationConfig
+            request_json["generationConfig"]["mediaResolution"] = {
+                "level": sampling_params.media_resolution
+            }
+        else:
+            # Warn if trying to use media_resolution on non-Gemini-3 models
+            maybe_warn(
+                "WARN_MEDIA_RESOLUTION_UNSUPPORTED",
+                model_name=model.name,
+            )
 
     return request_json
 
@@ -137,10 +192,19 @@ class GeminiRequest(APIRequestBase):
                         candidate = data["candidates"][0]
                         if "content" in candidate and "parts" in candidate["content"]:
                             for part in candidate["content"]["parts"]:
+                                # Extract thought signature if present
+                                thought_sig = part.get("thoughtSignature")
+
                                 if "text" in part:
                                     parts.append(Text(part["text"]))
                                 elif "thought" in part:
-                                    parts.append(Thinking(part["thought"]))
+                                    # Thought with optional signature
+                                    parts.append(
+                                        Thinking(
+                                            content=part["thought"],
+                                            thought_signature=thought_sig,
+                                        )
+                                    )
                                 elif "functionCall" in part:
                                     func_call = part["functionCall"]
                                     # Generate a unique ID since Gemini doesn't provide one
@@ -152,6 +216,7 @@ class GeminiRequest(APIRequestBase):
                                             id=tool_id,
                                             name=func_call["name"],
                                             arguments=func_call.get("args", {}),
+                                            thought_signature=thought_sig,
                                         )
                                     )
 
