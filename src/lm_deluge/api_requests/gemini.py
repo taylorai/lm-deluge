@@ -67,6 +67,7 @@ async def _build_gemini_request(
             }
             effort = level_map[sampling_params.reasoning_effort]
         thinking_config = {"thinkingLevel": effort}
+        request_json["generationConfig"]["thinkingConfig"] = thinking_config
 
     elif model.reasoning_model:
         if (

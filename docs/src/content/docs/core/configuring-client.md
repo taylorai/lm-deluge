@@ -15,7 +15,7 @@ client = LLMClient(
     max_requests_per_minute=1_000,
     max_tokens_per_minute=100_000,
     max_concurrent_requests=225,
-    sampling_params=[SamplingParams(temperature=0.75, max_new_tokens=512)],
+    sampling_params=[SamplingParams(temperature=1.0, max_new_tokens=512)],
     max_attempts=5,
     request_timeout=30,
     use_responses_api=False,
@@ -64,6 +64,8 @@ multi_client = LLMClient(
 - `temperature`, `top_p`, and `max_new_tokens` feed directly into the request bodies.
 - `json_mode=True` places OpenAI and Gemini into JSON-object responses if the model supports it.
 - `reasoning_effort` lets you request `"low"`, `"medium"`, `"high"`, `"minimal"`, or `"none"` on reasoning models (`o4-mini`, `gpt-5`, `claude-4.5`, etc.).
+- `global_effort` targets Anthropic `claude-4.5-opus` and passes through the provider’s new `effort` knob.
+- `thinking_budget` pins a token allowance for reasoning models; if both `thinking_budget` and `reasoning_effort` are supplied, the explicit budget wins (with a warning).
 - `logprobs` + `top_logprobs` enable token-level probabilities across all models that support it; the client validates that every model in the pool allows logprobs and adjusts each `SamplingParams` instance for you.
 - `strict_tools` keeps OpenAI/Anthropic tool definitions in strict mode (removing defaults) unless you explicitly disable it.
 

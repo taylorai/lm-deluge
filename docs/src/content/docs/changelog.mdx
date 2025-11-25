@@ -5,6 +5,14 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.80 · 2025-11-24
+
+- Added `global_effort` to `SamplingParams` and Anthropic request wiring so `claude-4.5-opus` sends the new `effort` field plus beta header automatically.
+- Exposed `thinking_budget` on `SamplingParams` and made it take precedence over `reasoning_effort` for Anthropic and Gemini reasoning models (with warnings to flag overlaps); Gemini flash-lite enforces its minimum budget.
+- Fixed Gemini 3 request construction to always send `generationConfig.thinkingConfig` and remapped `reasoning_effort="medium"`/`None` to the provider-supported thinking levels.
+- Default temperature raised to `1.0` across docs and config defaults to match current provider behavior.
+- Added regression suites for Anthropic thinking budgets and Gemini reasoning/effort mapping (`tests/models/test_anthropic_thinking_budget.py`, `tests/models/test_gemini_thinking_config.py`, `tests/models/test_gemini_3_thinking_level.py`).
+
 ## 0.0.79 · 2025-11-22
 
 - Gemini 3 requests now send `thinkingLevel="low"` when callers specify `reasoning_effort="none"` or `"minimal"`, avoiding unexpected high-effort reasoning (and cost) when users explicitly ask for lightweight runs.

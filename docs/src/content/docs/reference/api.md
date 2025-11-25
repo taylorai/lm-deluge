@@ -81,11 +81,13 @@ Key parameters:
 
 ```python
 SamplingParams(
-    temperature: float = 0.0,
+    temperature: float = 1.0,
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 2_048,
+    global_effort: Literal["low", "medium", "high"] = "high",
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     strict_tools: bool = True,
@@ -93,6 +95,8 @@ SamplingParams(
 ```
 
 `strict_tools=True` ensures OpenAI/Anthropic tool definitions stay in strict mode unless you disable it per request. `SamplingParams.to_vllm()` converts the structure to a `vllm.SamplingParams` instance when you want to reuse configurations locally.
+
+`global_effort` applies to Anthropic’s `claude-4.5-opus` and maps to the provider’s new `effort` parameter. `thinking_budget` lets you pin a token budget for reasoning models (Anthropic or Gemini); when both `thinking_budget` and `reasoning_effort` are supplied, the explicit budget wins and a warning is emitted to help spot unexpected overrides.
 
 ## Conversation & Message
 

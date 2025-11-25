@@ -21,6 +21,7 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.50,
         "cache_write_cost": 6.25,
         "output_cost": 25.0,
+        "reasoning_model": True,
     },
     "claude-4.5-haiku": {
         "id": "claude-4.5-haiku",
@@ -33,6 +34,7 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.10,
         "cache_write_cost": 1.25,
         "output_cost": 3.0,
+        "reasoning_model": True,
     },
     "claude-4.5-sonnet": {
         "id": "claude-4.5-sonnet",
@@ -45,6 +47,7 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
+        "reasoning_model": True,
     },
     "claude-4.1-opus": {
         "id": "claude-4.1-opus",
