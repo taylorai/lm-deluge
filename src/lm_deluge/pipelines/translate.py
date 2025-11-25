@@ -1,5 +1,5 @@
 import asyncio
-from ..client import LLMClient
+from ..client import _LLMClient
 
 translation_prompt = (
     "Translate the following text (enclosed in ```) into English. "
@@ -20,7 +20,9 @@ def is_english(text: str, low_memory: bool = True):
     return True
 
 
-async def translate_async(texts: list[str], client: LLMClient, low_memory: bool = True):
+async def translate_async(
+    texts: list[str], client: _LLMClient, low_memory: bool = True
+):
     to_translate_idxs = [
         i for i, text in enumerate(texts) if not is_english(text, low_memory=low_memory)
     ]
@@ -40,5 +42,5 @@ async def translate_async(texts: list[str], client: LLMClient, low_memory: bool 
     return texts
 
 
-def translate(texts: list[str], client: LLMClient, low_memory: bool = True):
+def translate(texts: list[str], client: _LLMClient, low_memory: bool = True):
     return asyncio.run(translate_async(texts, client, low_memory))

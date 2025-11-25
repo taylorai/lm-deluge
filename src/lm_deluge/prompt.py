@@ -1598,6 +1598,111 @@ class Conversation:
 
         return {"messages": serialized}
 
+    def print(self, max_text_length: int = 500, indent: int = 2) -> None:
+        """Pretty-print the conversation to stdout.
+
+        Args:
+            max_text_length: Truncate text content longer than this (default 500 chars)
+            indent: JSON indentation for tool calls/results (default 2)
+        """
+        ROLE_COLORS = {
+            "system": "\033[95m",  # magenta
+            "user": "\033[94m",  # blue
+            "assistant": "\033[92m",  # green
+            "tool": "\033[93m",  # yellow
+        }
+        RESET = "\033[0m"
+        DIM = "\033[2m"
+        BOLD = "\033[1m"
+
+        def truncate(text: str, max_len: int) -> str:
+            if len(text) <= max_len:
+                return text
+            return (
+                text[:max_len] + f"{DIM}... [{len(text) - max_len} more chars]{RESET}"
+            )
+
+        def format_json(obj: dict | list, ind: int) -> str:
+            return json.dumps(obj, indent=ind, ensure_ascii=False)
+
+        print(f"\n{BOLD}{'=' * 60}{RESET}")
+        print(f"{BOLD}Conversation ({len(self.messages)} messages){RESET}")
+        print(f"{BOLD}{'=' * 60}{RESET}\n")
+
+        for i, msg in enumerate(self.messages):
+            role_color = ROLE_COLORS.get(msg.role, "")
+            print(f"{role_color}{BOLD}[{msg.role.upper()}]{RESET}")
+
+            for part in msg.parts:
+                if isinstance(part, Text):
+                    text = truncate(part.text, max_text_length)
+                    # Indent multiline text
+                    lines = text.split("\n")
+                    if len(lines) > 1:
+                        print("  " + "\n  ".join(lines))
+                    else:
+                        print(f"  {text}")
+
+                elif isinstance(part, Image):
+                    w, h = part.size
+                    print(f"  {DIM}<Image ({w}x{h})>{RESET}")
+
+                elif isinstance(part, File):
+                    size = part.size
+                    filename = getattr(part, "filename", None)
+                    if filename:
+                        print(f"  {DIM}<File: {filename} ({size} bytes)>{RESET}")
+                    else:
+                        print(f"  {DIM}<File ({size} bytes)>{RESET}")
+
+                elif isinstance(part, ToolCall):
+                    print(
+                        f"  {DIM}Tool Call:{RESET} {BOLD}{part.name}{RESET} (id: {part.id})"
+                    )
+                    if part.arguments:
+                        args_json = format_json(part.arguments, indent)
+                        # Indent the JSON
+                        indented = "\n".join(
+                            "    " + line for line in args_json.split("\n")
+                        )
+                        print(indented)
+
+                elif isinstance(part, ToolResult):
+                    print(f"  {DIM}Tool Result:{RESET} (call_id: {part.tool_call_id})")
+                    if isinstance(part.result, str):
+                        result_text = truncate(part.result, max_text_length)
+                        lines = result_text.split("\n")
+                        for line in lines:
+                            print(f"    {line}")
+                    elif isinstance(part.result, dict):
+                        result_json = format_json(part.result, indent)
+                        indented = "\n".join(
+                            "    " + line for line in result_json.split("\n")
+                        )
+                        print(indented)
+                    elif isinstance(part.result, list):
+                        print(f"    {DIM}<{len(part.result)} content blocks>{RESET}")
+                        for block in part.result:
+                            if isinstance(block, Text):
+                                block_text = truncate(block.text, max_text_length // 2)
+                                print(f"      [text] {block_text}")
+                            elif isinstance(block, Image):
+                                bw, bh = block.size
+                                print(f"      {DIM}<Image ({bw}x{bh})>{RESET}")
+
+                elif isinstance(part, Thinking):
+                    print(f"  {DIM}Thinking:{RESET}")
+                    thought = truncate(part.content, max_text_length)
+                    lines = thought.split("\n")
+                    for line in lines:
+                        print(f"    {DIM}{line}{RESET}")
+
+            # Separator between messages
+            if i < len(self.messages) - 1:
+                print(f"\n{'-' * 40}\n")
+
+        print(f"\n{BOLD}{'=' * 60}{RESET}\n")
+
     @classmethod
     def from_log(cls, payload: dict) -> "Conversation":
         """Re-hydrate a Conversation previously produced by `to_log()`."""

@@ -1,8 +1,15 @@
-from .extract import extract, extract_async
-from .score import score_llm
-from .subagents import SubAgentManager
-from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
-from .translate import translate, translate_async
+# Backward compatibility - re-export from new locations
+# Pipelines (workflow functions)
+from ..pipelines import extract, extract_async, score_llm, translate, translate_async
+
+# Prefab tools (Tool managers)
+from ..tool.prefab import (
+    SubAgentManager,
+    TodoItem,
+    TodoManager,
+    TodoPriority,
+    TodoStatus,
+)
 
 __all__ = [
     "extract",

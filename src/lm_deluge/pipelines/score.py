@@ -1,4 +1,4 @@
-from ..client import LLMClient, APIResponse
+from ..client import _LLMClient, APIResponse
 from ..util.logprobs import extract_prob
 
 # def extract_prob_yes(logprobs: list[dict]):
@@ -24,7 +24,7 @@ from ..util.logprobs import extract_prob
 def score_llm(
     scoring_prompt_template: str,
     inputs: list[tuple | list | dict],  # to format the template
-    scoring_model: LLMClient,
+    scoring_model: _LLMClient,
     return_probabilities: bool,
     yes_token: str = "yes",
 ) -> list[bool | None] | list[float | None]:

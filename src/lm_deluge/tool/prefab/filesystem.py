@@ -11,7 +11,7 @@ from typing import Any, Dict, Literal, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
-from ..tool import Tool
+from .. import Tool
 
 FS_DESCRIPTION = """Interact with an isolated virtual filesystem that belongs to this session.
 

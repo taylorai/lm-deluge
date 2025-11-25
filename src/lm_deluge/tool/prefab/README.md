@@ -1,0 +1,1 @@
+Pre-made Tool objects that we consider generally useful and want to make available to LLMs. Examples include the Todo list, the Filesystem, and Subagents. These interoperate with LM Deluge client API so you don't have to define your own tools for these purposes.

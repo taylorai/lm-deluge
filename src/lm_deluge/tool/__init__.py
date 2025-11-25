@@ -892,3 +892,7 @@ class MCPServer(BaseModel):
             tools: list[Tool] = await Tool.from_mcp(self.name, url=self.url)
             self._tools = tools
             return tools
+
+
+# Note: prefab submodule is available via lm_deluge.tool.prefab
+# but not auto-imported here to avoid circular imports
