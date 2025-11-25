@@ -28,7 +28,7 @@ LLMClient(
     extra_body: dict[str, str] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
-    temperature: float = 0.75,
+    temperature: float = 1.0,
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,

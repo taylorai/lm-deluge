@@ -4,11 +4,13 @@ from pydantic import BaseModel
 
 
 class SamplingParams(BaseModel):
-    temperature: float = 0.0
+    temperature: float = 1.0  # more typical for new models
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 2_048
+    global_effort: Literal["low", "medium", "high"] = "high"  # for opus-4.5
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
+    thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
     strict_tools: bool = True

@@ -10,6 +10,18 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-4.5-opus": {
+        "id": "claude-4.5-opus",
+        "name": "claude-opus-4-5-20251101",
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": False,
+        "api_spec": "anthropic",
+        "input_cost": 5.0,
+        "cached_input_cost": 0.50,
+        "cache_write_cost": 6.25,
+        "output_cost": 25.0,
+    },
     "claude-4.5-haiku": {
         "id": "claude-4.5-haiku",
         "name": "claude-haiku-4-5-20251001",

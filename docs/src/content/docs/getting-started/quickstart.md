@@ -5,7 +5,7 @@ description: Get up and running with LM Deluge in minutes
 
 ## Basic Usage
 
-`LLMClient` ships with high throughput defaults (`1_000` requests/minute, `100_000` tokens/minute, and a temperature of `0.75`). Pass the model ID you want to start sending prompts immediately:
+`LLMClient` ships with high throughput defaults (`1_000` requests/minute, `100_000` tokens/minute, and a temperature of `1.0`). Pass the model ID you want to start sending prompts immediately:
 
 ```python
 from lm_deluge import LLMClient

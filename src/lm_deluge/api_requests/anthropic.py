@@ -16,6 +16,7 @@ from lm_deluge.util.schema import (
     prepare_output_schema,
     transform_schema_for_anthropic,
 )
+from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse
@@ -62,20 +63,45 @@ def _build_anthropic_request(
         "max_tokens": sampling_params.max_new_tokens,
     }
 
+    if model.id == "claude-4.5-opus" and sampling_params.global_effort:
+        request_json["effort"] = sampling_params.global_effort
+        _add_beta(base_headers, "effort-2025-11-24")
+
     # handle thinking
-    if model.reasoning_model and sampling_params.reasoning_effort:
-        # translate reasoning effort of low, medium, high to budget tokens
-        budget = {"minimal": 256, "low": 1024, "medium": 4096, "high": 16384}.get(
-            sampling_params.reasoning_effort
-        )
-        request_json["thinking"] = {
-            "type": "enabled",
-            "budget_tokens": budget,
-        }
-        if "top_p" in request_json:
-            request_json["top_p"] = max(request_json["top_p"], 0.95)
-        request_json["temperature"] = 1.0
-        request_json["max_tokens"] += budget
+    if model.reasoning_model:
+        if (
+            sampling_params.thinking_budget is not None
+            and sampling_params.reasoning_effort is not None
+        ):
+            maybe_warn("WARN_THINKING_BUDGET_AND_REASONING_EFFORT")
+
+        if sampling_params.thinking_budget is not None:
+            budget = sampling_params.thinking_budget
+        elif sampling_params.reasoning_effort is not None:
+            # translate reasoning effort of low, medium, high to budget tokens
+            budget = {
+                "none": 0,
+                "minimal": 256,
+                "low": 1024,
+                "medium": 4096,
+                "high": 16384,
+            }.get(sampling_params.reasoning_effort)
+            assert isinstance(budget, int)
+        else:
+            budget = 0
+
+        if budget > 0:
+            request_json["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": budget,
+            }
+            if "top_p" in request_json:
+                request_json["top_p"] = max(request_json["top_p"], 0.95)
+            request_json["temperature"] = 1.0
+            request_json["max_tokens"] += budget
+        else:
+            request_json["thinking"] = {"type": "disabled"}
+
     else:
         request_json["thinking"] = {"type": "disabled"}
         if sampling_params.reasoning_effort:
@@ -83,10 +109,11 @@ def _build_anthropic_request(
     if system_message is not None:
         request_json["system"] = system_message
 
-    # handle temp + top_p for opus 4.1/sonnet 4.5
+    # handle temp + top_p for opus 4.1/sonnet 4.5.
+    # TODO: make clearer / more user-friendly so there can be NotGiven
+    # and user can control which one they want to use
     if "4-1" in model.name or "4-5" in model.name:
-        if "temperature" in request_json and "top_p" in request_json:
-            request_json.pop("top_p")
+        request_json.pop("top_p")
 
     # Handle structured outputs (output_format)
     if context.output_schema:

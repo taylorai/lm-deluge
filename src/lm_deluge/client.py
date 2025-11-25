@@ -79,7 +79,7 @@ class _LLMClient(BaseModel):
     background: bool = False
     # sampling params - if provided, and sampling_params is not,
     # these override the defaults
-    temperature: float = 0.75
+    temperature: float = 1.0
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 512
@@ -337,7 +337,7 @@ class _LLMClient(BaseModel):
         if "sampling_params" not in data or len(data.get("sampling_params", [])) == 0:
             data["sampling_params"] = [
                 SamplingParams(
-                    temperature=data.get("temperature", 0.75),
+                    temperature=data.get("temperature", 1.0),
                     top_p=data.get("top_p", 1.0),
                     json_mode=data.get("json_mode", False),
                     max_new_tokens=data.get("max_new_tokens", 512),
@@ -1067,7 +1067,7 @@ def LLMClient(
     extra_headers: dict[str, str] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
-    temperature: float = 0.75,
+    temperature: float = 1.0,
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
@@ -1096,7 +1096,7 @@ def LLMClient(
     extra_headers: dict[str, str] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
-    temperature: float = 0.75,
+    temperature: float = 1.0,
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
@@ -1124,7 +1124,7 @@ def LLMClient(
     extra_headers: dict[str, str] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
-    temperature: float = 0.75,
+    temperature: float = 1.0,
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,

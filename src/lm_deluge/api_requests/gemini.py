@@ -1,6 +1,5 @@
 import json
 import os
-from typing import Any
 
 from aiohttp import ClientResponse
 
@@ -52,47 +51,60 @@ async def _build_gemini_request(
         request_json["systemInstruction"] = {"parts": [{"text": system_message}]}
 
     # Handle reasoning models (thinking)
-    if model.reasoning_model:
-        thinking_config: dict[str, Any] | None = None
-        effort = sampling_params.reasoning_effort
-        is_gemini_3 = "gemini-3" in model.name.lower()
-
-        if is_gemini_3:
-            # Gemini 3 uses thinkingLevel instead of thinkingBudget
-            if effort in {"none", "minimal"}:
-                thinking_config = {"thinkingLevel": "low"}
-            elif effort is None:
-                # Default to high when reasoning is enabled but no preference was provided
-                thinking_config = {"thinkingLevel": "high"}
-            else:
-                # Map reasoning_effort to thinkingLevel
-                level_map = {
-                    "minimal": "low",
-                    "low": "low",
-                    "medium": "medium",  # Will work when supported
-                    "high": "high",
-                }
-                thinking_level = level_map.get(effort, "high")
-                thinking_config = {"thinkingLevel": thinking_level}
+    is_gemini_3 = "gemini-3" in model.name.lower()
+    if is_gemini_3:
+        # gemini3 MUST think
+        if not sampling_params.reasoning_effort:
+            maybe_warn("WARN_GEMINI3_NO_REASONING")
+            effort = "low"
         else:
-            # Gemini 2.5 uses thinkingBudget (legacy)
-            if effort is None or effort == "none":
-                budget = 128 if "2.5-pro" in model.id else 0
-                # Explicitly disable thoughts when no effort is requested
-                thinking_config = {"includeThoughts": False, "thinkingBudget": budget}
-            else:
-                thinking_config = {"includeThoughts": True}
-                if (
-                    effort in {"minimal", "low", "medium", "high"}
-                    and "flash" in model.id
-                ):
-                    budget = {
-                        "minimal": 256,
-                        "low": 1024,
-                        "medium": 4096,
-                        "high": 16384,
-                    }[effort]
-                    thinking_config["thinkingBudget"] = budget
+            level_map = {
+                "none": "low",
+                "minimal": "low",
+                "low": "low",
+                "medium": "high",  # change when supported
+                "high": "high",
+            }
+            effort = level_map[sampling_params.reasoning_effort]
+        thinking_config = {"thinkingLevel": effort}
+
+    elif model.reasoning_model:
+        if (
+            sampling_params.thinking_budget is not None
+            and sampling_params.reasoning_effort is not None
+        ):
+            maybe_warn("WARN_THINKING_BUDGET_AND_REASONING_EFFORT")
+
+        if (
+            sampling_params.thinking_budget is not None
+            and sampling_params.thinking_budget > 0
+        ):
+            thinking_config = {
+                "includeThoughts": True,
+                "thinkingBudget": sampling_params.thinking_budget,
+            }
+        elif sampling_params.thinking_budget == -1:
+            # dynamic thinking
+            thinking_config = {"includeThoughts": True, "thinkingBudget": -1}
+        elif sampling_params.reasoning_effort not in [None, "none"]:
+            level_map = {
+                "minimal": 256,
+                "low": 1024,
+                "medium": 4096,
+                "high": 16384,
+            }
+            assert sampling_params.reasoning_effort in level_map
+            budget = level_map[sampling_params.reasoning_effort]
+            if "flash-lite" in model.id:
+                budget = max(budget, 512)
+            thinking_config = {"includeThoughts": True, "thinkingBudget": budget}
+        elif "2.5-pro" in model.id:
+            # 2.5 pro must think.
+            thinking_config = {"includeThoughts": True, "thinkingBudget": 128}
+        else:
+            # no thoughts head empty
+            thinking_config = {"includeThoughts": False, "thinkingBudget": 0}
+
         request_json["generationConfig"]["thinkingConfig"] = thinking_config
 
     else:
