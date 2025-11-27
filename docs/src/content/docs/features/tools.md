@@ -166,6 +166,111 @@ resps = client.process_prompts_sync(
 )
 ```
 
+## Open Tool Composition (OTC)
+
+`ToolComposer` adds a `compose` tool that lets the model write short Python snippets to orchestrate multiple tools in one shot. The snippet runs after the model responds, so intermediate tool calls do not bloat the conversation.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient, Tool
+from lm_deluge.tool.prefab.otc import ToolComposer
+
+def add(a: float, b: float) -> float:
+    return a + b
+
+def multiply(a: float, b: float) -> float:
+    return a * b
+
+async def main():
+    composer = ToolComposer([Tool.from_function(add), Tool.from_function(multiply)])
+    tools = composer.get_all_tools()  # returns [compose, add, multiply]
+
+    program = (
+        "total = add(2, 3)\n"
+        "result = multiply(total, 4)\n"
+        "print(result)\n"
+    )
+
+    client = LLMClient("gpt-4.1-mini")
+    conv = Conversation.user(f"Call the compose tool with this program:\\n{program}")
+
+    conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=6)
+    print("Final:", resp.completion)
+
+asyncio.run(main())
+```
+
+How OTC executes the snippet:
+- `compose` accepts plain Python (no async). Tool calls return placeholders that are filled once the executor resolves dependencies and runs the queue.
+- Only the last `print(...)` or a `result` variable is returned to the model; everything else stays out of the prompt.
+- `json` is pre-imported and builtins are restricted. Imports, file I/O, reflection, and other dangerous calls are blocked.
+- Tool errors surface as `{"error": "<message>"}` so the snippet can branch if needed.
+
+## Batch Tool
+
+`BatchTool` trades context savings for fewer roundtrips: the model submits a single `calls` array and the tool executes each item in order.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient, Tool
+from lm_deluge.tool.prefab import BatchTool
+
+async def main():
+    async def search_docs(query: str) -> list[str]:
+        return [f"doc for {query}"]
+
+    def summarize(doc: str) -> str:
+        return f"Summary of {doc}"
+
+    batch = BatchTool([Tool.from_function(search_docs), Tool.from_function(summarize)])
+
+    client = LLMClient("gpt-4.1-mini")
+    conv = Conversation.user(
+        "Use the batch tool to search for 'tooling guide' then summarize the first result."
+    )
+
+    conv, resp = await client.run_agent_loop(conv, tools=batch.get_tools(), max_rounds=4)
+    print(resp.completion)
+
+asyncio.run(main())
+```
+
+Each result entry includes `tool`, `status`, and either `result` or `error`; the tool returns a JSON string so the model can parse/branch without extra tool calls.
+
+## Tool Search Tool
+
+`ToolSearchTool` keeps large toolboxes discoverable without sending every tool definition. The model searches by regex over names/descriptions, inspects the returned schema, then calls by id. Responses are JSON strings for easy parsing.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient, Tool
+from lm_deluge.tool.prefab import ToolSearchTool
+
+async def main():
+    def add(a: float, b: float) -> float:
+        return a + b
+
+    def multiply(a: float, b: float) -> float:
+        return a * b
+
+    searcher = ToolSearchTool([Tool.from_function(add), Tool.from_function(multiply)])
+    tools = searcher.get_tools()
+
+    client = LLMClient("gpt-4.1-mini")
+    conv = Conversation.user(
+        "Find the tool that adds numbers via the search helper, then call it with 3 and 4."
+    )
+
+    conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=6)
+    print(resp.completion)
+
+asyncio.run(main())
+```
+
+The search helper returns `id`, `name`, `description`, `parameters`, and `required` so the model knows how to call a tool before invoking it.
+Default helper names use underscores (e.g., `tool_search_tool_search`, `tool_search_tool_call`) to satisfy provider tool-naming constraints; override via `ToolSearchTool(..., search_tool_name=..., call_tool_name=...)` if you prefer shorter names.
+Put tool params inside the `arguments` object (or the shorter `args` alias); top-level params are rejected by providers.
+
 ## Stateful Todo Lists
 
 Give models a persistent scratchpad for tracking work by wiring in the `TodoManager`. It exposes read/write tools (`todowrite`, `todoread`) that store todos in memory and enforce consistent schemas, which keeps the model honest about progress.

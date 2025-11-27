@@ -4,11 +4,17 @@ from .filesystem import (
     InMemoryWorkspaceBackend,
     WorkspaceBackend,
 )
+from .batch_tool import BatchTool
+from .tool_search import ToolSearchTool
+from .otc import ToolComposer
 from .sandbox import DaytonaSandbox, ModalSandbox
 from .subagents import SubAgentManager
 from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
 
 __all__ = [
+    "BatchTool",
+    "ToolSearchTool",
+    "ToolComposer",
     "TodoItem",
     "TodoManager",
     "TodoPriority",

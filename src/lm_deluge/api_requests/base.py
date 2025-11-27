@@ -222,6 +222,19 @@ class APIRequestBase(ABC):
                 usage=None,
             )
 
+        except aiohttp.ServerDisconnectedError:
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=None,
+                is_error=True,
+                error_message="Server disconnected.",
+                content=None,
+                usage=None,
+            )
+
         except Exception as e:
             raise_if_modal_exception(e)
             tb = traceback.format_exc()
