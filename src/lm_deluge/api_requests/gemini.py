@@ -173,7 +173,7 @@ class GeminiRequest(APIRequestBase):
         self.request_json = await _build_gemini_request(
             self.model,
             self.context.prompt,
-            self.context.tools,
+            self.context.tools,  # type: ignore
             self.context.sampling_params,
         )
 

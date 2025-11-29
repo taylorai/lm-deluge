@@ -135,6 +135,12 @@ Utility managers in `lm_deluge.tool.prefab` provide ready-made tool suites:
 - `FilesystemManager` exposes a sandboxed `filesystem` tool (`read_file`, `write_file`, `delete_path`, `list_dir`, `grep`, `apply_patch`) backed by an in-memory workspace or any custom `WorkspaceBackend`.
 - `TodoManager` exposes `todowrite`/`todoread` handlers for maintaining a structured todo list during long sessions (see `TodoItem`, `TodoPriority`, and `TodoStatus` for strongly typed entries).
 - `SubAgentManager` registers `start_subagent`, `check_subagent`, and `wait_for_subagent` tools so the main model can delegate parallel agent loops to cheaper models without manual orchestration.
+- `MemoryManager` exposes `memsearch`/`memread`/`memwrite`/`memupdate`/`memdelete` for long-lived note taking outside the chat transcript.
+- `BatchTool` bundles multiple tool calls into one request (`calls: [{tool, arguments}]`) to save roundtrips.
+- `ToolSearchTool` gives the model a regex-powered discovery + call helper when you have a large toolbelt.
+- `ToolComposer` (OTC) lets the model write short Python snippets that orchestrate multiple tools in one shot, returning only the final output to the conversation.
+
+`extract`, `extract_async`, `translate`, `translate_async`, and `score_llm` now live in `lm_deluge.pipelines` (and are re-exported from `lm_deluge.llm_tools` for backward compatibility).
 
 ## File & Image
 

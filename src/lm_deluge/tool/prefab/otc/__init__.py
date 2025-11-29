@@ -28,7 +28,7 @@ OTC_PROMPT = (
     " - Use print() or set a 'result' variable for output\n"
     " - You can use `json` and standard builtins (list, dict, sum, len, etc.) without importing anything\n"
     " - Imports, file I/O, and network access are disabled\n\n"
-    "<<AVAILABLE TOOLS>>\n\n"
+    "<<AVAILABLE_TOOLS>>\n\n"
     "Example:\n"
     "```python\n"
     "# Get team members and their expenses\n"

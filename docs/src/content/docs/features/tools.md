@@ -306,6 +306,27 @@ Tips:
 - Pass `TodoManager(todos=[...])` to seed the list or customize the tool names via `write_tool_name` / `read_tool_name`.
 - `manager.get_todos()` returns strongly typed `TodoItem` objects, making it easy to build dashboards or surface progress in a UI.
 
+### Memory scratchpad
+
+If you want the model to keep free-form notes between turns (outside the main conversation), use `MemoryManager`. It exposes `memsearch`, `memread`, `memwrite`, `memupdate`, and `memdelete` tools and returns YAML-formatted records with ids, descriptions, and content.
+
+```python
+from lm_deluge.tool.prefab.memory import MemoryManager
+
+manager = MemoryManager(
+    memories=[
+        {"id": 1, "description": "Project goals", "content": "Ship OTC + batch"},
+    ]
+)
+tools = manager.get_tools()  # memoized per instance
+```
+
+Tips:
+
+- The manager keeps state in-process; re-instantiate per session if you want a clean slate.
+- Use `write_tool_name` / `read_tool_name` / `search_tool_name` to align with your agent conventions.
+- Search is keyword-based; encourage the model to store short descriptions so results stay relevant.
+
 ## Virtual Filesystem Sandboxes
 
 `FilesystemManager` gives an agent a scratch workspace it can safely edit via a single `filesystem` tool. The tool supports `read_file`, `write_file`, `delete_path`, `list_dir`, `grep`, and even OpenAI-style `apply_patch` payloads, so you can script multi-step refactors without exposing the real project tree.
@@ -341,7 +362,7 @@ Tips:
 
 ## Remote Sandboxes (Modal + Daytona)
 
-`ModalSandbox` and `DaytonaSandbox` let agents run commands in managed remote environments instead of the host machine. Both expose a tool belt you can pass directly into an agent loop; Modal provides `bash`/`read_stdout`/`tunnel`, while Daytona adds file read/write, directory listing, preview links, and working-directory helpers. You can block network access up front when creating a Modal sandbox.
+`ModalSandbox` and `DaytonaSandbox` let agents run commands in managed remote environments instead of the host machine. Both expose a tool belt you can pass directly into an agent loop; Modal provides `bash`/`list_processes`/`get_url`, while Daytona adds file read/write, directory listing, preview links, and working-directory helpers. You can block network access up front when creating a Modal sandbox.
 
 ```python
 import asyncio
@@ -355,7 +376,7 @@ async def main():
 
     client = LLMClient("gpt-4.1-mini")
     conv = Conversation.user(
-        "Use the bash tool to run `echo sandboxes rock`, then read stdout to report it back."
+        "Use the bash tool to run `echo sandboxes rock` and tell me what it printed."
     )
 
     conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=4)
@@ -368,7 +389,8 @@ Tips:
 
 - Use `with ModalSandbox(...):` or `async with DaytonaSandbox(...):` to guarantee cleanup; both classes also provide a best-effort destructor.
 - `DaytonaSandbox` needs your Daytona API creds and will start a sandbox on first use; reuse a shared instance for multiple tests to avoid churn.
-- Call `tunnel` (Modal) or `get_preview_link` (Daytona) to expose a port if you allow networking; skip these when you keep sandboxes air-gapped.
+- For long-lived servers in Modal, call `bash(..., wait=False)`; there is no timeout in that mode, and `list_processes` lets you check whether background commands are still running.
+- Call `get_url` (Modal) or `get_preview_link` (Daytona) to expose a port if you allow networking; skip these when you keep sandboxes air-gapped.
 
 ## Delegating Work with Subagents
 

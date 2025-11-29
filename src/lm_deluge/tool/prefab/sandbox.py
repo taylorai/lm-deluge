@@ -97,7 +97,7 @@ class ModalSandbox:
         self,
         command: str | None = None,
         cmd: list[str] | None = None,
-        timeout: int = 60,
+        timeout: int | None = None,
         wait: bool = True,
         name: str | None = None,
     ) -> str:
@@ -107,7 +107,7 @@ class ModalSandbox:
         Args:
             command: Shell command as a string (e.g., "ls -la")
             cmd: Command as array of strings (e.g., ["ls", "-la"])
-            timeout: Timeout in seconds
+            timeout: Timeout in seconds (leave empty for no timeout)
             wait: If True, wait for completion and return output.
                   If False, run in background and return immediately.
             name: Name for background process (auto-generated if not provided)
@@ -127,8 +127,11 @@ class ModalSandbox:
         else:
             return "Error: Must provide either 'command' (string) or 'cmd' (array)"
 
+        # Disable timeout for background processes so long-running servers survive
+        exec_timeout = timeout if wait else None
+
         # Start the process
-        process = await self.sb.exec.aio(*cmd_list, timeout=timeout)
+        process = await self.sb.exec.aio(*cmd_list, timeout=exec_timeout)
 
         if wait:
             # Wait for completion and return output
@@ -280,7 +283,7 @@ class ModalSandbox:
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "Timeout in seconds (default: 60)",
+                    "description": "Timeout in seconds; leave empty for no timeout",
                 },
             },
             required=["command"],
