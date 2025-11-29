@@ -267,11 +267,10 @@ We support structured outputs via `json_mode` parameter provided to `SamplingPar
 
 ## Built‑in tools
 
-The `lm_deluge.llm_tools` package exposes a few helper functions:
+The `lm_deluge.pipelines` module exposes a few helper functions that combine LLMClient with prompt and output parsing to accomplish tasks:
 
 - `extract` – structure text or images into a Pydantic model based on a schema.
 - `translate` – translate a list of strings to English.
 - `score_llm` – simple yes/no style scoring with optional log probability output.
-- `FilesystemManager` – expose a sandboxed read/write filesystem tool (with optional regex search and `apply_patch` support) that agents can call without touching the host machine.
 
 Experimental embeddings (`embed.embed_parallel_async`) and document reranking (`rerank.rerank_parallel_async`) clients are also provided.

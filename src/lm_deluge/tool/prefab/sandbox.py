@@ -1,18 +1,72 @@
+import os
 import secrets
+import shlex
+import time
+from dataclasses import dataclass, field
+from typing import Any
 
 from lm_deluge.tool import Tool
 
 
+@dataclass
+class TrackedProcess:
+    """Tracks a process running in the sandbox."""
+
+    process: Any  # Modal's ContainerProcess
+    name: str
+    command: str
+    started_at: float = field(default_factory=time.time)
+
+
 class ModalSandbox:
-    def __init__(self, app_name: str | None = None, *, block_network: bool = False):
+    def __init__(
+        self,
+        app_name: str | None = None,
+        *,
+        image: Any | None = None,
+        block_network: bool = False,
+        add_local_files: list[str] | None = None,
+        encrypted_ports: list[int] | None = None,
+    ):
         import modal
 
         app_name = app_name or secrets.token_urlsafe(32)
         app = modal.App.lookup(app_name, create_if_missing=True)
         self.app = app
         self.block_network = block_network
-        self.sb = modal.Sandbox.create(app=app, block_network=block_network)
-        self.last_process = None
+        self.encrypted_ports = encrypted_ports or []
+
+        if image is None:
+            image = modal.Image.debian_slim(python_version="3.12")
+
+        assert isinstance(image, modal.Image), "expected modal Image"
+        if add_local_files:
+            for path in add_local_files:
+                if os.path.exists(path):
+                    # Compute a reasonable remote path based on the basename
+                    basename = os.path.basename(os.path.normpath(path))
+                    remote_path = f"/root/{basename}"
+                    if os.path.isdir(path):
+                        image = image.add_local_dir(path, remote_path)  # type: ignore
+                    else:
+                        image = image.add_local_file(path, remote_path)  # type: ignore
+                else:
+                    raise FileNotFoundError(f"File not found: {path}")
+
+        # Create sandbox with encrypted_ports if specified
+        create_kwargs: dict[str, Any] = {
+            "app": app,
+            "block_network": block_network,
+            "image": image,
+        }
+        if self.encrypted_ports:
+            create_kwargs["encrypted_ports"] = self.encrypted_ports
+
+        self.sb = modal.Sandbox.create(**create_kwargs)
+
+        # Process tracking - simple dict for background processes
+        self.processes: dict[str, TrackedProcess] = {}
+        self.process_counter: int = 0
         self._destroyed = False
 
     def __enter__(self):
@@ -34,37 +88,167 @@ class ModalSandbox:
                 # Ignore errors during cleanup in __del__
                 pass
 
-    @staticmethod
-    async def _safe_read(process, max_lines: int = 25, max_chars: int = 2500):
-        result = await process.stdout.read.aio()
-
-        if len(result) > max_chars:
-            result = result[-max_chars:]
-
-        lines = result.splitlines()
-        lines = lines[-max_lines:]
-
-        return "\n".join(lines)
+    def _generate_process_name(self) -> str:
+        """Generate a unique process name like p1, p2, etc."""
+        self.process_counter += 1
+        return f"p{self.process_counter}"
 
     async def _exec(
-        self, cmd: list[str], timeout: int = 5, check: bool = False
-    ) -> str | None:
-        process = await self.sb.exec.aio(*cmd, timeout=timeout)
-        self.last_process = process
-        if check:
-            return await self._safe_read(process)
+        self,
+        command: str | None = None,
+        cmd: list[str] | None = None,
+        timeout: int = 60,
+        wait: bool = True,
+        name: str | None = None,
+    ) -> str:
+        """
+        Execute a command in the sandbox.
 
-    async def _read(self, limit: int = 25):
-        if not self.last_process:
-            return None
-        return await self._safe_read(self.last_process)
+        Args:
+            command: Shell command as a string (e.g., "ls -la")
+            cmd: Command as array of strings (e.g., ["ls", "-la"])
+            timeout: Timeout in seconds
+            wait: If True, wait for completion and return output.
+                  If False, run in background and return immediately.
+            name: Name for background process (auto-generated if not provided)
 
-    def _get_credentials(self):
+        Returns:
+            Output string if wait=True, or confirmation message if wait=False
+        """
+        # Handle both command formats
+        if command is not None:
+            # String format - wrap in bash -c
+            cmd_list = ["bash", "-c", command]
+            cmd_str = command
+        elif cmd is not None:
+            # Array format - use directly
+            cmd_list = cmd
+            cmd_str = shlex.join(cmd)
+        else:
+            return "Error: Must provide either 'command' (string) or 'cmd' (array)"
+
+        # Start the process
+        process = await self.sb.exec.aio(*cmd_list, timeout=timeout)
+
+        if wait:
+            # Wait for completion and return output
+            output = ""
+            try:
+                async for line in process.stdout:
+                    output += line
+            except Exception:
+                pass
+
+            # Wait for process to complete to get exit code
+            await process.wait.aio()
+
+            # Truncate if needed
+            if len(output) > 5000:
+                output = "...[truncated]...\n" + output[-5000:]
+
+            # Include exit code if non-zero
+            if process.returncode != 0:
+                output = f"[Exit code: {process.returncode}]\n{output}"
+
+            return output if output else "(no output)"
+        else:
+            # Background process - track it but don't read stdout
+            proc_name = name or self._generate_process_name()
+            tracked = TrackedProcess(
+                process=process,
+                name=proc_name,
+                command=cmd_str,
+            )
+            self.processes[proc_name] = tracked
+
+            return (
+                f"Started background process '{proc_name}'.\n"
+                f"Command: {cmd_str}\n"
+                f"Note: Use another command (e.g., curl localhost:PORT) to verify the process is working. "
+                f"Use list_processes() to check status."
+            )
+
+    def _check_process(self, name: str | None = None) -> str:
+        """
+        Check status of a background process.
+
+        Args:
+            name: Process name. If not provided, shows all processes.
+
+        Returns:
+            Process status information
+        """
+        if not self.processes:
+            return "No background processes have been started."
+
+        if name:
+            proc = self.processes.get(name)
+            if not proc:
+                available = ", ".join(self.processes.keys())
+                return f"Process '{name}' not found. Available: {available}"
+
+            # Use poll() to check status without blocking
+            poll_result = proc.process.poll()
+            if poll_result is None:
+                status = "running"
+            else:
+                status = f"completed (exit code: {poll_result})"
+
+            elapsed = time.time() - proc.started_at
+            return f"Process: {name}\nCommand: {proc.command}\nStatus: {status}\nRunning for: {elapsed:.1f}s"
+        else:
+            # Show all processes
+            lines = ["NAME     STATUS              COMMAND"]
+            for proc_name, proc in self.processes.items():
+                poll_result = proc.process.poll()
+                if poll_result is None:
+                    status = "running"
+                else:
+                    status = f"exit {poll_result}"
+
+                cmd_display = (
+                    proc.command[:40] + "..."
+                    if len(proc.command) > 40
+                    else proc.command
+                )
+                lines.append(f"{proc_name:<8} {status:<19} {cmd_display}")
+
+            return "\n".join(lines)
+
+    def _get_url(self, port: int = 8080) -> str:
+        """
+        Get public URL for a port.
+
+        Args:
+            port: Port number (default 8080)
+
+        Returns:
+            URL and token information
+        """
         if self.block_network:
-            return None
-        creds = self.sb.create_connect_token(user_metadata={"user_id": "foo"})
+            return "Error: Network is blocked. Create sandbox with block_network=False to use tunnels."
 
-        return creds  # f"URL: {creds.url}; Token: {creds.token}"
+        # For port 8080 or if no encrypted_ports, use create_connect_token
+        if port == 8080 or port not in self.encrypted_ports:
+            try:
+                creds = self.sb.create_connect_token(
+                    user_metadata={"user_id": "sandbox"}
+                )
+                return f"URL: {creds.url}\nToken: {creds.token}"
+            except Exception as e:
+                return f"Error getting URL: {e}"
+
+        # For other ports that were configured with encrypted_ports
+        try:
+            tunnels = self.sb.tunnels()
+            if port in tunnels:
+                tunnel = tunnels[port]
+                return f"URL: {tunnel.url}"
+            else:
+                available = list(tunnels.keys()) if tunnels else []
+                return f"Port {port} not available. Available ports: {available}"
+        except Exception as e:
+            return f"Error getting tunnel: {e}"
 
     def _destroy(self):
         """Destroy the sandbox and mark as destroyed."""
@@ -77,59 +261,62 @@ class ModalSandbox:
             name="bash",
             description=(
                 "Execute a bash command in the sandbox environment. "
-                "Provide the command as a list of strings (e.g., ['ls', '-la']). "
-                "Optionally set a timeout in seconds and check=True to immediately read the output."
+                "Set wait=False to run servers or long-running processes in the background. "
+                "For background processes, verify they're working using another command (e.g., curl localhost:PORT)."
             ),
             run=self._exec,
             parameters={
-                "cmd": {
-                    "type": "array",
-                    "description": "The command to execute as a list of strings (e.g., ['python', 'script.py'])",
-                    "items": {"type": "string"},
+                "command": {
+                    "type": "string",
+                    "description": "Shell command to execute (e.g., 'ls -la', 'python -m http.server 8080')",
+                },
+                "wait": {
+                    "type": "boolean",
+                    "description": "If true (default), wait for completion. If false, run in background.",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name for background process (e.g., 'server'). Only used with wait=false.",
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "Timeout in seconds for the command execution (default: 5)",
-                },
-                "check": {
-                    "type": "boolean",
-                    "description": "If true, immediately read and return the last line of stdout (default: false)",
+                    "description": "Timeout in seconds (default: 60)",
                 },
             },
-            required=["cmd"],
+            required=["command"],
         )
 
-        stdout_tool = Tool(
-            name="read_stdout",
-            description=(
-                "Read the most recent stdout output from the bash shell. "
-                "ONLY returns stdout from the most recent command, "
-                "cannot be used to get output from previous commands. "
-                "Returns the last `limit` lines of stdout (default: 25 lines)."
-            ),
-            run=self._read,
+        check_tool = Tool(
+            name="list_processes",
+            description="Check status of background processes. Shows whether each process is running or has exited.",
+            run=self._check_process,
             parameters={
-                "limit": {
-                    "type": "integer",
-                    "description": "Maximum number of recent lines to return (default: 25)",
-                }
+                "name": {
+                    "type": "string",
+                    "description": "Process name to check, or omit to see all processes",
+                },
             },
             required=[],
         )
 
-        tunnel_tool = Tool(
-            name="tunnel",
+        url_tool = Tool(
+            name="get_url",
             description=(
-                "Opens a tunnel on port 8080 and returns a URL and token to connect to it. "
-                "Useful for exposing a local server or application to the user. "
-                "Only works when network is enabled (block_network=False)."
+                "Get a public URL to access a port in the sandbox. "
+                "Use after starting a web server to get the external URL. "
+                "Default port is 8080."
             ),
-            run=self._get_credentials,
-            parameters={},
+            run=self._get_url,
+            parameters={
+                "port": {
+                    "type": "integer",
+                    "description": "Port number to expose (default: 8080)",
+                },
+            },
             required=[],
         )
 
-        return [bash_tool, stdout_tool, tunnel_tool]
+        return [bash_tool, check_tool, url_tool]
 
 
 class DaytonaSandbox:

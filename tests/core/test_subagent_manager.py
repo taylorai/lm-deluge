@@ -5,8 +5,8 @@ import asyncio
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.subagents import SubAgentManager
 from lm_deluge.tool import Tool
+from lm_deluge.tool.prefab.subagents import SubAgentManager
 
 dotenv.load_dotenv()
 
@@ -155,7 +155,7 @@ async def test_check_subagent_reports_task_failure():
             self._tasks = {}
 
     client = DummyClient()
-    manager = SubAgentManager(client=client, tools=[], max_rounds=1)
+    manager = SubAgentManager(client=client, tools=[], max_rounds=1)  # type: ignore
 
     agent_id = 123
     manager.subagents[agent_id] = {

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Callable, TYPE_CHECKING
+from typing import Any, Callable, Sequence, TYPE_CHECKING
 
 from .config import SamplingParams
 from .prompt import CachePattern, Conversation
@@ -34,7 +34,7 @@ class RequestContext:
     callback: Callable | None = None
 
     # Optional features
-    tools: list | None = None
+    tools: Sequence[Any] | None = None
     output_schema: "type[BaseModel] | dict | None" = None
     cache: CachePattern | None = None
     use_responses_api: bool = False

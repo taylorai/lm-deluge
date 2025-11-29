@@ -52,9 +52,15 @@ class MemoryManager:
         *,
         write_tool_name: str = "memwrite",
         read_tool_name: str = "memread",
+        search_tool_name: str = "memsearch",
+        update_tool_name: str = "memupdate",
+        delete_tool_name: str = "memdelete",
     ):
         self.write_tool_name = write_tool_name
         self.read_tool_name = read_tool_name
+        self.search_tool_name = search_tool_name
+        self.update_tool_name = update_tool_name
+        self.delete_tool_name = delete_tool_name
         self._memories: dict[int, MemoryItem] = {}
         self._tools: list[Tool] | None = None
 
@@ -112,13 +118,18 @@ class MemoryManager:
         return self._read([hit[0] for hit in top_k if hit[1] > 0])
 
     def _read(self, memory_ids: list[int]) -> list[MemoryItem]:
-        return [self._memories.get(x) for x in memory_ids if x is not None]  # type: ignore
+        return [
+            mem
+            for mem_id in memory_ids
+            if mem_id is not None and (mem := self._memories.get(mem_id)) is not None
+        ]
 
     def _add(self, description: str, content: str):
-        new_id = max(self._memories) + 1
+        new_id = max(self._memories) + 1 if self._memories else 1
         self._memories[new_id] = self._coerce(
             {"id": new_id, "description": description, "content": content}
         )
+        return new_id
 
     def _update(self, mem_id: int, description: str, content: str):
         self._memories[mem_id].description = description
@@ -152,7 +163,7 @@ class MemoryManager:
 
         def update_tool(mem_id: int, description: str, content: str) -> str:
             """Update a memory by ID. Must provide content and description, even if only changing one of them."""
-            self._update(mem_id, content, description)
+            self._update(mem_id, description, content)
 
             return f"Memory {mem_id} updated successfully."
 
@@ -161,12 +172,17 @@ class MemoryManager:
             self._delete(mem_id)
             return f"Memory {mem_id} deleted successfully."
 
+        def _rename(tool: Tool, name: str) -> Tool:
+            if tool.name == name:
+                return tool
+            return tool.model_copy(update={"name": name})
+
         self._tools = [
-            Tool.from_function(search_tool),
-            Tool.from_function(read_tool),
-            Tool.from_function(add_tool),
-            Tool.from_function(update_tool),
-            Tool.from_function(delete_tool),
+            _rename(Tool.from_function(search_tool), self.search_tool_name),
+            _rename(Tool.from_function(read_tool), self.read_tool_name),
+            _rename(Tool.from_function(add_tool), self.write_tool_name),
+            _rename(Tool.from_function(update_tool), self.update_tool_name),
+            _rename(Tool.from_function(delete_tool), self.delete_tool_name),
         ]
         return self._tools
 

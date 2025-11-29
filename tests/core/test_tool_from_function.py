@@ -174,6 +174,24 @@ def test_from_function_string_shorthand_annotation():
     assert tool.required == ["url"]
 
 
+def test_from_function_keyword_only_defaults_respected():
+    """Kw-only params with defaults should not be marked required."""
+    from typing import Annotated
+
+    def fn(
+        a: int,
+        *,
+        b: Annotated[int, "kw-only, has default"] = 5,
+    ) -> int:
+        return a + b
+
+    tool = Tool.from_function(fn)
+
+    assert tool.parameters["b"]["default"] == 5
+    assert tool.parameters["b"]["description"] == "kw-only, has default"
+    assert set(tool.required) == {"a"}
+
+
 def test_from_function_complex_types():
     """Test Tool.from_function() with complex union and Literal types."""
     from typing import Literal

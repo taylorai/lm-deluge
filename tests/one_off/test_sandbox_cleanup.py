@@ -5,7 +5,7 @@ import gc
 
 import dotenv
 
-from lm_deluge.llm_tools.sandbox import DaytonaSandbox, ModalSandbox
+from lm_deluge.tool.prefab.sandbox import DaytonaSandbox, ModalSandbox
 
 dotenv.load_dotenv()
 
@@ -14,7 +14,7 @@ def test_modal_context_manager():
     """Test Modal sandbox with context manager (sync)."""
     print("\n=== Testing Modal with context manager ===")
 
-    with ModalSandbox(block_network=True) as sandbox:
+    with ModalSandbox("sandbox-app", block_network=True) as sandbox:
         print(f"Sandbox created: {sandbox.sb}")
         print("Sandbox will auto-cleanup on exit...")
 
@@ -25,9 +25,9 @@ def test_modal_garbage_collection():
     """Test Modal sandbox cleanup via garbage collection."""
     print("\n=== Testing Modal with garbage collection ===")
 
-    sandbox = ModalSandbox(block_network=True)
+    sandbox = ModalSandbox("sandbox-app", block_network=True)
     print(f"Sandbox created: {sandbox.sb}")
-    sandbox_ref = sandbox.sb
+    sandbox_ref = sandbox.sb  # noqa
 
     # Delete the sandbox object
     del sandbox

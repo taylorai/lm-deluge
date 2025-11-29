@@ -37,10 +37,9 @@ if response.content:
 
 The `Tool` helpers all end up producing the same JSON Schema. Pick the one that matches your workflow:
 
-- `Tool.from_function(callable)` – uses the function signature and docstring.
-- `Tool.from_params(name, ToolParams(...))` – build schemas programmatically.
-- `Tool.from_pydantic(name, BaseModel)` – reuse Pydantic models.
-- `Tool.from_typed_dict(name, TypedDict)` – wrap typed dictionaries.
+- `Tool.from_function(callable, include_output_schema_in_description=False)` – uses the function signature, docstring, `Annotated[...]` descriptions, and return annotation (stored as `output_schema` for optional runtime validation).
+- `Tool(...)` – manual construction; `parameters` can be a JSON Schema dict, a `BaseModel` subclass, a `TypedDict`, or a simple mapping of Python types like `{"city": str, "limit": int}` or `(type, extras)` tuples.
+- `Tool.from_mcp(...)` / `Tool.from_mcp_config(...)` – load tools from an MCP server.
 
 ```python
 from pydantic import BaseModel
@@ -49,7 +48,12 @@ class CalculateTip(BaseModel):
     bill_amount: float
     tip_percentage: float = 20.0
 
-tip_tool = Tool.from_pydantic("calculate_tip", CalculateTip)
+tip_tool = Tool(
+    name="calculate_tip",
+    description="Calculate a tip and total",
+    parameters=CalculateTip,  # pass the model class directly
+    run=lambda bill_amount, tip_percentage=20.0: bill_amount * (1 + tip_percentage / 100),
+)
 ```
 
 ## Calling Tools
@@ -278,7 +282,7 @@ Give models a persistent scratchpad for tracking work by wiring in the `TodoMana
 ```python
 import asyncio
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.todos import TodoManager
+from lm_deluge.tool.prefab.todos import TodoManager
 
 async def main():
     manager = TodoManager()
@@ -309,7 +313,7 @@ Tips:
 ```python
 import asyncio
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.filesystem import FilesystemManager, InMemoryWorkspaceBackend
+from lm_deluge.tool.prefab.filesystem import FilesystemManager, InMemoryWorkspaceBackend
 
 async def main():
     # Seed the virtual workspace with an in-memory backend
@@ -342,11 +346,11 @@ Tips:
 ```python
 import asyncio
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.sandbox import ModalSandbox
+from lm_deluge.tool.prefab.sandbox import ModalSandbox
 
 async def main():
     # Network is blocked; the sandbox cleans itself up when the object is deleted
-    sandbox = ModalSandbox(block_network=True)
+    sandbox = ModalSandbox("sandbox-app", block_network=True)
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
@@ -373,7 +377,7 @@ Tips:
 ```python
 import asyncio
 from lm_deluge import Conversation, LLMClient, Tool
-from lm_deluge.llm_tools.subagents import SubAgentManager
+from lm_deluge.tool.prefab.subagents import SubAgentManager
 
 async def main():
     def search_web(query: str) -> str:

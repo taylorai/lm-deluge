@@ -5,7 +5,8 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from lm_deluge import LLMClient
-from lm_deluge.llm_tools.extract import extract
+from lm_deluge.api_requests.response import APIResponse
+from lm_deluge.pipelines.extract import extract
 
 
 def test_basic_pydantic_structured_output():
@@ -28,6 +29,7 @@ def test_basic_pydantic_structured_output():
 
     # Verify we got a response
     assert response is not None
+    assert isinstance(response, APIResponse)
     assert response.completion is not None
 
     # Parse the response into Pydantic model
@@ -74,6 +76,7 @@ def test_advanced_pydantic_features():
     )[0]
 
     assert response is not None
+    assert isinstance(response, APIResponse)
     assert response.completion is not None
 
     # Parse and validate
@@ -123,7 +126,7 @@ def test_extract_with_pydantic():
 
     # Verify each result
     for i, result in enumerate(results):
-        assert result is not None
+        assert result is not None and isinstance(result, dict)
         if "error" not in result:
             invoice = Invoice(**result)
             assert isinstance(invoice.invoice_number, str)
@@ -132,7 +135,7 @@ def test_extract_with_pydantic():
             assert isinstance(invoice.line_items, list)
             assert len(invoice.line_items) > 0
 
-            print(f"✓ Extract test {i+1} passed")
+            print(f"✓ Extract test {i + 1} passed")
             print(f"  Invoice: {invoice.invoice_number}")
             print(f"  Vendor: {invoice.vendor_name}")
             print(f"  Total: ${invoice.total_amount}")

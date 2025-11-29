@@ -6,7 +6,7 @@ import json
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.filesystem import (
+from lm_deluge.tool.prefab.filesystem import (
     FilesystemManager,
     InMemoryWorkspaceBackend,
 )

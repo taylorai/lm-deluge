@@ -124,124 +124,99 @@ asyncio.run(from_function_example())
 
 **Advantages of `Tool.from_function()`:**
 - ✅ Automatic parameter extraction from type hints
-- ✅ Automatic description from docstring
+- ✅ Automatic description from docstring (and optional return-type summary)
 - ✅ Automatic required/optional detection from defaults
-- ✅ Less boilerplate code
-- ✅ Keeps function and tool definition in sync
-- ✅ Supports all Python basic types (int, float, str, bool, list, dict)
+- ✅ Less boilerplate code; keeps function and tool definition in sync
+- ✅ Annotated descriptions (`Annotated[str, "desc"]` or `Field(...)`) supported
+- ✅ Handles complex Python types, Pydantic models, and `TypedDict` parameters
+- ✅ Captures return type as `output_schema` for optional runtime validation
 
-### Method 2: Using ToolParams and Convenience Constructors
+### Method 2: Schema-first Tools (Pydantic/TypedDict/dicts)
 
-For more control over tool parameter schemas without writing verbose JSON Schema manually, use the `ToolParams` helper class:
+`Tool` now normalizes multiple parameter formats for you:
 
-#### Basic ToolParams Usage
+- Pydantic models
+- `TypedDict` (including `NotRequired`/`Required`)
+- Plain JSON Schema dicts
+- Simple Python types (`{"city": str, "limit": int}`) or `(type, extras)` tuples
 
-```python
-from lm_deluge.tool import Tool, ToolParams
-from typing import Literal
-
-# Simple constructor with Python types
-params = ToolParams({
-    "city": str,
-    "age": int,
-    "active": bool
-})
-
-def get_user_info(city: str, age: int, active: bool) -> str:
-    return f"User in {city}, age {age}, active: {active}"
-
-tool = Tool.from_params("get_user", params, run=get_user_info)
-```
-
-#### ToolParams with Type Hints and Extras
+You can keep a schema object separate from your function and still avoid JSON Schema boilerplate.
 
 ```python
-from typing import Literal
-
-# Use Literal for enums, list[T] for arrays, etc.
-params = ToolParams({
-    "operation": Literal["add", "subtract", "multiply", "divide"],
-    "numbers": list[int],
-    "metadata": dict[str, str]
-})
-
-# Or use tuple syntax for extra JSON Schema properties
-params = ToolParams({
-    "operation": (str, {"enum": ["add", "sub"], "description": "Math operation"}),
-    "value": (int, {"description": "The value to use", "optional": True})
-})
-```
-
-#### Tool.from_pydantic() - Create Tools from Pydantic Models
-
-```python
+from typing_extensions import TypedDict, NotRequired
 from pydantic import BaseModel
 from lm_deluge.tool import Tool
 
-class WeatherQuery(BaseModel):
+# Option A: Pydantic
+class WeatherParams(BaseModel):
     """Get weather information for a location"""
     city: str
     country: str
-    units: str = "celsius"  # Optional with default
+    units: str = "celsius"
 
 def get_weather(city: str, country: str, units: str = "celsius") -> str:
     return f"Weather in {city}, {country}: 22°{units[0].upper()}"
 
-# Create tool from Pydantic model - uses docstring as description
-weather_tool = Tool.from_pydantic("get_weather", WeatherQuery, run=get_weather)
+weather_tool = Tool(
+    name="get_weather",
+    description=WeatherParams.__doc__,
+    parameters=WeatherParams,  # pass the model class directly
+    run=get_weather,
+)
 
-# Now you can use it
-result = weather_tool.call(city="Paris", country="France")
-print(result)  # Weather in Paris, France: 22°C
-```
-
-#### Tool.from_typed_dict() - Create Tools from TypedDict
-
-```python
-from typing import TypedDict
-from lm_deluge.tool import Tool
-
+# Option B: TypedDict
 class CalculatorInput(TypedDict):
     a: int
     b: int
-    operation: str
+    operation: NotRequired[str]
 
-def calculator(a: int, b: int, operation: str) -> str:
-    if operation == "add":
-        return str(a + b)
-    elif operation == "subtract":
-        return str(a - b)
-    return "Unknown operation"
+def calculator(a: int, b: int, operation: str = "add") -> str:
+    return str(a + b) if operation == "add" else str(a - b)
 
-calc_tool = Tool.from_typed_dict(
-    "calculator",
-    CalculatorInput,
+calc_tool = Tool(
+    name="calculator",
     description="Perform basic math operations",
-    run=calculator
+    parameters=CalculatorInput,  # pass the TypedDict directly
+    run=calculator,
+)
+
+# Option C: Lightweight dicts or tuples
+math_tool = Tool(
+    name="math",
+    description="Do simple math",
+    parameters={
+        "operation": (str, {"enum": ["add", "sub"], "description": "Math op"}),
+        "a": float,
+        "b": float,
+    },
+    run=lambda operation, a, b: a + b if operation == "add" else a - b,
 )
 ```
 
-#### ToolParams.from_json_schema() - Wrap Existing Schemas
+**Tip:** Annotate parameters for descriptions without extra schema code:
 
 ```python
-from lm_deluge.tool import ToolParams
+from typing import Annotated
+from pydantic import Field
 
-# If you already have a JSON Schema
-existing_schema = {
-    "name": {"type": "string", "minLength": 1},
-    "age": {"type": "integer", "minimum": 0, "maximum": 120}
-}
+def search(
+    query: Annotated[str, "Search query text"],
+    limit: Annotated[int, Field(description="Max results")] = 5,
+) -> list[str]:
+    return [query] * limit
 
-params = ToolParams.from_json_schema(existing_schema, required=["name"])
-tool = Tool.from_params("create_user", params, run=my_function)
+search_tool = Tool.from_function(search)
 ```
 
-**Enhanced Type Support:**
-- ✅ `Literal["a", "b"]` → automatically generates enum
-- ✅ `list[str]`, `list[int]` → proper array schemas with item types
-- ✅ `dict[str, T]` → object schemas with additionalProperties
-- ✅ Tuple syntax for adding descriptions, constraints, etc.
-- ✅ Full backwards compatibility with manual dict construction
+Return types are also captured as `output_schema`, and you can enable runtime validation when calling:
+
+```python
+def add(a: int, b: int) -> int:
+    return a + b
+
+add_tool = Tool.from_function(add)
+result = add_tool.call(a=1, b=2, validate_output=True)  # raises if the return type is wrong
+```
 
 ### Method 3: Manual Tool Definition
 

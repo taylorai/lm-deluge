@@ -100,7 +100,7 @@ Large tasks often benefit from spinning off independent workers. `SubAgentManage
 ```python
 import asyncio
 from lm_deluge import Conversation, LLMClient, Tool
-from lm_deluge.llm_tools.subagents import SubAgentManager
+from lm_deluge.tool.prefab.subagents import SubAgentManager
 
 async def main():
     def search_docs(query: str) -> str:

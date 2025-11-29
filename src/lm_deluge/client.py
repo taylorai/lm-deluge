@@ -572,7 +572,7 @@ class _LLMClient(BaseModel):
         *,
         return_completions_only: Literal[True],
         show_progress: bool = ...,
-        tools: list[Tool | dict | MCPServer] | None = ...,
+        tools: Sequence[Tool | dict | MCPServer] | None = ...,
         output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
@@ -585,7 +585,7 @@ class _LLMClient(BaseModel):
         *,
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
-        tools: list[Tool | dict | MCPServer] | None = ...,
+        tools: Sequence[Tool | dict | MCPServer] | None = ...,
         output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
@@ -597,7 +597,7 @@ class _LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress: bool = True,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
@@ -672,7 +672,7 @@ class _LLMClient(BaseModel):
         *,
         return_completions_only: bool = False,
         show_progress=True,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
     ):
@@ -705,7 +705,7 @@ class _LLMClient(BaseModel):
         self,
         prompt: Prompt,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
@@ -742,7 +742,7 @@ class _LLMClient(BaseModel):
         self,
         prompt: Prompt,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
@@ -835,7 +835,7 @@ class _LLMClient(BaseModel):
     async def stream(
         self,
         prompt: Prompt,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
     ):
         model, sampling_params = self._select_model()
         prompt = prompts_to_conversations([prompt])[0]
@@ -856,7 +856,7 @@ class _LLMClient(BaseModel):
         task_id: int,
         conversation: Conversation,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
@@ -920,7 +920,7 @@ class _LLMClient(BaseModel):
         self,
         conversation: Prompt,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
@@ -967,7 +967,7 @@ class _LLMClient(BaseModel):
         self,
         conversation: Prompt,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -986,7 +986,7 @@ class _LLMClient(BaseModel):
         self,
         conversation: Prompt,
         *,
-        tools: list[Tool | dict | MCPServer] | None = None,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
     ) -> tuple[Conversation, APIResponse]:

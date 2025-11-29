@@ -1,8 +1,9 @@
 import json
+from typing import Callable
 
 import pytest
 
-from lm_deluge.llm_tools.filesystem import (
+from lm_deluge.tool.prefab.filesystem import (
     FilesystemManager,
     InMemoryWorkspaceBackend,
 )
@@ -55,19 +56,19 @@ def test_filesystem_manager_tool_roundtrip():
     backend = InMemoryWorkspaceBackend({"main.py": "print('hi')\nprint('bye')"})
     manager = FilesystemManager(backend=backend, tool_name="fs")
     tool = manager.get_tools()[0]
-
+    assert tool and isinstance(tool.run, Callable)
     read_payload = json.loads(
         tool.run(command="read_file", path="main.py", start_line=2, end_line=2)
     )
     assert read_payload["ok"]
     assert read_payload["result"]["content"] == "print('bye')"
-
+    assert tool and isinstance(tool.run, Callable)
     write_payload = json.loads(
         tool.run(command="write_file", path="new.txt", content="hello world")
     )
     assert write_payload["ok"]
     assert backend.read_file("new.txt") == "hello world"
-
+    assert tool and isinstance(tool.run, Callable)
     error_payload = json.loads(tool.run(command="read_file", path="missing.txt"))
     assert not error_payload["ok"]
     assert error_payload["error"] == "FileNotFoundError"
@@ -77,6 +78,7 @@ def test_filesystem_manager_reads_empty_files():
     backend = InMemoryWorkspaceBackend({"empty.txt": ""})
     manager = FilesystemManager(backend=backend, tool_name="fs")
     tool = manager.get_tools()[0]
+    assert tool and isinstance(tool.run, Callable)
 
     payload = json.loads(tool.run(command="read_file", path="empty.txt"))
     assert payload["ok"]
@@ -105,10 +107,10 @@ def test_get_tools_with_exclusions():
     backend = InMemoryWorkspaceBackend({"only.txt": "data"})
     manager = FilesystemManager(backend=backend)
     tool = manager.get_tools(exclude={"write_file"})[0]
-
+    assert tool.parameters, "tool must have parameters"
     command_schema = tool.parameters.get("command", {})
     assert "write_file" not in command_schema.get("enum", [])
-
+    assert isinstance(tool.run, Callable)
     ok_payload = json.loads(tool.run(command="read_file", path="only.txt"))
     assert ok_payload["ok"]
 

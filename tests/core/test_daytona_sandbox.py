@@ -5,7 +5,7 @@ import asyncio
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.sandbox import DaytonaSandbox
+from lm_deluge.tool.prefab.sandbox import DaytonaSandbox
 
 dotenv.load_dotenv()
 

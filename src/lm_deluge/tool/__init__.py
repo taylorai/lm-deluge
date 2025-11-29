@@ -60,12 +60,14 @@ def _get_cached_typeadapter(cls: type | Callable) -> TypeAdapter:
                     globals_dict = actual_func.__globals__
                     name = actual_func.__name__
                     defaults = actual_func.__defaults__
+                    kwdefaults = actual_func.__kwdefaults__
                     closure = actual_func.__closure__
                 else:
                     code = cls.__code__
                     globals_dict = cls.__globals__
                     name = cls.__name__
                     defaults = cls.__defaults__
+                    kwdefaults = cls.__kwdefaults__
                     closure = cls.__closure__
 
                 new_func = types.FunctionType(
@@ -75,6 +77,8 @@ def _get_cached_typeadapter(cls: type | Callable) -> TypeAdapter:
                     defaults,
                     closure,
                 )
+                if kwdefaults is not None:
+                    new_func.__kwdefaults__ = kwdefaults
                 new_func.__dict__.update(cls.__dict__)
                 new_func.__module__ = cls.__module__
                 new_func.__qualname__ = getattr(cls, "__qualname__", cls.__name__)
@@ -234,6 +238,18 @@ def _normalize_parameters(
     Returns:
         (properties, required, definitions)
     """
+
+    def _schema_from_type(annotation: Any) -> dict[str, Any]:
+        """
+        Prefer TypeAdapter-based schemas (handles Union/Optional, Annotated, etc).
+        Fall back to the legacy mapper if TypeAdapter cannot handle the type.
+        """
+        try:
+            ta = TypeAdapter(annotation)
+            return _clean_schema(ta.json_schema())
+        except Exception:
+            return _python_type_to_json_schema(annotation)
+
     if params is None:
         return {}, [], None
 
@@ -296,7 +312,7 @@ def _normalize_parameters(
         if isinstance(param_spec, tuple) and len(param_spec) == 2:
             param_type, extras = param_spec
             if isinstance(extras, dict):
-                schema = _python_type_to_json_schema(param_type)
+                schema = _schema_from_type(param_type)
                 schema.update(extras)
                 # Remove "optional" key as it's not valid JSON schema
                 is_optional = schema.pop("optional", False)
@@ -307,7 +323,7 @@ def _normalize_parameters(
 
         # Python type (int, str, list[str], etc.)
         if isinstance(param_spec, type) or get_origin(param_spec) is not None:
-            properties[param_name] = _python_type_to_json_schema(param_spec)
+            properties[param_name] = _schema_from_type(param_spec)
             required.append(param_name)
             continue
 
@@ -321,7 +337,7 @@ def _normalize_parameters(
             continue
 
         # Unknown - try to convert
-        properties[param_name] = _python_type_to_json_schema(param_spec)
+        properties[param_name] = _schema_from_type(param_spec)
         required.append(param_name)
 
     return properties, required, None

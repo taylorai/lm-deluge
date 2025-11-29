@@ -118,23 +118,19 @@ SamplingParams(
 
 Helper constructors: `Message.user`, `Message.system`, and `Message.ai` (assistant).
 
-## Tool, ToolParams, MCPServer
+## Tool & MCPServer
 
-`Tool` describes a function-call schema plus an optional Python callable:
+`Tool` describes a function-call schema plus an optional Python callable. Core helpers:
 
-- `Tool.from_function(func)` – introspects type hints and docstrings.
-- `Tool.from_pydantic(name, BaseModel, *, description=None, run=None, **kwargs)`
-- `Tool.from_typed_dict(name, TypedDict, *, description=None, run=None, **kwargs)`
-- `Tool.from_params(name, ToolParams, *, description=None, run=None)`
+- `Tool.from_function(func, *, include_output_schema_in_description=False)` – introspects type hints, docstrings, and `Annotated[...]` descriptions, and extracts an `output_schema` from the return type (with optional runtime validation via `validate_output=True` on `.call()`/`.acall()`).
+- `Tool(...)` – construct manually; `parameters` accepts JSON Schema dicts, `BaseModel` subclasses, `TypedDict` classes (including `NotRequired`/`Required`), or simple Python-type mappings like `{"city": str, "limit": int}` or `(type, extras)` tuples.
 - `Tool.from_mcp(...)` / `Tool.from_mcp_config(config)` – **async** helpers that connect to MCP servers and return lists of tools.
 
-Instances expose `.call(**kwargs)` and `.acall(**kwargs)` which automatically pick the right execution strategy for sync vs. async callables.
-
-`ToolParams(schema_dict)` lets you build JSON Schemas programmatically (including `required` keys and nested structures).
+Instances expose `.call(**kwargs)` and `.acall(**kwargs)` which automatically pick the right execution strategy for sync vs. async callables; pass `validate_output=True` to enforce return-type validation when `output_schema` is present.
 
 `MCPServer(name, url, token=None, configuration=None, headers=None)` wraps an MCP server description. Pass `force_local_mcp=True` to the `LLMClient` to expand the server locally, or rely on provider-native MCP support when available.
 
-Utility managers in `lm_deluge.llm_tools` provide ready-made tool suites:
+Utility managers in `lm_deluge.tool.prefab` provide ready-made tool suites:
 
 - `FilesystemManager` exposes a sandboxed `filesystem` tool (`read_file`, `write_file`, `delete_path`, `list_dir`, `grep`, `apply_patch`) backed by an in-memory workspace or any custom `WorkspaceBackend`.
 - `TodoManager` exposes `todowrite`/`todoread` handlers for maintaining a structured todo list during long sessions (see `TodoItem`, `TodoPriority`, and `TodoStatus` for strongly typed entries).

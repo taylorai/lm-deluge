@@ -146,7 +146,7 @@ The `extract()` helper function makes it even easier to extract structured data 
 ```python
 from pydantic import BaseModel
 from lm_deluge import LLMClient
-from lm_deluge.llm_tools.extract import extract
+from lm_deluge.pipelines.extract import extract
 
 class Invoice(BaseModel):
     invoice_number: str

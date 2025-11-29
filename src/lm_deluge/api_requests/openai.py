@@ -2,6 +2,7 @@ import json
 import os
 import traceback as tb
 from types import SimpleNamespace
+from typing import Sequence
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -610,7 +611,7 @@ async def stream_chat(
     model_name: str,  # must correspond to registry
     prompt: Conversation,
     sampling_params: SamplingParams = SamplingParams(),
-    tools: list | None = None,
+    tools: Sequence[Tool | dict | MCPServer] | None = None,
     cache: CachePattern | None = None,
     extra_headers: dict[str, str] | None = None,
 ):

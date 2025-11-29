@@ -5,7 +5,7 @@ import asyncio
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.llm_tools.todos import TodoItem, TodoManager
+from lm_deluge.tool.prefab.todos import TodoItem, TodoManager
 
 dotenv.load_dotenv()
 
