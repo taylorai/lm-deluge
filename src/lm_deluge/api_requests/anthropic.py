@@ -64,7 +64,7 @@ def _build_anthropic_request(
     }
 
     if model.id == "claude-4.5-opus" and sampling_params.global_effort:
-        request_json["effort"] = sampling_params.global_effort
+        request_json["output_config"] = {"effort": sampling_params.global_effort}
         _add_beta(base_headers, "effort-2025-11-24")
 
     # handle thinking
@@ -115,6 +115,7 @@ def _build_anthropic_request(
     if "4-1" in model.name or "4-5" in model.name:
         request_json.pop("top_p")
 
+    # print(request_json)
     # Handle structured outputs (output_format)
     if context.output_schema:
         if model.supports_json:

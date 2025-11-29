@@ -1,7 +1,7 @@
 from .client import APIResponse, LLMClient, SamplingParams
 from .file import File
 from .prompt import Conversation, Message
-from .tool import Tool, ToolParams
+from .tool import Tool
 
 try:
     from .mock_openai import (  # noqa
@@ -25,7 +25,6 @@ __all__ = [
     "Conversation",
     "Message",
     "Tool",
-    "ToolParams",
     "File",
 ]
 
