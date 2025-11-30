@@ -103,6 +103,11 @@ class _LLMClient(BaseModel):
     _tracker: StatusTracker | None = PrivateAttr(default=None)
     _capacity_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
 
+    # usage
+    def print_usage(self):
+        if self._tracker:
+            self._tracker.log_usage()
+
     # Progress management for queueing API
     def open(self, total: int | None = None, show_progress: bool = True):
         self._tracker = StatusTracker(

@@ -157,19 +157,7 @@ class StatusTracker:
             if response.usage.cache_write_tokens:
                 self.total_cache_write_tokens += response.usage.cache_write_tokens
 
-    def log_final_status(self):
-        # Close progress bar before printing final status
-        self.close_progress_bar()
-
-        if self.num_tasks_failed > 0:
-            print(
-                f"{self.num_tasks_failed} / {self.num_tasks_started} requests failed."
-            )
-        if self.num_rate_limit_errors > 0:
-            print(
-                f"{self.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
-            )
-
+    def log_usage(self):
         # Display cumulative usage stats if available
         if (
             self.total_cost > 0
@@ -189,6 +177,21 @@ class StatusTracker:
                 usage_parts.append(f"{self.total_cache_write_tokens:,} write")
 
             print("  ", " • ".join(usage_parts))
+
+    def log_final_status(self):
+        # Close progress bar before printing final status
+        self.close_progress_bar()
+
+        if self.num_tasks_failed > 0:
+            print(
+                f"{self.num_tasks_failed} / {self.num_tasks_started} requests failed."
+            )
+        if self.num_rate_limit_errors > 0:
+            print(
+                f"{self.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
+            )
+
+        self.log_usage()
 
     @property
     def pbar(self) -> tqdm | None:
