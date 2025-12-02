@@ -4,9 +4,10 @@ import random
 from dataclasses import dataclass, field
 
 from ..request_context import RequestContext
+from .anthropic import ANTHROPIC_MODELS
 
 # Import and register all provider models
-from .anthropic import ANTHROPIC_MODELS
+from .arcee import ARCEE_MODELS
 from .bedrock import BEDROCK_MODELS
 from .cerebras import CEREBRAS_MODELS
 from .cohere import COHERE_MODELS
@@ -128,6 +129,7 @@ def register_model(
 # Register all models from all providers
 for model_dict in [
     ANTHROPIC_MODELS,
+    ARCEE_MODELS,
     BEDROCK_MODELS,
     COHERE_MODELS,
     DEEPSEEK_MODELS,

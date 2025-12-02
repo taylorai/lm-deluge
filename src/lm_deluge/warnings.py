@@ -13,6 +13,7 @@ WARNINGS: dict[str, str] = {
     "WARN_GEMINI3_MISSING_SIGNATURE": "Gemini 3 thought signature missing in {part_type}, injecting dummy signature 'context_engineering_is_the_way_to_go' to avoid API error.",
     "WARN_GEMINI3_NO_REASONING": "Gemini 3 requires reasoning (thinkingConfig). Setting thinkingConfig to low.",
     "WARN_THINKING_BUDGET_AND_REASONING_EFFORT": "`reasoning_effort` and `thinking_budget` both provided. `thinking_budget` will take priority.",
+    "WARN_KIMI_THINKING_NO_REASONING": "kimi-k2-thinking works best with thinking enabled. set thinking_budget > 0 or reasoning_effort to anything but none",
 }
 
 

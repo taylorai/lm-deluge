@@ -101,11 +101,14 @@ def _build_anthropic_request(
             request_json["max_tokens"] += budget
         else:
             request_json["thinking"] = {"type": "disabled"}
+            if "kimi" in model.id and "thinking" in model.id:
+                maybe_warn("WARN_KIMI_THINKING_NO_REASONING")
 
     else:
         request_json["thinking"] = {"type": "disabled"}
         if sampling_params.reasoning_effort:
             print("ignoring reasoning_effort for non-reasoning model")
+
     if system_message is not None:
         request_json["system"] = system_message
 
@@ -230,6 +233,9 @@ class AnthropicRequest(APIRequestBase):
             try:
                 data = await http_response.json()
                 response_content = data["content"]
+
+                # print("=== CONTENT ===")
+                # print(response_content)
 
                 # Parse response into Message with parts
                 parts = []

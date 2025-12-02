@@ -18,11 +18,13 @@ async def test_kimi_models():
 
     for model_id in kimi_models:
         print(f"\nTesting {model_id}...")
-        client = lm_deluge.LLMClient(model_id, request_timeout=120)
+        client = lm_deluge.LLMClient(
+            model_id, request_timeout=120, max_new_tokens=10_000, thinking_budget=5_000
+        )
         res = await client.process_prompts_async(
             ["so long, and thanks for all the fish!"]
         )
-        print(f"✅ {model_id}: Got completion:", res[0].completion)
+        print(f"✅ {model_id}- got completion:", res[0].content)
 
 
 async def test_minimax_models():
@@ -44,10 +46,10 @@ async def main():
     print("=" * 10)
     await test_kimi_models()
 
-    print("\n" + "=" * 10)
-    print("Testing Minimax Models")
-    print("=" * 10)
-    await test_minimax_models()
+    # print("\n" + "=" * 10)
+    # print("Testing Minimax Models")
+    # print("=" * 10)
+    # await test_minimax_models()
 
     print("\n" + "=" * 10)
     print("All tests completed successfully!")

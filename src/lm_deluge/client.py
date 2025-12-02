@@ -84,6 +84,8 @@ class _LLMClient(BaseModel):
     json_mode: bool = False
     max_new_tokens: int = 512
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
+    global_effort: Literal["low", "medium", "high"] | None = None
+    thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
     force_local_mcp: bool = False
@@ -212,6 +214,8 @@ class _LLMClient(BaseModel):
                         json_mode=self.json_mode,
                         max_new_tokens=self.max_new_tokens,
                         reasoning_effort=self.reasoning_effort,
+                        global_effort=self.global_effort or "high",
+                        thinking_budget=self.thinking_budget,
                         logprobs=self.logprobs,
                         top_logprobs=self.top_logprobs,
                     )
@@ -347,6 +351,8 @@ class _LLMClient(BaseModel):
                     json_mode=data.get("json_mode", False),
                     max_new_tokens=data.get("max_new_tokens", 512),
                     reasoning_effort=data.get("reasoning_effort", None),
+                    global_effort=data.get("global_effort") or "high",
+                    thinking_budget=data.get("thinking_budget", None),
                     logprobs=data.get("logprobs", False),
                     top_logprobs=data.get("top_logprobs", None),
                 )
@@ -1077,6 +1083,8 @@ def LLMClient(
     json_mode: bool = False,
     max_new_tokens: int = 512,
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    global_effort: Literal["low", "medium", "high"] | None = None,
+    thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
@@ -1106,6 +1114,8 @@ def LLMClient(
     json_mode: bool = False,
     max_new_tokens: int = 512,
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    global_effort: Literal["low", "medium", "high"] | None = None,
+    thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
@@ -1134,6 +1144,8 @@ def LLMClient(
     json_mode: bool = False,
     max_new_tokens: int = 512,
     reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    global_effort: Literal["low", "medium", "high"] | None = None,
+    thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
@@ -1174,6 +1186,8 @@ def LLMClient(
         json_mode=json_mode,
         max_new_tokens=max_new_tokens,
         reasoning_effort=reasoning_effort,
+        global_effort=global_effort,
+        thinking_budget=thinking_budget,
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         force_local_mcp=force_local_mcp,

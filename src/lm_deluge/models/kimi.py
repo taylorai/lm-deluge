@@ -22,6 +22,7 @@ KIMI_MODELS = {
         "api_key_env_var": "MOONSHOT_API_KEY",
         "supports_json": True,
         "api_spec": "anthropic",
+        "reasoning_model": True,
     },
     "kimi-k2-thinking-turbo": {
         "id": "kimi-k2-thinking-turbo",
@@ -30,5 +31,6 @@ KIMI_MODELS = {
         "api_key_env_var": "MOONSHOT_API_KEY",
         "supports_json": True,
         "api_spec": "anthropic",
+        "reasoning_model": True,
     },
 }

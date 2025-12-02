@@ -71,4 +71,14 @@ OPENROUTER_MODELS = {
         "input_cost": 0.2,
         "output_cost": 35,
     },
+    "trinity-mini-openrouter": {
+        "id": "trinity-mini-openrouter",
+        "name": "arcee-ai/trinity-mini:free",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 0.045,
+        "output_cost": 0.15,
+    },
 }

@@ -93,4 +93,15 @@ TOGETHER_MODELS = {
         "output_cost": 0.59,
         "reasoning_model": True,
     },
+    "trinity-mini-together": {
+        "id": "trinity-mini-together",
+        "name": "arcee-ai/trinity-mini",
+        "api_base": "https://api.together.xyz/v1",
+        "api_key_env_var": "TOGETHER_API_KEY",
+        "supports_json": False,
+        "api_spec": "openai",
+        "input_cost": 0.18,
+        "output_cost": 0.59,
+        "reasoning_model": True,
+    },
 }
