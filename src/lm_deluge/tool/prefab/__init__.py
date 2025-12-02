@@ -8,6 +8,9 @@ from .batch_tool import BatchTool
 from .tool_search import ToolSearchTool
 from .otc import ToolComposer
 from .sandbox import DaytonaSandbox, ModalSandbox
+from .docs import DocsManager
+from .sheets import SheetsManager
+from .random import RandomTools
 from .subagents import SubAgentManager
 from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
 
@@ -26,4 +29,7 @@ __all__ = [
     "WorkspaceBackend",
     "ModalSandbox",
     "DaytonaSandbox",
+    "DocsManager",
+    "SheetsManager",
+    "RandomTools",
 ]
