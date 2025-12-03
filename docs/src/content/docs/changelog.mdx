@@ -5,6 +5,19 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.83 · 2025-12-02
+
+- Prefab expansion: added Google Docs tools (metadata, ranged reads/grep, markdown-aware insert/update/replace/delete) plus a Google Sheets manager (list tabs, find used ranges, read ranges as HTML tables, update cells) with service-account auth.
+- Utility helpers: Exa-powered `WebSearchManager` (search + URL fetch), AWS SES `EmailManager` with recipient allowlists and optional HTML/CC/BCC, and `RandomTools` for floats/ints/choices/secure tokens (with a new example).
+- Storage upgrades: FilesystemManager gained an S3-backed workspace with optimistic locking and the full read/write/list/grep/apply_patch surface, while MemoryManager adds an S3-backed scratchpad with conditional writes/retries for shared agents.
+- Model catalog: registered Arcee `trinity-mini` (native, OpenRouter, Together), refreshed DeepSeek pricing plus new reasoner/speciale variants (including an Anthropic-compatible path), and marked Kimi thinking SKUs as reasoning models with a warning when thinking is disabled.
+- Client knobs & coverage: `LLMClient` now accepts `global_effort` and `thinking_budget` at construction so Anthropic-style requests carry the right effort settings, and new suites cover the prefab tools, Arcee tool-calling, DeepSeek Speciale, and S3 integrations.
+
+## 0.0.82 · 2025-11-30
+
+- Added `_LLMClient.print_usage()` and refactored `StatusTracker.log_usage()` so you can dump cumulative token/cost/time stats mid-run; final status output now reuses the same usage reporter.
+- Drafted a GEPA pipeline implementation plan (`src/lm_deluge/pipelines/gepa/GEPA_IMPLEMENTATION_PLAN.md`) outlining how to port the GEPA optimizer onto lm-deluge.
+
 ## 0.0.81 · 2025-11-26
 
 - Tooling overhaul: `Tool.from_function` now uses Pydantic `TypeAdapter` for schemas, supports `Annotated[...]` descriptions, extracts return-type `output_schema` (with optional runtime validation), and auto-converts TypedDict/Pydantic params. Serialization still honors strict/non-strict modes automatically.
