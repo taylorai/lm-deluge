@@ -13,6 +13,7 @@ from .sheets import SheetsManager
 from .random import RandomTools
 from .subagents import SubAgentManager
 from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
+from .email import EmailManager
 
 __all__ = [
     "BatchTool",
@@ -32,4 +33,5 @@ __all__ = [
     "DocsManager",
     "SheetsManager",
     "RandomTools",
+    "EmailManager",
 ]
