@@ -50,16 +50,11 @@ async def test_tool_generation():
     tools = manager.get_tools()
 
     # Verify we have the expected number of tools
-    assert len(tools) == 4
+    assert len(tools) == 2
     print(f"✅ Generated {len(tools)} tools as expected")
 
     # Verify tool names
-    expected_names = [
-        "web_search",
-        "web_search_contents",
-        "web_find_similar",
-        "web_get_contents",
-    ]
+    expected_names = ["web_search", "web_fetch"]
     actual_names = [tool.name for tool in tools]
     assert actual_names == expected_names
     print(f"✅ Tools have correct names: {actual_names}")
@@ -74,12 +69,12 @@ async def test_tool_generation():
     custom_manager = WebSearchManager(
         api_key="test-key",
         search_tool_name="custom_search",
-        find_similar_tool_name="custom_similar",
+        fetch_tool_name="custom_fetch",
     )
     custom_tools = custom_manager.get_tools()
     custom_names = [tool.name for tool in custom_tools]
     assert "custom_search" in custom_names
-    assert "custom_similar" in custom_names
+    assert "custom_fetch" in custom_names
     print("✅ Custom tool names work correctly")
 
 
@@ -91,26 +86,16 @@ async def test_tool_descriptions():
     tools = manager.get_tools()
 
     search_tool = tools[0]
-    contents_tool = tools[1]
-    similar_tool = tools[2]
-    get_contents_tool = tools[3]
+    fetch_tool = tools[1]
 
     # Check descriptions are informative
     assert len(search_tool.description) > 50
     assert "search" in search_tool.description.lower()
     print("✅ Search tool has informative description")
 
-    assert "contents" in contents_tool.description.lower()
-    assert "text" in contents_tool.description.lower()
-    print("✅ Contents tool has informative description")
-
-    assert "similar" in similar_tool.description.lower()
-    assert "url" in similar_tool.description.lower()
-    print("✅ Similar tool has informative description")
-
-    assert "ids" in get_contents_tool.description.lower()
-    assert "contents" in get_contents_tool.description.lower()
-    print("✅ Get contents tool has informative description")
+    assert "fetch" in fetch_tool.description.lower()
+    assert "url" in fetch_tool.description.lower()
+    print("✅ Fetch tool has informative description")
 
 
 async def test_parameter_options():
@@ -125,55 +110,13 @@ async def test_parameter_options():
     search_type_param = search_tool.parameters["search_type"]
     assert "enum" in search_type_param
     assert "auto" in search_type_param["enum"]
-    assert "neural" in search_type_param["enum"]
-    assert "keyword" in search_type_param["enum"]
+    assert "deep" in search_type_param["enum"]
     print("✅ Search type enum is correct")
 
-    # Check include_domains parameter
-    domains_param = search_tool.parameters["include_domains"]
-    assert domains_param["type"] == "array"
-    assert "items" in domains_param
-    assert domains_param["items"]["type"] == "string"
-    print("✅ Domains parameter is correct array type")
-
-    # Check date parameters
-    date_param = search_tool.parameters["start_published_date"]
-    assert date_param["type"] == "string"
-    assert "ISO" in date_param["description"]
-    print("✅ Date parameter has correct format description")
-
-
-async def test_contents_tool_parameters():
-    """Test contents tool nested parameters."""
-    print("\n📄 Testing contents tool parameters...")
-
-    manager = WebSearchManager(api_key="test-key")
-    tools = manager.get_tools()
-    contents_tool = tools[1]
-
-    # Check text_options parameter
-    text_options = contents_tool.parameters["text_options"]
-    assert text_options["type"] == "object"
-    assert "properties" in text_options
-
-    if "max_characters" in text_options["properties"]:
-        assert text_options["properties"]["max_characters"]["type"] == "integer"
-    if "include_html_tags" in text_options["properties"]:
-        assert text_options["properties"]["include_html_tags"]["type"] == "boolean"
-    print("✅ Text options parameters are correct")
-
-    # Check highlights_options parameter
-    highlights_options = contents_tool.parameters["highlights_options"]
-    assert highlights_options["type"] == "object"
-    assert "properties" in highlights_options
-
-    if "highlights_per_url" in highlights_options["properties"]:
-        assert (
-            highlights_options["properties"]["highlights_per_url"]["type"] == "integer"
-        )
-    if "num_sentences" in highlights_options["properties"]:
-        assert highlights_options["properties"]["num_sentences"]["type"] == "integer"
-    print("✅ Highlights options parameters are correct")
+    # Check limit parameter
+    limit_param = search_tool.parameters["limit"]
+    assert limit_param["type"] == "integer"
+    print("✅ Limit parameter is integer")
 
 
 async def test_required_parameters():
@@ -188,20 +131,10 @@ async def test_required_parameters():
     assert search_tool.required == ["query"]
     print("✅ Search tool requires only query")
 
-    # Contents tool should only require query
-    contents_tool = tools[1]
-    assert contents_tool.required == ["query"]
-    print("✅ Contents tool requires only query")
-
-    # Similar tool should only require url
-    similar_tool = tools[2]
-    assert similar_tool.required == ["url"]
-    print("✅ Similar tool requires only url")
-
-    # Get contents tool should only require ids
-    get_contents_tool = tools[3]
-    assert get_contents_tool.required == ["ids"]
-    print("✅ Get contents tool requires only ids")
+    # Fetch tool should only require url
+    fetch_tool = tools[1]
+    assert fetch_tool.required == ["url"]
+    print("✅ Fetch tool requires only url")
 
 
 async def test_tool_naming_customization():
@@ -210,9 +143,7 @@ async def test_tool_naming_customization():
 
     custom_names = {
         "search_tool_name": "search_web",
-        "search_with_contents_tool_name": "search_and_read",
-        "find_similar_tool_name": "find_related",
-        "get_contents_tool_name": "read_articles",
+        "fetch_tool_name": "fetch_page",
     }
 
     manager = WebSearchManager(api_key="test-key", **custom_names)
@@ -245,20 +176,8 @@ async def test_base_url_configuration():
     """Test base URL configuration."""
     print("\n🌐 Testing base URL configuration...")
 
-    # Test default base URL
-    manager1 = WebSearchManager(api_key="test-key")
-    assert manager1.base_url == "https://api.exa.ai"
-    print("✅ Default base URL is correct")
-
-    # Test custom base URL without trailing slash
-    manager2 = WebSearchManager(api_key="test-key", base_url="https://custom.exa.ai/")
-    assert manager2.base_url == "https://custom.exa.ai"
-    print("✅ Base URL without trailing slash is handled correctly")
-
-    # Test custom base URL with trailing slash
-    manager3 = WebSearchManager(api_key="test-key", base_url="https://custom.exa.ai")
-    assert manager3.base_url == "https://custom.exa.ai"
-    print("✅ Base URL with trailing slash is handled correctly")
+    assert WebSearchManager.BASE_URL == "https://api.exa.ai"
+    print("✅ Default base URL constant is correct")
 
 
 async def test_tools_caching():
@@ -269,7 +188,7 @@ async def test_tools_caching():
 
     # First call should generate tools
     tools1 = manager.get_tools()
-    assert len(tools1) == 4
+    assert len(tools1) == 2
 
     # Second call should return cached tools
     tools2 = manager.get_tools()
@@ -316,7 +235,6 @@ async def main():
         await test_tool_generation()
         await test_tool_descriptions()
         await test_parameter_options()
-        await test_contents_tool_parameters()
         await test_required_parameters()
         await test_tool_naming_customization()
         await test_timeout_configuration()

@@ -41,7 +41,7 @@ async def test_llm_basic_search():
 
 
 async def test_llm_targeted_search():
-    """Test LLM using web search with specific parameters."""
+    """Test LLM using web search with guidance on parameters."""
     print("\n🤖 Testing LLM targeted search integration...")
 
     if not os.environ.get("EXA_API_KEY"):
@@ -60,14 +60,8 @@ async def test_llm_targeted_search():
         {
             "role": "user",
             "content": """
-            I need to research Python programming best practices. Please:
-
-            1. Search for recent articles about Python best practices published in 2024
-            2. Focus on articles from well-known tech publications or Python community sites
-            3. Retrieve the full text content of the top 2-3 results
-            4. Summarize the key best practices you find
-
-            Use the web_search_contents tool with appropriate parameters.
+            Search for recent (2024) articles about Python best practices.
+            Use the web_search tool with a small limit (<=5) and summarize the key takeaways.
             """,
         }
     ]
@@ -77,9 +71,9 @@ async def test_llm_targeted_search():
     print(f"✅ LLM response:\n{response}")
 
 
-async def test_llm_find_similar():
-    """Test LLM using find similar functionality."""
-    print("\n🤖 Testing LLM find similar integration...")
+async def test_llm_search_and_fetch():
+    """Test LLM searching and then fetching a result."""
+    print("\n🤖 Testing LLM search + fetch integration...")
 
     if not os.environ.get("EXA_API_KEY"):
         print("⚠️  SKIPPING: No EXA_API_KEY environment variable found")
@@ -92,19 +86,18 @@ async def test_llm_find_similar():
     # Create LLM client with web search tools
     llm = LLMClient(model="claude-3-haiku-20240307", tools=web_tools, max_tokens=1000)
 
-    # Test find similar task
+    # Test search + fetch task
     messages = [
         {
             "role": "user",
             "content": """
-            Please find articles and resources similar to the Python documentation at https://docs.python.org/3/
-            Use the find similar tool to locate related Python learning resources and documentation.
-            Exclude the python.org domain itself to find alternative resources.
+            Find a recent article explaining Python packaging (preferably about PyPI publishing).
+            After finding options with web_search, use web_fetch on one promising URL and summarize it briefly.
             """,
         }
     ]
 
-    print("🔗 Asking LLM to find similar content...")
+    print("🔗 Asking LLM to search and fetch content...")
     response = await llm.run(messages)
     print(f"✅ LLM response:\n{response}")
 
@@ -129,14 +122,8 @@ async def test_llm_content_analysis():
         {
             "role": "user",
             "content": """
-            I want to understand the current state of quantum computing. Please:
-
-            1. Search for recent quantum computing developments (last 6 months)
-            2. Retrieve content with highlights focused on key breakthroughs
-            3. Focus on technical content rather than news articles
-            4. Analyze the trends and provide a summary of where the field stands
-
-            Use the web_search_contents tool with highlights to extract the most important information.
+            I want to understand the current state of quantum computing in the last 6 months.
+            Use web_search to find recent developments and, if helpful, web_fetch to read one source before summarizing.
             """,
         }
     ]
@@ -154,13 +141,8 @@ async def test_llm_error_handling():
         print("⚠️  SKIPPING: No EXA_API_KEY environment variable found")
         return
 
-    # Create a web manager with a potentially problematic API key
-    try:
-        web_manager = WebSearchManager(api_key="test-key-123")
-    except Exception:
-        # Fallback to valid key but test other error scenarios
-        web_manager = WebSearchManager()
-
+    # Create a web manager (uses provided API key)
+    web_manager = WebSearchManager()
     web_tools = web_manager.get_tools()
 
     # Create LLM client with web search tools
@@ -171,88 +153,13 @@ async def test_llm_error_handling():
         {
             "role": "user",
             "content": """
-            Try to find similar content to this non-existent URL: https://this-domain-definitely-does-not-exist-12345.com/
-            If you get an error, please describe what happened and suggest how to handle it.
+            Try to fetch content for this nonexistent URL: https://this-domain-definitely-does-not-exist-12345.com/
+            Use web_fetch and explain any errors you encounter along with a safe fallback.
             """,
         }
     ]
 
     print("🚨 Asking LLM to handle search errors...")
-    response = await llm.run(messages)
-    print(f"✅ LLM response:\n{response}")
-
-
-async def test_llm_multi_tool_chain():
-    """Test LLM chaining multiple web search operations."""
-    print("\n🤖 Testing LLM multi-tool chaining...")
-
-    if not os.environ.get("EXA_API_KEY"):
-        print("⚠️  SKIPPING: No EXA_API_KEY environment variable found")
-        return
-
-    # Set up web search tools
-    web_manager = WebSearchManager()
-    web_tools = web_manager.get_tools()
-
-    # Create LLM client with web search tools
-    llm = LLMClient(model="claude-3-haiku-20240307", tools=web_tools, max_tokens=2000)
-
-    # Test multi-tool chaining task
-    messages = [
-        {
-            "role": "user",
-            "content": """
-            I want to research machine learning frameworks. Please follow this workflow:
-
-            1. First, search for "popular machine learning frameworks 2024" to get an overview
-            2. Then, for the top result you find, use find similar to discover related articles
-            3. Finally, retrieve the full content of 2-3 most interesting articles and summarize
-            4. Provide me with a comprehensive analysis of the current ML landscape
-
-            Chain the web search tools together to accomplish this research task.
-            """,
-        }
-    ]
-
-    print("⛓️  Asking LLM to chain multiple search operations...")
-    response = await llm.run(messages)
-    print(f"✅ LLM response:\n{response}")
-
-
-async def test_llm_parameter_optimization():
-    """Test LLM optimizing search parameters."""
-    print("\n🤖 Testing LLM parameter optimization...")
-
-    if not os.environ.get("EXA_API_KEY"):
-        print("⚠️  SKIPPING: No EXA_API_KEY environment variable found")
-        return
-
-    # Set up web search tools
-    web_manager = WebSearchManager()
-    web_tools = web_manager.get_tools()
-
-    # Create LLM client with web search tools
-    llm = LLMClient(model="claude-3-haiku-20240307", tools=web_tools, max_tokens=1500)
-
-    # Test parameter optimization task
-    messages = [
-        {
-            "role": "user",
-            "content": """
-            I need to research academic papers about climate change. Please use the web search tools with these optimizations:
-
-            - Use the "research paper" category
-            - Set search type to "neural" for semantic understanding
-            - Limit results to 5-10 for focused analysis
-            - Extract text content (max 1000 characters per result)
-            - Get highlights focused on key findings
-
-            Perform the search and provide a summary of recent climate research trends.
-            """,
-        }
-    ]
-
-    print("⚙️  Asking LLM to optimize search parameters...")
     response = await llm.run(messages)
     print(f"✅ LLM response:\n{response}")
 
@@ -268,9 +175,7 @@ async def test_llm_customization():
     # Create customized web manager
     web_manager = WebSearchManager(
         search_tool_name="search_web",
-        search_with_contents_tool_name="search_and_read",
-        find_similar_tool_name="find_related",
-        get_contents_tool_name="read_articles",
+        fetch_tool_name="read_page",
     )
     web_tools = web_manager.get_tools()
 
@@ -283,7 +188,7 @@ async def test_llm_customization():
             "role": "user",
             "content": """
             Please search for information about renewable energy and read the content of what you find.
-            Use the available search tools (they have custom names - look at what's available).
+            The tools have custom names (search_web to search, read_page to fetch) - use them accordingly.
             """,
         }
     ]
@@ -301,11 +206,9 @@ async def main():
     try:
         await test_llm_basic_search()
         await test_llm_targeted_search()
-        await test_llm_find_similar()
+        await test_llm_search_and_fetch()
         await test_llm_content_analysis()
         await test_llm_error_handling()
-        await test_llm_multi_tool_chain()
-        await test_llm_parameter_optimization()
         await test_llm_customization()
 
         print("\n" + "=" * 60)

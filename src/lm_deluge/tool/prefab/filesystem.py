@@ -1332,13 +1332,43 @@ class S3WorkspaceBackend:
         regex = re.compile(pattern)
         key = _normalize_path(path, allow_root=True) if path is not None else "."
 
+        matches: list[dict[str, Any]] = []
+        paginator = self.client.get_paginator("list_objects_v2")
+
+        def process_object(obj_key: str, rel_path: str) -> None:
+            if len(matches) >= limit:
+                return
+            try:
+                response = self.client.get_object(Bucket=self.bucket, Key=obj_key)
+                content = response["Body"].read().decode("utf-8")
+
+                for line_no, line in enumerate(content.splitlines(), start=1):
+                    if regex.search(line):
+                        matches.append(
+                            {
+                                "path": rel_path,
+                                "line": line_no,
+                                "text": line.strip(),
+                            }
+                        )
+                        if len(matches) >= limit:
+                            return
+            except Exception:
+                # Skip files that can't be read as text
+                return
+
+        # If a specific path is provided, check if it's a file first
         if key == ".":
             prefix = self.prefix
         else:
-            prefix = f"{self._full_key(key)}/"
-
-        matches: list[dict[str, Any]] = []
-        paginator = self.client.get_paginator("list_objects_v2")
+            s3_key = self._full_key(key)
+            try:
+                self.client.head_object(Bucket=self.bucket, Key=s3_key)
+                rel_path = self._strip_prefix(s3_key)
+                process_object(s3_key, rel_path)
+                return matches
+            except self.client.exceptions.ClientError:
+                prefix = f"{s3_key}/"
 
         for page in paginator.paginate(Bucket=self.bucket, Prefix=prefix):
             for obj in page.get("Contents", []):
@@ -1351,24 +1381,7 @@ class S3WorkspaceBackend:
                 if not rel_path or rel_path.endswith("/"):
                     continue
 
-                try:
-                    response = self.client.get_object(Bucket=self.bucket, Key=obj_key)
-                    content = response["Body"].read().decode("utf-8")
-
-                    for line_no, line in enumerate(content.splitlines(), start=1):
-                        if regex.search(line):
-                            matches.append(
-                                {
-                                    "path": rel_path,
-                                    "line": line_no,
-                                    "text": line.strip(),
-                                }
-                            )
-                            if len(matches) >= limit:
-                                return matches
-                except Exception:
-                    # Skip files that can't be read as text
-                    continue
+                process_object(obj_key, rel_path)
 
         return matches
 
