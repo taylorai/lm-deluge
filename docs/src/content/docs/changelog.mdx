@@ -7,9 +7,7 @@ LM Deluge iterates quickly. This page calls out the highlights from the most rec
 
 ## 0.0.83 · 2025-12-02
 
-- Prefab expansion: added Google Docs tools (metadata, ranged reads/grep, markdown-aware insert/update/replace/delete) plus a Google Sheets manager (list tabs, find used ranges, read ranges as HTML tables, update cells) with service-account auth.
-- Utility helpers: Exa-powered `WebSearchManager` (search + URL fetch), AWS SES `EmailManager` with recipient allowlists and optional HTML/CC/BCC, and `RandomTools` for floats/ints/choices/secure tokens (with a new example).
-- Storage upgrades: FilesystemManager gained an S3-backed workspace with optimistic locking and the full read/write/list/grep/apply_patch surface, while MemoryManager adds an S3-backed scratchpad with conditional writes/retries for shared agents.
+- More prefab tools: added Google Docs tools (metadata, ranged reads/grep, markdown-aware insert/update/replace/delete),Google Sheets tools (list tabs, find used ranges, read ranges as HTML tables, update cells) with service-account auth. Added Exa Web Search tool (more web search tools coming), AWS SES Email tool, S3-backed filesystem and memory.
 - Model catalog: registered Arcee `trinity-mini` (native, OpenRouter, Together), refreshed DeepSeek pricing plus new reasoner/speciale variants (including an Anthropic-compatible path), and marked Kimi thinking SKUs as reasoning models with a warning when thinking is disabled.
 - Client knobs & coverage: `LLMClient` now accepts `global_effort` and `thinking_budget` at construction so Anthropic-style requests carry the right effort settings, and new suites cover the prefab tools, Arcee tool-calling, DeepSeek Speciale, and S3 integrations.
 
