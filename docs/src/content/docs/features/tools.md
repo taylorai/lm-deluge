@@ -432,11 +432,11 @@ Use cases include:
 
 ## Built-in Tools and Computer Use
 
-Several providers expose built-in tools via special schemas. Import them from `lm_deluge.built_in_tools` and pass them through the `tools` argument just like regular `Tool` objects.
+Several providers expose built-in tools via special schemas. Import them from `lm_deluge.tool.builtin` and pass them through the `tools` argument just like regular `Tool` objects.
 
 ```python
 from lm_deluge import LLMClient
-from lm_deluge.built_in_tools.openai import computer_use_openai
+from lm_deluge.tool.builtin.openai import computer_use_openai
 
 client = LLMClient("openai-computer-use-preview", use_responses_api=True)
 response = client.process_prompts_sync(
@@ -445,7 +445,7 @@ response = client.process_prompts_sync(
 )[0]
 ```
 
-Anthropic’s computer-use beta tools are enabled the same way: pass `Tool.built_in("computer_use")` or reuse the helpers from `lm_deluge.built_in_tools`. LM Deluge injects the extra headers and tool schemas required by each provider.
+Anthropic’s computer-use beta tools are enabled the same way: pass `Tool.built_in("computer_use")` or reuse the helpers from `lm_deluge.tool.builtin`. LM Deluge injects the extra headers and tool schemas required by each provider.
 
 ## MCP Servers and Tool Lists
 

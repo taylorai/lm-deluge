@@ -448,6 +448,39 @@ def test_include_output_schema_default_off():
     assert "Returns:" not in tool.description
 
 
+def test_from_function_name_override():
+    """Test Tool.from_function() with name override."""
+
+    def my_internal_function(x: int) -> int:
+        """Do something."""
+        return x * 2
+
+    # Without override - uses function name
+    tool1 = Tool.from_function(my_internal_function)
+    assert tool1.name == "my_internal_function"
+
+    # With override - uses provided name
+    tool2 = Tool.from_function(my_internal_function, name="public_api_name")
+    assert tool2.name == "public_api_name"
+    assert tool2.description == "Do something."
+    assert tool2.run is my_internal_function
+
+    # Test that calling works with overridden name
+    result = tool2.call(x=5)
+    assert result == 10
+
+
+def test_from_function_name_override_no_docstring():
+    """Test name override when function has no docstring."""
+
+    def unnamed_func(x: int) -> int:
+        return x
+
+    tool = Tool.from_function(unnamed_func, name="better_name")
+    assert tool.name == "better_name"
+    assert tool.description == "Call the better_name function"
+
+
 if __name__ == "__main__":
     test_from_function_basic()
     test_from_function_with_defaults()
@@ -472,4 +505,6 @@ if __name__ == "__main__":
     test_include_output_schema_nested_types()
     test_include_output_schema_union_type()
     test_include_output_schema_default_off()
+    test_from_function_name_override()
+    test_from_function_name_override_no_docstring()
     print("✓ All Tool.from_function() tests passed!")

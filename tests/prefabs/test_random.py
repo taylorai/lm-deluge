@@ -1,7 +1,6 @@
 """Tests for the RandomTools prefab tool."""
 
 import json
-from unittest.mock import patch
 
 from lm_deluge.tool.prefab.random import RandomTools
 
@@ -22,7 +21,7 @@ def test_random_tools_custom_names():
         float_tool_name="my_float",
         choice_tool_name="my_choice",
         int_tool_name="my_int",
-        token_tool_name="my_token"
+        token_tool_name="my_token",
     )
 
     tool_list = tools.get_tools()
@@ -42,22 +41,22 @@ def test_random_float():
         result = tools._random_float()
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert 'value' in data
-        assert isinstance(data['value'], float)
-        assert 0 <= data['value'] < 1
+        assert data["status"] == "success"
+        assert "value" in data
+        assert isinstance(data["value"], float)
+        assert 0 <= data["value"] < 1
 
 
 def test_random_choice_success():
     """Test that random_choice picks an item from the list."""
     tools = RandomTools()
 
-    items = ['apple', 'banana', 'cherry']
+    items = ["apple", "banana", "cherry"]
     result = tools._random_choice(items)
     data = json.loads(result)
 
-    assert data['status'] == 'success'
-    assert data['value'] in items
+    assert data["status"] == "success"
+    assert data["value"] in items
 
 
 def test_random_choice_empty_list():
@@ -67,8 +66,8 @@ def test_random_choice_empty_list():
     result = tools._random_choice([])
     data = json.loads(result)
 
-    assert data['status'] == 'error'
-    assert 'empty list' in data['error']
+    assert data["status"] == "error"
+    assert "empty list" in data["error"]
 
 
 def test_random_choice_various_types():
@@ -79,15 +78,15 @@ def test_random_choice_various_types():
     items = [1, 2, 3, 4, 5]
     result = tools._random_choice(items)
     data = json.loads(result)
-    assert data['status'] == 'success'
-    assert data['value'] in items
+    assert data["status"] == "success"
+    assert data["value"] in items
 
     # Test with mixed types
-    items = ['string', 123, True, None]
+    items = ["string", 123, True, None]
     result = tools._random_choice(items)
     data = json.loads(result)
-    assert data['status'] == 'success'
-    assert data['value'] in items
+    assert data["status"] == "success"
+    assert data["value"] in items
 
 
 def test_random_int_valid_range():
@@ -99,9 +98,9 @@ def test_random_int_valid_range():
         result = tools._random_int(1, 10)
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert isinstance(data['value'], int)
-        assert 1 <= data['value'] <= 10
+        assert data["status"] == "success"
+        assert isinstance(data["value"], int)
+        assert 1 <= data["value"] <= 10
 
 
 def test_random_int_single_value():
@@ -111,8 +110,8 @@ def test_random_int_single_value():
     result = tools._random_int(5, 5)
     data = json.loads(result)
 
-    assert data['status'] == 'success'
-    assert data['value'] == 5
+    assert data["status"] == "success"
+    assert data["value"] == 5
 
 
 def test_random_int_negative_range():
@@ -123,8 +122,8 @@ def test_random_int_negative_range():
         result = tools._random_int(-10, -1)
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert -10 <= data['value'] <= -1
+        assert data["status"] == "success"
+        assert -10 <= data["value"] <= -1
 
 
 def test_random_int_invalid_range():
@@ -134,8 +133,8 @@ def test_random_int_invalid_range():
     result = tools._random_int(10, 5)
     data = json.loads(result)
 
-    assert data['status'] == 'error'
-    assert 'cannot be greater than' in data['error']
+    assert data["status"] == "error"
+    assert "cannot be greater than" in data["error"]
 
 
 def test_random_token_default_length():
@@ -145,9 +144,9 @@ def test_random_token_default_length():
     result = tools._random_token()
     data = json.loads(result)
 
-    assert data['status'] == 'success'
-    assert isinstance(data['value'], str)
-    assert len(data['value']) > 0
+    assert data["status"] == "success"
+    assert isinstance(data["value"], str)
+    assert len(data["value"]) > 0
 
 
 def test_random_token_custom_length():
@@ -158,10 +157,10 @@ def test_random_token_custom_length():
         result = tools._random_token(length)
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert isinstance(data['value'], str)
+        assert data["status"] == "success"
+        assert isinstance(data["value"], str)
         # token_urlsafe produces longer strings due to base64 encoding
-        assert len(data['value']) > 0
+        assert len(data["value"]) > 0
 
 
 def test_random_token_uniqueness():
@@ -172,7 +171,7 @@ def test_random_token_uniqueness():
     for _ in range(100):
         result = tools._random_token()
         data = json.loads(result)
-        tokens.add(data['value'])
+        tokens.add(data["value"])
 
     # All tokens should be unique
     assert len(tokens) == 100
@@ -185,14 +184,14 @@ def test_random_token_invalid_length():
     result = tools._random_token(0)
     data = json.loads(result)
 
-    assert data['status'] == 'error'
-    assert 'must be greater than 0' in data['error']
+    assert data["status"] == "error"
+    assert "must be greater than 0" in data["error"]
 
     result = tools._random_token(-5)
     data = json.loads(result)
 
-    assert data['status'] == 'error'
-    assert 'must be greater than 0' in data['error']
+    assert data["status"] == "error"
+    assert "must be greater than 0" in data["error"]
 
 
 def test_get_tools_returns_four_tools():
@@ -277,22 +276,22 @@ def test_tools_are_callable():
     # Test random_float
     result = tool_list[0].run()
     data = json.loads(result)
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Test random_choice
-    result = tool_list[1].run(items=['a', 'b', 'c'])
+    result = tool_list[1].run(items=["a", "b", "c"])
     data = json.loads(result)
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Test random_int
     result = tool_list[2].run(min_value=1, max_value=10)
     data = json.loads(result)
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
     # Test random_token
     result = tool_list[3].run(length=16)
     data = json.loads(result)
-    assert data['status'] == 'success'
+    assert data["status"] == "success"
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ LM Deluge iterates quickly. This page calls out the highlights from the most rec
 
 - Tooling overhaul: `Tool.from_function` now uses Pydantic `TypeAdapter` for schemas, supports `Annotated[...]` descriptions, extracts return-type `output_schema` (with optional runtime validation), and auto-converts TypedDict/Pydantic params. Serialization still honors strict/non-strict modes automatically.
 - New prefab helpers: `ToolComposer` (OTC) for code-based tool orchestration, `BatchTool` for bundling calls, `ToolSearchTool` for regex discovery + invocation, and `MemoryManager` for long-lived notes. Todos/subagents/filesystem managers stay available under `lm_deluge.tool.prefab`.
-- Pipelines split: `extract`, `translate`, and `score_llm` now live in `lm_deluge.pipelines` with backward exports from `lm_deluge.llm_tools`; the latter now only re-exports pipelines/prefabs for compatibility.
+- Pipelines split: `extract`, `translate`, and `score_llm` now live in `lm_deluge.pipelines`.
 - Modal sandbox `bash` drops timeouts for background commands and exposes `bash`/`list_processes`/`get_url` (network optional); docs updated accordingly.
 - Agent ergonomics: `Conversation.print()` pretty-prints conversations with truncation, and Open Tool Composition prompts now render available tool signatures correctly.
 - Robustness: Anthropic requests now map `global_effort` to `output_config.effort`, and aiohttp `ServerDisconnectedError` surfaces a structured `APIResponse` instead of an exception.

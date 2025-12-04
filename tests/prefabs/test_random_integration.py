@@ -9,12 +9,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # We'll load the module directly to avoid dependency issues
 import importlib.util
+
 spec = importlib.util.spec_from_file_location(
     "random_tools",
-    Path(__file__).parent.parent / "src" / "lm_deluge" / "tool" / "prefab" / "random.py"
+    Path(__file__).parent.parent
+    / "src"
+    / "lm_deluge"
+    / "tool"
+    / "prefab"
+    / "random.py",
 )
 random_module = importlib.util.module_from_spec(spec)
 sys.modules["random_tools"] = random_module
+
 
 # Mock the Tool class since we don't want to import the full lm_deluge
 class MockTool:
@@ -24,6 +31,7 @@ class MockTool:
         self.run = run
         self.parameters = parameters
         self.required = required
+
 
 # Inject mock Tool into the module's namespace
 sys.modules["lm_deluge"] = type(sys)("lm_deluge")
@@ -47,7 +55,7 @@ custom_tools = RandomTools(
     float_tool_name="my_float",
     choice_tool_name="my_choice",
     int_tool_name="my_int",
-    token_tool_name="my_token"
+    token_tool_name="my_token",
 )
 assert custom_tools.float_tool_name == "my_float"
 print("✓ Custom tool names work")
@@ -69,30 +77,30 @@ print("✓ Tools are cached")
 print("\nTesting random_float tool...")
 result = tools[0].run()
 data = json.loads(result)
-assert data['status'] == 'success'
-assert 0 <= data['value'] < 1
+assert data["status"] == "success"
+assert 0 <= data["value"] < 1
 print("✓ random_float tool works")
 
 print("\nTesting random_choice tool...")
-result = tools[1].run(items=['apple', 'banana', 'cherry'])
+result = tools[1].run(items=["apple", "banana", "cherry"])
 data = json.loads(result)
-assert data['status'] == 'success'
-assert data['value'] in ['apple', 'banana', 'cherry']
+assert data["status"] == "success"
+assert data["value"] in ["apple", "banana", "cherry"]
 print("✓ random_choice tool works")
 
 print("\nTesting random_int tool...")
 result = tools[2].run(min_value=5, max_value=10)
 data = json.loads(result)
-assert data['status'] == 'success'
-assert 5 <= data['value'] <= 10
+assert data["status"] == "success"
+assert 5 <= data["value"] <= 10
 print("✓ random_int tool works")
 
 print("\nTesting random_token tool...")
 result = tools[3].run(length=16)
 data = json.loads(result)
-assert data['status'] == 'success'
-assert isinstance(data['value'], str)
-assert len(data['value']) > 0
+assert data["status"] == "success"
+assert isinstance(data["value"], str)
+assert len(data["value"]) > 0
 print("✓ random_token tool works")
 
 print("\n✨ All integration tests passed!")

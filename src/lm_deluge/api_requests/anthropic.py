@@ -167,6 +167,9 @@ def _build_anthropic_request(
                     "bash_20241022",
                 ]:
                     _add_beta(base_headers, "computer-use-2024-10-22")
+                elif tool["type"] == "computer_20251124":
+                    # Claude Opus 4.5 - newest computer use with zoom support
+                    _add_beta(base_headers, "computer-use-2025-11-24")
                 elif tool["type"] == "computer_20250124":
                     _add_beta(base_headers, "computer-use-2025-01-24")
                 elif tool["type"] == "code_execution_20250522":

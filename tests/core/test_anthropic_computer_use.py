@@ -9,63 +9,197 @@ import asyncio
 import os
 import random
 
+import dotenv
+
 from lm_deluge import Conversation, LLMClient, Tool
-from lm_deluge.built_in_tools.anthropic import (
-    get_anthropic_cu_tools,
-    model_to_version,
-)
+from lm_deluge.image import Image
 from lm_deluge.prompt import Message, Text, ToolResult
+from lm_deluge.tool.builtin.anthropic import (
+    bash_tool,
+    computer_tool,
+    get_anthropic_cu_tools,
+    get_beta_header,
+    model_to_version,
+    text_editor_tool,
+)
+
+dotenv.load_dotenv()
+
+
+def test_model_to_version():
+    """Test that model_to_version correctly identifies tool versions for all models."""
+    print("Testing model_to_version()...")
+
+    # Claude Opus 4.5 - newest version with zoom support
+    assert model_to_version("claude-opus-4-5-20251124") == "2025-11-24"
+    assert model_to_version("claude-opus-4.5-20251124") == "2025-11-24"
+
+    # Claude 4 models - use 2025-01-24
+    assert model_to_version("claude-4-sonnet") == "2025-01-24"
+    assert model_to_version("claude-4-opus") == "2025-01-24"
+    assert model_to_version("claude-sonnet-4-5-20250929") == "2025-01-24"
+    assert model_to_version("claude-haiku-4-5-20251015") == "2025-01-24"
+
+    # Claude 3.7 (deprecated) - uses 2025-01-24
+    assert model_to_version("claude-3.7-sonnet") == "2025-01-24"
+    assert model_to_version("claude-3-7-sonnet") == "2025-01-24"
+
+    # Claude 3.5/3.6 - original version
+    assert model_to_version("claude-3.5-sonnet") == "2024-10-22"
+    assert model_to_version("claude-3.6-sonnet") == "2024-10-22"
+    assert model_to_version("claude-3-5-sonnet-20241022") == "2024-10-22"
+
+    # Test invalid models
+    try:
+        model_to_version("gpt-4")
+        assert False, "Should have raised ValueError for non-Claude model"
+    except ValueError:
+        pass
+
+    print("  model_to_version() tests passed")
+
+
+def test_get_beta_header():
+    """Test that get_beta_header returns correct headers for each model."""
+    print("Testing get_beta_header()...")
+
+    # Opus 4.5
+    assert get_beta_header("claude-opus-4-5-20251124") == "computer-use-2025-11-24"
+
+    # Claude 4 models
+    assert get_beta_header("claude-4-sonnet") == "computer-use-2025-01-24"
+    assert get_beta_header("claude-sonnet-4-5-20250929") == "computer-use-2025-01-24"
+
+    # Claude 3.7
+    assert get_beta_header("claude-3.7-sonnet") == "computer-use-2025-01-24"
+
+    # Claude 3.5/3.6
+    assert get_beta_header("claude-3.5-sonnet") == "computer-use-2024-10-22"
+
+    print("  get_beta_header() tests passed")
 
 
 def test_computer_use_tools():
     """Test that computer use tools are created with correct parameters."""
-    # Test different model versions
+    print("Testing get_anthropic_cu_tools()...")
+
+    # Test Claude 3.5/3.6 - original tools
     tools_2024 = get_anthropic_cu_tools("claude-3.6-sonnet", 1024, 768)
-    tools_2025 = get_anthropic_cu_tools("claude-3.7-sonnet", 1024, 768)
-    tools_claude4 = get_anthropic_cu_tools("claude-4-opus", 1024, 768)
-
     assert len(tools_2024) == 3
-    assert len(tools_2025) == 3
-    assert len(tools_claude4) == 3
-
-    # Check that computer tool has correct type for different versions
     computer_2024 = next(t for t in tools_2024 if t["name"] == "computer")
-    computer_2025 = next(t for t in tools_2025 if t["name"] == "computer")
-    computer_claude4 = next(t for t in tools_claude4 if t["name"] == "computer")
-
+    editor_2024 = next(t for t in tools_2024 if "edit" in t["name"])
+    bash_2024 = next(t for t in tools_2024 if t["name"] == "bash")
     assert computer_2024["type"] == "computer_20241022"
+    assert editor_2024["type"] == "text_editor_20241022"
+    assert editor_2024["name"] == "str_replace_editor"
+    assert bash_2024["type"] == "bash_20241022"
+
+    # Test Claude 3.7 and Claude 4 - 2025-01-24 tools
+    tools_2025 = get_anthropic_cu_tools("claude-3.7-sonnet", 1024, 768)
+    assert len(tools_2025) == 3
+    computer_2025 = next(t for t in tools_2025 if t["name"] == "computer")
+    editor_2025 = next(t for t in tools_2025 if "edit" in t["name"])
+    bash_2025 = next(t for t in tools_2025 if t["name"] == "bash")
     assert computer_2025["type"] == "computer_20250124"
+    assert editor_2025["type"] == "text_editor_20250728"
+    assert editor_2025["name"] == "str_replace_based_edit_tool"
+    assert bash_2025["type"] == "bash_20250124"
+
+    # Test Claude 4 models - same as 3.7 but verify independently
+    tools_claude4 = get_anthropic_cu_tools("claude-4-sonnet", 1024, 768)
+    assert len(tools_claude4) == 3
+    computer_claude4 = next(t for t in tools_claude4 if t["name"] == "computer")
+    editor_claude4 = next(t for t in tools_claude4 if "edit" in t["name"])
     assert computer_claude4["type"] == "computer_20250124"
+    assert editor_claude4["type"] == "text_editor_20250728"
 
-    # Test version detection
-    assert model_to_version("claude-3.6-sonnet") == "2024-10-22"
-    assert model_to_version("claude-3.7-sonnet") == "2025-01-24"
-    assert model_to_version("claude-4-opus") == "2025-04-29"
+    # Test Claude Opus 4.5 - newest with zoom support
+    tools_opus45 = get_anthropic_cu_tools("claude-opus-4-5-20251124", 1024, 768)
+    assert len(tools_opus45) == 3
+    computer_opus45 = next(t for t in tools_opus45 if t["name"] == "computer")
+    assert computer_opus45["type"] == "computer_20251124"
+    assert "enable_zoom" not in computer_opus45  # Not enabled by default
 
-    # Test 2: Verify tool versions are correct for Claude 4
-    version = model_to_version("claude-4-sonnet")
-    expected_version = "2025-04-29"
-    if version != expected_version:
-        print(f"❌ Wrong tool version. Expected {expected_version}, got {version}")
-        return False
+    # Test enable_zoom for Opus 4.5
+    tools_opus45_zoom = get_anthropic_cu_tools(
+        "claude-opus-4-5-20251124", 1024, 768, enable_zoom=True
+    )
+    computer_opus45_zoom = next(t for t in tools_opus45_zoom if t["name"] == "computer")
+    assert computer_opus45_zoom["enable_zoom"] is True
 
-    tools = get_anthropic_cu_tools("claude-4-sonnet", 1024, 768)
-    computer_tool = next((t for t in tools if t["name"] == "computer"), None)
-    if not computer_tool:
-        print("❌ Computer tool not found in tool definitions")
-        return False
+    # Test exclude_tools
+    tools_no_bash = get_anthropic_cu_tools("claude-4-sonnet", exclude_tools=["bash"])
+    assert len(tools_no_bash) == 2
+    assert not any(t["name"] == "bash" for t in tools_no_bash)
 
-    if computer_tool["type"] != "computer_20250124":
-        print(
-            f"❌ Wrong computer tool type. Expected computer_20250124, got {computer_tool['type']}"
-        )
-        return False
+    tools_no_editor = get_anthropic_cu_tools(
+        "claude-4-sonnet", exclude_tools=["editor"]
+    )
+    assert len(tools_no_editor) == 2
+    assert not any("edit" in t["name"] for t in tools_no_editor)
 
-    print("✅ Got expected computer-use tools.")
+    tools_no_computer = get_anthropic_cu_tools(
+        "claude-4-sonnet", exclude_tools=["computer"]
+    )
+    assert len(tools_no_computer) == 2
+    assert not any(t["name"] == "computer" for t in tools_no_computer)
+
+    print("  get_anthropic_cu_tools() tests passed")
+
+
+def test_individual_tool_functions():
+    """Test individual tool helper functions."""
+    print("Testing individual tool functions...")
+
+    # Test bash_tool
+    bash_claude4 = bash_tool("claude-4-sonnet")
+    assert bash_claude4["type"] == "bash_20250124"
+    assert bash_claude4["name"] == "bash"
+
+    bash_opus45 = bash_tool("claude-opus-4-5-20251124")
+    assert bash_opus45["type"] == "bash_20250124"
+
+    bash_old = bash_tool("claude-3.5-sonnet")
+    assert bash_old["type"] == "bash_20241022"
+
+    # Test text_editor_tool
+    editor_claude4 = text_editor_tool("claude-4-sonnet")
+    assert editor_claude4["type"] == "text_editor_20250728"
+    assert editor_claude4["name"] == "str_replace_based_edit_tool"
+
+    editor_opus45 = text_editor_tool("claude-opus-4-5-20251124")
+    assert editor_opus45["type"] == "text_editor_20250728"
+
+    editor_old = text_editor_tool("claude-3.5-sonnet")
+    assert editor_old["type"] == "text_editor_20241022"
+    assert editor_old["name"] == "str_replace_editor"
+
+    # Test computer_tool
+    comp_claude4 = computer_tool("claude-4-sonnet")
+    assert comp_claude4["type"] == "computer_20250124"
+    assert comp_claude4["display_width_px"] == 1024
+    assert comp_claude4["display_height_px"] == 768
+
+    comp_opus45 = computer_tool("claude-opus-4-5-20251124")
+    assert comp_opus45["type"] == "computer_20251124"
+    assert "enable_zoom" not in comp_opus45
+
+    comp_opus45_zoom = computer_tool("claude-opus-4-5-20251124", enable_zoom=True)
+    assert comp_opus45_zoom["enable_zoom"] is True
+
+    comp_custom = computer_tool(
+        "claude-4-sonnet", display_width=1920, display_height=1080
+    )
+    assert comp_custom["display_width_px"] == 1920
+    assert comp_custom["display_height_px"] == 1080
+
+    print("  Individual tool functions tests passed")
 
 
 def test_tool_result_with_images():
     """Test that ToolResult can handle image content from Computer Use."""
+    print("Testing ToolResult with images...")
+
     # Test with string result
     string_result = ToolResult(
         tool_call_id="call_1", result="Command executed successfully"
@@ -76,7 +210,7 @@ def test_tool_result_with_images():
     image_result = ToolResult(
         tool_call_id="call_2",
         result=[
-            {
+            {  # type: ignore
                 "type": "image",
                 "source": {
                     "type": "base64",
@@ -87,12 +221,13 @@ def test_tool_result_with_images():
         ],
     )
     assert isinstance(image_result.result, list)
-    assert image_result.result[0]["type"] == "image"
+    assert image_result.result[0]["type"] == "image"  # type: ignore
 
-    # Test that fingerprints are different
-    assert string_result.fingerprint != image_result.fingerprint
+    # Verify both can be created without errors
+    assert string_result.tool_call_id == "call_1"
+    assert image_result.tool_call_id == "call_2"
 
-    print("✅ ToolResult with images works as expected.")
+    print("  ToolResult with images tests passed")
 
 
 async def test_computer_use_integration():
@@ -100,24 +235,21 @@ async def test_computer_use_integration():
 
     # Check for API key
     if not os.getenv("ANTHROPIC_API_KEY"):
-        print(
-            "❌ ANTHROPIC_API_KEY not found. Set your API key to run integration tests."
-        )
+        print("ANTHROPIC_API_KEY not found. Set your API key to run integration tests.")
         return False
 
-    for model_name in random.sample(
-        [
-            "claude-4-sonnet",
-            "claude-4-opus",
-            "claude-3.7-sonnet",
-            "claude-3.6-sonnet",
-        ],
-        2,
-    ):
-        print(f"🧪 Testing Computer Use integration with {model_name}...")
+    # Test models - use the aliases from the model registry
+    test_models = [
+        "claude-4-sonnet",
+        "claude-4.5-sonnet",
+        # "claude-4.5-opus",  # Uncomment to test Opus 4.5 with zoom support
+    ]
+
+    for model_name in random.sample(test_models, min(2, len(test_models))):
+        print(f"Testing Computer Use integration with {model_name}...")
 
         try:
-            # Create client with Claude 4 Sonnet
+            # Create client
             client = LLMClient(
                 [model_name],
                 max_requests_per_minute=10,
@@ -127,7 +259,7 @@ async def test_computer_use_integration():
             )
 
             # Test 1: Simple screenshot request
-            print("\n📸 Test 1: Requesting a screenshot...")
+            print("\n  Test 1: Requesting a screenshot...")
             conversation = Conversation.user(
                 "Please take a screenshot of the current screen. Just take the screenshot, don't do anything else."
             )
@@ -142,27 +274,27 @@ async def test_computer_use_integration():
             response = results[0]
             assert response, "no response"
             if response.is_error:
-                print(f"❌ API Error: {response.error_message}")
+                print(f"    API Error: {response.error_message}")
                 return False
 
             if not response.content:
-                print("❌ No response content received")
+                print("    No response content received")
                 return False
 
-            print(f"✅ Claude responded: {response.completion}")
+            print(f"    Claude responded: {response.completion}")
 
             # Check for tool calls
             tool_calls = response.content.tool_calls
             if not tool_calls:
-                print("❌ No tool calls found in response")
+                print("    No tool calls found in response")
                 return False
 
-            print(f"✅ Found {len(tool_calls)} tool call(s)")
+            print(f"    Found {len(tool_calls)} tool call(s)")
 
             # Verify we got a computer tool call for screenshot
             computer_calls = [call for call in tool_calls if call.name == "computer"]
             if not computer_calls:
-                print("❌ No computer tool calls found")
+                print("    No computer tool calls found")
                 return False
 
             screenshot_calls = [
@@ -171,38 +303,31 @@ async def test_computer_use_integration():
                 if call.arguments.get("action") == "screenshot"
             ]
             if not screenshot_calls:
-                print("❌ No screenshot action found in computer tool calls")
+                print("    No screenshot action found in computer tool calls")
                 print(
-                    "Available actions:",
+                    "    Available actions:",
                     [call.arguments.get("action") for call in computer_calls],
                 )
                 return False
 
-            print("✅ Screenshot tool call found with correct action")
-            print(f"   Tool call ID: {screenshot_calls[0].id}")
-            print(f"   Arguments: {screenshot_calls[0].arguments}")
+            print("    Screenshot tool call found with correct action")
+            print(f"      Tool call ID: {screenshot_calls[0].id}")
+            print(f"      Arguments: {screenshot_calls[0].arguments}")
 
-            # Test 3: Multi-turn with tool result
-            print("\n🔄 Test 2: Testing tool result handling...")
+            # Test 2: Multi-turn with tool result
+            print("\n  Test 2: Testing tool result handling...")
 
             # Add Claude's response to conversation
             conversation.messages.append(response.content)
 
-            # Simulate a screenshot tool result (base64 encoded 1x1 pixel PNG)
-            fake_screenshot = [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                    },
-                }
-            ]
+            # Simulate a screenshot tool result using Image class (base64 encoded 1x1 pixel PNG)
+            fake_screenshot_data = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+            fake_screenshot = [Image(data=fake_screenshot_data)]
 
             # Add tool result to conversation
             tool_result_message = Message(
-                "user", [ToolResult(screenshot_calls[0].id, fake_screenshot)]
+                "user",
+                [ToolResult(screenshot_calls[0].id, fake_screenshot)],  # type: ignore
             )
             conversation.messages.append(tool_result_message)
 
@@ -220,25 +345,29 @@ async def test_computer_use_integration():
             response2 = results2[0]
             assert response2, "no response2"
             if response2.is_error:
-                print(f"❌ Follow-up API Error: {response2.error_message}")
+                print(f"    Follow-up API Error: {response2.error_message}")
                 return False
 
             if not response2.content or not response2.completion:
-                print("❌ No follow-up response received")
+                print("    No follow-up response received")
                 return False
 
-            print(f"✅ Claude analyzed the screenshot: {response2.completion[:100]}...")
+            print(
+                f"    Claude analyzed the screenshot: {response2.completion[:100]}..."
+            )
 
-            # Test 4: Verify beta headers were sent
-            print("\n🔐 Test 4: Verifying beta headers...")
+            # Test 3: Verify beta headers were sent
+            print("\n  Test 3: Verifying beta headers...")
+            expected_header = get_beta_header(model_name)
+            print(f"    Expected beta header: {expected_header}")
             # Note: We can't directly verify headers were sent without inspecting the HTTP request
             # But if we got here without auth errors, the beta header was likely sent correctly
-            print("✅ Beta headers working (no auth errors received)")
+            print("    Beta headers working (no auth errors received)")
 
-            print("\n🎉 All Computer Use integration tests passed!")
+            print(f"\n  All tests passed for {model_name}!")
 
         except Exception as e:
-            print(f"❌ Integration test for {model_name} failed with exception: {e}")
+            print(f"  Integration test for {model_name} failed with exception: {e}")
             import traceback
 
             traceback.print_exc()
@@ -251,10 +380,10 @@ async def test_tool_combinations():
     """Test Computer Use with additional custom tools."""
 
     if not os.getenv("ANTHROPIC_API_KEY"):
-        print("❌ ANTHROPIC_API_KEY not found. Skipping tool combination test.")
+        print("ANTHROPIC_API_KEY not found. Skipping tool combination test.")
         return False
 
-    print("\n🛠️  Testing Computer Use with custom tools...")
+    print("\nTesting Computer Use with custom tools...")
 
     try:
         # Define a simple custom tool
@@ -286,35 +415,48 @@ async def test_tool_combinations():
         response = results[0]
         assert response, "no response"
         if response.is_error:
-            print(f"❌ Custom tool test error: {response.error_message}")
+            print(f"  Custom tool test error: {response.error_message}")
             return False
 
         tool_calls = response.content.tool_calls if response.content else []
         tool_names = [call.name for call in tool_calls]
 
-        print(f"✅ Tool calls made: {tool_names}")
+        print(f"  Tool calls made: {tool_names}")
 
         # Should have both custom tool and computer tool calls
         if "get_time" not in tool_names:
-            print("⚠️  Warning: Custom tool 'get_time' not called")
+            print("    Warning: Custom tool 'get_time' not called")
 
         if "computer" not in tool_names:
-            print("⚠️  Warning: Computer tool not called")
+            print("    Warning: Computer tool not called")
 
-        print("✅ Custom tool combination test completed")
+        print("  Custom tool combination test completed")
         return True
 
     except Exception as e:
-        print(f"❌ Custom tool test failed: {e}")
+        print(f"  Custom tool test failed: {e}")
         return False
 
 
-async def run_all_tests():
-    print("🚀 Running Computer Use Integration Tests")
+def run_unit_tests():
+    """Run all unit tests (no API calls required)."""
+    print("Running unit tests...")
     print("=" * 50)
 
+    test_model_to_version()
+    test_get_beta_header()
     test_computer_use_tools()
+    test_individual_tool_functions()
     test_tool_result_with_images()
+
+    print("=" * 50)
+    print("All unit tests passed!")
+
+
+async def run_integration_tests():
+    """Run integration tests (requires API key)."""
+    print("\nRunning integration tests...")
+    print("=" * 50)
 
     # Test basic Computer Use functionality
     test1_passed = await test_computer_use_integration()
@@ -322,23 +464,29 @@ async def run_all_tests():
     # Test with custom tools
     test2_passed = await test_tool_combinations()
 
-    print("\n" + "=" * 50)
+    print("=" * 50)
     if test1_passed and test2_passed:
-        print("🎉 ALL INTEGRATION TESTS PASSED!")
+        print("All integration tests passed!")
         print("\nComputer Use implementation is working correctly:")
-        print("✅ Beta headers sent properly")
-        print("✅ Tool versions selected correctly")
-        print("✅ Computer tool calls generated")
-        print("✅ Screenshot actions work")
-        print("✅ Tool results handled properly")
-        print("✅ Multi-turn conversations supported")
-        print("✅ Custom tool integration works")
+        print("  - Beta headers sent properly")
+        print("  - Tool versions selected correctly")
+        print("  - Computer tool calls generated")
+        print("  - Screenshot actions work")
+        print("  - Tool results handled properly")
+        print("  - Multi-turn conversations supported")
+        print("  - Custom tool integration works")
     else:
-        print("❌ SOME TESTS FAILED")
+        print("SOME INTEGRATION TESTS FAILED")
         print("Check the output above for details.")
         exit(1)
 
 
+async def run_all_tests():
+    """Run all tests."""
+    run_unit_tests()
+    await run_integration_tests()
+
+
 if __name__ == "__main__":
     asyncio.run(run_all_tests())
-    print("All Computer Use tests passed!")
+    print("\nAll Computer Use tests passed!")

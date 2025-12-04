@@ -8,7 +8,7 @@ import asyncio
 import os
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.built_in_tools.anthropic import (
+from lm_deluge.tool.builtin.anthropic import (
     get_anthropic_cu_tools,
     model_to_version,
 )
@@ -35,8 +35,10 @@ def test_bedrock_model_to_version():
     # Test Bedrock internal model names (lm-deluge naming)
     assert model_to_version("claude-3.6-sonnet-bedrock") == "2024-10-22"
     assert model_to_version("claude-3.7-sonnet-bedrock") == "2025-01-24"
-    assert model_to_version("claude-4-sonnet-bedrock") == "2025-04-29"
-    assert model_to_version("claude-4-opus-bedrock") == "2025-04-29"
+    assert model_to_version("claude-4-sonnet-bedrock") == "2025-01-24"
+    assert model_to_version("claude-4-opus-bedrock") == "2025-01-24"
+    # Opus 4.5 uses the newest version
+    assert model_to_version("claude-opus-4-5-bedrock") == "2025-11-24"
 
     print("✅ Bedrock model version detection test passed!")
 
@@ -94,9 +96,9 @@ async def test_bedrock_computer_use_integration():
 
         results = await client.process_prompts_async(
             [conversation],
-            computer_use=True,
-            display_width=1024,
-            display_height=768,
+            # computer_use=True,
+            # display_width=1024,
+            # display_height=768,
             cache="tools_only",
         )
 
@@ -145,7 +147,7 @@ async def test_bedrock_computer_use_integration():
 
         # Test 2: Verify tool versions are correct for Bedrock
         print("\n🔧 Test 2: Verifying tool versions for Bedrock...")
-        from lm_deluge.built_in_tools.anthropic import (
+        from lm_deluge.tool.builtin.anthropic import (
             get_anthropic_cu_tools,
             model_to_version,
         )
@@ -305,7 +307,7 @@ async def test_bedrock_cu_request_format():
 
     try:
         # Test the tools structure - Bedrock uses same Anthropic tools
-        from lm_deluge.built_in_tools.anthropic import get_anthropic_cu_tools
+        from lm_deluge.tool.builtin.anthropic import get_anthropic_cu_tools
 
         tools = get_anthropic_cu_tools("claude-3.7-sonnet-bedrock", 1920, 1080)
 

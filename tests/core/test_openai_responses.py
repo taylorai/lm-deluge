@@ -5,9 +5,9 @@ import base64
 import os
 
 from lm_deluge import LLMClient
-from lm_deluge.built_in_tools.openai import computer_use_openai
 from lm_deluge.models import APIModel
 from lm_deluge.prompt import Conversation, Message, Text, ToolCall, ToolResult
+from lm_deluge.tool.builtin.openai import computer_use_openai
 
 
 async def test_openai_responses_basic():
@@ -19,10 +19,9 @@ async def test_openai_responses_basic():
     # Test with a regular GPT model using responses API
     try:
         # Use a model with responses API enabled
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("gpt-4.1-mini", use_responses_api=True)
         results = await client.process_prompts_async(
-            prompts=["Hello, please say 'Hi there!' back"],
-            use_responses_api=True,  # Enable responses API
+            ["Hello, please say 'Hi there!' back"],
         )
         print("got results")
 
@@ -75,12 +74,11 @@ async def test_openai_computer_use_validation():
     """Test computer use validation logic"""
     try:
         # Test that computer use with wrong model raises error
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("gpt-4.1-mini", use_responses_api=True)
 
         results = await client.process_prompts_async(
             prompts=["Take a screenshot"],
             tools=[computer_use_openai()],
-            use_responses_api=True,
         )
 
         if results and len(results) > 0:
@@ -114,12 +112,11 @@ async def test_openai_computer_use_basic():
 
     try:
         # Test with computer use model
-        client = LLMClient("openai-computer-use-preview")
+        client = LLMClient("openai-computer-use-preview", use_responses_api=True)
 
         results = await client.process_prompts_async(
             prompts=["Take a screenshot of the current screen"],
             tools=[computer_use_openai()],
-            use_responses_api=True,  # Required for computer use
         )
 
         if results and len(results) > 0:
@@ -173,7 +170,7 @@ async def test_openai_computer_use_loop():
         with open(screenshot_path, "rb") as f:
             screenshot_data = base64.b64encode(f.read()).decode("utf-8")
 
-        client = LLMClient("openai-computer-use-preview")
+        client = LLMClient("openai-computer-use-preview", use_responses_api=True)
 
         # Test 1: Initial computer use request
         print("\nTest 1: Initial computer use request")
@@ -184,7 +181,6 @@ async def test_openai_computer_use_loop():
         results = await client.process_prompts_async(
             prompts=[conversation],
             tools=[computer_use_openai()],
-            use_responses_api=True,
         )
 
         if not results or results[0] is None:
@@ -238,7 +234,6 @@ async def test_openai_computer_use_loop():
         results2 = await client.process_prompts_async(
             prompts=[conversation2],
             tools=[computer_use_openai()],
-            use_responses_api=True,
         )
 
         if results2 and results2[0]:

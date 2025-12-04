@@ -614,6 +614,7 @@ class Tool(BaseModel):
         cls,
         func: Callable,
         *,
+        name: str | None = None,
         include_output_schema_in_description: bool = False,
     ) -> "Tool":
         """
@@ -629,6 +630,8 @@ class Tool(BaseModel):
 
         Args:
             func: The function to create a tool from.
+            name: Optional name override for the tool. If not provided,
+                uses the function's __name__.
             include_output_schema_in_description: If True, append the return type
                 and any complex type definitions to the tool description. This can
                 help the model understand what the tool returns. Default is False.
@@ -646,6 +649,10 @@ class Tool(BaseModel):
             # tool.output_schema contains schema for list[dict]
             # tool.call(query="test", validate_output=True) validates return value
 
+            # With custom name:
+            tool = Tool.from_function(search, name="search_database")
+            # tool.name is "search_database"
+
             # With output schema in description:
             tool = Tool.from_function(search, include_output_schema_in_description=True)
             # Description becomes:
@@ -653,11 +660,11 @@ class Tool(BaseModel):
             #
             # Returns: list[dict]"
         """
-        # Get function name
-        name = func.__name__
+        # Get function name (use override if provided)
+        tool_name = name if name is not None else func.__name__
 
         # Get docstring for description
-        description = func.__doc__ or f"Call the {name} function"
+        description = func.__doc__ or f"Call the {tool_name} function"
         description = description.strip()
 
         # Use TypeAdapter for robust schema generation
@@ -705,7 +712,7 @@ class Tool(BaseModel):
                 description = f"{description}\n\n{output_info}"
 
         tool = cls(
-            name=name,
+            name=tool_name,
             description=description,
             parameters=parameters,
             required=required,

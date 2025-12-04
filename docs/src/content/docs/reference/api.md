@@ -140,7 +140,7 @@ Utility managers in `lm_deluge.tool.prefab` provide ready-made tool suites:
 - `ToolSearchTool` gives the model a regex-powered discovery + call helper when you have a large toolbelt.
 - `ToolComposer` (OTC) lets the model write short Python snippets that orchestrate multiple tools in one shot, returning only the final output to the conversation.
 
-`extract`, `extract_async`, `translate`, `translate_async`, and `score_llm` now live in `lm_deluge.pipelines` (and are re-exported from `lm_deluge.llm_tools` for backward compatibility).
+`extract`, `extract_async`, `translate`, `translate_async`, and `score_llm` now live in `lm_deluge.pipelines`.
 
 ## File & Image
 

@@ -1,8 +1,7 @@
 """Tests for the SheetsManager prefab tool."""
 
 import json
-from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 from lm_deluge.tool.prefab.sheets import SheetsManager
 
@@ -20,10 +19,7 @@ def test_sheets_manager_initialization_with_credentials():
         "token_uri": "https://oauth2.googleapis.com/token",
     }
 
-    manager = SheetsManager(
-        sheet_id="test-sheet-id",
-        credentials_json=credentials
-    )
+    manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
     assert manager.sheet_id == "test-sheet-id"
     assert manager.credentials == credentials
@@ -39,7 +35,7 @@ def test_sheets_manager_custom_tool_names():
         sheet_id="test-sheet-id",
         credentials_json=credentials,
         read_tool_name="custom_read",
-        update_tool_name="custom_update"
+        update_tool_name="custom_update",
     )
 
     tools = manager.get_tools()
@@ -74,9 +70,9 @@ def test_read_range_returns_html_table():
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
     # Mock the Google Sheets API
-    with patch('googleapiclient.discovery.build') as mock_build, \
-         patch('google.oauth2.service_account.Credentials.from_service_account_info'):
-
+    with patch("googleapiclient.discovery.build") as mock_build, patch(
+        "google.oauth2.service_account.Credentials.from_service_account_info"
+    ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
 
@@ -86,24 +82,24 @@ def test_read_range_returns_html_table():
         mock_get = MagicMock()
         mock_values.get.return_value = mock_get
         mock_get.execute.return_value = {
-            'values': [
-                ['Name', 'Age', 'City'],
-                ['Alice', '30', 'NYC'],
-                ['Bob', '25', 'LA']
+            "values": [
+                ["Name", "Age", "City"],
+                ["Alice", "30", "NYC"],
+                ["Bob", "25", "LA"],
             ]
         }
 
         result = manager._read_range("A1:C3")
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert data['rows'] == 3
-        assert '<table border="1">' in data['html']
-        assert 'row="1"' in data['html']
-        assert 'col="A"' in data['html']
-        assert 'cell="A1"' in data['html']
-        assert 'Name' in data['html']
-        assert 'Alice' in data['html']
+        assert data["status"] == "success"
+        assert data["rows"] == 3
+        assert '<table border="1">' in data["html"]
+        assert 'row="1"' in data["html"]
+        assert 'col="A"' in data["html"]
+        assert 'cell="A1"' in data["html"]
+        assert "Name" in data["html"]
+        assert "Alice" in data["html"]
 
 
 def test_read_range_empty_response():
@@ -111,9 +107,9 @@ def test_read_range_empty_response():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch('googleapiclient.discovery.build') as mock_build, \
-         patch('google.oauth2.service_account.Credentials.from_service_account_info'):
-
+    with patch("googleapiclient.discovery.build") as mock_build, patch(
+        "google.oauth2.service_account.Credentials.from_service_account_info"
+    ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
 
@@ -121,13 +117,13 @@ def test_read_range_empty_response():
         mock_spreadsheets.values.return_value = mock_values
         mock_get = MagicMock()
         mock_values.get.return_value = mock_get
-        mock_get.execute.return_value = {'values': []}
+        mock_get.execute.return_value = {"values": []}
 
         result = manager._read_range("A1:A1")
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert 'No data found' in data['message']
+        assert data["status"] == "success"
+        assert "No data found" in data["message"]
 
 
 def test_read_range_error_handling():
@@ -135,9 +131,9 @@ def test_read_range_error_handling():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch('googleapiclient.discovery.build') as mock_build, \
-         patch('google.oauth2.service_account.Credentials.from_service_account_info'):
-
+    with patch("googleapiclient.discovery.build") as mock_build, patch(
+        "google.oauth2.service_account.Credentials.from_service_account_info"
+    ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
 
@@ -150,8 +146,8 @@ def test_read_range_error_handling():
         result = manager._read_range("A1:A1")
         data = json.loads(result)
 
-        assert data['status'] == 'error'
-        assert 'API Error' in data['error']
+        assert data["status"] == "error"
+        assert "API Error" in data["error"]
 
 
 def test_update_cell_success():
@@ -159,9 +155,9 @@ def test_update_cell_success():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch('googleapiclient.discovery.build') as mock_build, \
-         patch('google.oauth2.service_account.Credentials.from_service_account_info'):
-
+    with patch("googleapiclient.discovery.build") as mock_build, patch(
+        "google.oauth2.service_account.Credentials.from_service_account_info"
+    ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
 
@@ -170,23 +166,23 @@ def test_update_cell_success():
         mock_update = MagicMock()
         mock_values.update.return_value = mock_update
         mock_update.execute.return_value = {
-            'updatedCells': 1,
-            'updatedRange': 'Sheet1!A1'
+            "updatedCells": 1,
+            "updatedRange": "Sheet1!A1",
         }
 
         result = manager._update_cell("A1", "Hello")
         data = json.loads(result)
 
-        assert data['status'] == 'success'
-        assert data['updated_cells'] == 1
-        assert 'Successfully updated A1' in data['message']
+        assert data["status"] == "success"
+        assert data["updated_cells"] == 1
+        assert "Successfully updated A1" in data["message"]
 
         # Verify the API was called correctly
         mock_values.update.assert_called_once()
         call_kwargs = mock_values.update.call_args[1]
-        assert call_kwargs['range'] == 'A1'
-        assert call_kwargs['valueInputOption'] == 'USER_ENTERED'
-        assert call_kwargs['body'] == {'values': [['Hello']]}
+        assert call_kwargs["range"] == "A1"
+        assert call_kwargs["valueInputOption"] == "USER_ENTERED"
+        assert call_kwargs["body"] == {"values": [["Hello"]]}
 
 
 def test_update_cell_error_handling():
@@ -194,9 +190,9 @@ def test_update_cell_error_handling():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch('googleapiclient.discovery.build') as mock_build, \
-         patch('google.oauth2.service_account.Credentials.from_service_account_info'):
-
+    with patch("googleapiclient.discovery.build") as mock_build, patch(
+        "google.oauth2.service_account.Credentials.from_service_account_info"
+    ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
 
@@ -209,8 +205,8 @@ def test_update_cell_error_handling():
         result = manager._update_cell("A1", "Hello")
         data = json.loads(result)
 
-        assert data['status'] == 'error'
-        assert 'Update failed' in data['error']
+        assert data["status"] == "error"
+        assert "Update failed" in data["error"]
 
 
 def test_get_tools_returns_two_tools():

@@ -4,7 +4,7 @@ import asyncio
 import os
 
 from lm_deluge import LLMClient
-from lm_deluge.built_in_tools.openai import image_generation_openai
+from lm_deluge.tool.builtin.openai import image_generation_openai
 
 
 async def test_openai_image_gen():
