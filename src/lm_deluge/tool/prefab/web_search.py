@@ -76,12 +76,14 @@ class ExaWebSearchManager(AbstractWebSearchManager):
         search_tool_name: str = "web_search",
         fetch_tool_name: str = "web_fetch",
         timeout: int = 30,
+        max_contents_chars: int = 20_000,
     ):
         super().__init__(
             search_tool_name=search_tool_name,
             fetch_tool_name=fetch_tool_name,
             timeout=timeout,
         )
+        self.max_contents_chars = max_contents_chars
 
     async def _search(  # type: ignore
         self,
@@ -146,7 +148,9 @@ class ExaWebSearchManager(AbstractWebSearchManager):
                 raise ValueError("EXA_API_KEY environment variable not set")
             data = {
                 "urls": [url],
-                "text": True,
+                "text": {
+                    "maxCharacters": self.max_contents_chars,
+                },
             }
 
             headers = {
