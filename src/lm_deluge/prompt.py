@@ -203,6 +203,8 @@ class ToolResult:
                 "call_id": self.tool_call_id,
             }
             if self.built_in_type == "computer_call":
+                # OpenAI expects "computer_call_output" for the result type
+                result["type"] = "computer_call_output"
                 result["output"] = output_data.get("output", {})
                 if "acknowledged_safety_checks" in output_data:
                     result["acknowledged_safety_checks"] = output_data[
@@ -235,14 +237,40 @@ class ToolResult:
             raise ValueError("unsupported self.result type")
 
     def gemini(self) -> dict:
-        if not isinstance(self.result, str):
-            raise ValueError("can't handle content blocks for gemini yet")
-        return {
-            "functionResponse": {
-                "name": self.tool_call_id,  # Gemini uses name field for ID
-                "response": {"result": self.result},
-            }
+        # Build the function response
+        func_response: dict = {
+            "name": self.tool_call_id,  # Gemini uses name field for ID
         }
+
+        # Handle different result types
+        if isinstance(self.result, str):
+            func_response["response"] = {"result": self.result}
+        elif isinstance(self.result, dict):
+            # Check for Gemini computer use format with inline screenshot
+            if self.built_in_type == "gemini_computer_use":
+                # Gemini CU expects response dict with optional inline_data parts
+                func_response["response"] = self.result.get("response", {})
+                # Include inline data (screenshot) if present
+                if "inline_data" in self.result:
+                    func_response["parts"] = [
+                        {
+                            "inlineData": {
+                                "mimeType": self.result["inline_data"].get(
+                                    "mime_type", "image/png"
+                                ),
+                                "data": self.result["inline_data"]["data"],
+                            }
+                        }
+                    ]
+            else:
+                func_response["response"] = self.result
+        elif isinstance(self.result, list):
+            # Handle content blocks (images, etc.) - not yet implemented
+            raise ValueError("can't handle content blocks for gemini yet")
+        else:
+            func_response["response"] = {"result": str(self.result)}
+
+        return {"functionResponse": func_response}
 
     def mistral(self) -> dict:
         return {
@@ -1367,14 +1395,14 @@ class Conversation:
                 # For assistant messages, extract computer calls as separate items
                 text_parts = []
                 for p in m.parts:
-                    if isinstance(p, ToolCall) and p.name.startswith("_computer_"):
+                    if isinstance(p, ToolCall) and p.built_in_type == "computer_call":
                         # Computer calls become separate items in the input array
-                        action_type = p.name.replace("_computer_", "")
+                        # p.arguments already contains the full action dict with "type"
                         input_items.append(
                             {
                                 "type": "computer_call",
                                 "call_id": p.id,
-                                "action": {"type": action_type, **p.arguments},
+                                "action": p.arguments,
                             }
                         )
                     elif isinstance(p, Text):
@@ -1752,7 +1780,7 @@ class Conversation:
 Prompt: TypeAlias = str | list[dict] | Message | Conversation
 
 
-def prompts_to_conversations(prompts: Sequence[Prompt]) -> Sequence[Prompt]:
+def prompts_to_conversations(prompts: Sequence[Prompt]) -> Sequence[Conversation]:
     converted = []
     for prompt in prompts:
         if isinstance(prompt, Conversation):

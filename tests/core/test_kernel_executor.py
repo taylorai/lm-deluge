@@ -166,7 +166,7 @@ def test_anthropic_converter_drag():
     assert action["kind"] == "drag"
     assert action["start_x"] == 100
     assert action["start_y"] == 100
-    assert action["path"] == [[200, 200]]
+    assert action["path"] == [(200, 200)]
     print("  left_click_drag conversion: PASS")
 
 

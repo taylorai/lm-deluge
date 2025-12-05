@@ -8,8 +8,9 @@ Key components:
 - CUAction: Union type of all possible computer use actions
 - ComputerExecutor: Abstract base class for action executors
 - KernelExecutor: Execute actions on Kernel's browser-as-a-service
+- TryCUAExecutor: Execute actions on TryCUA's computer-server (desktop control)
 
-Usage:
+Usage with Kernel (browser):
     from lm_deluge.tool.cua import (
         KernelBrowser,
         KernelExecutor,
@@ -25,6 +26,29 @@ Usage:
 
         # Execute and get result
         result = executor.execute(action)
+
+Usage with TryCUA (desktop):
+    from lm_deluge.tool.cua import (
+        TryCUAConnection,
+        TryCUAExecutor,
+        Screenshot,
+        Click,
+        Type,
+    )
+
+    # Connect to a TryCUA computer-server
+    with TryCUAConnection("ws://localhost:8000/ws") as conn:
+        executor = TryCUAExecutor(conn)
+
+        # Execute actions
+        result = executor.execute(Screenshot(kind="screenshot"))
+        executor.execute(Click(kind="click", x=100, y=200, button="left"))
+        executor.execute(Type(kind="type", text="Hello!"))
+
+    # Async version
+    async with AsyncTryCUAConnection("ws://localhost:8000/ws") as conn:
+        executor = AsyncTryCUAExecutor(conn)
+        result = await executor.execute(Screenshot(kind="screenshot"))
 """
 
 from .actions import (
@@ -35,20 +59,28 @@ from .actions import (
     DoubleClick,
     Drag,
     Edit,
+    GoBack,
+    GoForward,
     HoldKey,
     Keypress,
     MouseDown,
     MouseUp,
     Move,
+    Navigate,
     Scroll,
     Screenshot,
+    Search,
     TripleClick,
     Type,
     Wait,
 )
 from .base import ComputerExecutor, CUActionResult
 from .base import Screenshot as ScreenshotResult
-from .converters import anthropic_tool_call_to_action, openai_computer_call_to_action
+from .converters import (
+    anthropic_tool_call_to_action,
+    openai_computer_call_to_action,
+    gemini_function_call_to_action,
+)
 from .batch import create_computer_batch_tool
 
 
@@ -73,6 +105,25 @@ def __getattr__(name: str):
             "AsyncKernelBrowser": AsyncKernelBrowser,
             "AsyncKernelExecutor": AsyncKernelExecutor,
         }[name]
+    if name in (
+        "TryCUAConnection",
+        "TryCUAExecutor",
+        "AsyncTryCUAConnection",
+        "AsyncTryCUAExecutor",
+    ):
+        from .trycua import (
+            TryCUAConnection,
+            TryCUAExecutor,
+            AsyncTryCUAConnection,
+            AsyncTryCUAExecutor,
+        )
+
+        return {
+            "TryCUAConnection": TryCUAConnection,
+            "TryCUAExecutor": TryCUAExecutor,
+            "AsyncTryCUAConnection": AsyncTryCUAConnection,
+            "AsyncTryCUAExecutor": AsyncTryCUAExecutor,
+        }[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -93,6 +144,10 @@ __all__ = [
     "MouseUp",
     "CursorPos",
     "HoldKey",
+    "Navigate",
+    "GoBack",
+    "GoForward",
+    "Search",
     "Bash",
     "Edit",
     # Base classes
@@ -102,6 +157,7 @@ __all__ = [
     # Converters
     "anthropic_tool_call_to_action",
     "openai_computer_call_to_action",
+    "gemini_function_call_to_action",
     # Batch tool
     "create_computer_batch_tool",
     # Kernel executor (lazy loaded)
@@ -109,4 +165,9 @@ __all__ = [
     "KernelExecutor",  # pyright: ignore[reportUnsupportedDunderAll]
     "AsyncKernelBrowser",  # pyright: ignore[reportUnsupportedDunderAll]
     "AsyncKernelExecutor",  # pyright: ignore[reportUnsupportedDunderAll]
+    # TryCUA executor (lazy loaded)
+    "TryCUAConnection",  # pyright: ignore[reportUnsupportedDunderAll]
+    "TryCUAExecutor",  # pyright: ignore[reportUnsupportedDunderAll]
+    "AsyncTryCUAConnection",  # pyright: ignore[reportUnsupportedDunderAll]
+    "AsyncTryCUAExecutor",  # pyright: ignore[reportUnsupportedDunderAll]
 ]

@@ -114,8 +114,40 @@ async def _build_gemini_request(
 
     # Add tools if provided
     if tools:
-        tool_declarations = [tool.dump_for("google") for tool in tools]
-        request_json["tools"] = [{"functionDeclarations": tool_declarations}]
+        request_tools = []
+        function_declarations = []
+
+        for tool in tools:
+            if isinstance(tool, dict) and tool.get("type") == "gemini_computer_use":
+                # Gemini computer use tool - add as separate tool entry
+                env_map = {
+                    "browser": "ENVIRONMENT_BROWSER",
+                    "android": "ENVIRONMENT_ANDROID",
+                }
+                env = env_map.get(
+                    tool.get("environment", "browser"), "ENVIRONMENT_BROWSER"
+                )
+                cu_tool: dict = {
+                    "computerUse": {
+                        "environment": env,
+                    }
+                }
+                excluded = tool.get("excluded_predefined_functions")
+                if excluded:
+                    cu_tool["computerUse"]["excludedPredefinedFunctions"] = excluded
+                request_tools.append(cu_tool)
+            elif hasattr(tool, "dump_for"):
+                # Regular Tool object
+                function_declarations.append(tool.dump_for("google"))
+            elif isinstance(tool, dict):
+                # Raw dict tool - assume it's a function declaration
+                function_declarations.append(tool)
+
+        if function_declarations:
+            request_tools.append({"functionDeclarations": function_declarations})
+
+        if request_tools:
+            request_json["tools"] = request_tools
 
     # Handle JSON mode
     if sampling_params.json_mode and model.supports_json:

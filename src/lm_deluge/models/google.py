@@ -153,4 +153,18 @@ GOOGLE_MODELS = {
         # Note: >200k tokens pricing is $4/$18 per million
         "reasoning_model": True,
     },
+    # Gemini 2.5 Computer Use model
+    "gemini-2.5-computer-use": {
+        "id": "gemini-2.5-computer-use",
+        "name": "gemini-2.5-computer-use-preview-10-2025",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 1.25,  # same as gemini-2.5-pro for now
+        "cached_input_cost": 0.31,
+        "output_cost": 10.0,
+        "reasoning_model": True,
+    },
 }

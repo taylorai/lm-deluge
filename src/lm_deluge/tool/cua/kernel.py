@@ -15,9 +15,13 @@ from .actions import (
     CUAction,
     DoubleClick,
     Drag,
+    GoBack,
+    GoForward,
     Keypress,
     Move,
+    Navigate,
     Scroll,
+    Search,
     TripleClick,
     Type,
     Wait,
@@ -249,6 +253,14 @@ class KernelExecutor(ComputerExecutor):
             return self._drag(action)  # type: ignore
         elif kind == "wait":
             return self._wait(action)  # type: ignore
+        elif kind == "navigate":
+            return self._navigate(action)  # type: ignore
+        elif kind == "go_back":
+            return self._go_back(action)  # type: ignore
+        elif kind == "go_forward":
+            return self._go_forward(action)  # type: ignore
+        elif kind == "search":
+            return self._search(action)  # type: ignore
         else:
             raise ValueError(f"Unsupported action kind: {kind}")
 
@@ -365,6 +377,71 @@ class KernelExecutor(ComputerExecutor):
             screenshot=None, data={"action": "wait", "ms": action["ms"]}
         )
 
+    def _navigate(self, action: Navigate) -> CUActionResult:
+        """Navigate to a URL using keyboard shortcuts."""
+        import time
+
+        # Ctrl+L to focus address bar, type URL, press Enter
+        self._client.browsers.computer.press_key(self.session_id, keys=["ctrl+l"])
+        time.sleep(0.2)
+        self._client.browsers.computer.type_text(self.session_id, text=action["url"])
+        time.sleep(0.1)
+        self._client.browsers.computer.press_key(self.session_id, keys=["Return"])
+        time.sleep(1.5)  # Wait for page load
+        # Take screenshot after navigation
+        response = self._client.browsers.computer.capture_screenshot(self.session_id)
+        content = response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "navigate", "url": action["url"]},
+        )
+
+    def _go_back(self, action: GoBack) -> CUActionResult:
+        """Go back in browser history using keyboard shortcut."""
+        import time
+
+        self._client.browsers.computer.press_key(self.session_id, keys=["Alt+Left"])
+        time.sleep(0.5)  # Wait for page load
+        response = self._client.browsers.computer.capture_screenshot(self.session_id)
+        content = response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "go_back"},
+        )
+
+    def _go_forward(self, action: GoForward) -> CUActionResult:
+        """Go forward in browser history using keyboard shortcut."""
+        import time
+
+        self._client.browsers.computer.press_key(self.session_id, keys=["Alt+Right"])
+        time.sleep(0.5)  # Wait for page load
+        response = self._client.browsers.computer.capture_screenshot(self.session_id)
+        content = response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "go_forward"},
+        )
+
+    def _search(self, action: Search) -> CUActionResult:
+        """Navigate to Google search using keyboard shortcuts."""
+        import time
+        from urllib.parse import quote
+
+        search_url = f"https://www.google.com/search?q={quote(action['query'])}"
+        # Ctrl+L to focus address bar, type search URL, press Enter
+        self._client.browsers.computer.press_key(self.session_id, keys=["ctrl+l"])
+        time.sleep(0.2)
+        self._client.browsers.computer.type_text(self.session_id, text=search_url)
+        time.sleep(0.1)
+        self._client.browsers.computer.press_key(self.session_id, keys=["Return"])
+        time.sleep(1.5)  # Wait for page load
+        response = self._client.browsers.computer.capture_screenshot(self.session_id)
+        content = response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "search", "query": action["query"]},
+        )
+
 
 class AsyncKernelExecutor:
     """
@@ -431,6 +508,14 @@ class AsyncKernelExecutor:
             return await self._drag(action)  # type: ignore
         elif kind == "wait":
             return await self._wait(action)  # type: ignore
+        elif kind == "navigate":
+            return await self._navigate(action)  # type: ignore
+        elif kind == "go_back":
+            return await self._go_back(action)  # type: ignore
+        elif kind == "go_forward":
+            return await self._go_forward(action)  # type: ignore
+        elif kind == "search":
+            return await self._search(action)  # type: ignore
         else:
             raise ValueError(f"Unsupported action kind: {kind}")
 
@@ -546,4 +631,72 @@ class AsyncKernelExecutor:
         await asyncio.sleep(action["ms"] / 1000.0)
         return CUActionResult(
             screenshot=None, data={"action": "wait", "ms": action["ms"]}
+        )
+
+    async def _navigate(self, action: Navigate) -> CUActionResult:
+        """Navigate to a URL using keyboard shortcuts."""
+        import asyncio
+
+        client = self._get_client()
+        # Ctrl+L to focus address bar, type URL, press Enter
+        await client.browsers.computer.press_key(self.session_id, keys=["ctrl+l"])
+        await asyncio.sleep(0.2)
+        await client.browsers.computer.type_text(self.session_id, text=action["url"])
+        await asyncio.sleep(0.1)
+        await client.browsers.computer.press_key(self.session_id, keys=["Return"])
+        await asyncio.sleep(1.5)  # Wait for page load
+        response = await client.browsers.computer.capture_screenshot(self.session_id)
+        content = await response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "navigate", "url": action["url"]},
+        )
+
+    async def _go_back(self, action: GoBack) -> CUActionResult:
+        """Go back in browser history using keyboard shortcut."""
+        import asyncio
+
+        client = self._get_client()
+        await client.browsers.computer.press_key(self.session_id, keys=["Alt+Left"])
+        await asyncio.sleep(0.5)  # Wait for page load
+        response = await client.browsers.computer.capture_screenshot(self.session_id)
+        content = await response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "go_back"},
+        )
+
+    async def _go_forward(self, action: GoForward) -> CUActionResult:
+        """Go forward in browser history using keyboard shortcut."""
+        import asyncio
+
+        client = self._get_client()
+        await client.browsers.computer.press_key(self.session_id, keys=["Alt+Right"])
+        await asyncio.sleep(0.5)  # Wait for page load
+        response = await client.browsers.computer.capture_screenshot(self.session_id)
+        content = await response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "go_forward"},
+        )
+
+    async def _search(self, action: Search) -> CUActionResult:
+        """Navigate to Google search using keyboard shortcuts."""
+        import asyncio
+        from urllib.parse import quote
+
+        client = self._get_client()
+        search_url = f"https://www.google.com/search?q={quote(action['query'])}"
+        # Ctrl+L to focus address bar, type search URL, press Enter
+        await client.browsers.computer.press_key(self.session_id, keys=["ctrl+l"])
+        await asyncio.sleep(0.2)
+        await client.browsers.computer.type_text(self.session_id, text=search_url)
+        await asyncio.sleep(0.1)
+        await client.browsers.computer.press_key(self.session_id, keys=["Return"])
+        await asyncio.sleep(1.5)  # Wait for page load
+        response = await client.browsers.computer.capture_screenshot(self.session_id)
+        content = await response.read()
+        return CUActionResult(
+            screenshot=ScreenshotResult(media_type="image/png", content=content),
+            data={"action": "search", "query": action["query"]},
         )

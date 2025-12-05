@@ -99,6 +99,16 @@ async def test_openai_computer_use_validation():
             print("✗ No results returned")
             return False
 
+    except ValueError as e:
+        # The validation now raises ValueError before making the API call
+        if "does not support computer use" in str(e):
+            print(
+                "✓ Computer use validation test passed (ValueError raised as expected)"
+            )
+            return True
+        else:
+            print(f"✗ Unexpected ValueError: {e}")
+            return False
     except Exception as e:
         print(f"✗ Computer use validation test failed: {e}")
         return False
@@ -208,8 +218,15 @@ async def test_openai_computer_use_loop():
                     [
                         ToolCall(
                             id="call_123",
-                            name="_computer_click",
-                            arguments={"x": 100, "y": 50, "button": "left"},
+                            name="computer_call",
+                            arguments={
+                                "type": "click",
+                                "x": 100,
+                                "y": 50,
+                                "button": "left",
+                            },
+                            built_in=True,
+                            built_in_type="computer_call",
                         )
                     ],
                 ),
@@ -219,12 +236,13 @@ async def test_openai_computer_use_loop():
                         ToolResult(
                             tool_call_id="call_123",
                             result={
-                                "_computer_use_output": True,
                                 "output": {
                                     "type": "computer_screenshot",
                                     "image_url": f"data:image/png;base64,{screenshot_data}",
                                 },
                             },
+                            built_in=True,
+                            built_in_type="computer_call",
                         )
                     ],
                 ),
@@ -256,8 +274,15 @@ async def test_openai_computer_use_loop():
                     [
                         ToolCall(
                             id="call_456",
-                            name="_computer_click",
-                            arguments={"x": 200, "y": 100, "button": "left"},
+                            name="computer_call",
+                            arguments={
+                                "type": "click",
+                                "x": 200,
+                                "y": 100,
+                                "button": "left",
+                            },
+                            built_in=True,
+                            built_in_type="computer_call",
                         )
                     ],
                 ),
@@ -267,7 +292,6 @@ async def test_openai_computer_use_loop():
                         ToolResult(
                             tool_call_id="call_456",
                             result={
-                                "_computer_use_output": True,
                                 "output": {
                                     "type": "computer_screenshot",
                                     "image_url": f"data:image/png;base64,{screenshot_data}",
@@ -280,6 +304,8 @@ async def test_openai_computer_use_loop():
                                     }
                                 ],
                             },
+                            built_in=True,
+                            built_in_type="computer_call",
                         )
                     ],
                 ),

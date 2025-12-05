@@ -367,7 +367,7 @@ async def _build_oa_responses_request(
         elif isinstance(tool, dict):
             # if computer use, make sure model supports it
             if tool["type"] == "computer_use_preview":
-                if model.name != "openai-computer-use-preview":
+                if model.name != "computer-use-preview":
                     raise ValueError(f"model {model.id} does not support computer use")
                 # have to use truncation
                 request_json["truncation"] = "auto"

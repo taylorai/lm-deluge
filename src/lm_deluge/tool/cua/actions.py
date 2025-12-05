@@ -86,6 +86,25 @@ class TripleClick(CUActionBase):
     y: int | None
 
 
+# ── Browser‑level actions ────────────────────────────────────────────
+class Navigate(CUActionBase):
+    kind: Literal["navigate"]
+    url: str
+
+
+class GoBack(CUActionBase):
+    kind: Literal["go_back"]
+
+
+class GoForward(CUActionBase):
+    kind: Literal["go_forward"]
+
+
+class Search(CUActionBase):
+    kind: Literal["search"]
+    query: str
+
+
 # ── Bash / Editor (provider‑independent) ────────────────────────────
 class Bash(CUActionBase):
     kind: Literal["bash"]
@@ -120,6 +139,10 @@ CUAction = Union[
     Wait,
     Screenshot,
     CursorPos,
+    Navigate,
+    GoBack,
+    GoForward,
+    Search,
     Bash,
     Edit,
 ]

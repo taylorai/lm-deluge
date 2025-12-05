@@ -1012,6 +1012,92 @@ class _LLMClient(BaseModel):
             )
         )
 
+    async def process_agent_loops_async(
+        self,
+        prompts: Sequence[Prompt],
+        *,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
+        max_rounds: int = 5,
+        max_concurrent_agents: int = 10,
+        show_progress: bool = True,
+    ) -> list[tuple[Conversation, APIResponse]]:
+        """Process multiple agent loops concurrently.
+
+        Each prompt becomes an independent agent loop that can make multiple LLM
+        calls and execute tools until completion. The agent loops run concurrently,
+        limited by ``max_concurrent_agents``, while the underlying LLM requests
+        are still governed by ``max_concurrent_requests``.
+
+        Args:
+            prompts: Sequence of prompts, each becoming a separate agent loop.
+            tools: Tools available to all agent loops.
+            max_rounds: Maximum rounds per agent loop (default 5).
+            max_concurrent_agents: Maximum number of agent loops running
+                concurrently (default 10). This is separate from the LLM request
+                concurrency limit.
+            show_progress: Whether to show progress bar for LLM requests.
+
+        Returns:
+            List of (Conversation, APIResponse) tuples in the same order as
+            the input prompts.
+        """
+        # Convert prompts to Conversations
+        conversations = prompts_to_conversations(list(prompts))
+
+        # Ensure tracker exists for underlying LLM requests
+        if self._tracker is None:
+            self.open(total=0, show_progress=show_progress)
+            tracker_preopened = False
+        else:
+            tracker_preopened = True
+
+        # Semaphore to limit concurrent agent loops
+        agent_semaphore = asyncio.Semaphore(max_concurrent_agents)
+
+        async def run_single_loop(
+            idx: int, conv: Conversation
+        ) -> tuple[int, Conversation, APIResponse]:
+            """Run a single agent loop with semaphore protection."""
+            async with agent_semaphore:
+                task_id = self._next_task_id
+                self._next_task_id += 1
+                result = await self._run_agent_loop_internal(
+                    task_id, conv, tools=tools, max_rounds=max_rounds
+                )
+                return idx, result.conversation, result.final_response
+
+        # Launch all agent loops concurrently (semaphore limits actual concurrency)
+        tasks = [run_single_loop(idx, conv) for idx, conv in enumerate(conversations)]
+        completed = await asyncio.gather(*tasks)
+
+        # Close tracker if we opened it
+        if not tracker_preopened:
+            self.close()
+
+        # Sort by original index and extract results
+        completed_sorted = sorted(completed, key=lambda x: x[0])
+        return [(conv, resp) for _, conv, resp in completed_sorted]
+
+    def process_agent_loops_sync(
+        self,
+        prompts: Sequence[Prompt],
+        *,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
+        max_rounds: int = 5,
+        max_concurrent_agents: int = 10,
+        show_progress: bool = True,
+    ) -> list[tuple[Conversation, APIResponse]]:
+        """Synchronous wrapper for :meth:`process_agent_loops_async`."""
+        return asyncio.run(
+            self.process_agent_loops_async(
+                prompts,
+                tools=tools,
+                max_rounds=max_rounds,
+                max_concurrent_agents=max_concurrent_agents,
+                show_progress=show_progress,
+            )
+        )
+
     async def submit_batch_job(
         self,
         prompts: Prompt | Sequence[Prompt],
