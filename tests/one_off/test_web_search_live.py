@@ -11,7 +11,7 @@ import sys
 from dotenv import load_dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.tool.prefab.web_search import WebSearchManager
+from lm_deluge.tool.prefab.web_search import ExaWebSearchManager
 
 load_dotenv()
 
@@ -26,7 +26,7 @@ async def test_web_search_with_llm():
     print("🔍 Running WebSearchManager LLM integration test")
     print("=" * 60)
 
-    manager = WebSearchManager()
+    manager = ExaWebSearchManager()
     tools = manager.get_tools()
     print(f"Got {len(tools)} tools: {[t.name for t in tools]}")
 

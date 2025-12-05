@@ -38,8 +38,8 @@ class AbstractWebSearchManager(abc.ABC):
             return self._tools
 
         self._tools = [
-            Tool.from_function(self._search),
-            Tool.from_function(self._fetch),
+            Tool.from_function(self._search, name=self.search_tool_name),
+            Tool.from_function(self._fetch, name=self.fetch_tool_name),
         ]
 
         return self._tools

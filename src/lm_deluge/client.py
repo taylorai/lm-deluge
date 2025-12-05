@@ -918,7 +918,7 @@ class _LLMClient(BaseModel):
                 if not isinstance(result, (str, dict, list)):
                     result = str(result)
 
-                conversation.with_tool_result(call.id, result)  # type: ignore
+                conversation = conversation.with_tool_result(call.id, result)  # type: ignore
 
         if response is None:
             raise RuntimeError("model did not return a response")
