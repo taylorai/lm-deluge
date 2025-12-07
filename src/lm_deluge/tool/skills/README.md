@@ -1,0 +1,3 @@
+This sub-module aims to provide the ability for any language model to use "skills" in the same manner that the Anthropic API does. Skills allow models to access capabilities as needed with progressive disclosure, and bundle context/information with pre-built scripts. Supporting skills requires:
+- (1) A filesystem (which has the files that explain the skill). The agent must be able to explore and read files from this filesystem to understand the skill, and possibly to edit/create files as part of the process of using the skill.
+- (2) Code execution capabilities. Not all skills require executing code, but for those that do, there needs to be a safe, sandboxed code execution environment.

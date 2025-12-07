@@ -90,7 +90,7 @@ async def test_otc_does_not_repeat_completed_tool_calls():
     executor = OTCExecutor([_tool("primary", primary, {})])
 
     output = await executor.execute(
-        "data = primary()\n" "total = data['value'] + data['value']\n" "print(total)"
+        "data = primary()\ntotal = data['value'] + data['value']\nprint(total)"
     )
 
     assert output.strip() == "10"
