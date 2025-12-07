@@ -1,0 +1,74 @@
+{
+  "iteration": 0,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Solve math problems step by step."
+  },
+  "scores": [
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    0.0
+  ],
+  "avg_score": 0.6,
+  "batch": [
+    {
+      "question": "Stefan goes to a restaurant to eat dinner with his family. They order an appetizer that costs $10 and 4 entrees that are $20 each. If they tip 20% of the total for the waiter, what is the total amount of money that they spend at the restaurant?",
+      "answer": "108"
+    },
+    {
+      "question": "McKenna has 34 stuffed animals. Kenley has twice as many as McKenna.  Tenly has 5 more than Kenley . How many stuffed animals do the three girls have in all?",
+      "answer": "175"
+    },
+    {
+      "question": "An old pirate wants to leave his treasure on an island. He has 3500 gold coins. He wants to spread this equally across 5 chests. Additionally, he will put a total of 500 silver coins and twice as many bronze coins as silver, all distributed equally across the chests. How many coins in total will be in each chest?",
+      "answer": "1000"
+    },
+    {
+      "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+      "answer": "40"
+    },
+    {
+      "question": "A portable battery charger can fully charge a smartphone in 26 minutes or a tablet in 53 minutes. Ana charged her tablet fully and her phone halfway. How many minutes did it take?",
+      "answer": "66"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "Stefan goes to a restaurant to eat dinner with his family. They order an appetizer that costs $10 and 4 entrees that are $20 each. If they tip 20% of the total for the waiter, what is the total amount of money that they spend at the restaurant?",
+      "expected_answer": "108",
+      "model_output": "Let's solve the problem step by step.\n\n**Step 1: Find the cost of the appetizer.**  \nThe appetizer costs \\$10.\n\n**Step 2: Find the total cost of the entrees.**  \nThere are 4 entrees, each costing \\$20.  \nTotal cost of entrees = 4 \u00d7 \\$20 = \\$80.\n\n**Step 3: Find the subtotal (before tip).**  \nSubtotal = cost of appetizer + cost of entrees  \nSubtotal = \\$10 + \\$80 = \\$90.\n\n**Step 4: Calculate the tip.**  \nTip is 20% of the subtotal.  \nTip = 20% of \\$90 = 0.20 \u00d7 \\$90 = \\$18.\n\n**Step 5: Find the total amount spent (including tip).**  \nTotal = subtotal + tip = \\$90 + \\$18 = \\$108.\n\n**Final answer:**  \n\\(\\boxed{\\$108}\\)",
+      "extracted_answer": "0.20",
+      "score": 0.0
+    },
+    {
+      "question": "McKenna has 34 stuffed animals. Kenley has twice as many as McKenna.  Tenly has 5 more than Kenley . How many stuffed animals do the three girls have in all?",
+      "expected_answer": "175",
+      "model_output": "Let's solve this problem step by step.\n\n**Step 1: Find how many stuffed animals Kenley has.**\n\n- McKenna has 34 stuffed animals.\n- Kenley has twice as many as McKenna.\n\nSo,  \nKenley's stuffed animals = 2 \u00d7 McKenna's stuffed animals  \n= 2 \u00d7 34  \n= 68\n\n**Step 2: Find how many stuffed animals Tenly has.**\n\n- Tenly has 5 more than Kenley.\n\nSo,  \nTenly's stuffed animals = Kenley's stuffed animals + 5  \n= 68 + 5  \n= 73\n\n**Step 3: Find the total number of stuffed animals the three girls have.**\n\nTotal = McKenna's + Kenley's + Tenly's  \n= 34 + 68 + 73\n\nLet's add these:\n\n34 + 68 = 102  \n102 + 73 = 175\n\n**Final answer:**\n\n\\[\n\\boxed{175}\n\\]\n\nThe three girls have **175** stuffed animals in total.",
+      "extracted_answer": "175",
+      "score": 1.0
+    },
+    {
+      "question": "An old pirate wants to leave his treasure on an island. He has 3500 gold coins. He wants to spread this equally across 5 chests. Additionally, he will put a total of 500 silver coins and twice as many bronze coins as silver, all distributed equally across the chests. How many coins in total will be in each chest?",
+      "expected_answer": "1000",
+      "model_output": "Let's break down the problem step by step.\n\n### Step 1: Distribute the gold coins\n- Total gold coins = 3500\n- Number of chests = 5\n\n**Gold coins per chest:**\n\\[\n\\frac{3500}{5} = 700\n\\]\n\n### Step 2: Determine the silver coins\n- Total silver coins = 500\n- These are to be distributed equally across 5 chests.\n\n**Silver coins per chest:**\n\\[\n\\frac{500}{5} = 100\n\\]\n\n### Step 3: Determine the bronze coins\n- The number of bronze coins is twice the number of silver coins.\n- Total silver coins = 500, so:\n\\[\n\\text{Bronze coins} = 2 \\times 500 = 1000\n\\]\n\n- These are also distributed equally across 5 chests:\n\\[\n\\frac{1000}{5} = 200\n\\]\n\n### Step 4: Calculate total coins per chest\n- Gold per chest = 700\n- Silver per chest = 100\n- Bronze per chest = 200\n\n**Total coins per chest:**\n\\[\n700 + 100 + 200 = 1000\n\\]\n\n### **Final answer:**\n**Each chest will contain \\(\\boxed{1000}\\) coins in total.**",
+      "extracted_answer": "1000",
+      "score": 1.0
+    },
+    {
+      "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+      "expected_answer": "40",
+      "model_output": "Let's solve the problem step by step:\n\n**Step 1:** Find the total number of songs on the tape.\n- First side has 6 songs.\n- Second side has 4 songs.\n- Total songs = 6 + 4 = 10 songs.\n\n**Step 2:** Find the total duration of all the songs.\n- Each song is 4 minutes long.\n- Total minutes = number of songs \u00d7 minutes per song = 10 \u00d7 4 = 40 minutes.\n\n**Final answer:**\nThe total length of the tape is **40 minutes**.",
+      "extracted_answer": "40",
+      "score": 1.0
+    },
+    {
+      "question": "A portable battery charger can fully charge a smartphone in 26 minutes or a tablet in 53 minutes. Ana charged her tablet fully and her phone halfway. How many minutes did it take?",
+      "expected_answer": "66",
+      "model_output": "Let's analyze the problem step by step.\n\n**Step 1: Define variables for charging rates**\n\n- Let \\( R_{phone} \\) be the rate at which the charger charges the phone (fraction of phone charged per minute).\n- Let \\( R_{tablet} \\) be the rate at which the charger charges the tablet (fraction of tablet charged per minute).\n\n**Step 2: Write the rates based on given times**\n\n- The charger fully charges the phone in 26 minutes:\n  \\[\n  R_{phone} = \\frac{1 \\text{ full charge}}{26 \\text{ minutes}} = \\frac{1}{26} \\text{ per minute}\n  \\]\n- The charger fully charges the tablet in 53 minutes:\n  \\[\n  R_{tablet} = \\frac{1}{53} \\text{ per minute}\n  \\]\n\n**Step 3: Find how long it takes to fully charge the tablet**\n\n- Since Ana charges her tablet fully, the time taken for that is:\n  \\[\n  T_{tablet} = 53 \\text{ minutes}\n  \\]\n\n- During this time, the phone is being charged simultaneously, but only halfway:\n  \\[\n  \\text{Phone charged fraction} = \\frac{1}{2}\n  \\]\n\n**Step 4: Find how much the phone is charged in the same time**\n\n- The phone's charging rate is \\( \\frac{1}{26} \\) per minute.\n- In \\( T_{tablet} = 53 \\) minutes, the phone charges:\n  \\[\n  \\text{Phone charged} = R_{phone} \\times T_{tablet} = \\frac{1}{26} \\times 53\n  \\]\n\nCalculate this:\n\n\\[\n\\frac{1}{26} \\times 53 = \\frac{53}{26}\n\\]\n\nSimplify:\n\n\\[\n\\frac{53}{26} = 2.0384615...\n\\]\n\n**Step 5: Compare the charged fraction to the actual fraction**\n\n- The phone's charged fraction after 53 minutes is approximately 2.038, which is more than 1 (full charge). But this can't be, because the phone can't be charged more than 100%. \n\n- This indicates that the phone's charging process is linear, and the total time to fully charge the phone is 26 minutes, so in 53 minutes, the phone would be fully charged (since 53 > 26). \n\n-",
+      "extracted_answer": "2.0384615",
+      "score": 0.0
+    }
+  ]
+}

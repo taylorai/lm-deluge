@@ -1,0 +1,74 @@
+{
+  "iteration": 9,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. For each user question, solve the problem step by step and provide the final numeric answer clearly.\n\nRequired behavior and format:\n- Read the user's question carefully and identify the arithmetic, percentage, ratio, or basic algebra needed.\n- Show concise, clear step-by-step reasoning that leads to the answer. Each step should be short and logical (no excessive prose).\n- Include any arithmetic or algebra used (e.g., division to find an average, multiplication for totals, percent-to-decimal conversion).\n- Compute accurately. Double-check arithmetic before producing the final answer.\n- Present the final answer at the end, clearly labeled. For numeric answers, give the simplified number (no extraneous formatting). If the question asks for a dollar amount, include the dollar sign with the numeric answer.\n- If intermediate quantities are used (e.g., average per person, total cost before tax), show them so the user can follow your work.\n\nStyle and tone:\n- Helpful, patient, and concise.\n- Use plain language and straightforward math notation. Avoid unnecessary decorative formatting.\n- Keep explanations short but complete \u2014 enough for a learner to understand each step.\n\nWhat to avoid:\n- Do not output irrelevant content, unrelated numbers, or wrong extracted fields.\n- Do not output only the final answer without the steps.\n- Do not output extraneous metadata (e.g., \"extracted_answer\" or duplicate blocks).\n- Do not produce contradictory outputs (e.g., showing a correct calculation but giving a different final number).\n- Do not give fractional or decimal representations when a simpler integer or exact simplified fraction is expected (unless the problem naturally requires it).\n\nExamples of how to solve common problem types:\n- Average per person: divide total by number of people, then subtract/add as required.\n- Percent problems: convert percent to decimal (35% -> 0.35), set up equation (0.35 * total = part) and solve.\n- Pricing with markup and discount: compute selling price = cost \u00d7 (1 + markup), then apply discount (selling price \u00d7 (1 - discount)).\n- Unit multiplication: multiply per-unit cost by number of units, then add fixed fees.\n\nWhen you are confident in the calculations, give the final answer in a single clear line labeled \"Final answer:\" followed by the number (and $ if money). Example:\nFinal answer: 15\n\nIf the question is ambiguous or missing necessary information, ask a clarifying question instead of guessing.\n\nFollow these rules for every response to help learners understand and verify your work."
+  },
+  "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 1.0,
+  "batch": [
+    {
+      "question": "4 friends are running a 4 x 100 relay race.  Mary ran first and took twice as long as Susan.  Susan ran second and she took 10 seconds longer than Jen.  Jen ran third and finished in 30 seconds.  Tiffany ran the last leg and finished in 7 seconds less than Mary.  How many seconds did it take the team to finish the race?",
+      "answer": "223"
+    },
+    {
+      "question": "John wants to start a zoo.  He has 15 snakes.  He has twice as many monkeys as he does snakes.  He has 5 fewer lions than he does monkeys.   John has 8 more pandas than he does lions.  John has 1/3 as many dogs as he does pandas.  How many total animals does John have?",
+      "answer": "114"
+    },
+    {
+      "question": "Jason's dog has a tail that's half the length of its body, and a head that's 1/6 the length of its body. If the dog is 30 inches long overall, how long is its tail?",
+      "answer": "9"
+    },
+    {
+      "question": "Marie has 98 unread messages on her phone. She decides to clear them by reading 20 messages a day. However, she also gets 6 new messages a day. How many days will it take her to read all her unread messages?",
+      "answer": "7"
+    },
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "answer": "18"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "4 friends are running a 4 x 100 relay race.  Mary ran first and took twice as long as Susan.  Susan ran second and she took 10 seconds longer than Jen.  Jen ran third and finished in 30 seconds.  Tiffany ran the last leg and finished in 7 seconds less than Mary.  How many seconds did it take the team to finish the race?",
+      "expected_answer": "223",
+      "model_output": "Let's define each person's time:\n\n- Jen's time: given as 30 seconds.\n- Mary: took twice as long as Susan.\n- Susan: took 10 seconds longer than Jen.\n- Tiffany: took 7 seconds less than Mary.\n\nStep 1: Find Susan's time.\nSusan's time = Jen's time + 10 seconds = 30 + 10 = 40 seconds.\n\nStep 2: Find Mary's time.\nMary's time = 2 \u00d7 Susan's time = 2 \u00d7 40 = 80 seconds.\n\nStep 3: Find Tiffany's time.\nTiffany's time = Mary's time - 7 = 80 - 7 = 73 seconds.\n\nStep 4: Find the total time for the team.\nTotal time = Jen + Susan + Mary + Tiffany\n= 30 + 40 + 80 + 73\n= 223 seconds.\n\nFinal answer: 223",
+      "extracted_answer": "223",
+      "score": 1.0
+    },
+    {
+      "question": "John wants to start a zoo.  He has 15 snakes.  He has twice as many monkeys as he does snakes.  He has 5 fewer lions than he does monkeys.   John has 8 more pandas than he does lions.  John has 1/3 as many dogs as he does pandas.  How many total animals does John have?",
+      "expected_answer": "114",
+      "model_output": "Let's find the total number of animals John has step by step.\n\n1. Snakes:  \n   John has 15 snakes.\n\n2. Monkeys:  \n   He has twice as many monkeys as snakes.  \n   Monkeys = 2 \u00d7 15 = 30\n\n3. Lions:  \n   He has 5 fewer lions than monkeys.  \n   Lions = 30 - 5 = 25\n\n4. Pandas:  \n   He has 8 more pandas than lions.  \n   Pandas = 25 + 8 = 33\n\n5. Dogs:  \n   He has 1/3 as many dogs as pandas.  \n   Dogs = (1/3) \u00d7 33 = 11\n\n6. Total animals:  \n   Sum all animals:  \n   Snakes (15) + Monkeys (30) + Lions (25) + Pandas (33) + Dogs (11) =  \n   15 + 30 + 25 + 33 + 11 = 114\n\nFinal answer: 114",
+      "extracted_answer": "114",
+      "score": 1.0
+    },
+    {
+      "question": "Jason's dog has a tail that's half the length of its body, and a head that's 1/6 the length of its body. If the dog is 30 inches long overall, how long is its tail?",
+      "expected_answer": "9",
+      "model_output": "Let's define the variables:\n\n- Let the length of the dog's body be B inches.\n- The tail length is half the body length: Tail = 1/2 * B.\n- The head length is 1/6 of the body length: Head = 1/6 * B.\n- The total length of the dog is the sum of body, tail, and head: 30 inches.\n\nStep 1: Write the total length equation:\n\nBody + Tail + Head = 30\n\nB + (1/2 * B) + (1/6 * B) = 30\n\nStep 2: Combine like terms:\n\nB + 0.5B + (1/6)B = 30\n\nConvert all to sixths to combine:\n\n(6/6)B + (3/6)B + (1/6)B = 30\n\n(6 + 3 + 1)/6 * B = 30\n\n(10/6) * B = 30\n\nStep 3: Simplify the fraction:\n\n(5/3) * B = 30\n\nStep 4: Solve for B:\n\nB = 30 * (3/5)\n\nB = (30 * 3) / 5\n\nB = 90 / 5\n\nB = 18 inches\n\nStep 5: Find the tail length:\n\nTail = 1/2 * B = 1/2 * 18 = 9 inches\n\nFinal answer: 9",
+      "extracted_answer": "9",
+      "score": 1.0
+    },
+    {
+      "question": "Marie has 98 unread messages on her phone. She decides to clear them by reading 20 messages a day. However, she also gets 6 new messages a day. How many days will it take her to read all her unread messages?",
+      "expected_answer": "7",
+      "model_output": "Let's analyze the problem step by step:\n\n1. Marie starts with 98 unread messages.\n2. Each day, she reads 20 messages.\n3. Each day, she also receives 6 new messages.\n4. Net change in unread messages per day = messages read - new messages received = 20 - 6 = 14 messages decrease per day.\n\nNow, determine how many days it takes to clear all messages:\n\n- Since the total messages decrease by 14 each day, divide the initial total by 14:\n\n98 \u00f7 14 = 7 days\n\nCheck if she finishes exactly after 7 days:\n\n- Total messages read in 7 days = 7 \u00d7 20 = 140 messages.\n- Total new messages received in 7 days = 7 \u00d7 6 = 42 messages.\n- Total messages cleared (read + new messages) = 140 + 42 = 182 messages.\n\nBut since she only started with 98 messages, and the net decrease per day is 14, she will clear all messages in exactly 7 days.\n\nFinal answer: 7",
+      "extracted_answer": "7",
+      "score": 1.0
+    },
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "expected_answer": "18",
+      "model_output": "1. Phillip has 40 apples.\n\n2. Ben has 8 more apples than Phillip:\n   Ben's apples = Phillip's apples + 8 = 40 + 8 = 48\n\n3. Tom has three eighths (3/8) as many apples as Ben:\n   Tom's apples = (3/8) \u00d7 Ben's apples = (3/8) \u00d7 48\n\n4. Calculate Tom's apples:\n   (3/8) \u00d7 48 = 3 \u00d7 (48 \u00f7 8) = 3 \u00d7 6 = 18\n\nFinal answer: 18",
+      "extracted_answer": "18",
+      "score": 1.0
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "iteration": 3,
+  "tag": "eval_after",
+  "candidate": {
+    "system_prompt": "You are an assistant designed to solve math problems in a detailed step-by-step manner. Follow these instructions to effectively carry out your task:\n\n1. **Understanding the Problem:**\n   - Read the problem statement carefully.\n   - Identify key information such as numbers, units, and what is being asked.\n\n2. **Performing Calculations:**\n   - Break down the problem into smaller steps. \n   - Show each calculation and explain why that step is necessary.\n   - Use intermediate results to build towards the final answer.\n\n3. **Provide a Step-by-Step Solution:**\n   - Document each step clearly and concisely.\n   - Check that each step logically follows from the previous one.\n   - Ensure that all operations are clear and that each conclusion is justified by the calculations.\n\n4. **Check the Answer:**\n   - After solving, review each step for accuracy.\n   - Verify that the final answer addresses the question posed in the problem.\n\n5. **Formatting:**\n   - Clearly label steps in sequential order.\n   - Use mathematical symbols and notations correctly.\n   - If applicable, use units in the calculations and final answer.\n\n6. **Avoiding Common Errors:**\n   - Double-check arithmetic calculations for errors.\n   - Ensure correct usage of mathematical principles and formulas.\n   - Avoid skipping steps, as it can lead to misunderstandings or errors.\n\nBy following these guidelines, you will improve your workflow and ensure accurate and comprehensible solutions for any given math problem."
+  },
+  "scores": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_score": 0.0,
+  "batch": [
+    {
+      "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+      "answer": "360000"
+    },
+    {
+      "question": "Mitzel spent 35% of her allowance. If she spent $14, how much money is left in her allowance?",
+      "answer": "26"
+    },
+    {
+      "question": "The gauge on a water tank shows that the tank is 1/3 full of water. To fill the tank, 16 gallons of water are added. How many gallons of water does the tank hold when full?",
+      "answer": "24"
+    }
+  ],
+  "trajectories": []
+}

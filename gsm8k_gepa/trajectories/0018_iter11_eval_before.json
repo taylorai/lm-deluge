@@ -1,0 +1,74 @@
+{
+  "iteration": 11,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. For each math problem input, produce a clear, correct, and concise step-by-step solution that leads to the final numeric answer. Follow these rules:\n\n1. Input format\n   - The input will contain a single math question in plain text. Do not expect additional metadata.\n   - Return a solution and the final answer.\n\n2. Content and style\n   - Begin by restating or briefly summarizing the key givens/unknowns in one or two sentences or by defining variables.\n   - Show each logical step used to reach the answer. Use simple algebraic notation where helpful (e.g., let x = ... ; write equations; simplify).\n   - Keep explanations concise and focused. Avoid unnecessary commentary or unrelated information.\n   - Provide a final line clearly marked as the final answer (for example: \"Final answer: 223\" or \"Final answer: $13\"). The final answer should be a number (include units if the problem uses them).\n\n3. Accuracy\n   - Perform all arithmetic correctly. Double-check calculations before outputting.\n   - Use percentages, fractions, and decimals consistently and correctly. If converting (e.g., 35% -> 0.35), show that conversion briefly.\n   - If the problem statement yields a symbolic variable (e.g., x) you should solve for it unless the task explicitly asks for an expression.\n\n4. Formatting\n   - Use short, numbered or clearly separated step lines for readability.\n   - Avoid heavy markup (no LaTeX blocks, no markdown headings). Simple inline math and plain text are fine.\n   - Do not output anything other than the solution (no meta commentary such as \"I think\" or \"As an AI\").\n\n5. Edge cases and errors\n   - If the question is ambiguous, state the ambiguity in one short sentence, state a reasonable assumption, then proceed with the solution using that assumption.\n   - If the question is impossible or inconsistent, explain briefly why and stop (no invented numbers).\n   - Never produce an unrelated value as the \"extracted\" answer or return a non-numeric result when a numeric answer is expected.\n\n6. Tone\n   - Friendly and instructional, but concise. Aim to teach \u2014 show the steps so the user can follow the reasoning.\n\nExamples of good output style (concise):\n- Define variables / restate givens\n- Write equations or key calculations\n- Show arithmetic steps\n- Final answer on its own line\n\nFollow these rules for every problem to produce correct, readable step-by-step solutions with a clear final numeric answer."
+  },
+  "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 1.0,
+  "batch": [
+    {
+      "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+      "answer": "360000"
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "answer": "1350"
+    },
+    {
+      "question": "Corna wants to buy a shirt. The store buys the shirt for $20, but charges 30% for profit. However, the shirt is on sale for 50% off the selling price. What is the price now?",
+      "answer": "13"
+    },
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "answer": "18"
+    },
+    {
+      "question": "The gauge on a water tank shows that the tank is 1/3 full of water. To fill the tank, 16 gallons of water are added. How many gallons of water does the tank hold when full?",
+      "answer": "24"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+      "expected_answer": "360000",
+      "model_output": "1. Number of units in the building = 100.\n\n2. The building is 3/4 occupied for the whole year, so the average number of occupied units per month = (3/4) \u00d7 100 = 75 units.\n\n3. Each resident pays $400 per month.\n\n4. Monthly rent collected = 75 units \u00d7 $400 = $30,000.\n\n5. Since this occupancy is maintained for 12 months, total annual rent = $30,000 \u00d7 12 = $360,000.\n\nFinal answer: $360,000",
+      "extracted_answer": "360000",
+      "score": 1.0
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "expected_answer": "1350",
+      "model_output": "1. There are 15 books, each with 30 puzzles, so the total number of puzzles is 15 \u00d7 30 = 450.\n\n2. The average time to find Waldo in one puzzle is 3 minutes.\n\n3. To find the total time to find Waldo in all puzzles, multiply the total number of puzzles by the time per puzzle: 450 \u00d7 3 = 1350 minutes.\n\nFinal answer: 1350 minutes.",
+      "extracted_answer": "1350",
+      "score": 1.0
+    },
+    {
+      "question": "Corna wants to buy a shirt. The store buys the shirt for $20, but charges 30% for profit. However, the shirt is on sale for 50% off the selling price. What is the price now?",
+      "expected_answer": "13",
+      "model_output": "1. The store's cost price for the shirt is $20.\n\n2. The store adds a 30% profit margin on the cost price.  \n   Selling price before discount = cost price + 30% of cost price  \n   = 20 + 0.30 \u00d7 20  \n   = 20 + 6  \n   = $26\n\n3. The shirt is on sale for 50% off the selling price.  \n   Sale price = 50% of the original selling price  \n   = 0.50 \u00d7 26  \n   = $13\n\nFinal answer: $13",
+      "extracted_answer": "13",
+      "score": 1.0
+    },
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "expected_answer": "18",
+      "model_output": "1. Givens:\n   - Phillip has 40 apples.\n   - Ben has 8 more apples than Phillip.\n   - Tom has three eighths (3/8) as many apples as Ben.\n\n2. Find Ben's apples:\n   - Ben = Phillip's apples + 8 = 40 + 8 = 48.\n\n3. Find Tom's apples:\n   - Tom = (3/8) \u00d7 Ben = (3/8) \u00d7 48.\n\n4. Calculate Tom's apples:\n   - (3/8) \u00d7 48 = 3 \u00d7 (48 \u00f7 8) = 3 \u00d7 6 = 18.\n\nFinal answer: 18 apples.",
+      "extracted_answer": "18",
+      "score": 1.0
+    },
+    {
+      "question": "The gauge on a water tank shows that the tank is 1/3 full of water. To fill the tank, 16 gallons of water are added. How many gallons of water does the tank hold when full?",
+      "expected_answer": "24",
+      "model_output": "1. Let the total capacity of the tank be T gallons.\n\n2. The tank is currently 1/3 full, so the amount of water currently in the tank is (1/3) * T gallons.\n\n3. After adding 16 gallons, the tank becomes full, meaning the total amount of water after addition is T gallons.\n\n4. Set up the equation: current water + 16 gallons = full capacity\n   (1/3) * T + 16 = T\n\n5. Subtract (1/3) * T from both sides:\n   16 = T - (1/3) * T\n\n6. Simplify the right side:\n   T - (1/3) * T = (1 - 1/3) * T = (2/3) * T\n\n7. So, 16 = (2/3) * T\n\n8. Solve for T:\n   T = 16 * (3/2) = (16 * 3) / 2 = 48 / 2 = 24\n\nFinal answer: 24 gallons",
+      "extracted_answer": "24",
+      "score": 1.0
+    }
+  ]
+}

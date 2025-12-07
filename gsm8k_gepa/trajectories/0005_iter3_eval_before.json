@@ -1,0 +1,74 @@
+{
+  "iteration": 3,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Solve math problems step by step."
+  },
+  "scores": [
+    1.0,
+    1.0,
+    0.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 0.8,
+  "batch": [
+    {
+      "question": "4 friends are running a 4 x 100 relay race.  Mary ran first and took twice as long as Susan.  Susan ran second and she took 10 seconds longer than Jen.  Jen ran third and finished in 30 seconds.  Tiffany ran the last leg and finished in 7 seconds less than Mary.  How many seconds did it take the team to finish the race?",
+      "answer": "223"
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "answer": "1350"
+    },
+    {
+      "question": "Corna wants to buy a shirt. The store buys the shirt for $20, but charges 30% for profit. However, the shirt is on sale for 50% off the selling price. What is the price now?",
+      "answer": "13"
+    },
+    {
+      "question": "Thomas, Toby, and Rebecca worked a total of 157 hours in one week.  Thomas worked x hours.  Toby worked 10 hours less than twice what Thomas worked, and Rebecca worked 8 hours less than Toby.  How many hours did Rebecca work?",
+      "answer": "56"
+    },
+    {
+      "question": "Mitzel spent 35% of her allowance. If she spent $14, how much money is left in her allowance?",
+      "answer": "26"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "4 friends are running a 4 x 100 relay race.  Mary ran first and took twice as long as Susan.  Susan ran second and she took 10 seconds longer than Jen.  Jen ran third and finished in 30 seconds.  Tiffany ran the last leg and finished in 7 seconds less than Mary.  How many seconds did it take the team to finish the race?",
+      "expected_answer": "223",
+      "model_output": "Let's define variables for each friend's running time:\n\n- Let \\( M \\) = time taken by Mary\n- Let \\( S \\) = time taken by Susan\n- Let \\( J \\) = time taken by Jen\n- Let \\( T \\) = time taken by Tiffany\n\nGiven information:\n\n1. Mary ran first and took twice as long as Susan:\n   \\[\n   M = 2S\n   \\]\n\n2. Susan ran second and took 10 seconds longer than Jen:\n   \\[\n   S = J + 10\n   \\]\n\n3. Jen ran third and finished in 30 seconds:\n   \\[\n   J = 30\n   \\]\n\n4. Tiffany ran last and finished in 7 seconds less than Mary:\n   \\[\n   T = M - 7\n   \\]\n\n---\n\n**Step 1:** Find \\( S \\) using \\( J \\):\n\n\\[\nJ = 30\n\\]\n\\[\nS = J + 10 = 30 + 10 = 40\n\\]\n\n**Step 2:** Find \\( M \\) using \\( S \\):\n\n\\[\nM = 2S = 2 \\times 40 = 80\n\\]\n\n**Step 3:** Find \\( T \\) using \\( M \\):\n\n\\[\nT = M - 7 = 80 - 7 = 73\n\\]\n\n---\n\n**Step 4:** Find the total time for the team:\n\n\\[\n\\text{Total time} = M + S + J + T\n\\]\n\\[\n= 80 + 40 + 30 + 73\n\\]\n\\[\n= (80 + 40) + (30 + 73) = 120 + 103 = 223\n\\]\n\n**Final answer:**\n\n\\[\n\\boxed{223 \\text{ seconds}}\n\\]\n\nThe team finished the race in **223 seconds**.",
+      "extracted_answer": "223",
+      "score": 1.0
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "expected_answer": "1350",
+      "model_output": "Let's break down the problem step by step:\n\n**Step 1: Find the total number of puzzles.**  \nThere are 15 books, each with 30 puzzles.  \nTotal puzzles = 15 books \u00d7 30 puzzles per book = 450 puzzles\n\n**Step 2: Find the time it takes to find Waldo in one puzzle.**  \nGiven: 3 minutes per puzzle\n\n**Step 3: Calculate the total time to find Waldo in all puzzles.**  \nTotal time = number of puzzles \u00d7 time per puzzle  \nTotal time = 450 puzzles \u00d7 3 minutes = 1350 minutes\n\n**Final answer:**  \nIt would take **1350 minutes** to find Waldo in every puzzle across all 15 books.",
+      "extracted_answer": "1350",
+      "score": 1.0
+    },
+    {
+      "question": "Corna wants to buy a shirt. The store buys the shirt for $20, but charges 30% for profit. However, the shirt is on sale for 50% off the selling price. What is the price now?",
+      "expected_answer": "13",
+      "model_output": "Let's go through the problem step by step.\n\n**Step 1: Find the original selling price (before the discount).**\n\n- The store buys the shirt for \\$20.\n- The store charges a 30% profit on the cost price.\n\n**Step 2: Calculate the selling price (before the sale discount).**\n\n- Profit amount = 30% of \\$20 = 0.30 \u00d7 \\$20 = \\$6\n- Selling price = cost price + profit = \\$20 + \\$6 = **\\$26**\n\n**Step 3: Apply the 50% discount on the selling price.**\n\n- Discount amount = 50% of \\$26 = 0.50 \u00d7 \\$26 = \\$13\n- Sale price = original selling price - discount = \\$26 - \\$13 = **\\$13**\n\n---\n\n**Final answer: The price of the shirt now is \\(\\boxed{\\$13}\\).**",
+      "extracted_answer": "0.50",
+      "score": 0.0
+    },
+    {
+      "question": "Thomas, Toby, and Rebecca worked a total of 157 hours in one week.  Thomas worked x hours.  Toby worked 10 hours less than twice what Thomas worked, and Rebecca worked 8 hours less than Toby.  How many hours did Rebecca work?",
+      "expected_answer": "56",
+      "model_output": "Let's define the variables based on the problem:\n\n- Thomas worked \\( x \\) hours.\n- Toby worked 10 hours less than twice what Thomas worked, so Toby's hours = \\( 2x - 10 \\).\n- Rebecca worked 8 hours less than Toby, so Rebecca's hours = \\( (2x - 10) - 8 \\).\n\nStep 1: Write the total hours worked by all three:\n\n\\[\n\\text{Thomas} + \\text{Toby} + \\text{Rebecca} = 157\n\\]\n\nSubstitute the expressions:\n\n\\[\nx + (2x - 10) + [(2x - 10) - 8] = 157\n\\]\n\nStep 2: Simplify the expression:\n\n\\[\nx + 2x - 10 + 2x - 10 - 8 = 157\n\\]\n\nCombine like terms:\n\n\\[\nx + 2x + 2x - 10 - 10 - 8 = 157\n\\]\n\n\\[\n(1x + 2x + 2x) - (10 + 10 + 8) = 157\n\\]\n\n\\[\n5x - 28 = 157\n\\]\n\nStep 3: Solve for \\( x \\):\n\nAdd 28 to both sides:\n\n\\[\n5x = 157 + 28\n\\]\n\\[\n5x = 185\n\\]\n\nDivide both sides by 5:\n\n\\[\nx = \\frac{185}{5} = 37\n\\]\n\nSo, Thomas worked **37 hours**.\n\nStep 4: Find Toby's hours:\n\n\\[\n2x - 10 = 2(37) - 10 = 74 - 10 = 64\n\\]\n\nToby worked **64 hours**.\n\nStep 5: Find Rebecca's hours:\n\n\\[\n(2x - 10) - 8 = 64 - 8 = 56\n\\]\n\nRebecca worked **56 hours**.\n\n**Final answer: Rebecca worked \\(\\boxed{56}\\) hours.**",
+      "extracted_answer": "56",
+      "score": 1.0
+    },
+    {
+      "question": "Mitzel spent 35% of her allowance. If she spent $14, how much money is left in her allowance?",
+      "expected_answer": "26",
+      "model_output": "Let's solve the problem step by step.\n\n**Step 1: Understand what is given.**  \n- Mitzel spent 35% of her allowance.\n- The amount she spent is $14.\n\n**Step 2: Find the total allowance.**  \nSince $14 represents 35% of her allowance, we can set up the equation:\n\n\\[\n0.35 \\times \\text{Allowance} = 14\n\\]\n\n**Step 3: Solve for the allowance.**  \nDivide both sides of the equation by 0.35:\n\n\\[\n\\text{Allowance} = \\frac{14}{0.35}\n\\]\n\nCalculate:\n\n\\[\n\\text{Allowance} = 14 \\div 0.35\n\\]\n\n\\[\n\\text{Allowance} = 40\n\\]\n\nSo, her total allowance is **$40**.\n\n**Step 4: Find how much money is left.**  \nShe spent $14, which is 35% of her allowance. The remaining amount is:\n\n\\[\n\\text{Remaining} = \\text{Total allowance} - \\text{Spent}\n\\]\n\n\\[\n\\text{Remaining} = 40 - 14 = 26\n\\]\n\n**Final answer:**\n\n\\[\n\\boxed{\\$26}\n\\]\n\nMitzel has **$26** left in her allowance.",
+      "extracted_answer": "26",
+      "score": 1.0
+    }
+  ]
+}

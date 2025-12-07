@@ -1,0 +1,74 @@
+{
+  "iteration": 6,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. For each math problem input, produce a clear, correct, and concise step-by-step solution that leads to the final numeric answer. Follow these rules:\n\n1. Input format\n   - The input will contain a single math question in plain text. Do not expect additional metadata.\n   - Return a solution and the final answer.\n\n2. Content and style\n   - Begin by restating or briefly summarizing the key givens/unknowns in one or two sentences or by defining variables.\n   - Show each logical step used to reach the answer. Use simple algebraic notation where helpful (e.g., let x = ... ; write equations; simplify).\n   - Keep explanations concise and focused. Avoid unnecessary commentary or unrelated information.\n   - Provide a final line clearly marked as the final answer (for example: \"Final answer: 223\" or \"Final answer: $13\"). The final answer should be a number (include units if the problem uses them).\n\n3. Accuracy\n   - Perform all arithmetic correctly. Double-check calculations before outputting.\n   - Use percentages, fractions, and decimals consistently and correctly. If converting (e.g., 35% -> 0.35), show that conversion briefly.\n   - If the problem statement yields a symbolic variable (e.g., x) you should solve for it unless the task explicitly asks for an expression.\n\n4. Formatting\n   - Use short, numbered or clearly separated step lines for readability.\n   - Avoid heavy markup (no LaTeX blocks, no markdown headings). Simple inline math and plain text are fine.\n   - Do not output anything other than the solution (no meta commentary such as \"I think\" or \"As an AI\").\n\n5. Edge cases and errors\n   - If the question is ambiguous, state the ambiguity in one short sentence, state a reasonable assumption, then proceed with the solution using that assumption.\n   - If the question is impossible or inconsistent, explain briefly why and stop (no invented numbers).\n   - Never produce an unrelated value as the \"extracted\" answer or return a non-numeric result when a numeric answer is expected.\n\n6. Tone\n   - Friendly and instructional, but concise. Aim to teach \u2014 show the steps so the user can follow the reasoning.\n\nExamples of good output style (concise):\n- Define variables / restate givens\n- Write equations or key calculations\n- Show arithmetic steps\n- Final answer on its own line\n\nFollow these rules for every problem to produce correct, readable step-by-step solutions with a clear final numeric answer."
+  },
+  "scores": [
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 1.0,
+  "batch": [
+    {
+      "question": "An old pirate wants to leave his treasure on an island. He has 3500 gold coins. He wants to spread this equally across 5 chests. Additionally, he will put a total of 500 silver coins and twice as many bronze coins as silver, all distributed equally across the chests. How many coins in total will be in each chest?",
+      "answer": "1000"
+    },
+    {
+      "question": "A portable battery charger can fully charge a smartphone in 26 minutes or a tablet in 53 minutes. Ana charged her tablet fully and her phone halfway. How many minutes did it take?",
+      "answer": "66"
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "answer": "1350"
+    },
+    {
+      "question": "5 squirrels collected 575 acorns. If each squirrel needs 130 acorns to get through the winter, how many more acorns does each squirrel need to collect?",
+      "answer": "15"
+    },
+    {
+      "question": "Brady will make $450 more in a year than Dwayne. If Dwayne makes $1,500 in a year, how much will Brady and Dwayne make combined in a year?",
+      "answer": "3450"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "An old pirate wants to leave his treasure on an island. He has 3500 gold coins. He wants to spread this equally across 5 chests. Additionally, he will put a total of 500 silver coins and twice as many bronze coins as silver, all distributed equally across the chests. How many coins in total will be in each chest?",
+      "expected_answer": "1000",
+      "model_output": "1. The pirate has 3500 gold coins to be divided equally into 5 chests.\n\n2. Gold coins per chest = 3500 \u00f7 5 = 700 coins.\n\n3. Total silver coins = 500.\n\n4. Silver coins per chest = 500 \u00f7 5 = 100 coins.\n\n5. Bronze coins are twice as many as silver coins, so total bronze coins = 2 \u00d7 500 = 1000.\n\n6. Bronze coins per chest = 1000 \u00f7 5 = 200 coins.\n\n7. Total coins per chest = gold + silver + bronze = 700 + 100 + 200 = 1000 coins.\n\nFinal answer: 1000 coins per chest.",
+      "extracted_answer": "1000",
+      "score": 1.0
+    },
+    {
+      "question": "A portable battery charger can fully charge a smartphone in 26 minutes or a tablet in 53 minutes. Ana charged her tablet fully and her phone halfway. How many minutes did it take?",
+      "expected_answer": "66",
+      "model_output": "1. Let the charging rate be R (percentage per minute).  \n2. The time to fully charge the smartphone is 26 minutes, so the total charge (100%) is achieved in 26 minutes: R \u00d7 26 = 100%.  \n3. Therefore, R = 100% / 26 \u2248 3.846% per minute.  \n4. The time to fully charge the tablet is 53 minutes, so R \u00d7 53 = 100%.  \n5. Check R: R = 100% / 53 \u2248 1.887% per minute.  \n6. Since the rates are different, the problem implies the charger can deliver different rates for each device, or that the rates are based on the device's capacity.  \n7. To proceed, assume the charger supplies power at a rate that fully charges each device in the given time, meaning the charger\u2019s power is sufficient for both, but the devices have different capacities.  \n8. The tablet is fully charged in 53 minutes, so the total capacity of the tablet is 100%.  \n9. Ana charged her tablet fully (53 minutes) and her phone halfway (which is 50%).  \n10. The phone's full charge takes 26 minutes, so halfway is 13 minutes.  \n11. Total time = time to charge the tablet (53 min) + time to charge the phone halfway (13 min).  \n12. Since the tablet was charged fully in 53 minutes, and the phone was charged halfway in 13 minutes, and these are sequential charges, total time = 53 + 13 = 66 minutes.  \n\nFinal answer: 66 minutes",
+      "extracted_answer": "66",
+      "score": 1.0
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "expected_answer": "1350",
+      "model_output": "1. Total number of puzzles: 15 books \u00d7 30 puzzles per book = 450 puzzles.\n\n2. Time taken to find Waldo in one puzzle: 3 minutes.\n\n3. Total time to find Waldo in all puzzles: 450 puzzles \u00d7 3 minutes per puzzle = 1350 minutes.\n\nFinal answer: 1350 minutes.",
+      "extracted_answer": "1350",
+      "score": 1.0
+    },
+    {
+      "question": "5 squirrels collected 575 acorns. If each squirrel needs 130 acorns to get through the winter, how many more acorns does each squirrel need to collect?",
+      "expected_answer": "15",
+      "model_output": "1. Total acorns collected by 5 squirrels: 575 acorns.\n\n2. Each squirrel needs 130 acorns to get through winter.\n\n3. Total acorns needed for all 5 squirrels: 5 \u00d7 130 = 650 acorns.\n\n4. The difference between needed acorns and collected acorns: 650 - 575 = 75 acorns.\n\n5. Since the acorns are to be distributed equally among the 5 squirrels, each squirrel needs: 75 \u00f7 5 = 15 acorns.\n\nFinal answer: Each squirrel needs to collect 15 more acorns.",
+      "extracted_answer": "15",
+      "score": 1.0
+    },
+    {
+      "question": "Brady will make $450 more in a year than Dwayne. If Dwayne makes $1,500 in a year, how much will Brady and Dwayne make combined in a year?",
+      "expected_answer": "3450",
+      "model_output": "1. Dwayne makes $1,500 in a year.\n2. Brady will make $450 more than Dwayne, so Brady's income = 1500 + 450 = $1,950.\n3. To find the combined income of Brady and Dwayne, add their amounts: 1500 + 1950 = $3,450.\n4. Final answer: $3,450.",
+      "extracted_answer": "3450.",
+      "score": 1.0
+    }
+  ]
+}

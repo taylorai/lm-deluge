@@ -1,0 +1,74 @@
+{
+  "iteration": 10,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Follow these rules every time you solve a math problem.\n\n1. Goal and style\n   - Solve the given math problem step by step, showing clear reasoning that a student can follow.\n   - Keep explanations concise, organized, and in plain language. Use numbered steps or short paragraphs.\n   - Provide the final numeric answer clearly and unambiguously at the end (e.g., \"Answer: 18\").\n   - When requested, also provide a brief verification or check of the answer.\n\n2. Input format\n   - The problem will be given as a natural-language question. Do not expect any special markup.\n   - If the input contains explicit numerical values (e.g., \"Phillip has 40 apples\"), use them directly.\n   - If the problem is ambiguous, state the reasonable assumption(s) you make, then solve using them.\n\n3. Problem solving process (always follow)\n   - Restate the important givens in one short line or bullet list.\n   - Translate relationships into simple algebra or arithmetic expressions.\n   - Solve step by step, performing arithmetic or algebraic manipulations and showing intermediate results.\n   - Keep each step focused (one small inference per step).\n   - After solving, compute and display the final result clearly.\n\n4. Common pitfalls to avoid\n   - Do not output an unrelated or incorrect \"extracted_answer\" or other stray tokens. Only give the worked solution and a clear final answer.\n   - Do not omit intermediate arithmetic that could cause the final answer to be misread.\n   - Do not return only the question, or only a restatement without solving.\n   - If the problem asks for an integer number of days or items, ensure you interpret and present rounding/truncation explicitly (e.g., if you get a non-integer, explain how to round or if partial days count).\n\n5. Formatting rules\n   - Use plain text. Avoid heavy markup like LaTeX unless needed for clarity; simple inline expressions are fine (e.g., \"3/8 \u00d7 48 = 18\").\n   - Mark the final answer clearly, e.g., \"Answer: 18\" or \"Final answer: 7\".\n   - If you show a boxed form, ensure the numeric answer is also given plainly (e.g., \"Final answer: 18\").\n\n6. Verification (brief)\n   - When reasonable, quickly verify the result with a one-line check (e.g., \"Check: 3/8 of 48 = 18\").\n\n7. Tone and pedagogy\n   - Be polite and encouraging: use neutral, supportive language aimed at helping the learner understand.\n   - Avoid unnecessary verbosity; be clear and to the point.\n\nExamples of correct behavior:\n   - For \"Phillip has 40 apples...\" restate givens, compute Ben = 40+8 = 48, then Tom = 3/8\u00d748 = 18, then \"Answer: 18\".\n   - For iterative processes (e.g., messages per day), compute net change per day, set up equation, solve for integer days, and verify.\n\nIf you cannot solve because information is missing or contradictory, say so and ask for clarification, specifying what is needed."
+  },
+  "scores": [
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 0.8,
+  "batch": [
+    {
+      "question": "New York recorded 5000 new coronavirus cases on a particular week. In the second week, half as many new coronaviruses cases as the first week was recorded by the state. In the third week, 2000 more cases were recorded in the state. What is the total number of recorded new coronaviruses in the state after the three weeks?",
+      "answer": "9500"
+    },
+    {
+      "question": "It was Trevor's job to collect fresh eggs from the family's 4 chickens every morning.   He got 4 eggs from Gertrude and 3 eggs from Blanche.  Nancy laid 2 eggs as did Martha.  On the way, he dropped 2 eggs.  How many eggs did Trevor have left?",
+      "answer": "9"
+    },
+    {
+      "question": "Thomas, Toby, and Rebecca worked a total of 157 hours in one week.  Thomas worked x hours.  Toby worked 10 hours less than twice what Thomas worked, and Rebecca worked 8 hours less than Toby.  How many hours did Rebecca work?",
+      "answer": "56"
+    },
+    {
+      "question": "When Jason plays the video game, Duty for Ashes, his mission to slay the dragon hoard requires that he fire his weapon on average every 15 seconds.   And each time he fires his weapon, his power-fire setting allows him to shoot a flame for 5 seconds.  On average, how many seconds per minute does Jason shoot flames at the dragon hoard?",
+      "answer": "20"
+    },
+    {
+      "question": "Frank invites his friends over to play video games. He bakes a pan of brownies before he arrives. He cuts 6 even columns and 3 even rows into the pan of brownies. If there are 6 people, including Frank, in total, how many brownies can they each eat?",
+      "answer": "3"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "New York recorded 5000 new coronavirus cases on a particular week. In the second week, half as many new coronaviruses cases as the first week was recorded by the state. In the third week, 2000 more cases were recorded in the state. What is the total number of recorded new coronaviruses in the state after the three weeks?",
+      "expected_answer": "9500",
+      "model_output": "Let's restate the given information:\n\n- Week 1: 5000 new cases\n- Week 2: half as many cases as Week 1\n- Week 3: 2000 more cases than Week 2\n\nStep 1: Find the number of cases in Week 2.\n- Since Week 2 is half of Week 1:\n  Week 2 = 1/2 \u00d7 5000 = 2500\n\nStep 2: Find the number of cases in Week 3.\n- Week 3 = Week 2 + 2000 = 2500 + 2000 = 4500\n\nStep 3: Find the total cases over the three weeks.\n- Total = Week 1 + Week 2 + Week 3\n- Total = 5000 + 2500 + 4500 = 12,000\n\nAnswer: 12,000",
+      "extracted_answer": "12000",
+      "score": 0.0
+    },
+    {
+      "question": "It was Trevor's job to collect fresh eggs from the family's 4 chickens every morning.   He got 4 eggs from Gertrude and 3 eggs from Blanche.  Nancy laid 2 eggs as did Martha.  On the way, he dropped 2 eggs.  How many eggs did Trevor have left?",
+      "expected_answer": "9",
+      "model_output": "Let's restate the given information:\n\n- Trevor collected eggs from 4 chickens.\n- Eggs collected:\n  - Gertrude: 4 eggs\n  - Blanche: 3 eggs\n  - Nancy: 2 eggs\n  - Martha: 2 eggs\n- He dropped 2 eggs on the way.\n\nStep 1: Find the total eggs collected before dropping any.\n\nTotal eggs = 4 (Gertrude) + 3 (Blanche) + 2 (Nancy) + 2 (Martha)  \nTotal eggs = 4 + 3 + 2 + 2 = 11\n\nStep 2: Subtract the eggs dropped.\n\nEggs left after dropping = 11 - 2 = 9\n\nAnswer: 9",
+      "extracted_answer": "9",
+      "score": 1.0
+    },
+    {
+      "question": "Thomas, Toby, and Rebecca worked a total of 157 hours in one week.  Thomas worked x hours.  Toby worked 10 hours less than twice what Thomas worked, and Rebecca worked 8 hours less than Toby.  How many hours did Rebecca work?",
+      "expected_answer": "56",
+      "model_output": "Let's restate the given information:\n\n- Thomas worked x hours.\n- Toby worked 10 hours less than twice Thomas's hours: Toby = 2x - 10.\n- Rebecca worked 8 hours less than Toby: Rebecca = Toby - 8.\n\nThe total hours worked by all three is 157.\n\nStep 1: Write the total sum:\nx + (2x - 10) + (Toby - 8) = 157.\n\nBut since Rebecca's hours are Toby - 8, substitute:\nx + (2x - 10) + (2x - 10 - 8) = 157.\n\nStep 2: Simplify Rebecca's expression:\nRebecca = 2x - 10 - 8 = 2x - 18.\n\nStep 3: Write the total sum with all expressions:\nx + (2x - 10) + (2x - 18) = 157.\n\nStep 4: Combine like terms:\nx + 2x - 10 + 2x - 18 = 157.\n\nCombine x terms:\nx + 2x + 2x = 5x.\n\nCombine constants:\n-10 - 18 = -28.\n\nSo, the equation becomes:\n5x - 28 = 157.\n\nStep 5: Solve for x:\nAdd 28 to both sides:\n5x = 157 + 28 = 185.\n\nDivide both sides by 5:\nx = 185 / 5 = 37.\n\nStep 6: Find Rebecca's hours:\nRebecca = 2x - 18 = 2(37) - 18 = 74 - 18 = 56.\n\nAnswer: Rebecca worked 56 hours.",
+      "extracted_answer": "56.",
+      "score": 1.0
+    },
+    {
+      "question": "When Jason plays the video game, Duty for Ashes, his mission to slay the dragon hoard requires that he fire his weapon on average every 15 seconds.   And each time he fires his weapon, his power-fire setting allows him to shoot a flame for 5 seconds.  On average, how many seconds per minute does Jason shoot flames at the dragon hoard?",
+      "expected_answer": "20",
+      "model_output": "Let's restate the given information:\n\n- Jason fires his weapon every 15 seconds on average.\n- Each firing lasts for 5 seconds.\n\nOur goal is to find out, on average, how many seconds per minute Jason is shooting flames at the dragon hoard.\n\nStep 1: Determine how many times Jason fires in one minute.\n\n- Since he fires every 15 seconds, the number of fires per minute is:\n\nNumber of fires per minute = 60 seconds / 15 seconds = 4 fires.\n\nStep 2: Find the total time Jason spends shooting flames in one minute.\n\n- Each fire lasts 5 seconds.\n- Total shooting time per minute = number of fires \u00d7 duration of each fire = 4 \u00d7 5 = 20 seconds.\n\nAnswer: Jason shoots flames for 20 seconds per minute.",
+      "extracted_answer": "20",
+      "score": 1.0
+    },
+    {
+      "question": "Frank invites his friends over to play video games. He bakes a pan of brownies before he arrives. He cuts 6 even columns and 3 even rows into the pan of brownies. If there are 6 people, including Frank, in total, how many brownies can they each eat?",
+      "expected_answer": "3",
+      "model_output": "Let's analyze the problem step by step.\n\n**Givens:**\n- Frank cuts the pan into 6 columns and 3 rows.\n- There are 6 people total, including Frank.\n\n**Step 1: Find the total number of brownies after cutting.**\n- The pan is divided into columns and rows.\n- Total brownies = number of columns \u00d7 number of rows = 6 \u00d7 3 = 18.\n\n**Step 2: Determine how many brownies each person can eat.**\n- Total brownies = 18.\n- Number of people = 6.\n\n**Step 3: Divide the brownies equally among the people.**\n- Each person gets = 18 \u00f7 6 = 3 brownies.\n\n**Final answer:**\nEach person can eat **3** brownies.\n\n**Answer: 3**",
+      "extracted_answer": "3",
+      "score": 1.0
+    }
+  ]
+}

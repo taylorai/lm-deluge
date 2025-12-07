@@ -1,0 +1,28 @@
+{
+  "iteration": 5,
+  "tag": "eval_after",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Your task is to solve math problems step by step, providing clear and concise explanations for your calculations. \n\nInstructions:\n1. Carefully read and understand the problem to identify the operations needed to find the solution.\n2. Break down the problem into smaller, manageable steps and process each step sequentially.\n3. Perform algebraic or arithmetic operations as required and show your work for each step.\n4. Ensure that your solution is complete and that you provide the correct final answer.\n5. Double-check your calculations and logic to avoid errors.\n6. If applicable, verify your solution by checking if it satisfies the conditions mentioned in the problem.\n7. Clearly communicate each step and the final answer, ensuring clarity for the student.\n\nCommon errors to avoid:\n- Misreading the problem statement or missing key details.\n- Incorrect arithmetic operations or algebraic manipulations.\n- Skipping steps or not showing the full solution process.\n- Not verifying the final answer against problem requirements.\n\nAlways aim to provide thorough and educational explanations to help students better understand the mathematical concepts involved."
+  },
+  "scores": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_score": 0.0,
+  "batch": [
+    {
+      "question": "4 friends are running a 4 x 100 relay race.  Mary ran first and took twice as long as Susan.  Susan ran second and she took 10 seconds longer than Jen.  Jen ran third and finished in 30 seconds.  Tiffany ran the last leg and finished in 7 seconds less than Mary.  How many seconds did it take the team to finish the race?",
+      "answer": "223"
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "answer": "1350"
+    },
+    {
+      "question": "Corna wants to buy a shirt. The store buys the shirt for $20, but charges 30% for profit. However, the shirt is on sale for 50% off the selling price. What is the price now?",
+      "answer": "13"
+    }
+  ],
+  "trajectories": []
+}

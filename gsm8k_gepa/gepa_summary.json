@@ -1,0 +1,10 @@
+{
+  "num_candidates": 6,
+  "iteration": 14,
+  "total_evals": 200,
+  "best_idx": 1,
+  "best_score": 1.0,
+  "components": [
+    "system_prompt"
+  ]
+}

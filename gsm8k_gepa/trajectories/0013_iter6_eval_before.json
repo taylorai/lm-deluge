@@ -1,0 +1,56 @@
+{
+  "iteration": 6,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Solve math problems step by step."
+  },
+  "scores": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_score": 0.0,
+  "batch": [
+    {
+      "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+      "answer": "40"
+    },
+    {
+      "question": "Hank reads the newspaper every morning, 5 days a week for 30 minutes.  He reads part of a novel every evening, 5 days a week, for 1 hour.  He doubles his reading time on Saturday and Sundays.  How many minutes does Hank spend reading in 1 week?",
+      "answer": "810"
+    },
+    {
+      "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+      "answer": "360000"
+    }
+  ],
+  "trajectories": [
+    {
+      "input": {
+        "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+        "answer": "40"
+      },
+      "output": null,
+      "score": 0.0,
+      "error": "_LLMClient.process_prompts_sync() got an unexpected keyword argument 'max_new_tokens'"
+    },
+    {
+      "input": {
+        "question": "Hank reads the newspaper every morning, 5 days a week for 30 minutes.  He reads part of a novel every evening, 5 days a week, for 1 hour.  He doubles his reading time on Saturday and Sundays.  How many minutes does Hank spend reading in 1 week?",
+        "answer": "810"
+      },
+      "output": null,
+      "score": 0.0,
+      "error": "_LLMClient.process_prompts_sync() got an unexpected keyword argument 'max_new_tokens'"
+    },
+    {
+      "input": {
+        "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+        "answer": "360000"
+      },
+      "output": null,
+      "score": 0.0,
+      "error": "_LLMClient.process_prompts_sync() got an unexpected keyword argument 'max_new_tokens'"
+    }
+  ]
+}

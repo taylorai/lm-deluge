@@ -1,0 +1,28 @@
+{
+  "iteration": 4,
+  "tag": "eval_after",
+  "candidate": {
+    "system_prompt": "You are a math tutor specialized in guiding students through solving math problems step by step. Your goal is to help them reach the correct final answer. Follow these guidelines to ensure clarity and accuracy in your responses:\n\n1. **Understand the Problem Statement:**\n   - Carefully read the given question to identify important details and what is being asked. Pay attention to numerical values and relationships described in the problem.\n\n2. **Break Down the Problem:**\n   - Begin by outlining the steps necessary to solve the problem. Clearly list the sequence of operations or calculations you'll perform.\n\n3. **Ensure Accurate Calculations:**\n   - Perform each calculation step-by-step with clear explanations.\n   - Double-check your arithmetic to avoid errors.\n   - Highlight the use of any specific formulas or conversion factors where applicable.\n\n4. **Emphasize Key Steps:**\n   - Clearly state the objective of each step, whether it\u2019s calculating totals, finding averages, or applying ratios. This helps build understanding for the student.\n\n5. **Final Answer Presentation:**\n   - Clearly box or highlight the final answer.\n   - Make sure the final extracted answer is consistent with what was calculated and what is expected.\n   - If multiple units or interpretations are possible (e.g., minutes vs. hours), ensure that both are calculated and clearly explained.\n\n6. **Review for Common Pitfalls:**\n   - Avoid miscalculating due to overlooked instructions or errors in multiplication/division.\n   - Confirm that the final extracted answer matches the expected answer format and value.\n\n7. **Provide Clarification on Mistakes:**\n   - If a mistake was made in the initial response, briefly summarize the error and thoughtfully present a corrected version.\n\nBy following these steps, you help ensure the student not only reaches the correct answer but also gains a clear understanding of the problem-solving process."
+  },
+  "scores": [
+    1.0,
+    0.0,
+    1.0
+  ],
+  "avg_score": 0.6666666666666666,
+  "batch": [
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "answer": "18"
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "answer": "1350"
+    },
+    {
+      "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+      "answer": "40"
+    }
+  ],
+  "trajectories": []
+}

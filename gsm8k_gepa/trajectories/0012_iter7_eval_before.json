@@ -1,0 +1,74 @@
+{
+  "iteration": 7,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Solve math problems step by step."
+  },
+  "scores": [
+    1.0,
+    0.0,
+    0.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 0.6,
+  "batch": [
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "answer": "18"
+    },
+    {
+      "question": "Marie has 98 unread messages on her phone. She decides to clear them by reading 20 messages a day. However, she also gets 6 new messages a day. How many days will it take her to read all her unread messages?",
+      "answer": "7"
+    },
+    {
+      "question": "John wants to start a zoo.  He has 15 snakes.  He has twice as many monkeys as he does snakes.  He has 5 fewer lions than he does monkeys.   John has 8 more pandas than he does lions.  John has 1/3 as many dogs as he does pandas.  How many total animals does John have?",
+      "answer": "114"
+    },
+    {
+      "question": "Carolyn is planning out her final essay. The introduction will be 450 words, the conclusion will be triple the length of the introduction, and each of the four body sections will be the same length. If her essay has to be 5000 words total, how long is each section?",
+      "answer": "800"
+    },
+    {
+      "question": "The chicken crossed the road to get to the other side twice for the thrill of it. The first time, it had to dodge 23 speeding cars. The second time, a person tried to catch it and accidentally pulled out twice as many feathers as the number of cars the chicken had dodged. The chicken had 5263 feathers before its thrill-seeking road crossings. How many feathers did it have afterward?",
+      "answer": "5217"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "expected_answer": "18",
+      "model_output": "Let's go through the problem step by step.\n\n**Step 1: Identify what is given.**\n\n- Phillip has 40 apples.\n- Ben has 8 more apples than Phillip.\n- Tom has three eighths (3/8) as many apples as Ben.\n\n---\n\n**Step 2: Find how many apples Ben has.**\n\nSince Ben has 8 more apples than Phillip:\n\n\\[\n\\text{Ben's apples} = \\text{Phillip's apples} + 8 = 40 + 8 = 48\n\\]\n\n---\n\n**Step 3: Find how many apples Tom has.**\n\nTom has \\(\\frac{3}{8}\\) as many apples as Ben:\n\n\\[\n\\text{Tom's apples} = \\frac{3}{8} \\times \\text{Ben's apples} = \\frac{3}{8} \\times 48\n\\]\n\n---\n\n**Step 4: Calculate Tom's apples.**\n\n\\[\n\\frac{3}{8} \\times 48 = 3 \\times \\frac{48}{8} = 3 \\times 6 = 18\n\\]\n\n---\n\n**Final answer:**\n\n**Tom has \\(\\boxed{18}\\) apples.**",
+      "extracted_answer": "18",
+      "score": 1.0
+    },
+    {
+      "question": "Marie has 98 unread messages on her phone. She decides to clear them by reading 20 messages a day. However, she also gets 6 new messages a day. How many days will it take her to read all her unread messages?",
+      "expected_answer": "7",
+      "model_output": "Let's analyze the problem step by step:\n\n**Step 1: Understand the initial situation**\n- Marie starts with 98 unread messages.\n\n**Step 2: Determine her daily actions**\n- She reads 20 messages each day.\n- She receives 6 new messages each day.\n\n**Step 3: Find the net change in unread messages per day**\n- Messages read: 20\n- New messages received: 6\n- Net decrease in unread messages per day = 20 - 6 = 14\n\n**Step 4: Set up the problem**\n- Initially, she has 98 unread messages.\n- Each day, her unread messages decrease by 14.\n- She continues until she has read all messages, i.e., until the unread messages reach 0.\n\n**Step 5: Calculate the number of days needed**\n- Number of days \\( d \\) such that:\n  \n  \\[\n  \\text{Initial messages} - (\\text{net decrease per day} \\times d) \\leq 0\n  \\]\n  \n  \\[\n  98 - 14d \\leq 0\n  \\]\n  \n- Solve for \\( d \\):\n  \n  \\[\n  14d \\geq 98\n  \\]\n  \n  \\[\n  d \\geq \\frac{98}{14} = 7\n  \\]\n\n**Step 6: Interpret the result**\n- Since \\( d \\) must be an integer number of days, and the inequality is \\( d \\geq 7 \\), she needs **at least 7 days**.\n\n**Step 7: Verify the calculation**\n- After 7 days:\n  \n  \\[\n  \\text{Remaining messages} = 98 - 14 \\times 7 = 98 - 98 = 0\n  \\]\n  \n- She will have read all messages exactly after 7 days.\n\n---\n\n### **Final answer:**\n\n\\[\n\\boxed{7}\n\\]\n\nIt will take Marie **7 days** to read all her unread messages.",
+      "extracted_answer": "0",
+      "score": 0.0
+    },
+    {
+      "question": "John wants to start a zoo.  He has 15 snakes.  He has twice as many monkeys as he does snakes.  He has 5 fewer lions than he does monkeys.   John has 8 more pandas than he does lions.  John has 1/3 as many dogs as he does pandas.  How many total animals does John have?",
+      "expected_answer": "114",
+      "model_output": "Let's go through the problem step by step.\n\n**Step 1: Find the number of snakes.**  \nJohn has 15 snakes.\n\n**Step 2: Find the number of monkeys.**  \nHe has twice as many monkeys as snakes.  \nNumber of monkeys = 2 \u00d7 15 = 30\n\n**Step 3: Find the number of lions.**  \nHe has 5 fewer lions than monkeys.  \nNumber of lions = 30 - 5 = 25\n\n**Step 4: Find the number of pandas.**  \nHe has 8 more pandas than lions.  \nNumber of pandas = 25 + 8 = 33\n\n**Step 5: Find the number of dogs.**  \nHe has 1/3 as many dogs as pandas.  \nNumber of dogs = (1/3) \u00d7 33 = 11\n\n**Step 6: Find the total number of animals.**  \nAdd all animals together:  \nSnakes: 15  \nMonkeys: 30  \nLions: 25  \nPandas: 33  \nDogs: 11\n\nTotal animals = 15 + 30 + 25 + 33 + 11 = **114**\n\n---\n\n**Final answer: \\(\\boxed{114}\\)**",
+      "extracted_answer": "15",
+      "score": 0.0
+    },
+    {
+      "question": "Carolyn is planning out her final essay. The introduction will be 450 words, the conclusion will be triple the length of the introduction, and each of the four body sections will be the same length. If her essay has to be 5000 words total, how long is each section?",
+      "expected_answer": "800",
+      "model_output": "Let's break down the problem step by step.\n\n**Step 1: Identify the known information.**\n\n- Introduction length = 450 words\n- Conclusion length = 3 times the introduction\n- There are 4 body sections, each of the same length\n- Total essay length = 5000 words\n\n---\n\n**Step 2: Find the length of the conclusion.**\n\nSince the conclusion is triple the introduction:\n\n\\[\n\\text{Conclusion length} = 3 \\times 450 = 1350 \\text{ words}\n\\]\n\n---\n\n**Step 3: Set up the total length equation.**\n\nLet \\( x \\) be the length of each of the four body sections.\n\nTotal words in the essay:\n\n\\[\n\\text{Introduction} + \\text{Body sections} + \\text{Conclusion} = 5000\n\\]\n\nExpressed as:\n\n\\[\n450 + 4x + 1350 = 5000\n\\]\n\n---\n\n**Step 4: Simplify the equation.**\n\nCombine the known numbers:\n\n\\[\n(450 + 1350) + 4x = 5000\n\\]\n\\[\n1800 + 4x = 5000\n\\]\n\n---\n\n**Step 5: Solve for \\( x \\).**\n\nSubtract 1800 from both sides:\n\n\\[\n4x = 5000 - 1800\n\\]\n\\[\n4x = 3200\n\\]\n\nDivide both sides by 4:\n\n\\[\nx = \\frac{3200}{4} = 800\n\\]\n\n---\n\n**Final answer:**\n\nEach of the four body sections is **800 words** long.",
+      "extracted_answer": "800",
+      "score": 1.0
+    },
+    {
+      "question": "The chicken crossed the road to get to the other side twice for the thrill of it. The first time, it had to dodge 23 speeding cars. The second time, a person tried to catch it and accidentally pulled out twice as many feathers as the number of cars the chicken had dodged. The chicken had 5263 feathers before its thrill-seeking road crossings. How many feathers did it have afterward?",
+      "expected_answer": "5217",
+      "model_output": "Let's carefully analyze the problem and solve it step by step.\n\n---\n\n### Step 1: Understand the problem\n- The chicken crosses the road **twice**.\n- **First crossing:** The chicken dodges **23 cars**.\n- **Second crossing:** A person tries to catch the chicken and pulls out **twice as many feathers** as the number of cars dodged in the first crossing.\n- The chicken initially has **5263 feathers**.\n- We need to find out how many feathers the chicken has **after both crossings**.\n\n---\n\n### Step 2: Find the number of feathers pulled out during the second crossing\n- Number of cars dodged in the first crossing = 23.\n- Number of feathers pulled out in the second crossing = **twice** that number:\n  \n\\[\n2 \\times 23 = 46\n\\]\n\n---\n\n### Step 3: Calculate the total feathers lost\n- Feathers pulled out during the second crossing = 46.\n- The problem states that feathers are pulled out during the second crossing, so the total feathers lost is 46.\n\n---\n\n### Step 4: Calculate the remaining feathers after both crossings\n- Initial feathers = 5263.\n- Feathers lost during the second crossing = 46.\n- Since the first crossing did not mention any feathers being lost, only the second crossing affects the feather count.\n\nRemaining feathers:\n\n\\[\n5263 - 46 = 5217\n\\]\n\n---\n\n### **Final answer:**\n\n\\[\n\\boxed{5217}\n\\]\n\nThe chicken has **5217 feathers** after both crossings.",
+      "extracted_answer": "5217",
+      "score": 1.0
+    }
+  ]
+}

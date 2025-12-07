@@ -1,0 +1,56 @@
+{
+  "iteration": 4,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Solve math problems step by step."
+  },
+  "scores": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "avg_score": 0.0,
+  "batch": [
+    {
+      "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+      "answer": "18"
+    },
+    {
+      "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+      "answer": "1350"
+    },
+    {
+      "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+      "answer": "40"
+    }
+  ],
+  "trajectories": [
+    {
+      "input": {
+        "question": "Ben has 8 apples more than Phillip does. Tom has three eighths as many apples at Ben has. If Phillip has 40 apples, how many apples does Tom have?",
+        "answer": "18"
+      },
+      "output": null,
+      "score": 0.0,
+      "error": "_LLMClient.process_prompts_sync() got an unexpected keyword argument 'max_new_tokens'"
+    },
+    {
+      "input": {
+        "question": "There have been 15 \"Where's Waldo?\" books published. Each book has 30 puzzles to find Waldo. The average person takes 3 minutes to find Waldo in a puzzle. How long would it take to find every Waldo?",
+        "answer": "1350"
+      },
+      "output": null,
+      "score": 0.0,
+      "error": "_LLMClient.process_prompts_sync() got an unexpected keyword argument 'max_new_tokens'"
+    },
+    {
+      "input": {
+        "question": "Bart makes a mixtape.  The first side has 6 songs.  The second side has 4 songs.  Each song is 4 minutes.  How long is the total tape?",
+        "answer": "40"
+      },
+      "output": null,
+      "score": 0.0,
+      "error": "_LLMClient.process_prompts_sync() got an unexpected keyword argument 'max_new_tokens'"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+  "iteration": 4,
+  "tag": "eval_before",
+  "candidate": {
+    "system_prompt": "You are a helpful math tutor. Solve math problems step by step."
+  },
+  "scores": [
+    1.0,
+    0.0,
+    1.0,
+    1.0,
+    1.0
+  ],
+  "avg_score": 0.8,
+  "batch": [
+    {
+      "question": "Hank reads the newspaper every morning, 5 days a week for 30 minutes.  He reads part of a novel every evening, 5 days a week, for 1 hour.  He doubles his reading time on Saturday and Sundays.  How many minutes does Hank spend reading in 1 week?",
+      "answer": "810"
+    },
+    {
+      "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+      "answer": "360000"
+    },
+    {
+      "question": "An old pirate wants to leave his treasure on an island. He has 3500 gold coins. He wants to spread this equally across 5 chests. Additionally, he will put a total of 500 silver coins and twice as many bronze coins as silver, all distributed equally across the chests. How many coins in total will be in each chest?",
+      "answer": "1000"
+    },
+    {
+      "question": "Allie's making guacamole for a party. Each batch requires 4 avocados and serves about 6 people. If 42 people are going to be at the party including her, how many avocados does she need?",
+      "answer": "28"
+    },
+    {
+      "question": "The chicken crossed the road to get to the other side twice for the thrill of it. The first time, it had to dodge 23 speeding cars. The second time, a person tried to catch it and accidentally pulled out twice as many feathers as the number of cars the chicken had dodged. The chicken had 5263 feathers before its thrill-seeking road crossings. How many feathers did it have afterward?",
+      "answer": "5217"
+    }
+  ],
+  "trajectories": [
+    {
+      "question": "Hank reads the newspaper every morning, 5 days a week for 30 minutes.  He reads part of a novel every evening, 5 days a week, for 1 hour.  He doubles his reading time on Saturday and Sundays.  How many minutes does Hank spend reading in 1 week?",
+      "expected_answer": "810",
+      "model_output": "Let's break down the problem step by step:\n\n### Step 1: Reading the newspaper\n- Hank reads the newspaper **5 days a week**.\n- Each day, he reads for **30 minutes**.\n\n**Total newspaper reading time per week:**\n\\[ 5 \\text{ days} \\times 30 \\text{ minutes/day} = 150 \\text{ minutes} \\]\n\n### Step 2: Reading the novel during weekdays\n- He reads the novel **5 days a week**.\n- Each day, he reads for **1 hour**.\n\nSince 1 hour = 60 minutes:\n\\[ 5 \\text{ days} \\times 60 \\text{ minutes/day} = 300 \\text{ minutes} \\]\n\n### Step 3: Reading on Saturday and Sunday\n- He doubles his reading time on Saturday and Sunday.\n- For the newspaper:\n  - Regular time: 30 minutes\n  - Doubled time: \\( 2 \\times 30 = 60 \\) minutes\n- For the novel:\n  - Regular time: 60 minutes\n  - Doubled time: \\( 2 \\times 60 = 120 \\) minutes\n\n### Step 4: Total reading time on Saturday and Sunday\n- Newspaper:\n  \\[ 2 \\text{ days} \\times 60 \\text{ minutes} = 120 \\text{ minutes} \\]\n- Novel:\n  \\[ 2 \\text{ days} \\times 120 \\text{ minutes} = 240 \\text{ minutes} \\]\n\n### Step 5: Total weekly reading time\n- Weekday newspaper:\n  \\[ 150 \\text{ minutes} \\]\n- Weekend newspaper:\n  \\[ 120 \\text{ minutes} \\]\n- Weekday novel:\n  \\[ 300 \\text{ minutes} \\]\n- Weekend novel:\n  \\[ 240 \\text{ minutes} \\]\n\n**Sum all:**\n\\[\n150 + 120 + 300 + 240 = 810 \\text{ minutes}\n\\]\n\n### **Final answer:**\n\\[\n\\boxed{810 \\text{ minutes}}\n\\]\n\nHank spends **810 minutes** reading in one week.",
+      "extracted_answer": "810",
+      "score": 1.0
+    },
+    {
+      "question": "Mr. Maximilian has a rental building that he collects rent from every month. The number of units in the building is 100. If the building is 3/4 occupied for a whole year, and each resident of the building pays a rent of $400, calculate the amount of money Mr. Maximilian receives in that year.",
+      "expected_answer": "360000",
+      "model_output": "Let's go through the problem step by step:\n\n### Step 1: Find the number of occupied units\n- Total units in the building: 100\n- Occupancy rate: \\( \\frac{3}{4} \\)\n\nNumber of occupied units:\n\\[\n100 \\times \\frac{3}{4} = 100 \\times 0.75 = 75\n\\]\n\n### Step 2: Find the monthly rent per resident\n- Rent per resident per month: $400\n\n### Step 3: Calculate the total monthly rent collected\nTotal rent per month:\n\\[\n75 \\text{ units} \\times \\$400 = \\$30,000\n\\]\n\n### Step 4: Calculate the total rent for the whole year\n- Number of months in a year: 12\n\nTotal annual rent:\n\\[\n\\$30,000 \\times 12 = \\$360,000\n\\]\n\n### **Final answer:**\n\\[\n\\boxed{\\$360,000}\n\\]\n\nMr. Maximilian receives **$360,000** in that year.",
+      "extracted_answer": "75",
+      "score": 0.0
+    },
+    {
+      "question": "An old pirate wants to leave his treasure on an island. He has 3500 gold coins. He wants to spread this equally across 5 chests. Additionally, he will put a total of 500 silver coins and twice as many bronze coins as silver, all distributed equally across the chests. How many coins in total will be in each chest?",
+      "expected_answer": "1000",
+      "model_output": "Let's break down the problem step by step.\n\n### Step 1: Distribute the gold coins\n- Total gold coins = 3500\n- Number of chests = 5\n\n**Gold coins per chest:**\n\\[\n\\frac{3500}{5} = 700\n\\]\n\n### Step 2: Distribute the silver coins\n- Total silver coins = 500\n- Number of chests = 5\n\n**Silver coins per chest:**\n\\[\n\\frac{500}{5} = 100\n\\]\n\n### Step 3: Determine the bronze coins\n- The bronze coins are twice as many as the silver coins.\n- Total bronze coins = \\( 2 \\times 500 = 1000 \\)\n\n**Bronze coins per chest:**\n\\[\n\\frac{1000}{5} = 200\n\\]\n\n### Step 4: Calculate total coins per chest\n- Gold per chest = 700\n- Silver per chest = 100\n- Bronze per chest = 200\n\n**Total coins per chest:**\n\\[\n700 + 100 + 200 = 1000\n\\]\n\n### **Final answer:**\nEach chest will contain **1000 coins** in total.",
+      "extracted_answer": "1000",
+      "score": 1.0
+    },
+    {
+      "question": "Allie's making guacamole for a party. Each batch requires 4 avocados and serves about 6 people. If 42 people are going to be at the party including her, how many avocados does she need?",
+      "expected_answer": "28",
+      "model_output": "Let's go through the problem step by step:\n\n**Step 1: Determine how many people need to be served.**  \nTotal people = 42\n\n**Step 2: Find out how many batches of guacamole are needed.**  \nEach batch serves about 6 people.  \nNumber of batches = Total people \u00f7 People served per batch  \nNumber of batches = 42 \u00f7 6 = 7\n\n**Step 3: Find out how many avocados are needed for each batch.**  \nEach batch requires 4 avocados.\n\n**Step 4: Calculate the total number of avocados needed.**  \nTotal avocados = Number of batches \u00d7 Avocados per batch  \nTotal avocados = 7 \u00d7 4 = 28\n\n**Final answer:**  \n**Allie needs 28 avocados.**",
+      "extracted_answer": "28",
+      "score": 1.0
+    },
+    {
+      "question": "The chicken crossed the road to get to the other side twice for the thrill of it. The first time, it had to dodge 23 speeding cars. The second time, a person tried to catch it and accidentally pulled out twice as many feathers as the number of cars the chicken had dodged. The chicken had 5263 feathers before its thrill-seeking road crossings. How many feathers did it have afterward?",
+      "expected_answer": "5217",
+      "model_output": "Let's carefully analyze the problem and solve it step by step.\n\n---\n\n### Step 1: Understand the problem\n- The chicken crosses the road **twice**.\n- **First crossing:** The chicken dodges **23 cars**.\n- **Second crossing:** A person tries to catch the chicken and pulls out **twice as many feathers** as the number of cars dodged in the first crossing.\n- The chicken **initially** has **5263 feathers**.\n- We need to find out **how many feathers** the chicken has **after both crossings**.\n\n---\n\n### Step 2: Find the number of feathers pulled out during the second crossing\n- Number of cars dodged in the first crossing = 23.\n- Feathers pulled out during the second crossing = **twice** that number:\n  \n\\[\n2 \\times 23 = 46\n\\]\n\n---\n\n### Step 3: Calculate the total feathers lost\n- The feathers pulled out during the second crossing = 46.\n- The problem does not specify any feathers lost during the first crossing, so we assume no feathers are lost then.\n\n---\n\n### Step 4: Calculate the remaining feathers after both crossings\n- Initial feathers = 5263.\n- Feathers lost during the second crossing = 46.\n\nRemaining feathers:\n\n\\[\n5263 - 46 = 5217\n\\]\n\n---\n\n### **Final answer:**\n\n\\[\n\\boxed{5217}\n\\]\n\nThe chicken has **5217 feathers** after both crossings.",
+      "extracted_answer": "5217",
+      "score": 1.0
+    }
+  ]
+}
