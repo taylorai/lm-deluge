@@ -29,20 +29,16 @@ The official implementation uses LiteLLM for all LLM calls. This plan outlines h
    - Both use the adapter to evaluate candidates
 
 4. **LiteLLM Usage Points**
-   - **Reflection LM** (`api.py:216-224`): Calls `litellm.completion()` for instruction proposal
-   - **Task Execution** (adapters): Uses `litellm.batch_completion()` for running candidate programs
-   - **DefaultAdapter**: Provides generic task execution via LiteLLM
+   - **Reflection LM** (deprecated in lm-deluge version): legacy code called `litellm.completion()` for instruction proposal
+   - **Task Execution** (adapters): Used `litellm.batch_completion()` for running candidate programs
+   - **DefaultAdapter**: Provided generic task execution via LiteLLM
 
 ### Where LiteLLM is Used
 
 ```python
-# In api.py (lines 216-224)
+# Legacy example (LiteLLM-based)
 def _reflection_lm(prompt: str) -> str:
-    completion = litellm.completion(
-        model=reflection_lm_name,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return completion.choices[0].message.content
+    ...
 
 # In adapters (e.g., default_adapter.py, anymaths_adapter.py)
 responses = self.litellm.batch_completion(
@@ -56,7 +52,7 @@ responses = self.litellm.batch_completion(
 
 ### Architecture Decision
 
-Implement GEPA as a **pipeline** in `src/lm_deluge/pipelines/gepa.py`, following the pattern of existing pipelines (`extract.py`, `translate.py`, `score.py`).
+Implement GEPA as a **pipeline** in `src/lm_deluge/pipelines/gepa/`, following the pattern of existing pipelines (`extract.py`, `translate.py`, `score.py`).
 
 ### Why a Pipeline?
 
@@ -99,15 +95,17 @@ result = gepa.optimize(
 
 ### Implementation Structure
 
+Current simplified layout:
+
 ```
 src/lm_deluge/pipelines/gepa/
 ├── __init__.py          # Public API
-├── core.py              # Core GEPA engine (ported from gepa/core/engine.py)
-├── adapter.py           # Adapter protocol and base classes
+├── core.py              # Core dataclasses (state, result, types)
+├── optimizer.py         # GEPAEngine + optimize() entrypoint
+├── evaluator.py         # Evaluator protocol + helpers
 ├── proposers.py         # Reflective mutation and merge proposers
-├── strategies.py        # Batch samplers, candidate selectors, etc.
-├── state.py             # GEPA state management
-└── utils.py             # Helper functions
+├── verifiers_adapter.py # Optional verifiers integration
+└── examples/            # Usage samples
 ```
 
 ### Key Differences from Official GEPA
@@ -210,10 +208,10 @@ src/lm_deluge/pipelines/gepa/
 
 **Files to Create:**
 
-7. **`pipelines/gepa/__init__.py`** (main API implementation)
-   - Port `optimize()` function from `gepa/api.py`
-   - Adapt to use lm-deluge clients instead of LiteLLM model strings
-   - Simplify configuration (remove LiteLLM-specific options)
+7. **`pipelines/gepa/optimizer.py`** (main API implementation)
+   - `optimize()` entrypoint and `GEPAEngine`
+   - Uses lm-deluge clients instead of LiteLLM model strings
+   - Simplified configuration (no LiteLLM-specific options)
 
 8. **`pipelines/gepa/utils.py`**
    - Port stopping conditions from `gepa/utils/stop_condition.py`

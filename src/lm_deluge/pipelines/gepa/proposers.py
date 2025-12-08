@@ -14,9 +14,13 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
+from lm_deluge.pipelines.gepa.core import (
+    Candidate,
+    GEPAState,
+    ProgramIdx,
+    ReflectiveDataset,
+)
 from lm_deluge.pipelines.gepa.evaluator import Evaluator
-from lm_deluge.pipelines.gepa.state import GEPAState, ProgramIdx
-from lm_deluge.pipelines.gepa.types import Candidate, ReflectiveDataset
 
 DataInstance = TypeVar("DataInstance")
 Trajectory = TypeVar("Trajectory")
@@ -456,10 +460,31 @@ class MergeProposer(
         self.val_overlap_floor = val_overlap_floor
         self.rng = rng or random.Random()
 
-        # Tracking
-        self.total_merges_tested = 0
-        self.merges_due = 0
-        self.last_iter_found_new_program = False
+        self.attempts_made = 0
+        self.successful_merges = 0
+        self.merges_scheduled = 0
+        self.last_skip_reason: str | None = None
+
+    def can_schedule_more(self) -> bool:
+        """Check if more merge attempts can be scheduled."""
+        if not self.use_merge:
+            return False
+        return (self.attempts_made + self.merges_scheduled) < self.max_merge_invocations
+
+    def schedule_merge(self) -> None:
+        """Queue a merge attempt (bounded by max_merge_invocations)."""
+        if self.can_schedule_more():
+            self.merges_scheduled += 1
+
+    def should_attempt(self) -> bool:
+        return (
+            self.use_merge
+            and self.merges_scheduled > 0
+            and (self.attempts_made < self.max_merge_invocations)
+        )
+
+    def record_success(self) -> None:
+        self.successful_merges += 1
 
     def _get_frontier_union(self, state: GEPAState) -> set[ProgramIdx]:
         """Get all programs on any per-instance Pareto front."""
@@ -504,48 +529,47 @@ class MergeProposer(
 
     def propose(self, state: GEPAState) -> CandidateProposal | None:
         """Generate a new candidate via merge."""
-        if not self.use_merge:
+        if not self.should_attempt():
+            self.last_skip_reason = "not_scheduled"
             return None
 
-        if self.total_merges_tested >= self.max_merge_invocations:
-            return None
+        self.merges_scheduled = max(0, self.merges_scheduled - 1)
+        self.attempts_made += 1
 
-        if self.merges_due <= 0:
-            return None
-
-        # Get frontier
         frontier = self._get_frontier_union(state)
         if len(frontier) < 2:
+            self.last_skip_reason = "frontier_too_small"
             return None
 
-        # Choose parents
         parent_pair = self._choose_parents(frontier)
         if parent_pair is None:
+            self.last_skip_reason = "no_parents"
             return None
 
         p1_idx, p2_idx = parent_pair
         parent_a = state.program_candidates[p1_idx]
         parent_b = state.program_candidates[p2_idx]
 
-        # Sample a minibatch for testing
-        n = min(len(self.valset), 10)  # Use small sample for merge testing
+        if not self.valset:
+            self.last_skip_reason = "empty_valset"
+            return None
+
+        n = min(len(self.valset), 10)
         indices = self.rng.sample(range(len(self.valset)), n)
         minibatch = [self.valset[i] for i in indices]
 
-        # Evaluate both parents on minibatch
         eval_a = self.evaluator.evaluate(minibatch, parent_a, capture_traces=False)
         eval_b = self.evaluator.evaluate(minibatch, parent_b, capture_traces=False)
         state.total_num_evals += 2 * len(minibatch)
 
-        # Create merged child
         child = self._merge_candidates(parent_a, parent_b)
 
-        # Evaluate child on same minibatch
         eval_child = self.evaluator.evaluate(minibatch, child, capture_traces=False)
         state.total_num_evals += len(minibatch)
 
         parent_max = max(sum(eval_a.scores), sum(eval_b.scores))
 
+        self.last_skip_reason = None
         return CandidateProposal(
             candidate=child,
             parent_program_ids=[p1_idx, p2_idx],

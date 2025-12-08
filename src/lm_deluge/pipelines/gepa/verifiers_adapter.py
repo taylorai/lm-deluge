@@ -17,13 +17,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, TypeVar
 
-from lm_deluge.pipelines.gepa.evaluator import Evaluator
-from lm_deluge.pipelines.gepa.types import (
+from lm_deluge.pipelines.gepa.core import (
     Candidate,
     EvaluationBatch,
     ReflectiveDataset,
     TrajectoryRecord,
 )
+from lm_deluge.pipelines.gepa.evaluator import Evaluator
 
 # Type aliases
 DataInstance = TypeVar("DataInstance", bound=dict)

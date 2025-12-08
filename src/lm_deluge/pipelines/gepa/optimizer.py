@@ -1,20 +1,27 @@
 """
-GEPA Engine - orchestrates the optimization loop.
+Optimization loop and public API for GEPA.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import random
 import traceback
 from typing import Any, Generic, TypeVar
 
+from lm_deluge.client import _LLMClient
+
+from lm_deluge.pipelines.gepa.core import (
+    GEPAResult,
+    GEPAState,
+    ProgramIdx,
+)
 from lm_deluge.pipelines.gepa.evaluator import Evaluator
 from lm_deluge.pipelines.gepa.proposers import (
     MergeProposer,
     ReflectiveMutationProposer,
 )
-from lm_deluge.pipelines.gepa.state import GEPAState, ProgramIdx
 
 DataInstance = TypeVar("DataInstance")
 Trajectory = TypeVar("Trajectory")
@@ -25,33 +32,6 @@ DataId = TypeVar("DataId")
 class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
     """
     Orchestrates the GEPA optimization loop.
-
-    The engine coordinates:
-    - Proposers (reflective mutation, merge)
-    - State management
-    - Stopping conditions
-    - Progress tracking
-
-    The optimization loop:
-    1. Check stopping conditions
-    2. Optionally attempt merge proposal
-    3. Attempt reflective mutation proposal
-    4. Accept or reject proposal based on minibatch improvement
-    5. If accepted, evaluate on full validation set
-    6. Update state and continue
-
-    Attributes:
-        evaluator: Task evaluator for running candidates
-        valset: Validation data
-        seed_candidate: Initial candidate program
-        reflective_proposer: Proposer for reflective mutation
-        merge_proposer: Optional proposer for merge operations
-        perfect_score: Score considered perfect
-        max_metric_calls: Budget for metric evaluations
-        run_dir: Directory for saving artifacts
-        log_fn: Logging function
-        track_best_outputs: Whether to track best outputs
-        display_progress: Whether to show progress bar
     """
 
     def __init__(
@@ -69,6 +49,9 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         display_progress: bool = True,
         log_trajectories: bool = False,
     ):
+        if reflective_proposer is None:
+            raise ValueError("reflective_proposer is required.")
+
         self.evaluator = evaluator
         self.valset = valset
         self.seed_candidate = seed_candidate
@@ -85,11 +68,10 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         self._stop_requested = False
         self._trajectory_counter = 0
 
-    def _log(self, msg: str):
-        """Log a message."""
+    def _log(self, msg: str) -> None:
         self.log_fn(msg)
 
-    def _save_trajectories(
+    def save_trajectories(
         self,
         iteration: int,
         tag: str,
@@ -97,8 +79,8 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         batch: list[Any],
         trajectories: list[Any] | None,
         scores: list[float],
-    ):
-        """Save trajectories to run_dir/trajectories/ as JSON for debugging."""
+    ) -> None:
+        """Persist trajectories to disk for debugging."""
         if not self.log_trajectories or not self.run_dir:
             return
 
@@ -118,7 +100,6 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
             "trajectories": [],
         }
 
-        # Try to serialize batch items
         for item in batch:
             try:
                 if hasattr(item, "to_dict"):
@@ -130,7 +111,6 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
             except Exception:
                 data["batch"].append(str(item))
 
-        # Serialize trajectories
         if trajectories:
             for traj in trajectories:
                 try:
@@ -154,12 +134,10 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         self,
         candidate: dict[str, str],
     ) -> tuple[dict[DataId, Any], dict[DataId, float]]:
-        """Evaluate candidate on full validation set."""
         eval_batch = self.evaluator.evaluate(
             self.valset, candidate, capture_traces=False
         )
 
-        # Convert to per-instance dicts
         outputs = {i: eval_batch.outputs[i] for i in range(len(self.valset))}
         scores = {i: eval_batch.scores[i] for i in range(len(self.valset))}
 
@@ -171,17 +149,11 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         state: GEPAState,
         parent_program_idx: list[ProgramIdx],
     ) -> tuple[ProgramIdx, ProgramIdx]:
-        """Evaluate new program on valset and add to state."""
-        # Track metric calls at discovery
-        num_metric_calls_at_discovery = state.total_num_evals
-
-        # Evaluate on validation set
         valset_outputs, valset_subscores = self._evaluate_on_valset(new_program)
 
         state.num_full_ds_evals += 1
         state.total_num_evals += len(self.valset)
 
-        # Add to state
         new_program_idx = state.update_state_with_new_program(
             parent_program_idx=parent_program_idx,
             new_program=new_program,
@@ -190,14 +162,12 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
             run_dir=self.run_dir,
         )
 
-        # Find best program
         scores = state.program_full_scores_val_set
         best_idx = max(range(len(scores)), key=lambda i: scores[i])
 
         return new_program_idx, best_idx
 
     def _should_stop(self, state: GEPAState) -> bool:
-        """Check if optimization should stop."""
         if self._stop_requested:
             return True
 
@@ -206,19 +176,48 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
 
         return False
 
-    def request_stop(self):
-        """Request graceful stop of optimization."""
+    def request_stop(self) -> None:
         self._stop_requested = True
         self._log("Stop requested. Shutting down gracefully...")
 
-    def run(self) -> GEPAState[RolloutOutput, DataId]:
-        """
-        Run the optimization loop.
+    def _attempt_merge(self, state: GEPAState) -> bool:
+        if self.merge_proposer is None or not self.merge_proposer.should_attempt():
+            return False
 
-        Returns:
-            Final GEPAState with all discovered candidates
-        """
-        # Initialize state
+        proposal = self.merge_proposer.propose(state)
+
+        if proposal is None:
+            reason = getattr(self.merge_proposer, "last_skip_reason", "unknown")
+            self._log(f"Iteration {state.i}: Merge skipped ({reason})")
+            return True
+
+        parent_sums = proposal.subsample_scores_before or [float("-inf")]
+        new_sum = sum(proposal.subsample_scores_after or [])
+
+        if new_sum >= max(parent_sums):
+            new_idx, best_idx = self._run_full_eval_and_add(
+                new_program=proposal.candidate,
+                state=state,
+                parent_program_idx=proposal.parent_program_ids,
+            )
+            self.merge_proposer.record_success()
+            if self.merge_proposer.can_schedule_more():
+                self.merge_proposer.schedule_merge()
+
+            val_score = state.program_full_scores_val_set[new_idx]
+            best_score = state.program_full_scores_val_set[best_idx]
+            self._log(
+                f"Iteration {state.i}: Merge accepted (sum={new_sum:.4f}) "
+                f"new={val_score:.4f}, best={best_score:.4f}"
+            )
+        else:
+            self._log(
+                f"Iteration {state.i}: Merge rejected ({new_sum:.4f} < {max(parent_sums):.4f})"
+            )
+
+        return True
+
+    def run(self) -> GEPAState[RolloutOutput, DataId]:
         self._log("Initializing GEPA state...")
         seed_outputs, seed_scores = self._evaluate_on_valset(self.seed_candidate)
 
@@ -229,11 +228,9 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
             track_best_outputs=self.track_best_outputs,
         )
 
-        # Log initial state
         seed_avg = sum(seed_scores.values()) / len(seed_scores)
         self._log(f"Seed candidate validation score: {seed_avg:.4f}")
 
-        # Progress bar
         pbar = None
         if self.display_progress:
             try:
@@ -247,9 +244,7 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
 
         last_pbar_val = state.total_num_evals
 
-        # Main loop
         while not self._should_stop(state):
-            # Update progress
             if pbar:
                 delta = state.total_num_evals - last_pbar_val
                 pbar.update(delta)
@@ -259,45 +254,9 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
             state.full_program_trace.append({"i": state.i})
 
             try:
-                # 1. Attempt merge if scheduled
-                if self.merge_proposer is not None and self.merge_proposer.use_merge:
-                    if (
-                        self.merge_proposer.merges_due > 0
-                        and self.merge_proposer.last_iter_found_new_program
-                    ):
-                        proposal = self.merge_proposer.propose(state)
-                        self.merge_proposer.last_iter_found_new_program = False
+                if self._attempt_merge(state):
+                    continue
 
-                        if proposal is not None and proposal.tag == "merge":
-                            # Check if merge improved
-                            parent_sums = proposal.subsample_scores_before or [
-                                float("-inf")
-                            ]
-                            new_sum = sum(proposal.subsample_scores_after or [])
-
-                            if new_sum >= max(parent_sums):
-                                # Accept merge
-                                self._run_full_eval_and_add(
-                                    new_program=proposal.candidate,
-                                    state=state,
-                                    parent_program_idx=proposal.parent_program_ids,
-                                )
-                                self.merge_proposer.merges_due -= 1
-                                self.merge_proposer.total_merges_tested += 1
-
-                                self._log(
-                                    f"Iteration {state.i}: Merge accepted (score: {new_sum:.4f})"
-                                )
-                                continue
-                            else:
-                                self._log(
-                                    f"Iteration {state.i}: Merge rejected ({new_sum:.4f} < {max(parent_sums):.4f})"
-                                )
-                                continue
-
-                    self.merge_proposer.last_iter_found_new_program = False
-
-                # 2. Reflective mutation
                 proposal = self.reflective_proposer.propose(state)
 
                 if proposal is None:
@@ -307,7 +266,6 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
                     self._log(f"Iteration {state.i}: No proposal generated ({reason})")
                     continue
 
-                # Check acceptance
                 old_sum = sum(proposal.subsample_scores_before or [])
                 new_sum = sum(proposal.subsample_scores_after or [])
 
@@ -321,23 +279,15 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
                     f"Iteration {state.i}: Accepted ({new_sum:.4f} > {old_sum:.4f})"
                 )
 
-                # Full eval and add
                 new_idx, best_idx = self._run_full_eval_and_add(
                     new_program=proposal.candidate,
                     state=state,
                     parent_program_idx=proposal.parent_program_ids,
                 )
 
-                # Schedule merge
                 if self.merge_proposer is not None:
-                    self.merge_proposer.last_iter_found_new_program = True
-                    if (
-                        self.merge_proposer.total_merges_tested
-                        < self.merge_proposer.max_merge_invocations
-                    ):
-                        self.merge_proposer.merges_due += 1
+                    self.merge_proposer.schedule_merge()
 
-                # Log progress
                 val_score = state.program_full_scores_val_set[new_idx]
                 best_score = state.program_full_scores_val_set[best_idx]
                 self._log(
@@ -350,19 +300,15 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
                 self._log(traceback.format_exc())
                 continue
 
-            # Save state periodically
             if self.run_dir and state.i % 10 == 0:
                 state.save(self.run_dir)
 
-        # Close progress bar
         if pbar:
             pbar.close()
 
-        # Final save
         if self.run_dir:
             state.save(self.run_dir)
 
-        # Final summary
         best_idx = max(
             range(len(state.program_full_scores_val_set)),
             key=lambda i: state.program_full_scores_val_set[i],
@@ -376,3 +322,105 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         )
 
         return state
+
+
+def optimize(
+    seed_candidate: dict[str, str],
+    trainset: list[Any],
+    evaluator: Evaluator[Any, Any, Any],
+    valset: list[Any] | None = None,
+    reflection_client: _LLMClient | None = None,
+    reflection_fn: callable | None = None,
+    reflection_prompt_template: str | None = None,
+    candidate_selection_strategy: str = "pareto",
+    epsilon: float = 0.1,
+    component_selection_strategy: str = "round_robin",
+    minibatch_size: int = 3,
+    skip_perfect_score: bool = True,
+    perfect_score: float = 1.0,
+    use_merge: bool = False,
+    max_merge_invocations: int = 5,
+    merge_val_overlap_floor: int = 5,
+    max_metric_calls: int | None = None,
+    run_dir: str | None = None,
+    log_fn: callable | None = None,
+    track_best_outputs: bool = False,
+    display_progress: bool = True,
+    log_trajectories: bool = False,
+    seed: int = 0,
+) -> GEPAResult[RolloutOutput, DataId]:
+    """
+    Run GEPA optimization to evolve text components.
+    """
+    if reflection_client is None and reflection_fn is None:
+        raise ValueError(
+            "Either reflection_client or reflection_fn must be provided. "
+            "These are used to propose improved instructions."
+        )
+
+    if max_metric_calls is None:
+        raise ValueError(
+            "max_metric_calls must be provided to specify a stopping condition."
+        )
+
+    if valset is None:
+        valset = trainset
+
+    rng = random.Random(seed)
+
+    if reflection_fn is None and reflection_client is not None:
+
+        def _reflection_fn(prompt: str) -> str:
+            resp = reflection_client.process_prompts_sync(
+                [prompt], show_progress=False
+            )[0]
+            return resp.completion
+
+        reflection_fn = _reflection_fn
+
+    reflective_proposer = ReflectiveMutationProposer(
+        evaluator=evaluator,
+        reflection_fn=reflection_fn,
+        trainset=trainset,
+        minibatch_size=minibatch_size,
+        component_selector=component_selection_strategy,
+        candidate_selector=candidate_selection_strategy,
+        perfect_score=perfect_score,
+        skip_perfect_score=skip_perfect_score,
+        reflection_prompt_template=reflection_prompt_template,
+        rng=rng,
+        epsilon=epsilon,
+        trajectory_callback=None,
+    )
+
+    merge_proposer: MergeProposer | None = None
+    if use_merge:
+        merge_proposer = MergeProposer(
+            evaluator=evaluator,
+            valset=valset,
+            use_merge=use_merge,
+            max_merge_invocations=max_merge_invocations,
+            val_overlap_floor=merge_val_overlap_floor,
+            rng=rng,
+        )
+
+    engine = GEPAEngine(
+        evaluator=evaluator,
+        valset=valset,
+        seed_candidate=seed_candidate,
+        reflective_proposer=reflective_proposer,
+        merge_proposer=merge_proposer,
+        perfect_score=perfect_score,
+        max_metric_calls=max_metric_calls,
+        run_dir=run_dir,
+        log_fn=log_fn,
+        track_best_outputs=track_best_outputs,
+        display_progress=display_progress,
+        log_trajectories=log_trajectories,
+    )
+
+    if log_trajectories and run_dir:
+        reflective_proposer.trajectory_callback = engine.save_trajectories
+
+    state = engine.run()
+    return GEPAResult.from_state(state, run_dir=run_dir, seed=seed)

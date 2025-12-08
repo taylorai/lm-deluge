@@ -144,7 +144,7 @@ Solve this step by step, then provide your final numerical answer."""
         ]
 
         responses = task_client.process_prompts_sync(prompts, show_progress=False)
-        return [r.completion or "" for r in responses]
+        return [r.completion or "" for r in responses]  # type: ignore
 
     def batch_score(outputs: list[str], batch: list[dict]) -> list[float]:
         """Score all outputs against ground truth."""

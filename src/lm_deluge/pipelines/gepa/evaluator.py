@@ -13,12 +13,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
-from lm_deluge.pipelines.gepa.types import (
+from lm_deluge.pipelines.gepa.core import (
     Candidate,
     EvaluationBatch,
     ReflectiveDataset,
     TrajectoryRecord,
 )
+from lm_deluge.prompt import Conversation
 
 DataInstance = TypeVar("DataInstance")
 Trajectory = TypeVar("Trajectory")
@@ -264,58 +265,10 @@ class FunctionEvaluator(Evaluator[DataInstance, dict[str, Any], RolloutOutput]):
         eval_batch: EvaluationBatch[dict[str, Any], RolloutOutput],
         components_to_update: list[str],
     ) -> ReflectiveDataset:
-        """Build reflective dataset from trajectories."""
         if eval_batch.trajectories is None:
             return ReflectiveDataset({})
 
-        # Default: associate all trajectories with all components
-        records: list[TrajectoryRecord] = []
-
-        for traj in eval_batch.trajectories:
-            # Check if this is an error trajectory (from exception handling)
-            # Error trajectories have a special format and shouldn't use custom feedback_fn
-            is_error_traj = "error" in traj
-
-            # Generate feedback string
-            if is_error_traj:
-                # Error trajectory - use default error feedback
-                feedback = f"ERROR: {traj['error']}"
-                inputs = traj.get("input", {})
-                if not isinstance(inputs, dict):
-                    inputs = {"value": inputs}
-                outputs = str(traj.get("output", ""))
-            elif self.feedback_fn:
-                # Custom feedback function for non-error trajectories
-                feedback = self.feedback_fn(traj)
-                # Custom trajectory format - use the whole traj as context
-                if "input" in traj:
-                    inputs = traj.get("input", {})
-                    if not isinstance(inputs, dict):
-                        inputs = {"value": inputs}
-                    outputs = traj.get("output", "")
-                else:
-                    inputs = {
-                        k: v for k, v in traj.items() if k not in ("score", "error")
-                    }
-                    outputs = traj.get("model_output", traj.get("output", ""))
-            else:
-                # Default feedback
-                score = traj.get("score", 0.0)
-                feedback = f"Score: {score}"
-                inputs = traj.get("input", {})
-                if not isinstance(inputs, dict):
-                    inputs = {"value": inputs}
-                outputs = traj.get("output", "")
-
-            record = TrajectoryRecord(
-                inputs=inputs,
-                outputs=outputs,
-                feedback=feedback,
-                extra={"score": traj.get("score", 0.0)},
-            )
-            records.append(record)
-
-        # Map to all requested components
+        records = _records_from_trajectories(eval_batch.trajectories, self.feedback_fn)
         data = {comp: records for comp in components_to_update}
         return ReflectiveDataset(data)
 
@@ -379,51 +332,84 @@ class BatchEvaluator(Evaluator[DataInstance, dict[str, Any], RolloutOutput]):
         eval_batch: EvaluationBatch[dict[str, Any], RolloutOutput],
         components_to_update: list[str],
     ) -> ReflectiveDataset:
-        """Build reflective dataset (same logic as FunctionEvaluator)."""
         if eval_batch.trajectories is None:
             return ReflectiveDataset({})
 
-        records: list[TrajectoryRecord] = []
-        for traj in eval_batch.trajectories:
-            # Check if this is an error trajectory
-            is_error_traj = "error" in traj
+        records = _records_from_trajectories(eval_batch.trajectories, self.feedback_fn)
+        data = {comp: records for comp in components_to_update}
+        return ReflectiveDataset(data)
 
-            if is_error_traj:
-                # Error trajectory - use default error feedback
-                feedback = f"ERROR: {traj['error']}"
-                inputs = traj.get("input", {})
-                if not isinstance(inputs, dict):
-                    inputs = {"value": inputs}
-                outputs = str(traj.get("output", ""))
-            elif self.feedback_fn:
-                # Custom feedback function for non-error trajectories
-                feedback = self.feedback_fn(traj)
-                if "input" in traj:
-                    inputs = traj.get("input", {})
-                    if not isinstance(inputs, dict):
-                        inputs = {"value": inputs}
-                    outputs = traj.get("output", "")
-                else:
-                    inputs = {
-                        k: v for k, v in traj.items() if k not in ("score", "error")
-                    }
-                    outputs = traj.get("model_output", traj.get("output", ""))
-            else:
-                # Default feedback
-                score = traj.get("score", 0.0)
-                feedback = f"Score: {score}"
+
+def _records_from_trajectories(
+    trajectories: list[dict[str, Any]],
+    feedback_fn: Callable[[dict[str, Any]], str] | None,
+) -> list[TrajectoryRecord]:
+    records: list[TrajectoryRecord] = []
+    for traj in trajectories:
+        if isinstance(traj, Conversation):
+            feedback = (
+                feedback_fn(traj.__dict__) if feedback_fn else "Conversation trace"
+            )
+            records.append(
+                TrajectoryRecord(
+                    feedback=feedback,
+                    conversation=traj,
+                )
+            )
+            continue
+
+        is_error_traj = isinstance(traj, dict) and "error" in traj
+
+        if is_error_traj:
+            feedback = f"ERROR: {traj['error']}"
+            inputs = traj.get("input", {})
+            if not isinstance(inputs, dict):
+                inputs = {"value": inputs}
+            outputs = str(traj.get("output", ""))
+            conversation = traj.get("conversation")
+            if isinstance(conversation, Conversation):
+                inputs = None
+                outputs = None
+        elif feedback_fn and isinstance(traj, dict):
+            feedback = feedback_fn(traj)
+            if "conversation" in traj and isinstance(
+                traj["conversation"], Conversation
+            ):
+                inputs = None
+                outputs = None
+                conversation = traj["conversation"]
+            elif "input" in traj:
                 inputs = traj.get("input", {})
                 if not isinstance(inputs, dict):
                     inputs = {"value": inputs}
                 outputs = traj.get("output", "")
+                conversation = None
+            else:
+                inputs = {k: v for k, v in traj.items() if k not in ("score", "error")}
+                outputs = traj.get("model_output", traj.get("output", ""))
+                conversation = None
+        else:
+            score = traj.get("score", 0.0) if isinstance(traj, dict) else 0.0
+            feedback = f"Score: {score}"
+            conversation = traj.get("conversation") if isinstance(traj, dict) else None
+            if isinstance(conversation, Conversation):
+                inputs = None
+                outputs = None
+            else:
+                inputs = traj.get("input", {}) if isinstance(traj, dict) else {}
+                if not isinstance(inputs, dict):
+                    inputs = {"value": inputs}
+                outputs = traj.get("output", "") if isinstance(traj, dict) else ""
 
-            record = TrajectoryRecord(
-                inputs=inputs,
-                outputs=outputs,
-                feedback=feedback,
-                extra={"score": traj.get("score", 0.0)},
-            )
-            records.append(record)
+        record = TrajectoryRecord(
+            feedback=feedback,
+            inputs=inputs,
+            outputs=outputs,
+            conversation=conversation
+            if isinstance(conversation, Conversation)
+            else None,
+            extra={"score": traj.get("score", 0.0) if isinstance(traj, dict) else 0.0},
+        )
+        records.append(record)
 
-        data = {comp: records for comp in components_to_update}
-        return ReflectiveDataset(data)
+    return records

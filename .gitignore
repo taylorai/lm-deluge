@@ -5,6 +5,8 @@
 .claude
 .ruff_cache
 
+gsm8k_gepa/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

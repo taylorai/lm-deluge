@@ -9,6 +9,8 @@ import random
 import sys
 from pathlib import Path
 
+import pytest
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -40,9 +42,9 @@ def test_trajectory_record():
     from lm_deluge.pipelines.gepa import TrajectoryRecord
 
     record = TrajectoryRecord(
+        feedback="Score: 1.0/1.0",
         inputs={"question": "What is 2+2?"},
         outputs="The answer is 4.",
-        feedback="Score: 1.0/1.0",
         extra={"score": 1.0},
     )
 
@@ -60,14 +62,14 @@ def test_reflective_dataset():
 
     records = [
         TrajectoryRecord(
+            feedback="good",
             inputs={"q": "test1"},
             outputs="out1",
-            feedback="good",
         ),
         TrajectoryRecord(
+            feedback="bad",
             inputs={"q": "test2"},
             outputs="out2",
-            feedback="bad",
         ),
     ]
 
@@ -239,12 +241,47 @@ def test_candidate_proposal():
     print("CandidateProposal test passed!")
 
 
+def test_conversation_trajectory_record():
+    """Ensure TrajectoryRecord can carry a Conversation."""
+    from lm_deluge import Conversation, Message
+    from lm_deluge.prompt import Text
+    from lm_deluge.pipelines.gepa import FunctionEvaluator
+
+    def run_fn(input_data, candidate):
+        return "ok"
+
+    def score_fn(output, input_data):
+        return 0.5
+
+    # Trajectory includes a conversation object
+    def trajectory_fn(item, output, score, candidate):
+        conv = Conversation.user(f"Q: {item['q']}")
+        conv = conv.add(Message(role="assistant", parts=[Text(f"A: {output}")]))
+        return {"conversation": conv, "score": score}
+
+    evaluator = FunctionEvaluator(
+        run_fn=run_fn,
+        score_fn=score_fn,
+        trajectory_fn=trajectory_fn,
+    )
+
+    batch = [{"q": "1+1?"}]
+    candidate = {"prompt": "irrelevant"}
+    eval_batch = evaluator.evaluate(batch, candidate, capture_traces=True)
+    ds = evaluator.make_reflective_dataset(candidate, eval_batch, ["prompt"])
+    records = ds["prompt"]
+    assert records and records[0].conversation is not None
+    as_dict = records[0].to_dict()
+    assert "Conversation" in as_dict
+    print("Conversation trajectory test passed!")
+
+
 def test_reflective_mutation_proposer():
     """Test ReflectiveMutationProposer with mock components."""
     from lm_deluge.pipelines.gepa import (
         FunctionEvaluator,
-        ReflectiveMutationProposer,
         GEPAState,
+        ReflectiveMutationProposer,
     )
 
     # Simple evaluator
@@ -342,6 +379,110 @@ def test_mini_optimization():
     print(f"  Total evals: {result.total_metric_calls}")
 
 
+def test_merge_scheduler_attempts_once_scheduled():
+    """Ensure merge attempts are consumed and tracked even when rejected."""
+    from lm_deluge.pipelines.gepa import (
+        EvaluationBatch,
+        GEPAEngine,
+        MergeProposer,
+        ReflectiveDataset,
+        ReflectiveMutationProposer,
+        TrajectoryRecord,
+    )
+    from lm_deluge.pipelines.gepa.evaluator import Evaluator
+
+    class IncrementalEvaluator(Evaluator[dict[str, str], dict[str, str], int]):
+        def evaluate(self, batch, candidate, capture_traces=False):
+            value = int(candidate["value"])
+            outputs = [value for _ in batch]
+            scores = [float(value) for _ in batch]
+            trajectories = None
+            if capture_traces:
+                trajectories = [
+                    {"input": item, "output": value, "score": float(value)}
+                    for item in batch
+                ]
+            return EvaluationBatch(
+                outputs=outputs, scores=scores, trajectories=trajectories
+            )
+
+        def make_reflective_dataset(
+            self, candidate, eval_batch, components_to_update
+        ) -> ReflectiveDataset:
+            record = TrajectoryRecord(
+                inputs={"value": candidate["value"]},
+                outputs=candidate["value"],
+                feedback="stub",
+                extra={"score": eval_batch.avg_score},
+            )
+            return ReflectiveDataset({components_to_update[0]: [record]})
+
+        def propose_new_texts(
+            self, candidate, reflective_dataset, components_to_update
+        ):
+            current = int(candidate["value"])
+            return {"value": str(current + 1)}
+
+    trainset = [{"idx": i} for i in range(5)]
+    valset = [{"id": i} for i in range(3)]
+    evaluator = IncrementalEvaluator()
+
+    reflective = ReflectiveMutationProposer(
+        evaluator=evaluator,
+        reflection_fn=lambda _: "unused",
+        trainset=trainset,
+        minibatch_size=2,
+        skip_perfect_score=False,
+        perfect_score=100.0,
+        rng=random.Random(0),
+    )
+    merge = MergeProposer(
+        evaluator=evaluator,
+        valset=valset,
+        use_merge=True,
+        max_merge_invocations=2,
+        rng=random.Random(0),
+    )
+    engine = GEPAEngine(
+        evaluator=evaluator,
+        valset=valset,
+        seed_candidate={"value": "1"},
+        reflective_proposer=reflective,
+        merge_proposer=merge,
+        max_metric_calls=60,
+        display_progress=False,
+        log_fn=lambda *_: None,
+    )
+
+    engine.run()
+
+    assert merge.attempts_made > 0
+    assert merge.attempts_made <= merge.max_merge_invocations
+    assert merge.merges_scheduled == 0
+
+
+def test_engine_requires_reflective_proposer():
+    """Engine should guard against missing reflective proposer."""
+    from lm_deluge.pipelines.gepa import GEPAEngine, ReflectiveDataset
+    from lm_deluge.pipelines.gepa.evaluator import Evaluator
+    from lm_deluge.pipelines.gepa import EvaluationBatch
+
+    class DummyEvaluator(Evaluator[dict[str, str], dict[str, str], str]):
+        def evaluate(self, batch, candidate, capture_traces=False):
+            return EvaluationBatch(outputs=[], scores=[])
+
+        def make_reflective_dataset(self, candidate, eval_batch, components_to_update):
+            return ReflectiveDataset({})
+
+    with pytest.raises(ValueError):
+        GEPAEngine(
+            evaluator=DummyEvaluator(),
+            valset=[],
+            seed_candidate={},
+            reflective_proposer=None,  # type: ignore[arg-type]
+        )
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("Running GEPA tests")
@@ -359,6 +500,9 @@ if __name__ == "__main__":
     test_candidate_proposal()
     test_reflective_mutation_proposer()
     test_mini_optimization()
+    test_merge_scheduler_attempts_once_scheduled()
+    test_engine_requires_reflective_proposer()
+    test_conversation_trajectory_record()
 
     print("=" * 60)
     print("All GEPA tests passed!")

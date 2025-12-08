@@ -36,29 +36,27 @@ Example usage:
     print(result.best_candidate)
 """
 
-from lm_deluge.pipelines.gepa.api import optimize
-from lm_deluge.pipelines.gepa.engine import GEPAEngine
+from lm_deluge.pipelines.gepa.core import (
+    Candidate,
+    EvaluationBatch,
+    GEPAResult,
+    GEPAState,
+    ReflectiveDataset,
+    Trajectory,
+    TrajectoryRecord,
+)
 from lm_deluge.pipelines.gepa.evaluator import (
     BatchEvaluator,
     Evaluator,
     FunctionEvaluator,
 )
+from lm_deluge.pipelines.gepa.optimizer import GEPAEngine, optimize
 from lm_deluge.pipelines.gepa.proposers import (
     CandidateProposal,
     MergeProposer,
     ReflectiveMutationProposer,
     build_reflection_prompt,
     extract_instruction_from_response,
-)
-from lm_deluge.pipelines.gepa.result import GEPAResult
-from lm_deluge.pipelines.gepa.state import GEPAState
-from lm_deluge.pipelines.gepa.types import (
-    Candidate,
-    DataInstance,
-    EvaluationBatch,
-    ReflectiveDataset,
-    Trajectory,
-    TrajectoryRecord,
 )
 
 # Optional verifiers integration (may not be installed)
@@ -79,7 +77,6 @@ except ImportError:
 __all__ = [
     # Types
     "Candidate",
-    "DataInstance",
     "EvaluationBatch",
     "Trajectory",
     "TrajectoryRecord",
