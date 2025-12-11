@@ -58,6 +58,10 @@ async def _build_gemini_request(
             maybe_warn("WARN_GEMINI3_NO_REASONING")
             effort = "low"
         else:
+            effort_key = sampling_params.reasoning_effort
+            if effort_key == "xhigh":
+                maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
+                effort_key = "high"
             level_map = {
                 "none": "low",
                 "minimal": "low",
@@ -65,7 +69,7 @@ async def _build_gemini_request(
                 "medium": "high",  # change when supported
                 "high": "high",
             }
-            effort = level_map[sampling_params.reasoning_effort]
+            effort = level_map[effort_key]
         thinking_config = {"thinkingLevel": effort}
         request_json["generationConfig"]["thinkingConfig"] = thinking_config
 
@@ -88,14 +92,18 @@ async def _build_gemini_request(
             # dynamic thinking
             thinking_config = {"includeThoughts": True, "thinkingBudget": -1}
         elif sampling_params.reasoning_effort not in [None, "none"]:
+            effort_key = sampling_params.reasoning_effort
+            if effort_key == "xhigh":
+                maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
+                effort_key = "high"
             level_map = {
                 "minimal": 256,
                 "low": 1024,
                 "medium": 4096,
                 "high": 16384,
             }
-            assert sampling_params.reasoning_effort in level_map
-            budget = level_map[sampling_params.reasoning_effort]
+            assert effort_key in level_map
+            budget = level_map[effort_key]
             if "flash-lite" in model.id:
                 budget = max(budget, 512)
             thinking_config = {"includeThoughts": True, "thinkingBudget": budget}

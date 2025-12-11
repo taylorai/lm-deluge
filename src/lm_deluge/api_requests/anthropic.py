@@ -78,6 +78,10 @@ def _build_anthropic_request(
         if sampling_params.thinking_budget is not None:
             budget = sampling_params.thinking_budget
         elif sampling_params.reasoning_effort is not None:
+            effort = sampling_params.reasoning_effort
+            if effort == "xhigh":
+                maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
+                effort = "high"
             # translate reasoning effort of low, medium, high to budget tokens
             budget = {
                 "none": 0,
@@ -85,7 +89,7 @@ def _build_anthropic_request(
                 "low": 1024,
                 "medium": 4096,
                 "high": 16384,
-            }.get(sampling_params.reasoning_effort)
+            }.get(effort)
             assert isinstance(budget, int)
         else:
             budget = 0
