@@ -1,91 +1,204 @@
 """
-Optimization loop and public API for GEPA.
+GEPA optimizer.
+
+Main optimization loop that evolves text components using trajectory-based feedback.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
-import os
 import random
-import traceback
-from typing import Any, Generic, TypeVar
+from collections.abc import Awaitable, Callable
+from pathlib import Path
+from typing import Generic, TypeVar
 
 from lm_deluge.client import _LLMClient
-
 from lm_deluge.pipelines.gepa.core import (
+    Component,
+    EvalResult,
     GEPAResult,
     GEPAState,
-    ProgramIdx,
 )
-from lm_deluge.pipelines.gepa.evaluator import Evaluator
-from lm_deluge.pipelines.gepa.proposers import (
-    MergeProposer,
-    ReflectiveMutationProposer,
-)
+from lm_deluge.pipelines.gepa.proposer import propose_improvement
 
-DataInstance = TypeVar("DataInstance")
-Trajectory = TypeVar("Trajectory")
-RolloutOutput = TypeVar("RolloutOutput")
-DataId = TypeVar("DataId")
+T = TypeVar("T")  # Example type
+
+# Type for the user-provided evaluate function (must be async)
+AsyncEvaluateFn = Callable[[_LLMClient, dict[str, str], T], Awaitable[EvalResult]]
 
 
-class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
+def optimize(
+    components: dict[str, Component],
+    evaluate_fn: AsyncEvaluateFn[T],
+    dataset: list[T],
+    task_client: _LLMClient,
+    proposer_client: _LLMClient,
+    *,
+    val_dataset: list[T] | None = None,
+    max_iterations: int = 100,
+    max_evals: int | None = None,
+    minibatch_size: int = 4,
+    perfect_score: float = 1.0,
+    proposal_prompt_template: str | None = None,
+    meta_instructions: str | None = None,
+    run_dir: str | Path | None = None,
+    log_fn: Callable[[str], None] | None = None,
+    save_trajectories: bool = False,
+    seed: int = 0,
+) -> GEPAResult:
     """
-    Orchestrates the GEPA optimization loop.
+    Run GEPA optimization to improve text components.
+
+    Args:
+        components: The text components to optimize (name -> Component)
+        evaluate_fn: Async function that evaluates one example: (client, values, example) -> EvalResult
+        dataset: Training examples
+        task_client: LLMClient for running evaluations
+        proposer_client: LLMClient for generating proposals
+        val_dataset: Optional separate validation set (defaults to dataset)
+        max_iterations: Maximum optimization iterations
+        max_evals: Maximum total evaluations (budget)
+        minibatch_size: Examples per minibatch for proposal evaluation
+        perfect_score: Score considered perfect (skip examples that achieve this)
+        proposal_prompt_template: Custom prompt template for proposer
+        meta_instructions: Guidelines to steer the proposer (e.g., "Don't overfit to specific examples")
+        run_dir: Directory to save state and trajectories
+        log_fn: Logging function (defaults to print)
+        save_trajectories: Whether to save trajectories to disk
+        seed: Random seed for reproducibility
+
+    Returns:
+        GEPAResult with optimization results
+    """
+    engine = GEPAEngine(
+        components=components,
+        evaluate_fn=evaluate_fn,
+        dataset=dataset,
+        task_client=task_client,
+        proposer_client=proposer_client,
+        val_dataset=val_dataset,
+        max_iterations=max_iterations,
+        max_evals=max_evals,
+        minibatch_size=minibatch_size,
+        perfect_score=perfect_score,
+        proposal_prompt_template=proposal_prompt_template,
+        meta_instructions=meta_instructions,
+        run_dir=run_dir,
+        log_fn=log_fn,
+        save_trajectories=save_trajectories,
+        seed=seed,
+    )
+
+    return asyncio.run(engine.run())
+
+
+class GEPAEngine(Generic[T]):
+    """
+    Stateful GEPA optimizer.
+
+    Use this for more control over the optimization process:
+    - Resume from saved state
+    - Step through iterations manually
+    - Access intermediate state
     """
 
     def __init__(
         self,
-        evaluator: Evaluator[DataInstance, Trajectory, RolloutOutput],
-        valset: list[DataInstance],
-        seed_candidate: dict[str, str],
-        reflective_proposer: ReflectiveMutationProposer,
-        merge_proposer: MergeProposer | None = None,
+        components: dict[str, Component],
+        evaluate_fn: AsyncEvaluateFn[T],
+        dataset: list[T],
+        task_client: _LLMClient,
+        proposer_client: _LLMClient,
+        *,
+        val_dataset: list[T] | None = None,
+        max_iterations: int = 100,
+        max_evals: int | None = None,
+        minibatch_size: int = 4,
         perfect_score: float = 1.0,
-        max_metric_calls: int | None = None,
-        run_dir: str | None = None,
-        log_fn: callable | None = None,
-        track_best_outputs: bool = False,
-        display_progress: bool = True,
-        log_trajectories: bool = False,
+        proposal_prompt_template: str | None = None,
+        meta_instructions: str | None = None,
+        run_dir: str | Path | None = None,
+        log_fn: Callable[[str], None] | None = None,
+        save_trajectories: bool = False,
+        seed: int = 0,
     ):
-        if reflective_proposer is None:
-            raise ValueError("reflective_proposer is required.")
-
-        self.evaluator = evaluator
-        self.valset = valset
-        self.seed_candidate = seed_candidate
-        self.reflective_proposer = reflective_proposer
-        self.merge_proposer = merge_proposer
+        self.components = components
+        self.evaluate_fn = evaluate_fn
+        self.dataset = dataset
+        self.task_client = task_client
+        self.proposer_client = proposer_client
+        self.val_dataset = val_dataset if val_dataset is not None else dataset
+        self.max_iterations = max_iterations
+        self.max_evals = max_evals
+        self.minibatch_size = minibatch_size
         self.perfect_score = perfect_score
-        self.max_metric_calls = max_metric_calls
-        self.run_dir = run_dir
+        self.proposal_prompt_template = proposal_prompt_template
+        self.meta_instructions = meta_instructions
+        self.run_dir = Path(run_dir) if run_dir else None
         self.log_fn = log_fn or print
-        self.track_best_outputs = track_best_outputs
-        self.display_progress = display_progress
-        self.log_trajectories = log_trajectories
+        self.save_trajectories = save_trajectories
 
-        self._stop_requested = False
+        self.rng = random.Random(seed)
+        self.state: GEPAState | None = None
         self._trajectory_counter = 0
 
     def _log(self, msg: str) -> None:
         self.log_fn(msg)
 
-    def save_trajectories(
+    async def _evaluate_batch(
+        self,
+        examples: list[tuple[int, T]],  # (index, example) pairs
+        component_values: dict[str, str],
+    ) -> list[tuple[int, EvalResult]]:
+        """Evaluate a batch of examples concurrently, return (index, result) pairs."""
+
+        async def eval_one(idx: int, example: T) -> tuple[int, EvalResult] | None:
+            try:
+                result = await self.evaluate_fn(
+                    self.task_client, component_values, example
+                )
+                return (idx, result)
+            except Exception as e:
+                self._log(f"Error evaluating example {idx}: {e}")
+                return None
+
+        # Run all evaluations concurrently
+        tasks = [eval_one(idx, example) for idx, example in examples]
+        results_raw = await asyncio.gather(*tasks)
+
+        # Filter out None results (failed evaluations)
+        results = [r for r in results_raw if r is not None]
+        return results
+
+    async def _evaluate_all(
+        self,
+        examples: list[T],
+        component_values: dict[str, str],
+    ) -> dict[int, float]:
+        """Evaluate all examples, return scores dict."""
+        indexed = [(i, ex) for i, ex in enumerate(examples)]
+        results = await self._evaluate_batch(indexed, component_values)
+
+        if self.state:
+            self.state.total_evals += len(results)
+
+        return {idx: result.score for idx, result in results}
+
+    def _save_trajectory(
         self,
         iteration: int,
         tag: str,
-        candidate: dict[str, str],
-        batch: list[Any],
-        trajectories: list[Any] | None,
-        scores: list[float],
+        candidate_values: dict[str, str],
+        example_idx: int,
+        result: EvalResult,
     ) -> None:
-        """Persist trajectories to disk for debugging."""
-        if not self.log_trajectories or not self.run_dir:
+        """Save a trajectory to disk for debugging."""
+        if not self.save_trajectories or not self.run_dir:
             return
 
-        traj_dir = os.path.join(self.run_dir, "trajectories")
-        os.makedirs(traj_dir, exist_ok=True)
+        traj_dir = self.run_dir / "trajectories"
+        traj_dir.mkdir(parents=True, exist_ok=True)
 
         self._trajectory_counter += 1
         filename = f"{self._trajectory_counter:04d}_iter{iteration}_{tag}.json"
@@ -93,334 +206,230 @@ class GEPAEngine(Generic[DataId, DataInstance, Trajectory, RolloutOutput]):
         data = {
             "iteration": iteration,
             "tag": tag,
-            "candidate": candidate,
-            "scores": scores,
-            "avg_score": sum(scores) / len(scores) if scores else 0.0,
-            "batch": [],
-            "trajectories": [],
+            "example_idx": example_idx,
+            "candidate": candidate_values,
+            "score": result.score,
+            "feedback": result.feedback,
+            "conversation": result.conversation.to_log(),
         }
 
-        for item in batch:
-            try:
-                if hasattr(item, "to_dict"):
-                    data["batch"].append(item.to_dict())
-                elif isinstance(item, dict):
-                    data["batch"].append(item)
-                else:
-                    data["batch"].append(str(item))
-            except Exception:
-                data["batch"].append(str(item))
-
-        if trajectories:
-            for traj in trajectories:
-                try:
-                    if hasattr(traj, "to_dict"):
-                        data["trajectories"].append(traj.to_dict())
-                    elif isinstance(traj, dict):
-                        data["trajectories"].append(traj)
-                    else:
-                        data["trajectories"].append(str(traj))
-                except Exception:
-                    data["trajectories"].append(str(traj))
-
-        filepath = os.path.join(traj_dir, filename)
         try:
-            with open(filepath, "w") as f:
+            with open(traj_dir / filename, "w") as f:
                 json.dump(data, f, indent=2, default=str)
         except Exception as e:
-            self._log(f"Failed to save trajectories: {e}")
+            self._log(f"Failed to save trajectory: {e}")
 
-    def _evaluate_on_valset(
-        self,
-        candidate: dict[str, str],
-    ) -> tuple[dict[DataId, Any], dict[DataId, float]]:
-        eval_batch = self.evaluator.evaluate(
-            self.valset, candidate, capture_traces=False
+    async def initialize(self) -> None:
+        """Initialize state by evaluating seed candidate on validation set."""
+        self._log("Evaluating seed candidate...")
+
+        seed_values = {name: comp.value for name, comp in self.components.items()}
+        seed_scores = await self._evaluate_all(self.val_dataset, seed_values)
+
+        self.state = GEPAState.initialize(self.components, seed_scores)
+
+        avg_score = sum(seed_scores.values()) / len(seed_scores) if seed_scores else 0.0
+        self._log(
+            f"Seed candidate: avg_score={avg_score:.4f} on {len(seed_scores)} examples"
         )
 
-        outputs = {i: eval_batch.outputs[i] for i in range(len(self.valset))}
-        scores = {i: eval_batch.scores[i] for i in range(len(self.valset))}
-
-        return outputs, scores
-
-    def _run_full_eval_and_add(
-        self,
-        new_program: dict[str, str],
-        state: GEPAState,
-        parent_program_idx: list[ProgramIdx],
-    ) -> tuple[ProgramIdx, ProgramIdx]:
-        valset_outputs, valset_subscores = self._evaluate_on_valset(new_program)
-
-        state.num_full_ds_evals += 1
-        state.total_num_evals += len(self.valset)
-
-        new_program_idx = state.update_state_with_new_program(
-            parent_program_idx=parent_program_idx,
-            new_program=new_program,
-            valset_subscores=valset_subscores,
-            valset_outputs=valset_outputs if self.track_best_outputs else None,
-            run_dir=self.run_dir,
-        )
-
-        scores = state.program_full_scores_val_set
-        best_idx = max(range(len(scores)), key=lambda i: scores[i])
-
-        return new_program_idx, best_idx
-
-    def _should_stop(self, state: GEPAState) -> bool:
-        if self._stop_requested:
+    def _should_stop(self) -> bool:
+        """Check if we should stop optimization."""
+        if self.state is None:
             return True
 
-        if self.max_metric_calls and state.total_num_evals >= self.max_metric_calls:
+        if self.state.iteration >= self.max_iterations:
+            return True
+
+        if self.max_evals and self.state.total_evals >= self.max_evals:
+            return True
+
+        # Stop if best candidate achieves perfect score on val set
+        best_idx = self.state.best_candidate_idx()
+        best_avg = self.state.get_candidate_avg_score(best_idx)
+        if best_avg >= self.perfect_score:
+            self._log(
+                f"Best candidate achieved perfect score ({best_avg:.4f}), stopping"
+            )
             return True
 
         return False
 
-    def request_stop(self) -> None:
-        self._stop_requested = True
-        self._log("Stop requested. Shutting down gracefully...")
+    async def step(self) -> bool:
+        """
+        Run one optimization iteration.
 
-    def _attempt_merge(self, state: GEPAState) -> bool:
-        if self.merge_proposer is None or not self.merge_proposer.should_attempt():
+        Returns:
+            True if optimization should continue, False if done
+        """
+        if self.state is None:
+            await self.initialize()
+
+        assert self.state is not None
+
+        if self._should_stop():
             return False
 
-        proposal = self.merge_proposer.propose(state)
+        self.state.iteration += 1
+        iteration = self.state.iteration
 
-        if proposal is None:
-            reason = getattr(self.merge_proposer, "last_skip_reason", "unknown")
-            self._log(f"Iteration {state.i}: Merge skipped ({reason})")
+        # Get current best candidate
+        best_idx = self.state.best_candidate_idx()
+        current_values = self.state.candidates[best_idx]
+
+        # Find examples where the BEST candidate isn't perfect
+        # (not Pareto front - we want to improve the best single candidate)
+        best_scores = self.state.candidate_scores[best_idx]
+        improvable = [
+            ex_idx
+            for ex_idx, score in best_scores.items()
+            if score < self.perfect_score
+        ]
+
+        if not improvable:
+            # Best candidate is perfect on all examples it was evaluated on
+            # Just pick a random example to re-evaluate and potentially find issues
+            improvable = list(best_scores.keys())
+            if not improvable:
+                self._log(f"Iteration {iteration}: No examples to evaluate")
+                return False
+
+        # Pick an example to focus on (prefer non-perfect ones)
+        focus_idx = self.rng.choice(improvable)
+
+        # Evaluate current candidate on focus example to get trajectory
+        focus_example = self.val_dataset[focus_idx]
+        results = await self._evaluate_batch(
+            [(focus_idx, focus_example)], current_values
+        )
+
+        if not results:
+            self._log(f"Iteration {iteration}: Failed to evaluate focus example")
             return True
 
-        parent_sums = proposal.subsample_scores_before or [float("-inf")]
-        new_sum = sum(proposal.subsample_scores_after or [])
+        _, focus_result = results[0]
+        self.state.total_evals += 1
 
-        if new_sum >= max(parent_sums):
-            new_idx, best_idx = self._run_full_eval_and_add(
-                new_program=proposal.candidate,
-                state=state,
-                parent_program_idx=proposal.parent_program_ids,
+        if self.save_trajectories:
+            self._save_trajectory(
+                iteration, "focus", current_values, focus_idx, focus_result
             )
-            self.merge_proposer.record_success()
-            if self.merge_proposer.can_schedule_more():
-                self.merge_proposer.schedule_merge()
 
-            val_score = state.program_full_scores_val_set[new_idx]
-            best_score = state.program_full_scores_val_set[best_idx]
-            self._log(
-                f"Iteration {state.i}: Merge accepted (sum={new_sum:.4f}) "
-                f"new={val_score:.4f}, best={best_score:.4f}"
+        # Generate proposal
+        proposal = await propose_improvement(
+            proposer_client=self.proposer_client,
+            eval_result=focus_result,
+            components=self.components,
+            current_values=current_values,
+            prompt_template=self.proposal_prompt_template,
+            meta_instructions=self.meta_instructions,
+        )
+
+        if proposal is None:
+            self._log(f"Iteration {iteration}: No proposal generated")
+            return True
+
+        self._log(
+            f"Iteration {iteration}: Proposing change to '{proposal.component_name}' - {proposal.reasoning[:80]}..."
+        )
+
+        # Build new candidate
+        new_values = dict(current_values)
+        new_values[proposal.component_name] = proposal.new_value
+
+        # Evaluate on minibatch (including focus example)
+        minibatch_indices = [focus_idx]
+        other_indices = [i for i in improvable if i != focus_idx]
+        if other_indices:
+            additional = self.rng.sample(
+                other_indices, min(self.minibatch_size - 1, len(other_indices))
             )
-        else:
+            minibatch_indices.extend(additional)
+
+        # Evaluate old and new candidates on minibatch concurrently
+        minibatch = [(i, self.val_dataset[i]) for i in minibatch_indices]
+        old_results, new_results = await asyncio.gather(
+            self._evaluate_batch(minibatch, current_values),
+            self._evaluate_batch(minibatch, new_values),
+        )
+
+        old_sum = sum(r.score for _, r in old_results)
+        new_sum = sum(r.score for _, r in new_results)
+
+        self.state.total_evals += len(old_results) + len(new_results)
+
+        # Accept if improved
+        if new_sum <= old_sum:
             self._log(
-                f"Iteration {state.i}: Merge rejected ({new_sum:.4f} < {max(parent_sums):.4f})"
+                f"Iteration {iteration}: Rejected (old={old_sum:.3f}, new={new_sum:.3f})"
             )
+            return True
+
+        self._log(
+            f"Iteration {iteration}: Accepted (old={old_sum:.3f}, new={new_sum:.3f})"
+        )
+
+        # Full validation evaluation
+        val_scores = await self._evaluate_all(self.val_dataset, new_values)
+
+        # Add to population
+        new_idx = self.state.add_candidate(new_values, best_idx, val_scores)
+
+        new_avg = sum(val_scores.values()) / len(val_scores) if val_scores else 0.0
+        best_avg = self.state.get_candidate_avg_score(self.state.best_candidate_idx())
+        self._log(
+            f"  New candidate {new_idx}: val_avg={new_avg:.4f}, best={best_avg:.4f}, "
+            f"pool={len(self.state.candidates)}"
+        )
+
+        # Save state periodically
+        if self.run_dir and iteration % 10 == 0:
+            self.state.save(self.run_dir)
 
         return True
 
-    def run(self) -> GEPAState[RolloutOutput, DataId]:
-        self._log("Initializing GEPA state...")
-        seed_outputs, seed_scores = self._evaluate_on_valset(self.seed_candidate)
+    async def run(self) -> GEPAResult:
+        """Run optimization until stopping condition."""
+        if self.state is None:
+            await self.initialize()
 
-        state = GEPAState.initialize(
-            seed_candidate=self.seed_candidate,
-            seed_val_outputs=seed_outputs,
-            seed_val_scores=seed_scores,
-            track_best_outputs=self.track_best_outputs,
-        )
+        try:
+            from tqdm import tqdm
 
-        seed_avg = sum(seed_scores.values()) / len(seed_scores)
-        self._log(f"Seed candidate validation score: {seed_avg:.4f}")
+            pbar = tqdm(
+                total=self.max_iterations,
+                desc="GEPA",
+                unit="iter",
+            )
+        except ImportError:
+            pbar = None
 
-        pbar = None
-        if self.display_progress:
-            try:
-                from tqdm import tqdm
-
-                total = self.max_metric_calls or None
-                pbar = tqdm(total=total, desc="GEPA Optimization", unit="evals")
-                pbar.update(state.total_num_evals)
-            except ImportError:
-                pass
-
-        last_pbar_val = state.total_num_evals
-
-        while not self._should_stop(state):
+        while await self.step():
             if pbar:
-                delta = state.total_num_evals - last_pbar_val
-                pbar.update(delta)
-                last_pbar_val = state.total_num_evals
-
-            state.i += 1
-            state.full_program_trace.append({"i": state.i})
-
-            try:
-                if self._attempt_merge(state):
-                    continue
-
-                proposal = self.reflective_proposer.propose(state)
-
-                if proposal is None:
-                    reason = getattr(
-                        self.reflective_proposer, "_last_skip_reason", "unknown"
-                    )
-                    self._log(f"Iteration {state.i}: No proposal generated ({reason})")
-                    continue
-
-                old_sum = sum(proposal.subsample_scores_before or [])
-                new_sum = sum(proposal.subsample_scores_after or [])
-
-                if new_sum <= old_sum:
-                    self._log(
-                        f"Iteration {state.i}: Rejected ({new_sum:.4f} <= {old_sum:.4f})"
-                    )
-                    continue
-
-                self._log(
-                    f"Iteration {state.i}: Accepted ({new_sum:.4f} > {old_sum:.4f})"
+                pbar.update(1)
+                pbar.set_postfix(
+                    evals=self.state.total_evals if self.state else 0,
+                    best=f"{self.state.get_candidate_avg_score(self.state.best_candidate_idx()):.3f}"
+                    if self.state
+                    else 0,
                 )
-
-                new_idx, best_idx = self._run_full_eval_and_add(
-                    new_program=proposal.candidate,
-                    state=state,
-                    parent_program_idx=proposal.parent_program_ids,
-                )
-
-                if self.merge_proposer is not None:
-                    self.merge_proposer.schedule_merge()
-
-                val_score = state.program_full_scores_val_set[new_idx]
-                best_score = state.program_full_scores_val_set[best_idx]
-                self._log(
-                    f"  New candidate {new_idx}: val={val_score:.4f}, "
-                    f"best={best_score:.4f}, pool={len(state.program_candidates)}"
-                )
-
-            except Exception as e:
-                self._log(f"Iteration {state.i}: Exception: {e}")
-                self._log(traceback.format_exc())
-                continue
-
-            if self.run_dir and state.i % 10 == 0:
-                state.save(self.run_dir)
 
         if pbar:
             pbar.close()
 
-        if self.run_dir:
-            state.save(self.run_dir)
+        # Save final state
+        if self.run_dir and self.state:
+            self.state.save(self.run_dir)
 
-        best_idx = max(
-            range(len(state.program_full_scores_val_set)),
-            key=lambda i: state.program_full_scores_val_set[i],
+        return self.result()
+
+    def result(self) -> GEPAResult:
+        """Get current result as immutable snapshot."""
+        if self.state is None:
+            raise RuntimeError(
+                "Optimizer not initialized. Call initialize() or run() first."
+            )
+
+        return GEPAResult.from_state(
+            self.state, run_dir=str(self.run_dir) if self.run_dir else None
         )
-        best_score = state.program_full_scores_val_set[best_idx]
-
-        self._log(
-            f"Optimization complete. Best score: {best_score:.4f}, "
-            f"candidates: {len(state.program_candidates)}, "
-            f"evals: {state.total_num_evals}"
-        )
-
-        return state
-
-
-def optimize(
-    seed_candidate: dict[str, str],
-    trainset: list[Any],
-    evaluator: Evaluator[Any, Any, Any],
-    valset: list[Any] | None = None,
-    reflection_client: _LLMClient | None = None,
-    reflection_fn: callable | None = None,
-    reflection_prompt_template: str | None = None,
-    candidate_selection_strategy: str = "pareto",
-    epsilon: float = 0.1,
-    component_selection_strategy: str = "round_robin",
-    minibatch_size: int = 3,
-    skip_perfect_score: bool = True,
-    perfect_score: float = 1.0,
-    use_merge: bool = False,
-    max_merge_invocations: int = 5,
-    merge_val_overlap_floor: int = 5,
-    max_metric_calls: int | None = None,
-    run_dir: str | None = None,
-    log_fn: callable | None = None,
-    track_best_outputs: bool = False,
-    display_progress: bool = True,
-    log_trajectories: bool = False,
-    seed: int = 0,
-) -> GEPAResult[RolloutOutput, DataId]:
-    """
-    Run GEPA optimization to evolve text components.
-    """
-    if reflection_client is None and reflection_fn is None:
-        raise ValueError(
-            "Either reflection_client or reflection_fn must be provided. "
-            "These are used to propose improved instructions."
-        )
-
-    if max_metric_calls is None:
-        raise ValueError(
-            "max_metric_calls must be provided to specify a stopping condition."
-        )
-
-    if valset is None:
-        valset = trainset
-
-    rng = random.Random(seed)
-
-    if reflection_fn is None and reflection_client is not None:
-
-        def _reflection_fn(prompt: str) -> str:
-            resp = reflection_client.process_prompts_sync(
-                [prompt], show_progress=False
-            )[0]
-            return resp.completion
-
-        reflection_fn = _reflection_fn
-
-    reflective_proposer = ReflectiveMutationProposer(
-        evaluator=evaluator,
-        reflection_fn=reflection_fn,
-        trainset=trainset,
-        minibatch_size=minibatch_size,
-        component_selector=component_selection_strategy,
-        candidate_selector=candidate_selection_strategy,
-        perfect_score=perfect_score,
-        skip_perfect_score=skip_perfect_score,
-        reflection_prompt_template=reflection_prompt_template,
-        rng=rng,
-        epsilon=epsilon,
-        trajectory_callback=None,
-    )
-
-    merge_proposer: MergeProposer | None = None
-    if use_merge:
-        merge_proposer = MergeProposer(
-            evaluator=evaluator,
-            valset=valset,
-            use_merge=use_merge,
-            max_merge_invocations=max_merge_invocations,
-            val_overlap_floor=merge_val_overlap_floor,
-            rng=rng,
-        )
-
-    engine = GEPAEngine(
-        evaluator=evaluator,
-        valset=valset,
-        seed_candidate=seed_candidate,
-        reflective_proposer=reflective_proposer,
-        merge_proposer=merge_proposer,
-        perfect_score=perfect_score,
-        max_metric_calls=max_metric_calls,
-        run_dir=run_dir,
-        log_fn=log_fn,
-        track_best_outputs=track_best_outputs,
-        display_progress=display_progress,
-        log_trajectories=log_trajectories,
-    )
-
-    if log_trajectories and run_dir:
-        reflective_proposer.trajectory_callback = engine.save_trajectories
-
-    state = engine.run()
-    return GEPAResult.from_state(state, run_dir=run_dir, seed=seed)

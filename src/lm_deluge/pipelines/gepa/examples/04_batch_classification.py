@@ -1,19 +1,13 @@
 """
-Example 4: Batch Classification with LLM-as-Judge
+Example: Sentiment Classification
 
-Optimize a classification prompt using efficient batch processing.
-This example shows how to use lm-deluge's batch processing capabilities
-for maximum efficiency.
+Optimize a classification prompt for sentiment analysis.
+This example shows a straightforward classification task.
 
 The task:
 - Input: Text to classify
 - Output: Sentiment (positive/negative)
-- Score: Accuracy using LLM-as-judge or exact match
-
-This example demonstrates:
-- BatchEvaluator for efficient parallel inference
-- Custom scoring with LLM-as-judge fallback
-- Handling classification tasks
+- Score: Accuracy (exact match)
 
 Run:
     python 04_batch_classification.py
@@ -24,13 +18,14 @@ Requirements:
 
 import os
 import sys
-from pathlib import Path
 
-# Add src to path for local development
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+import dotenv
 
 from lm_deluge import LLMClient
-from lm_deluge.pipelines.gepa import optimize, BatchEvaluator
+from lm_deluge.pipelines.gepa import Component, EvalResult, optimize
+from lm_deluge.prompt import Conversation, Message
+
+dotenv.load_dotenv()
 
 
 # Simple sentiment dataset
@@ -112,137 +107,141 @@ SENTIMENT_DATA = [
 ]
 
 
+def extract_prediction(output: str) -> str:
+    """Extract sentiment prediction from model output."""
+    output_lower = output.lower().strip()
+
+    if "positive" in output_lower and "negative" not in output_lower:
+        return "positive"
+    elif "negative" in output_lower and "positive" not in output_lower:
+        return "negative"
+    elif output_lower.startswith("positive"):
+        return "positive"
+    elif output_lower.startswith("negative"):
+        return "negative"
+    else:
+        return "unknown"
+
+
+def make_evaluate_fn(task_client: LLMClient):  # type: ignore
+    """Create the evaluate function."""
+
+    def evaluate(
+        client: LLMClient,  # type: ignore
+        component_values: dict[str, str],
+        example: dict,
+    ) -> EvalResult:
+        """Evaluate one classification example."""
+        # Build conversation
+        conv = Conversation.system(component_values["system_prompt"])
+
+        user_msg = f"""Text to classify:
+"{example['text']}"
+
+{component_values['output_format']}"""
+        conv = conv.add(Message.user(user_msg))
+
+        # Run inference
+        response = client.process_prompts_sync([conv], show_progress=False)[0]
+        output = response.completion or ""
+
+        # Extract prediction and score
+        pred = extract_prediction(output)
+        correct = pred == example["label"]
+        score = 1.0 if correct else 0.0
+
+        # Build feedback
+        if correct:
+            feedback = f"""Score: 1.0 (CORRECT)
+Text: "{example['text'][:50]}..."
+Expected: {example['label']}
+Predicted: {pred}"""
+        else:
+            feedback = f"""Score: 0.0 (INCORRECT)
+Text: "{example['text']}"
+Expected: {example['label']}
+Model output: {output}
+Extracted prediction: {pred}
+
+The model either misclassified the sentiment or failed to output a clear positive/negative label."""
+
+        # Return full trajectory
+        full_conv = conv.add(Message.ai(output))
+        return EvalResult(conversation=full_conv, score=score, feedback=feedback)
+
+    return evaluate
+
+
 def main():
     # Check for API keys
     model = None
-    reflection_model = None
+    proposer_model = None
 
     if os.getenv("OPENAI_API_KEY"):
-        model = "gpt-4o-mini"
-        reflection_model = "gpt-4o"
+        model = "gpt-4.1-nano"
+        proposer_model = "gpt-4.1-mini"
     elif os.getenv("ANTHROPIC_API_KEY"):
         model = "claude-3-5-haiku-latest"
-        reflection_model = "claude-sonnet-4-20250514"
+        proposer_model = "claude-sonnet-4-20250514"
     else:
         print("Please set OPENAI_API_KEY or ANTHROPIC_API_KEY")
         sys.exit(1)
 
     print(f"Using task model: {model}")
-    print(f"Using reflection model: {reflection_model}")
+    print(f"Using proposer model: {proposer_model}")
 
     # Split data
     trainset = SENTIMENT_DATA[:14]
     valset = SENTIMENT_DATA[14:]
     print(f"Training: {len(trainset)}, Validation: {len(valset)} examples")
 
-    # Create client with high concurrency for batch processing
-    task_client = LLMClient(
+    # Create clients
+    task_client = LLMClient(  # type: ignore[operator]
         model,
         max_requests_per_minute=200,
-        max_concurrent_requests=20,
         max_new_tokens=50,
         temperature=0.0,
     )
-    reflection_client = LLMClient(
-        reflection_model,
+    proposer_client = LLMClient(  # type: ignore[operator]
+        proposer_model,
         max_requests_per_minute=50,
         max_new_tokens=1024,
     )
 
-    # Batch processing functions
-    def batch_run(batch: list[dict], candidate: dict) -> list[str]:
-        """Run classification on entire batch at once."""
-        prompts = []
-        for item in batch:
-            prompt = f"""{candidate['system_prompt']}
-
-Text to classify:
-"{item['text']}"
-
-{candidate['output_format']}"""
-            prompts.append(prompt)
-
-        # Process all at once with lm-deluge
-        responses = task_client.process_prompts_sync(
-            prompts,
-            show_progress=False,
-        )
-
-        return [r.completion or "" for r in responses]
-
-    def batch_score(outputs: list[str], batch: list[dict]) -> list[float]:
-        """Score each output against ground truth."""
-        scores = []
-        for output, item in zip(outputs, batch):
-            output_lower = output.lower().strip()
-
-            # Extract prediction
-            if "positive" in output_lower and "negative" not in output_lower:
-                pred = "positive"
-            elif "negative" in output_lower and "positive" not in output_lower:
-                pred = "negative"
-            elif output_lower.startswith("positive"):
-                pred = "positive"
-            elif output_lower.startswith("negative"):
-                pred = "negative"
-            else:
-                # Ambiguous - count as wrong
-                pred = "unknown"
-
-            scores.append(1.0 if pred == item["label"] else 0.0)
-
-        return scores
-
-    def trajectory_fn(item: dict, output: str, score: float, candidate: dict) -> dict:
-        """Build trajectory for reflection."""
-        return {
-            "text": item["text"],
-            "expected": item["label"],
-            "model_output": output,
-            "correct": score == 1.0,
-        }
-
-    def feedback_fn(traj: dict) -> str:
-        """Generate feedback string."""
-        if traj["correct"]:
-            return f"CORRECT - Expected: {traj['expected']}"
-        else:
-            return f"WRONG - Expected: {traj['expected']}, Got: {traj['model_output']}"
-
-    evaluator = BatchEvaluator(
-        batch_run_fn=batch_run,
-        batch_score_fn=batch_score,
-        trajectory_fn=trajectory_fn,
-        feedback_fn=feedback_fn,
-    )
-
-    # Seed candidate with two components
-    seed_candidate = {
-        "system_prompt": "Classify the sentiment of the following text.",
-        "output_format": "Respond with either 'positive' or 'negative'.",
+    # Define components to optimize
+    components = {
+        "system_prompt": Component(
+            description="System prompt that instructs the model to classify sentiment",
+            value="Classify the sentiment of the following text.",
+        ),
+        "output_format": Component(
+            description="Instructions for how to format the classification output",
+            value="Respond with either 'positive' or 'negative'.",
+        ),
     }
 
     print()
     print("=" * 60)
-    print("GEPA Example 4: Batch Classification")
+    print("GEPA Example: Sentiment Classification")
     print("=" * 60)
     print("Components being optimized:")
-    for name, text in seed_candidate.items():
-        print(f"  - {name}: {text}")
+    for name, comp in components.items():
+        print(f"  - {name}: {comp.value}")
     print()
 
     # Run optimization
     result = optimize(
-        seed_candidate=seed_candidate,
-        trainset=trainset,
-        valset=valset,
-        evaluator=evaluator,
-        reflection_client=reflection_client,
-        max_metric_calls=150,
+        components=components,
+        evaluate_fn=make_evaluate_fn(task_client),  # type: ignore[arg-type]
+        dataset=trainset,
+        val_dataset=valset,
+        task_client=task_client,
+        proposer_client=proposer_client,
+        max_iterations=15,
+        max_evals=150,
         minibatch_size=4,
-        component_selection_strategy="round_robin",
-        skip_perfect_score=True,
-        display_progress=True,
+        run_dir="./sentiment_gepa",
+        save_trajectories=True,
         seed=42,
     )
 
@@ -252,7 +251,7 @@ Text to classify:
     print("=" * 60)
     print(f"Candidates discovered: {result.num_candidates}")
     print(f"Best validation accuracy: {result.best_score:.1%}")
-    print(f"Total evaluations: {result.total_metric_calls}")
+    print(f"Total evaluations: {result.total_evals}")
     print()
     print("Best candidate found:")
     print("-" * 40)
@@ -262,7 +261,7 @@ Text to classify:
     print("-" * 40)
 
     # Show improvement
-    seed_score = result.val_aggregate_scores[0]
+    seed_score = result.candidate_avg_scores[0]
     print(f"\nSeed accuracy: {seed_score:.1%}")
     print(f"Best accuracy: {result.best_score:.1%}")
     print(f"Improvement: +{(result.best_score - seed_score):.1%}")

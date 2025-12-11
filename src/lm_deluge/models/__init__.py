@@ -40,6 +40,9 @@ class APIModel:
     supports_logprobs: bool = False
     supports_responses: bool = False
     reasoning_model: bool = False
+    supports_xhigh: bool = (
+        False  # supports xhigh reasoning_effort (gpt-5.2, gpt-5.1-codex-max)
+    )
     regions: list[str] | dict[str, int] = field(default_factory=list)
     # tokens_per_minute: int | None = None
     # requests_per_minute: int | None = None
@@ -99,6 +102,7 @@ def register_model(
     supports_logprobs: bool = False,
     supports_responses: bool = False,
     reasoning_model: bool = False,
+    supports_xhigh: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
     # tokens_per_minute: int | None = None,
     # requests_per_minute: int | None = None,
@@ -118,6 +122,7 @@ def register_model(
         supports_logprobs=supports_logprobs,
         supports_responses=supports_responses,
         reasoning_model=reasoning_model,
+        supports_xhigh=supports_xhigh,
         regions=regions,
         # tokens_per_minute=tokens_per_minute,
         # requests_per_minute=requests_per_minute,

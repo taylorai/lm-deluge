@@ -1,104 +1,95 @@
 """
-GEPA (Genetic Pareto) for lm-deluge.
+GEPA (Genetic Pareto) prompt optimizer for lm-deluge.
 
 This module provides an evolutionary optimizer for text components in AI systems.
-It uses reflective mutation and merge operations to improve prompts, docstrings,
-and other text-based program components.
+It analyzes whole trajectories to propose improvements to prompts, tool descriptions,
+and other text-based configuration.
 
 Example usage:
     from lm_deluge import LLMClient
-    from lm_deluge.pipelines.gepa import optimize, FunctionEvaluator
+    from lm_deluge.prompt import Conversation, Message
+    from lm_deluge.pipelines.gepa import Component, EvalResult, optimize
 
-    # Create clients
-    task_client = LLMClient("gpt-4o-mini")
-    reflection_client = LLMClient("gpt-4o")
+    # Define components to optimize
+    components = {
+        "system_prompt": Component(
+            description="Instructions given to the model",
+            value="You are a helpful assistant.",
+        ),
+    }
 
-    # Define how to run and score your task
-    def run_task(input_data, candidate):
-        prompt = candidate["system_prompt"] + "\\n" + input_data["question"]
-        return task_client.process_prompts_sync([prompt])[0].completion
+    # Define how to evaluate one example
+    def evaluate(client: LLMClient, values: dict[str, str], example: dict) -> EvalResult:
+        # Build prompt with current component values
+        conv = Conversation.system(values["system_prompt"])
+        conv = conv.add(Message.user(example["question"]))
 
-    def score_output(output, input_data):
-        return 1.0 if input_data["answer"].lower() in output.lower() else 0.0
+        # Run inference
+        response = client.process_prompts_sync([conv], show_progress=False)[0]
+        answer = response.completion
 
-    evaluator = FunctionEvaluator(run_fn=run_task, score_fn=score_output)
+        # Score the result
+        correct = example["answer"].lower() in answer.lower()
+        score = 1.0 if correct else 0.0
+
+        # Build feedback for the proposer
+        feedback = f"Score: {score}. Expected: {example['answer']}"
+
+        # Return full trajectory
+        full_conv = conv.add(Message.ai(answer))
+        return EvalResult(conversation=full_conv, score=score, feedback=feedback)
 
     # Run optimization
     result = optimize(
-        seed_candidate={"system_prompt": "You are a helpful assistant."},
-        trainset=train_data,
-        valset=val_data,
-        evaluator=evaluator,
-        reflection_client=reflection_client,
-        max_metric_calls=1000,
+        components=components,
+        evaluate_fn=evaluate,
+        dataset=train_examples,
+        task_client=LLMClient("gpt-4o-mini"),
+        proposer_client=LLMClient("gpt-4o"),
+        max_iterations=50,
     )
 
-    print(result.best_candidate)
+    print(f"Best score: {result.best_score}")
+    print(f"Best prompt: {result.best_candidate['system_prompt']}")
 """
 
 from lm_deluge.pipelines.gepa.core import (
-    Candidate,
-    EvaluationBatch,
+    Component,
+    EvalResult,
     GEPAResult,
     GEPAState,
-    ReflectiveDataset,
-    Trajectory,
-    TrajectoryRecord,
-)
-from lm_deluge.pipelines.gepa.evaluator import (
-    BatchEvaluator,
-    Evaluator,
-    FunctionEvaluator,
+    Proposal,
 )
 from lm_deluge.pipelines.gepa.optimizer import GEPAEngine, optimize
-from lm_deluge.pipelines.gepa.proposers import (
-    CandidateProposal,
-    MergeProposer,
-    ReflectiveMutationProposer,
-    build_reflection_prompt,
-    extract_instruction_from_response,
+from lm_deluge.pipelines.gepa.proposer import (
+    DEFAULT_PROPOSAL_PROMPT,
+    build_proposal_prompt,
+    parse_proposal_response,
+    propose_improvement_sync,
+)
+from lm_deluge.pipelines.gepa.util import (
+    extract_text_from_response,
+    format_components_for_prompt,
+    format_conversation_compact,
 )
 
-# Optional verifiers integration (may not be installed)
-try:
-    from lm_deluge.pipelines.gepa.verifiers_adapter import (
-        VerifiersEvaluator,
-        create_simple_prepare_fn,
-        make_verifiers_evaluator,
-    )
-
-    _HAS_VERIFIERS = True
-except ImportError:
-    _HAS_VERIFIERS = False
-    VerifiersEvaluator = None  # type: ignore
-    make_verifiers_evaluator = None  # type: ignore
-    create_simple_prepare_fn = None  # type: ignore
-
 __all__ = [
-    # Types
-    "Candidate",
-    "EvaluationBatch",
-    "Trajectory",
-    "TrajectoryRecord",
-    "ReflectiveDataset",
-    # Core classes
-    "Evaluator",
-    "FunctionEvaluator",
-    "BatchEvaluator",
-    "GEPAEngine",
+    # Core types
+    "Component",
+    "EvalResult",
+    "Proposal",
     "GEPAState",
     "GEPAResult",
-    # Proposers
-    "CandidateProposal",
-    "ReflectiveMutationProposer",
-    "MergeProposer",
-    # Utilities
-    "build_reflection_prompt",
-    "extract_instruction_from_response",
     # Main API
     "optimize",
-    # Verifiers integration (optional)
-    "VerifiersEvaluator",
-    "make_verifiers_evaluator",
-    "create_simple_prepare_fn",
+    "GEPAEngine",
+    # Proposer utilities
+    "DEFAULT_PROPOSAL_PROMPT",
+    "build_proposal_prompt",
+    "parse_proposal_response",
+    "propose_improvement_sync",
+    # Formatting utilities
+    "format_conversation_compact",
+    "format_components_for_prompt",
+    "extract_text_from_response",
 ]

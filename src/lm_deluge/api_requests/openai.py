@@ -61,8 +61,6 @@ async def _build_oa_chat_request(
     else:
         request_json["max_completion_tokens"] = sampling_params.max_new_tokens
     if model.reasoning_model:
-        request_json["temperature"] = 1.0
-        request_json["top_p"] = 1.0
         effort = sampling_params.reasoning_effort
         if effort in [None, "none"]:
             # Disable reasoning for Gemini models when no effort requested
@@ -79,6 +77,17 @@ async def _build_oa_chat_request(
         elif effort == "minimal" and "gpt-5" not in model.id:
             maybe_warn("WARN_MINIMAL_TO_LOW", model_name=context.model_name)
             effort = "low"
+        # xhigh only supported for specific models (gpt-5.2, gpt-5.1-codex-max)
+        if effort == "xhigh" and not model.supports_xhigh:
+            maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
+            effort = "high"
+        # GPT-5.2 and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
+        if model.supports_xhigh and effort != "none":
+            del request_json["temperature"]
+            del request_json["top_p"]
+        else:
+            request_json["temperature"] = 1.0
+            request_json["top_p"] = 1.0
         request_json["reasoning_effort"] = effort
     else:
         if sampling_params.reasoning_effort:
@@ -323,8 +332,17 @@ async def _build_oa_responses_request(
         elif effort == "minimal" and "gpt-5" not in model.id:
             maybe_warn("WARN_MINIMAL_TO_LOW", model_name=context.model_name)
             effort = "low"
-        request_json["temperature"] = 1.0
-        request_json["top_p"] = 1.0
+        # xhigh only supported for specific models (gpt-5.2, gpt-5.1-codex-max)
+        if effort == "xhigh" and not model.supports_xhigh:
+            maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
+            effort = "high"
+        # GPT-5.2 and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
+        if model.supports_xhigh and effort != "none":
+            del request_json["temperature"]
+            del request_json["top_p"]
+        else:
+            request_json["temperature"] = 1.0
+            request_json["top_p"] = 1.0
         request_json["reasoning"] = {
             "effort": effort,
             "summary": "auto",

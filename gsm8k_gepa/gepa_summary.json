@@ -1,10 +1,11 @@
 {
-  "num_candidates": 6,
-  "iteration": 13,
-  "total_evals": 200,
+  "num_candidates": 7,
+  "iteration": 19,
+  "total_evals": 559,
   "best_idx": 1,
-  "best_score": 1.0,
+  "best_score": 0.84,
   "components": [
     "system_prompt"
-  ]
+  ],
+  "pareto_size": 7
 }

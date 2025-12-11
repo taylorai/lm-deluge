@@ -5,6 +5,33 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.87 · 2025-12-11
+
+- Added `xhigh` reasoning effort support for GPT-5.2 and GPT-5.1-Codex-Max, the two models that support OpenAI's new extra-high reasoning tier. Other reasoning models automatically fall back to `high` with a warning.
+- Model name suffixes now support `-xhigh` (e.g., `gpt-5.2-xhigh`) alongside the existing `-low`, `-medium`, `-high`, `-minimal`, and `-none` suffixes.
+- Fixed GPT-5.2 and GPT-5.1-Codex-Max requests to omit `temperature` and `top_p` when reasoning is enabled, matching OpenAI's new API constraints for these models.
+- Added `supports_xhigh` flag to `APIModel` for models that support the xhigh reasoning tier.
+- Added comprehensive test coverage in `tests/models/test_xhigh_reasoning.py`.
+
+## 0.0.86 · 2025-12-04
+
+- Fixed critical bug in agent loop where `conversation.with_tool_result()` wasn't being reassigned, causing tool results to be silently dropped from the conversation history.
+- OpenAI web search tool now defaults to GA mode (`preview=False`) instead of preview.
+
+## 0.0.85 · 2025-12-04
+
+- Added `max_content_chars` parameter to `ExaWebSearchManager` for controlling response size.
+- Enhanced OpenAI built-in web search tool with better configuration options.
+- Added comprehensive test coverage for OpenAI web search in `tests/core/test_openai_web_search.py`.
+
+## 0.0.84 · 2025-12-04
+
+- Added TryCua integration for computer use agents, with full executor implementation supporting screenshots, clicks, typing, scrolling, and multi-step tasks.
+- Added Anthropic built-in web search tool support with test coverage.
+- Added Gemini computer use via Kernel executor with dedicated test suite.
+- Added batch agent loops capability for running multiple agent conversations in parallel.
+- Registered new Gemini models including `gemini-2.5-pro` and `gemini-2.5-flash`.
+
 ## 0.0.83 · 2025-12-02
 
 - More prefab tools: added Google Docs tools (metadata, ranged reads/grep, markdown-aware insert/update/replace/delete),Google Sheets tools (list tabs, find used ranges, read ranges as HTML tables, update cells) with service-account auth. Added Exa Web Search tool (more web search tools coming), AWS SES Email tool, S3-backed filesystem and memory.

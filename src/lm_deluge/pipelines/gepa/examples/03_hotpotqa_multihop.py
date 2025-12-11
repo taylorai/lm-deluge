@@ -1,5 +1,5 @@
 """
-Example 3: HotpotQA Multi-hop Question Answering
+Example: HotpotQA Multi-hop Question Answering
 
 Optimize a system prompt for multi-hop reasoning questions.
 This task requires combining information from multiple sources.
@@ -27,19 +27,14 @@ import re
 import string
 import sys
 from collections import Counter
-from pathlib import Path
 
-# Add src to path for local development
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
+import dotenv
 
 from lm_deluge import LLMClient
-from lm_deluge.pipelines.gepa import (
-    optimize,
-    Evaluator,
-    EvaluationBatch,
-    ReflectiveDataset,
-    TrajectoryRecord,
-)
+from lm_deluge.pipelines.gepa import Component, EvalResult, optimize
+from lm_deluge.prompt import Conversation, Message
+
+dotenv.load_dotenv()
 
 
 def load_hotpotqa_sample(
@@ -58,20 +53,21 @@ def load_hotpotqa_sample(
     )
 
     data = []
-    for item in ds:
+    for item in ds:  # type: ignore
         # Combine supporting facts into context
         context_parts = []
         for title, sentences in zip(
-            item["context"]["title"], item["context"]["sentences"]
+            item["context"]["title"],  # type: ignore
+            item["context"]["sentences"],  # type: ignore
         ):
             context_parts.append(f"[{title}]\n" + " ".join(sentences))
 
         data.append(
             {
-                "question": item["question"],
+                "question": item["question"],  # type: ignore
                 "context": "\n\n".join(context_parts),
-                "answer": item["answer"],
-                "type": item["type"],  # 'comparison' or 'bridge'
+                "answer": item["answer"],  # type: ignore
+                "type": item["type"],  # type: ignore  # 'comparison' or 'bridge'
             }
         )
 
@@ -124,162 +120,89 @@ def compute_f1(prediction: str, ground_truth: str) -> float:
     return f1
 
 
-class HotpotQAEvaluator(Evaluator):
-    """
-    Custom evaluator for HotpotQA that handles multi-component candidates
-    and produces rich trajectories for reflection.
-    """
+def extract_answer(output: str) -> str:
+    """Extract answer from model output."""
+    if "Answer:" in output:
+        return output.split("Answer:")[-1].strip()
+    elif "answer:" in output.lower():
+        return output.lower().split("answer:")[-1].strip()
+    else:
+        # Take first sentence/line
+        return output.split("\n")[0].split(".")[0].strip()
 
-    def __init__(self, client: LLMClient):
-        self.client = client
+
+def make_evaluate_fn(task_client: LLMClient):  # type: ignore
+    """Create the evaluate function."""
 
     def evaluate(
-        self,
-        batch: list[dict],
-        candidate: dict,
-        capture_traces: bool = False,
-    ) -> EvaluationBatch:
-        """Run the QA task on a batch of questions."""
+        client: LLMClient,  # type: ignore
+        component_values: dict[str, str],
+        example: dict,
+    ) -> EvalResult:
+        """Evaluate one HotpotQA question."""
+        # Build conversation
+        conv = Conversation.system(component_values["system_prompt"])
 
-        # Build prompts
-        prompts = []
-        for item in batch:
-            prompt = f"""{candidate['system_prompt']}
+        user_msg = f"""Context:
+{example['context']}
 
-Context:
-{item['context']}
+Question: {example['question']}
 
-Question: {item['question']}
-
-{candidate['answer_format']}"""
-            prompts.append(prompt)
+{component_values['answer_format']}"""
+        conv = conv.add(Message.user(user_msg))
 
         # Run inference
-        responses = self.client.process_prompts_sync(
-            prompts,
-            show_progress=False,
-        )
+        response = client.process_prompts_sync([conv], show_progress=False)[0]
+        output = response.completion or ""
 
-        # Extract answers and compute scores
-        outputs = []
-        scores = []
-        trajectories = [] if capture_traces else None
+        # Extract answer and compute F1
+        extracted = extract_answer(output)
+        f1 = compute_f1(extracted, example["answer"])
 
-        for item, response in zip(batch, responses):
-            output = response.completion or ""
-
-            # Extract answer (look for "Answer:" pattern or take first line)
-            answer = output
-            if "Answer:" in output:
-                answer = output.split("Answer:")[-1].strip()
-            elif "answer:" in output.lower():
-                answer = output.lower().split("answer:")[-1].strip()
+        # Build detailed feedback
+        if f1 >= 0.8:
+            feedback = f"""Score: {f1:.2f} (GOOD)
+Question type: {example['type']}
+Expected: {example['answer']}
+Got: {extracted}"""
+        else:
+            hint = ""
+            if example["type"] == "comparison":
+                hint = "This requires comparing two entities."
             else:
-                # Take first sentence/line
-                answer = output.split("\n")[0].split(".")[0].strip()
+                hint = "This requires following a chain of reasoning."
 
-            # Compute F1 score
-            f1 = compute_f1(answer, item["answer"])
+            feedback = f"""Score: {f1:.2f} (NEEDS IMPROVEMENT)
+Question type: {example['type']}
+Expected: {example['answer']}
+Got: {extracted}
+Model output: {output[:300]}{'...' if len(output) > 300 else ''}
+Hint: {hint}"""
 
-            outputs.append({"raw_output": output, "extracted_answer": answer})
-            scores.append(f1)
+        # Return full trajectory
+        full_conv = conv.add(Message.ai(output))
+        return EvalResult(conversation=full_conv, score=f1, feedback=feedback)
 
-            if capture_traces:
-                trajectories.append(
-                    {
-                        "question": item["question"],
-                        "context_preview": item["context"][:500] + "...",
-                        "question_type": item["type"],
-                        "expected_answer": item["answer"],
-                        "model_output": output,
-                        "extracted_answer": answer,
-                        "f1_score": f1,
-                    }
-                )
-
-        return EvaluationBatch(
-            outputs=outputs,
-            scores=scores,
-            trajectories=trajectories,
-        )
-
-    def make_reflective_dataset(
-        self,
-        candidate: dict,
-        eval_batch: EvaluationBatch,
-        components_to_update: list[str],
-    ) -> ReflectiveDataset:
-        """Build reflective dataset focusing on errors and question types."""
-
-        if eval_batch.trajectories is None:
-            return ReflectiveDataset({})
-
-        # Sort by score to focus on worst examples
-        indexed = list(enumerate(eval_batch.trajectories))
-        indexed.sort(key=lambda x: x[1]["f1_score"])
-
-        # Take worst examples, but ensure diversity of question types
-        worst_examples = []
-        seen_types = set()
-
-        for idx, traj in indexed:
-            if len(worst_examples) >= 4:
-                break
-            # Prioritize diversity
-            if traj["question_type"] not in seen_types or len(worst_examples) < 2:
-                worst_examples.append(traj)
-                seen_types.add(traj["question_type"])
-
-        # Build records
-        records = []
-        for traj in worst_examples:
-            feedback_parts = [
-                f"F1 Score: {traj['f1_score']:.2f}",
-                f"Question Type: {traj['question_type']}",
-                f"Expected: {traj['expected_answer']}",
-                f"Got: {traj['extracted_answer']}",
-            ]
-
-            if traj["f1_score"] < 0.5:
-                if traj["question_type"] == "comparison":
-                    feedback_parts.append("HINT: This requires comparing two entities.")
-                else:
-                    feedback_parts.append(
-                        "HINT: This requires following a chain of reasoning."
-                    )
-
-            record = TrajectoryRecord(
-                inputs={
-                    "Question": traj["question"],
-                    "Context (preview)": traj["context_preview"],
-                },
-                outputs=traj["model_output"],
-                feedback="\n".join(feedback_parts),
-            )
-            records.append(record)
-
-        # Map to requested components
-        data = {comp: records for comp in components_to_update}
-        return ReflectiveDataset(data)
+    return evaluate
 
 
 def main():
     # Check for API keys
     model = None
-    reflection_model = None
+    proposer_model = None
 
     if os.getenv("OPENAI_API_KEY"):
-        model = "gpt-4o-mini"
-        reflection_model = "gpt-4o"
+        model = "gpt-4.1-nano"
+        proposer_model = "gpt-4.1-mini"
     elif os.getenv("ANTHROPIC_API_KEY"):
         model = "claude-3-5-haiku-latest"
-        reflection_model = "claude-sonnet-4-20250514"
+        proposer_model = "claude-sonnet-4-20250514"
     else:
         print("Please set OPENAI_API_KEY or ANTHROPIC_API_KEY")
         sys.exit(1)
 
     print(f"Using task model: {model}")
-    print(f"Using reflection model: {reflection_model}")
+    print(f"Using proposer model: {proposer_model}")
 
     # Load data
     trainset, valset = load_hotpotqa_sample(n_train=30, n_val=15)
@@ -290,48 +213,52 @@ def main():
     print(f"Training set types: {dict(train_types)}")
 
     # Create clients
-    task_client = LLMClient(
+    task_client = LLMClient(  # type: ignore[operator]
         model,
         max_requests_per_minute=100,
         max_new_tokens=256,
         temperature=0.0,
     )
-    reflection_client = LLMClient(
-        reflection_model,
+    proposer_client = LLMClient(  # type: ignore[operator]
+        proposer_model,
         max_requests_per_minute=50,
         max_new_tokens=1024,
     )
 
-    # Create evaluator
-    evaluator = HotpotQAEvaluator(task_client)
-
-    # Seed candidate with two components
-    seed_candidate = {
-        "system_prompt": "You are a helpful assistant that answers questions based on the provided context.",
-        "answer_format": "Provide a short, direct answer to the question.",
+    # Define components to optimize (two components this time)
+    components = {
+        "system_prompt": Component(
+            description="System prompt that guides the model's reasoning approach",
+            value="You are a helpful assistant that answers questions based on the provided context.",
+        ),
+        "answer_format": Component(
+            description="Instructions for how the model should format its answer",
+            value="Provide a short, direct answer to the question.",
+        ),
     }
 
     print()
     print("=" * 60)
-    print("GEPA Example 3: HotpotQA Multi-hop QA")
+    print("GEPA Example: HotpotQA Multi-hop QA")
     print("=" * 60)
     print("Components being optimized:")
-    for name, text in seed_candidate.items():
-        print(f"  - {name}: {text[:50]}...")
+    for name, comp in components.items():
+        print(f"  - {name}: {comp.value[:50]}...")
     print()
 
     # Run optimization
     result = optimize(
-        seed_candidate=seed_candidate,
-        trainset=trainset,
-        valset=valset,
-        evaluator=evaluator,
-        reflection_client=reflection_client,
-        max_metric_calls=250,
+        components=components,
+        evaluate_fn=make_evaluate_fn(task_client),  # type: ignore[arg-type]
+        dataset=trainset,
+        val_dataset=valset,
+        task_client=task_client,
+        proposer_client=proposer_client,
+        max_iterations=20,
+        max_evals=250,
         minibatch_size=3,
-        component_selection_strategy="round_robin",  # Cycle through components
-        skip_perfect_score=True,
-        display_progress=True,
+        run_dir="./hotpotqa_gepa",
+        save_trajectories=True,
         seed=42,
     )
 
@@ -341,7 +268,7 @@ def main():
     print("=" * 60)
     print(f"Candidates discovered: {result.num_candidates}")
     print(f"Best validation F1: {result.best_score:.1%}")
-    print(f"Total evaluations: {result.total_metric_calls}")
+    print(f"Total evaluations: {result.total_evals}")
     print()
     print("Best candidate found:")
     print("-" * 40)
@@ -352,7 +279,7 @@ def main():
     print("-" * 40)
 
     # Show improvement
-    seed_score = result.val_aggregate_scores[0]
+    seed_score = result.candidate_avg_scores[0]
     improvement = result.best_score - seed_score
     print(
         f"\nImprovement over seed: {seed_score:.1%} → {result.best_score:.1%} (+{improvement:.1%})"

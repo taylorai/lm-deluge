@@ -54,11 +54,12 @@ class _LLMClient(BaseModel):
     """
 
     _REASONING_SUFFIXES: ClassVar[
-        dict[str, Literal["low", "medium", "high", "minimal", "none"]]
+        dict[str, Literal["low", "medium", "high", "xhigh", "minimal", "none"]]
     ] = {
         "-low": "low",
         "-medium": "medium",
         "-high": "high",
+        "-xhigh": "xhigh",
         "-minimal": "minimal",
         "-none": "none",
     }
@@ -83,7 +84,9 @@ class _LLMClient(BaseModel):
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 512
-    reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
+    reasoning_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", None
+    ] = None
     global_effort: Literal["low", "medium", "high"] | None = None
     thinking_budget: int | None = None
     logprobs: bool = False
@@ -172,10 +175,13 @@ class _LLMClient(BaseModel):
     def _normalize_model_names(
         self, models: list[str]
     ) -> tuple[
-        list[str], list[Literal["low", "medium", "high", "minimal", "none"] | None]
+        list[str],
+        list[Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None],
     ]:
         normalized: list[str] = []
-        efforts: list[Literal["low", "medium", "high", "minimal", "none"] | None] = []
+        efforts: list[
+            Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None
+        ] = []
 
         for name in models:
             base_name = self._preprocess_openrouter_model(name)
@@ -190,7 +196,7 @@ class _LLMClient(BaseModel):
     def _align_sampling_params(
         self,
         per_model_efforts: list[
-            Literal["low", "medium", "high", "minimal", "none"] | None
+            Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None
         ],
     ) -> None:
         if len(per_model_efforts) < len(self.model_names):
@@ -364,7 +370,9 @@ class _LLMClient(BaseModel):
     @classmethod
     def _strip_reasoning_suffix_if_registered(
         cls, model_name: str
-    ) -> tuple[str, Literal["low", "medium", "high", "minimal", "none"] | None]:
+    ) -> tuple[
+        str, Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None
+    ]:
         """Remove reasoning suffix only when the trimmed model already exists."""
         for suffix, effort in cls._REASONING_SUFFIXES.items():
             if model_name.endswith(suffix) and len(model_name) > len(suffix):
@@ -1168,7 +1176,9 @@ def LLMClient(
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
-    reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    reasoning_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", None
+    ] = None,
     global_effort: Literal["low", "medium", "high"] | None = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
@@ -1199,7 +1209,9 @@ def LLMClient(
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
-    reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    reasoning_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", None
+    ] = None,
     global_effort: Literal["low", "medium", "high"] | None = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
@@ -1229,7 +1241,9 @@ def LLMClient(
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
-    reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None,
+    reasoning_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", None
+    ] = None,
     global_effort: Literal["low", "medium", "high"] | None = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,

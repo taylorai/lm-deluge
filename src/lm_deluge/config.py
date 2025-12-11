@@ -9,7 +9,9 @@ class SamplingParams(BaseModel):
     json_mode: bool = False
     max_new_tokens: int = 2_048
     global_effort: Literal["low", "medium", "high"] = "high"  # for opus-4.5
-    reasoning_effort: Literal["low", "medium", "high", "minimal", "none", None] = None
+    reasoning_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", None
+    ] = None
     thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
