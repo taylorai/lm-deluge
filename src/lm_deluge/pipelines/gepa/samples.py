@@ -31,7 +31,7 @@ from fts_bench import (  # type: ignore
 )
 from verifiers.utils.tool_utils import convert_func_to_oai_tool  # type: ignore
 
-from lm_deluge.client import LLMClient, _LLMClient  # type: ignore
+from lm_deluge.client import LLMClient  # type: ignore
 from lm_deluge.mock_openai import MockAsyncOpenAI  # type: ignore
 from lm_deluge.util.json import try_load_json  # type: ignore
 
@@ -478,16 +478,8 @@ def main() -> None:
     merges_tested = 0
     frontier = compute_val_frontier(population)
 
-    def print_rollout_usage(rollout_client: MockAsyncOpenAI):
-        key = list(rollout_client._clients.keys())[0]
-        client_obj: _LLMClient = rollout_client._clients[key]
-        print("Rollout client usage:")
-        client_obj.print_usage()
-
     for it in range(1, args.iterations + 1):
         print(f"=== Starting iteration {it} ===")
-        print_rollout_usage(rollout_client)
-        # print(rollout_client._clients)
         if metric_calls >= args.max_metric_calls:
             print(f"Stopping: reached metric budget {metric_calls}")
             break
