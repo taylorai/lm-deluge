@@ -389,7 +389,10 @@ class _LLMClient(BaseModel):
         elif self.model_weights == "dynamic":
             raise NotImplementedError("dynamic model weights not implemented yet")
         # normalize weights
-        self.model_weights = [w / sum(self.model_weights) for w in self.model_weights]
+        weight_sum = sum(self.model_weights)
+        if weight_sum == 0:
+            raise ValueError("model_weights cannot sum to zero")
+        self.model_weights = [w / weight_sum for w in self.model_weights]
 
         # background mode only allowed for responses api
         if self.background:
