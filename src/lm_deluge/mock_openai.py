@@ -230,16 +230,19 @@ class _AsyncStreamWrapper:
 
         # Create delta based on chunk content
         delta = ChoiceDelta()
+        finish_reason = None
 
         if self._first_chunk:
             delta.role = "assistant"
             self._first_chunk = False
 
-        # Extract content from chunk
-        if hasattr(chunk, "content") and chunk.content:
-            if isinstance(chunk.content, str):
-                delta.content = chunk.content
-            elif hasattr(chunk.content, "parts"):
+        # Handle different types of chunks from stream_chat
+        if isinstance(chunk, str):
+            # String chunks are content deltas
+            delta.content = chunk
+        elif hasattr(chunk, "content") and chunk.content:
+            # APIResponse with content
+            if hasattr(chunk.content, "parts"):
                 # Extract text from parts
                 text_parts = [
                     p.text for p in chunk.content.parts if isinstance(p, Text)
@@ -267,12 +270,14 @@ class _AsyncStreamWrapper:
                         )
                         for i, tc in enumerate(tool_call_parts)
                     ]
+            # Check for finish_reason in APIResponse
+            finish_reason = getattr(chunk, "finish_reason", None) or "stop"
 
         # Create choice
         choice = ChunkChoice(
             index=0,
             delta=delta,
-            finish_reason=getattr(chunk, "finish_reason", None),
+            finish_reason=finish_reason,
         )
 
         return ChatCompletionChunk(
@@ -389,7 +394,21 @@ class MockCompletions:
 
         # Execute request
         if stream:
-            raise RuntimeError("streaming not supported")
+            # Streaming mode - use stream_chat directly
+            from lm_deluge.api_requests.openai import stream_chat
+
+            request_id = f"chatcmpl-{uuid.uuid4().hex[:24]}"
+            # Get model and sampling params from client
+            model_name, sampling_params = client._select_model()
+            stream_result = stream_chat(
+                model_name,
+                conversation,
+                sampling_params,
+                lm_tools,
+                self._parent.cache_pattern,
+                None,  # extra_headers
+            )
+            return _AsyncStreamWrapper(stream_result, model, request_id)
         else:
             # Non-streaming mode
             response = await client.start(
