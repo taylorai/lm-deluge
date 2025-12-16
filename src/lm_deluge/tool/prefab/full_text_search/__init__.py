@@ -3,7 +3,7 @@
 import json
 import tempfile
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from lm_deluge.tool import Tool
 
@@ -57,7 +57,6 @@ class FullTextSearchManager:
         include_fields: list[str] | None = None,
         exclude_fields: list[str] | None = None,
         deduplicate_by: str | None = None,
-        deduplicate_strategy: Literal["exact", "fuzzy", None] = None,
     ):
         # Initialize _temp_dir early to avoid __del__ issues
         self._temp_dir: str | None = None

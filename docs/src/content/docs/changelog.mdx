@@ -5,6 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.88 · 2025-12-15
+
+- New Recursive Language Model (RLM) manager/pipeline brings a tool-driven REPL for very long contexts, with persistent state, guarded imports, `lm()` fan-out, and `final()/final_var()` completion; covered by new core and long-context suites (including a 1.5M-char Ulysses run).
+- Added a Tantivy-powered FullTextSearch prefab (`search`/`fetch` tools) with query sanitization, optional dedupe, cached fetches, and a BrowseComp-Plus benchmark harness to stress it against ~100k docs.
+- Expanded sandbox prefabs: Modal, Daytona, Docker, and Fargate sandboxes now expose bash/file/process/tunnel helpers with async context managers and background process tracking, plus one-off tests for Docker/Daytona cleanup paths.
+- Packaging: introduced optional extras `full_text_search` (tantivy+lenlp) and `sandbox` (modal, daytona-sdk, docker) so heavyweight deps are opt-in; removed the unused `deduplicate_strategy` parameter from the FTS API.
+
 ## 0.0.87 · 2025-12-11
 
 - Added `xhigh` reasoning effort support for GPT-5.2 and GPT-5.1-Codex-Max, the two models that support OpenAI's new extra-high reasoning tier. Other reasoning models automatically fall back to `high` with a warning.
