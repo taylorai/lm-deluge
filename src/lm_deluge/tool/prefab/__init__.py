@@ -7,18 +7,23 @@ from .filesystem import (
 from .batch_tool import BatchTool
 from .tool_search import ToolSearchTool
 from .otc import ToolComposer
-from .sandbox import DaytonaSandbox, ModalSandbox
+from .rlm import RLMManager, RLMPipeline, RLMResult
+from .sandbox import DaytonaSandbox, DockerSandbox, FargateSandbox, ModalSandbox
 from .docs import DocsManager
 from .sheets import SheetsManager
 from .random import RandomTools
 from .subagents import SubAgentManager
 from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
 from .email import EmailManager
+from .full_text_search import FullTextSearchManager
 
 __all__ = [
     "BatchTool",
     "ToolSearchTool",
     "ToolComposer",
+    "RLMManager",
+    "RLMPipeline",
+    "RLMResult",
     "TodoItem",
     "TodoManager",
     "TodoPriority",
@@ -30,8 +35,11 @@ __all__ = [
     "WorkspaceBackend",
     "ModalSandbox",
     "DaytonaSandbox",
+    "DockerSandbox",
+    "FargateSandbox",
     "DocsManager",
     "SheetsManager",
     "RandomTools",
     "EmailManager",
+    "FullTextSearchManager",
 ]
