@@ -20,6 +20,10 @@ def model_to_version(model: str) -> ToolVersion:
     """
     model_lower = model.lower()
 
+    # Strip Bedrock suffix if present (e.g., "claude-opus-4-5-bedrock" -> "claude-opus-4-5")
+    if model_lower.endswith("-bedrock"):
+        model_lower = model_lower[:-8]
+
     # Check for valid model families
     if not any(x in model_lower for x in ["opus", "sonnet", "haiku"]):
         raise ValueError(
