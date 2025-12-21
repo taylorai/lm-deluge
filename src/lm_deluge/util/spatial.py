@@ -66,7 +66,7 @@ class Box2D:
 
     @classmethod
     def from_list(cls, box: list):
-        return cls(box[1], box[0], box[3], box[2])
+        return cls(box[0], box[1], box[2], box[3])
 
     def center(self):
         return Point((self.xmin + self.xmax) / 2, (self.ymin + self.ymax) / 2)
