@@ -23,6 +23,7 @@ from .mistral import MISTRAL_MODELS
 from .openai import OPENAI_MODELS
 from .openrouter import OPENROUTER_MODELS
 from .together import TOGETHER_MODELS
+from .zai import ZAI_MODELS
 
 
 @dataclass
@@ -134,6 +135,7 @@ def register_model(
 # Register all models from all providers
 for model_dict in [
     ANTHROPIC_MODELS,
+    ZAI_MODELS,
     ARCEE_MODELS,
     BEDROCK_MODELS,
     COHERE_MODELS,

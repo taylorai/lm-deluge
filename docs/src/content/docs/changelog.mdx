@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.89 · 2025-12-17
+
+- Added `gemini-3-flash-preview` model with v1alpha API endpoint and pricing ($0.50/$3.0 per million tokens input/output).
+- Gemini 3 Flash supports `minimal` and `medium` thinking levels directly, unlike Gemini 3 Pro which only supports `low` and `high`. The request builder now detects Flash vs Pro and passes the appropriate `thinkingLevel` values.
+- Added test coverage for Flash-specific thinking levels in `tests/models/test_gemini_3_thinking_level.py`.
+
 ## 0.0.88 · 2025-12-15
 
 - New Recursive Language Model (RLM) manager/pipeline brings a tool-driven REPL for very long contexts, with persistent state, guarded imports, `lm()` fan-out, and `final()/final_var()` completion; covered by new core and long-context suites (including a 1.5M-char Ulysses run).

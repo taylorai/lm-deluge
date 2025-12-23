@@ -139,4 +139,16 @@ OPENROUTER_MODELS = {
         "input_cost": 0.045,
         "output_cost": 0.15,
     },
+    "glm-4.7-openrouter": {
+        "id": "glm-4.7-openrouter",
+        "name": "z-ai/glm-4.7",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 0.6,
+        "cached_input_cost": 0.6,
+        "cache_write_cost": 0.6,
+        "output_cost": 2.20,
+    },
 }

@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "lm_deluge"
-version = "0.0.88"
+version = "0.0.89"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
@@ -38,6 +38,7 @@ aws = ["boto3>=1.28.0"]
 docker = ["docker>=7.0.0"]
 full_text_search = ["tantivy>=0.21.0", "lenlp>=0.1.0"]
 sandbox = ["modal>=0.64.0", "daytona-sdk>=0.1.4", "docker>=7.0.0"]
+server = ["fastapi>=0.100.0", "uvicorn>=0.20.0"]
 
 # [project.scripts]
 # deluge = "lm_deluge.cli:main"

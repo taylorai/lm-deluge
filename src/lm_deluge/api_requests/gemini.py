@@ -52,6 +52,7 @@ async def _build_gemini_request(
 
     # Handle reasoning models (thinking)
     is_gemini_3 = "gemini-3" in model.name.lower()
+    is_gemini_3_flash = "gemini-3-flash" in model.name.lower()
     if is_gemini_3:
         # gemini3 MUST think
         if not sampling_params.reasoning_effort:
@@ -62,13 +63,24 @@ async def _build_gemini_request(
             if effort_key == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
                 effort_key = "high"
-            level_map = {
-                "none": "low",
-                "minimal": "low",
-                "low": "low",
-                "medium": "high",  # change when supported
-                "high": "high",
-            }
+            if is_gemini_3_flash:
+                # Flash supports minimal, low, medium, high
+                level_map = {
+                    "none": "low",
+                    "minimal": "minimal",
+                    "low": "low",
+                    "medium": "medium",
+                    "high": "high",
+                }
+            else:
+                # Pro only supports low, high
+                level_map = {
+                    "none": "low",
+                    "minimal": "low",
+                    "low": "low",
+                    "medium": "high",
+                    "high": "high",
+                }
             effort = level_map[effort_key]
         thinking_config = {"thinkingLevel": effort}
         request_json["generationConfig"]["thinkingConfig"] = thinking_config

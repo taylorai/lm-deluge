@@ -265,9 +265,8 @@ class AnthropicRequest(APIRequestBase):
                 usage = Usage.from_anthropic_usage(data["usage"])
             except Exception as e:
                 is_error = True
-                error_message = (
-                    f"Error calling .json() on response w/ status {status_code}: {e}"
-                )
+                response_text = await http_response.text()
+                error_message = f"Error calling .json() on response w/ status {status_code}: {e}. Response: {response_text[:500]}"
         elif mimetype and "json" in mimetype.lower():
             is_error = True  # expected status is 200, otherwise it's an error
             data = await http_response.json()

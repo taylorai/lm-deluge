@@ -6,7 +6,11 @@ Features:
 - Selects a parent (best-by-val), mutates a single component, and accepts only if
   minibatch reward improves; accepted candidates get a full val eval and join the pool.
 - Components: system_prompt, search_docstring, fetch_docstring.
-- Rollouts are run via verifiers + MockAsyncOpenAI (lm-deluge-backed); reflection uses LLMClient.
+- Rollouts are run via verifiers + OpenAI SDK (pointing to lm-deluge proxy server); reflection uses LLMClient.
+
+Prerequisites:
+    Start the lm-deluge proxy server first:
+        python -m lm_deluge.server --port 8000
 
 Run:
     uv run python gepa_lm_deluge_full.py --corpus-file ... --queries-file ... --env-file ...
@@ -31,8 +35,9 @@ from fts_bench import (  # type: ignore
 )
 from verifiers.utils.tool_utils import convert_func_to_oai_tool  # type: ignore
 
-from lm_deluge.client import LLMClient, _LLMClient  # type: ignore
-from lm_deluge.mock_openai import MockAsyncOpenAI  # type: ignore
+from openai import AsyncOpenAI  # type: ignore
+
+from lm_deluge.client import LLMClient  # type: ignore
 from lm_deluge.util.json import try_load_json  # type: ignore
 
 # ---------------------- Helpers ---------------------- #
@@ -362,7 +367,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model",
         default="claude-5-mini",
-        help="Model for rollouts via MockAsyncOpenAI.",
+        help="Model for rollouts via lm-deluge proxy server.",
+    )
+    parser.add_argument(
+        "--proxy-url",
+        default="http://localhost:8000/v1",
+        help="URL of the lm-deluge proxy server.",
     )
     parser.add_argument(
         "--reflection-model",
@@ -437,7 +447,8 @@ def main() -> None:
     val_records = [val_ds[i] for i in range(len(val_ds))]
     question_key = _question_key_from_records(train_records or val_records)  # noqa
 
-    rollout_client = MockAsyncOpenAI(model=args.model)
+    # Create OpenAI client pointing to lm-deluge proxy server
+    rollout_client = AsyncOpenAI(base_url=args.proxy_url, api_key="not-needed")
     reflection_client = LLMClient(args.reflection_model, progress="tqdm")
 
     seed_candidate = {
@@ -478,11 +489,9 @@ def main() -> None:
     merges_tested = 0
     frontier = compute_val_frontier(population)
 
-    def print_rollout_usage(rollout_client: MockAsyncOpenAI):
-        key = list(rollout_client._clients.keys())[0]
-        client_obj: _LLMClient = rollout_client._clients[key]
-        print("Rollout client usage:")
-        client_obj.print_usage()
+    def print_rollout_usage(rollout_client: AsyncOpenAI):
+        # Usage tracking not available via proxy - would need server-side tracking
+        print("Rollout client: using lm-deluge proxy server")
 
     for it in range(1, args.iterations + 1):
         print(f"=== Starting iteration {it} ===")
