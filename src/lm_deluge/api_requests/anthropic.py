@@ -250,8 +250,22 @@ class AnthropicRequest(APIRequestBase):
                     if item["type"] == "text":
                         parts.append(Text(item["text"]))
                     elif item["type"] == "thinking":
-                        thinking = item["thinking"]
-                        parts.append(Thinking(item["thinking"]))
+                        thinking_content = item.get("thinking", "")
+                        thinking = thinking_content
+                        parts.append(
+                            Thinking(
+                                thinking_content,
+                                raw_payload=item,
+                                thought_signature=item.get("signature"),
+                            )
+                        )
+                    elif item["type"] == "redacted_thinking":
+                        parts.append(
+                            Thinking(
+                                item.get("data", ""),
+                                raw_payload=item,
+                            )
+                        )
                     elif item["type"] == "tool_use":
                         parts.append(
                             ToolCall(

@@ -1,4 +1,6 @@
 import asyncio
+import json
+import os
 import time
 import traceback
 from abc import ABC, abstractmethod
@@ -73,6 +75,24 @@ class APIRequestBase(ABC):
 
         # Start with base headers, then overlay filtered extra headers (extra takes precedence)
         merged = dict(base_headers)
+        if "anthropic-beta" in merged and "anthropic-beta" in filtered_extra:
+            combined = []
+            seen = set()
+            for (
+                raw
+            ) in f"{merged['anthropic-beta']},{filtered_extra['anthropic-beta']}".split(
+                ","
+            ):
+                token = raw.strip()
+                if token and token not in seen:
+                    seen.add(token)
+                    combined.append(token)
+            merged["anthropic-beta"] = ",".join(combined)
+            filtered_extra = {
+                key: value
+                for key, value in filtered_extra.items()
+                if key != "anthropic-beta"
+            }
         merged.update(filtered_extra)
 
         # Filter out None values from final merged headers
@@ -188,6 +208,23 @@ class APIRequestBase(ABC):
         """Send the HTTP request once and return the parsed APIResponse."""
         await self.build_request()
         assert self.context.status_tracker
+
+        if os.getenv("DELUGE_PROXY_LOG_PROVIDER_REQUESTS", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }:
+            print("DELUGE_PROXY_PROVIDER_REQUEST")
+            print(f"URL: {self.url}")
+            print("Headers:")
+            print(self.request_header)
+            if self.request_json is not None:
+                print("JSON:")
+                try:
+                    print(json.dumps(self.request_json, indent=2))
+                except Exception:
+                    print(self.request_json)
 
         if (
             self.context.background

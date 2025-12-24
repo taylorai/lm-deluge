@@ -29,10 +29,13 @@ Role = Literal["system", "user", "assistant", "tool"]
 class Text:
     text: str
     type: str = field(init=False, default="text")
+    # for gemini 3 - thought signatures to maintain reasoning context
+    thought_signature: str | None = None
 
     @property
     def fingerprint(self) -> str:
-        return xxhash.xxh64(self.text.encode()).hexdigest()
+        signature = self.thought_signature or ""
+        return xxhash.xxh64(f"{self.text}:{signature}".encode()).hexdigest()
 
     # ── provider-specific emission ────────────────────────────────────────────
     def oa_chat(self) -> dict | str:  # OpenAI Chat Completions
@@ -45,7 +48,10 @@ class Text:
         return {"type": "text", "text": self.text}
 
     def gemini(self) -> dict:
-        return {"text": self.text}
+        result = {"text": self.text}
+        if self.thought_signature is not None:
+            result["thoughtSignature"] = self.thought_signature
+        return result
 
     def mistral(self) -> dict:
         return {"type": "text", "text": self.text}
@@ -288,6 +294,7 @@ class Thinking:
     raw_payload: dict | None = None
     # for gemini 3 - thought signatures to maintain reasoning context
     thought_signature: str | None = None
+    summary: str | None = None  # to differentiate summary text from actual content
 
     @property
     def fingerprint(self) -> str:
@@ -302,7 +309,12 @@ class Thinking:
         return {"type": "reasoning", "content": self.content}
 
     def anthropic(self) -> dict:  # Anthropic Messages
-        return {"type": "thinking", "thinking": self.content}
+        if self.raw_payload:
+            return dict(self.raw_payload)
+        result = {"type": "thinking", "thinking": self.content}
+        if self.thought_signature is not None:
+            result["signature"] = self.thought_signature
+        return result
 
     def gemini(self) -> dict:
         result = {"text": f"[Thinking: {self.content}]"}
@@ -404,7 +416,10 @@ class Message:
         content_blocks: list[dict] = []
         for p in self.parts:
             if isinstance(p, Text):
-                content_blocks.append({"type": "text", "text": p.text})
+                text_block = {"type": "text", "text": p.text}
+                if p.thought_signature is not None:
+                    text_block["thought_signature"] = p.thought_signature
+                content_blocks.append(text_block)
             elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
                 w, h = p.size
                 content_blocks.append({"type": "image", "tag": f"<Image ({w}×{h})>"})
@@ -447,7 +462,9 @@ class Message:
 
         for p in data["content"]:
             if p["type"] == "text":
-                parts.append(Text(p["text"]))
+                parts.append(
+                    Text(p["text"], thought_signature=p.get("thought_signature"))
+                )
             elif p["type"] == "image":
                 # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
                 # print(f"DEBUG: Message.from_log creating Text placeholder for image: {p['tag']}")
@@ -1134,7 +1151,9 @@ class Conversation:
             return result_parts
 
         def _anthropic_content_to_parts(
-            role: Role, content: str | list[dict] | None
+            role: Role,
+            content: str | list[dict] | None,
+            signature_state: dict[str, str | None] | None = None,
         ) -> list[Part]:
             parts: list[Part] = []
             if content is None:
@@ -1163,15 +1182,35 @@ class Conversation:
                         raise ValueError("Anthropic tool_use block missing id")
                     name = block.get("name") or "tool"
                     arguments = block.get("input") or {}
+                    tool_call = ToolCall(
+                        id=tool_id,
+                        name=name,
+                        arguments=arguments
+                        if isinstance(arguments, dict)
+                        else {"value": arguments},
+                    )
+                    if signature_state is not None:
+                        pending_signature = signature_state.get("pending")
+                        if pending_signature:
+                            tool_call.thought_signature = pending_signature
+                            signature_state["pending"] = None
+                    parts.append(tool_call)
+                elif block_type == "redacted_thinking":
                     parts.append(
-                        ToolCall(
-                            id=tool_id,
-                            name=name,
-                            arguments=arguments
-                            if isinstance(arguments, dict)
-                            else {"value": arguments},
+                        Thinking(content=block.get("data", ""), raw_payload=block)
+                    )
+                elif block_type == "thinking":
+                    thinking_content = block.get("thinking", "")
+                    signature = block.get("signature")
+                    parts.append(
+                        Thinking(
+                            content=thinking_content,
+                            raw_payload=block,
+                            thought_signature=signature,
                         )
                     )
+                    if signature_state is not None and signature:
+                        signature_state["pending"] = signature
                 elif block_type == "tool_result":
                     tool_use_id = block.get("tool_use_id")
                     if tool_use_id is None:
@@ -1181,9 +1220,6 @@ class Conversation:
                     result = _anthropic_tool_result_content(block.get("content"))
                     tool_result = ToolResult(tool_call_id=tool_use_id, result=result)
                     parts.append(tool_result)
-                elif block_type == "thinking":
-                    thinking_content = block.get("thinking", "")
-                    parts.append(Thinking(content=thinking_content, raw_payload=block))
                 else:
                     parts.append(Text(json.dumps(block)))
             return parts
@@ -1213,6 +1249,9 @@ class Conversation:
             content = message.get("content")
             if isinstance(content, list):
                 buffer_parts: list[Part] = []
+                signature_state: None | dict[str, str | None] = (
+                    {"pending": None} if base_role == "assistant" else None
+                )
                 for block in content:
                     block_type = block.get("type")
                     if block_type == "tool_result":
@@ -1234,7 +1273,12 @@ class Conversation:
                             )
                         )
                     else:
-                        block_parts = _anthropic_content_to_parts(base_role, [block])
+                        assert signature_state is not None
+                        block_parts = _anthropic_content_to_parts(
+                            base_role,
+                            [block],
+                            signature_state=signature_state,
+                        )
                         buffer_parts.extend(block_parts)
 
                 if buffer_parts:
@@ -1586,7 +1630,10 @@ class Conversation:
             content_blocks: list[dict] = []
             for p in msg.parts:
                 if isinstance(p, Text):
-                    content_blocks.append({"type": "text", "text": p.text})
+                    text_block = {"type": "text", "text": p.text}
+                    if p.thought_signature is not None:
+                        text_block["thought_signature"] = p.thought_signature
+                    content_blocks.append(text_block)
                 elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
                     w, h = p.size
                     content_blocks.append(

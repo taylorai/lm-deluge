@@ -126,8 +126,45 @@ def test_tool_without_defs_backward_compat():
     print("✅ Tool without $defs (backward compatibility) test passed!")
 
 
+def _has_additional_properties(schema) -> bool:
+    if isinstance(schema, dict):
+        if "additionalProperties" in schema:
+            return True
+        return any(_has_additional_properties(value) for value in schema.values())
+    if isinstance(schema, list):
+        return any(_has_additional_properties(item) for item in schema)
+    return False
+
+
+def test_tool_google_strips_additional_properties():
+    tool = Tool(
+        name="google_tool",
+        description="Tool with dict-like fields",
+        parameters={
+            "metadata": dict[str, str],
+            "items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                },
+            },
+        },
+        required=["metadata"],
+    )
+
+    google_format = tool.for_google()
+    assert not _has_additional_properties(
+        google_format["parameters"]
+    ), "Google schema should not include additionalProperties"
+
+    print("✅ Google tool schema strips additionalProperties.")
+
+
 if __name__ == "__main__":
     test_tool_with_defs()
     print()
     test_tool_without_defs_backward_compat()
+    print()
+    test_tool_google_strips_additional_properties()
     print("\n🎉 All $defs tests passed!")

@@ -18,23 +18,47 @@ from pydantic import BaseModel, Field
 class AnthropicContentBlock(BaseModel):
     """Content block in Anthropic message."""
 
-    type: Literal["text", "image", "tool_use", "tool_result"] = "text"
+    type: Literal[
+        "text",
+        "image",
+        "tool_use",
+        "tool_result",
+        "document",
+        "container_upload",
+        "thinking",
+        "redacted_thinking",
+    ] = "text"
 
     # Text content
     text: str | None = None
+    citations: list[dict[str, Any]] | None = None
+    cache_control: dict[str, Any] | None = None
 
-    # Image content
+    # Image/document content
     source: dict[str, Any] | None = None
+    title: str | None = None
+    context: str | None = None
+
+    # Container upload content
+    file_id: str | None = None
 
     # Tool use (assistant response)
     id: str | None = None
     name: str | None = None
     input: dict[str, Any] | None = None
+    caller: dict[str, Any] | None = None
 
     # Tool result (user message)
     tool_use_id: str | None = None
     content: str | list[dict[str, Any]] | None = None
     is_error: bool | None = None
+
+    # Thinking content
+    thinking: str | None = None
+    signature: str | None = None
+
+    # Redacted thinking content
+    data: str | None = None
 
 
 class AnthropicMessage(BaseModel):
@@ -63,6 +87,9 @@ class AnthropicMessagesRequest(BaseModel):
     # System prompt (can be string or content blocks)
     system: str | list[AnthropicContentBlock] | None = None
 
+    # Thinking configuration (Anthropic reasoning)
+    thinking: dict[str, Any] | None = None
+
     # Sampling parameters
     temperature: float | None = None
     top_p: float | None = None
@@ -85,15 +112,23 @@ class AnthropicMessagesRequest(BaseModel):
 class AnthropicResponseContentBlock(BaseModel):
     """Content block in Anthropic response."""
 
-    type: Literal["text", "tool_use"]
+    type: Literal["text", "tool_use", "thinking", "redacted_thinking"]
 
     # Text content
     text: str | None = None
+    citations: list[dict[str, Any]] | None = None
 
     # Tool use
     id: str | None = None
     name: str | None = None
     input: dict[str, Any] | None = None
+
+    # Thinking content
+    thinking: str | None = None
+    signature: str | None = None
+
+    # Redacted thinking content
+    data: str | None = None
 
 
 class AnthropicUsage(BaseModel):

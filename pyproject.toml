@@ -33,7 +33,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.0.0"]
 aws = ["boto3>=1.28.0"]
 docker = ["docker>=7.0.0"]
 full_text_search = ["tantivy>=0.21.0", "lenlp>=0.1.0"]

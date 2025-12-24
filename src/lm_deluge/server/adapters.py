@@ -9,7 +9,7 @@ from typing import Any
 
 from lm_deluge.api_requests.response import APIResponse
 from lm_deluge.config import SamplingParams
-from lm_deluge.prompt import Conversation, Message, Text, ToolCall
+from lm_deluge.prompt import Conversation, Text, Thinking, ToolCall
 from lm_deluge.tool import Tool
 
 from .models_anthropic import (
@@ -75,7 +75,7 @@ def openai_tools_to_lm_deluge(tools: list[Any]) -> list[Tool]:
             tool = tool.model_dump()
         if tool.get("type") == "function":
             func = tool["function"]
-            params_schema = func.get("parameters", {})
+            params_schema = func.get("parameters") or {}
             properties = params_schema.get("properties", {})
             required = params_schema.get("required", [])
 
@@ -179,63 +179,18 @@ def api_response_to_openai(
 
 def anthropic_request_to_conversation(req: AnthropicMessagesRequest) -> Conversation:
     """Convert Anthropic request messages to lm-deluge Conversation."""
-    messages: list[Message] = []
 
-    # Handle system prompt
-    if req.system:
-        if isinstance(req.system, str):
-            messages.append(Message.system(req.system))
-        else:
-            # List of content blocks
-            text_parts = []
-            for block in req.system:
-                if block.type == "text" and block.text:
-                    text_parts.append(block.text)
-            if text_parts:
-                messages.append(Message.system("\n".join(text_parts)))
+    def _dump(value: Any) -> Any:
+        if hasattr(value, "model_dump"):
+            return value.model_dump(exclude_none=True)
+        return value
 
-    # Convert messages
-    for msg in req.messages:
-        if isinstance(msg.content, str):
-            if msg.role == "user":
-                messages.append(Message.user(msg.content))
-            else:
-                messages.append(Message.ai(msg.content))
-        else:
-            # List of content blocks
-            parts = []
-            for block in msg.content:
-                if block.type == "text" and block.text:
-                    parts.append(Text(block.text))
-                elif block.type == "tool_use" and block.id and block.name:
-                    parts.append(
-                        ToolCall(
-                            id=block.id,
-                            name=block.name,
-                            arguments=block.input or {},
-                        )
-                    )
-                elif block.type == "tool_result" and block.tool_use_id:
-                    from lm_deluge.prompt import ToolResult
+    messages = [_dump(msg) for msg in req.messages]
+    system = req.system
+    if isinstance(system, list):
+        system = [_dump(block) for block in system]
 
-                    result = block.content if block.content else ""
-                    if isinstance(result, list):
-                        # Convert content blocks to string
-                        result = "\n".join(
-                            b.get("text", "") for b in result if b.get("type") == "text"
-                        )
-                    parts.append(
-                        ToolResult(
-                            tool_call_id=block.tool_use_id,
-                            result=result,
-                        )
-                    )
-
-            if parts:
-                role = "user" if msg.role == "user" else "assistant"
-                messages.append(Message(role=role, parts=parts))  # type: ignore
-
-    return Conversation(messages=messages)
+    return Conversation.from_anthropic(messages, system=system)
 
 
 def anthropic_request_to_sampling_params(
@@ -250,6 +205,14 @@ def anthropic_request_to_sampling_params(
         params["temperature"] = req.temperature
     if req.top_p is not None:
         params["top_p"] = req.top_p
+    if isinstance(req.thinking, dict):
+        thinking_type = req.thinking.get("type")
+        if thinking_type == "enabled":
+            budget_tokens = req.thinking.get("budget_tokens")
+            if isinstance(budget_tokens, int):
+                params["thinking_budget"] = budget_tokens
+        elif thinking_type == "disabled":
+            params["thinking_budget"] = 0
 
     return SamplingParams(**params)
 
@@ -261,7 +224,7 @@ def anthropic_tools_to_lm_deluge(tools: list[Any]) -> list[Tool]:
         if hasattr(tool, "model_dump"):
             tool = tool.model_dump()
 
-        input_schema = tool.get("input_schema", {})
+        input_schema = tool.get("input_schema") or {}
         properties = input_schema.get("properties", {})
         required = input_schema.get("required", [])
 
@@ -284,6 +247,18 @@ def api_response_to_anthropic(
     response: APIResponse, model: str
 ) -> AnthropicMessagesResponse:
     """Convert lm-deluge APIResponse to Anthropic Messages format."""
+
+    def _map_stop_reason(value: str | None) -> str:
+        if not value:
+            return "end_turn"
+        if value in {"end_turn", "max_tokens", "stop_sequence", "tool_use"}:
+            return value
+        return {
+            "stop": "end_turn",
+            "length": "max_tokens",
+            "tool_calls": "tool_use",
+        }.get(value, "end_turn")
+
     # Handle error responses
     if response.is_error:
         content = [
@@ -302,6 +277,7 @@ def api_response_to_anthropic(
     # Build content blocks
     content_blocks: list[AnthropicResponseContentBlock] = []
 
+    last_signature = None
     if response.content:
         for part in response.content.parts:
             if isinstance(part, Text):
@@ -309,6 +285,15 @@ def api_response_to_anthropic(
                     AnthropicResponseContentBlock(type="text", text=part.text)
                 )
             elif isinstance(part, ToolCall):
+                if part.thought_signature and part.thought_signature != last_signature:
+                    content_blocks.append(
+                        AnthropicResponseContentBlock(
+                            type="thinking",
+                            thinking="",
+                            signature=part.thought_signature,
+                        )
+                    )
+                    last_signature = part.thought_signature
                 content_blocks.append(
                     AnthropicResponseContentBlock(
                         type="tool_use",
@@ -317,17 +302,29 @@ def api_response_to_anthropic(
                         input=part.arguments,
                     )
                 )
+            elif isinstance(part, Thinking):
+                content_blocks.append(
+                    AnthropicResponseContentBlock(
+                        type="thinking",
+                        thinking=part.content,
+                        signature=part.thought_signature,
+                    )
+                )
+                if part.thought_signature:
+                    last_signature = part.thought_signature
 
     # Ensure at least one content block
     if not content_blocks:
         content_blocks.append(AnthropicResponseContentBlock(type="text", text=""))
 
     # Map finish reason
-    stop_reason = response.finish_reason or "end_turn"
-    if stop_reason == "stop":
-        stop_reason = "end_turn"
-    elif stop_reason == "tool_calls":
-        stop_reason = "tool_use"
+    raw_stop_reason = None
+    raw_stop_sequence = None
+    if isinstance(response.raw_response, dict):
+        raw_stop_reason = response.raw_response.get("stop_reason")
+        raw_stop_sequence = response.raw_response.get("stop_sequence")
+
+    stop_reason = _map_stop_reason(raw_stop_reason or response.finish_reason)
 
     # Build usage (including cache tokens if present)
     usage = AnthropicUsage(
@@ -345,5 +342,6 @@ def api_response_to_anthropic(
         model=model,
         content=content_blocks,
         stop_reason=stop_reason,
+        stop_sequence=raw_stop_sequence if isinstance(raw_stop_sequence, str) else None,
         usage=usage,
     )

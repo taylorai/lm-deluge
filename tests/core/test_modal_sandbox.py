@@ -64,7 +64,7 @@ async def test_background_process():
     # Start a background process
     result = await sandbox._exec(
         command="for i in 1 2 3; do echo line$i; sleep 0.5; done",
-        wait=False,
+        run_in_background=True,
         name="counter",
     )
     assert "Started background process 'counter'" in result
@@ -87,8 +87,8 @@ async def test_list_processes():
     sandbox = ModalSandbox("sandbox-app", block_network=True)
 
     # Run a couple commands
-    await sandbox._exec(command="echo hello", wait=True)
-    await sandbox._exec(command="sleep 100", wait=False, name="sleeper")
+    await sandbox._exec(command="echo hello", run_in_background=False)
+    await sandbox._exec(command="sleep 100", run_in_background=True, name="sleeper")
 
     # List processes
     listing = sandbox._check_process()
@@ -272,7 +272,7 @@ async def test_webserver_with_tunnel():
     client = LLMClient("gpt-4.1-mini")
     conv = Conversation.user(
         "Execute these commands in order and tell me the URL at the end:\n"
-        "1. bash: python3 -m http.server 8080 (with wait=false, name=server)\n"
+        "1. bash: python3 -m http.server 8080 (with run_in_background=true, name=server)\n"
         "2. bash: sleep 1\n"
         "3. get_url\n"
         "Then tell me the URL. Nothing else."
@@ -313,7 +313,7 @@ async def test_webserver_interactive():
         "Create a simple but nice-looking webpage and serve it on port 8080.\n\n"
         "Steps:\n"
         "1. Create an index.html file with a fun, styled webpage (use inline CSS)\n"
-        "2. Start python3 -m http.server 8080 in background (wait=false, name=server)\n"
+        "2. Start python3 -m http.server 8080 in background (run_in_background=true, name=server)\n"
         "3. Get the public URL with get_url()\n\n"
         "Be creative with the webpage content! After step 3, STOP and give me the URL."
     )

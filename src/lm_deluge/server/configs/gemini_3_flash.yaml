@@ -1,0 +1,5 @@
+model_policy:
+  mode: force_default
+  default_model: gemini-3-flash-preview
+  allowed_models:
+    - gemini-3-flash-preview

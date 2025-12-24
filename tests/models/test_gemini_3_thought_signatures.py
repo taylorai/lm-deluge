@@ -1,4 +1,4 @@
-from lm_deluge.prompt import Conversation, Message, Thinking, ToolCall
+from lm_deluge.prompt import Conversation, Message, Text, Thinking, ToolCall
 
 
 def test_thinking_signature_serialization():
@@ -12,6 +12,15 @@ def test_thinking_signature_serialization():
     assert "thoughtSignature" in result
     assert result["thoughtSignature"] == "test_signature_123"
     assert result["text"] == "[Thinking: Let me think about this...]"
+
+
+def test_text_signature_serialization():
+    """Test that thought signatures are preserved when converting Text to Gemini format."""
+    text = Text("Hello there", thought_signature="sig_text_123")
+
+    result = text.gemini()
+    assert result["text"] == "Hello there"
+    assert result["thoughtSignature"] == "sig_text_123"
 
 
 def test_thinking_without_signature():
@@ -67,6 +76,21 @@ def test_message_to_log_with_thinking_signature():
     assert log["content"][0]["thought_signature"] == "sig_789"
 
 
+def test_message_to_log_with_text_signature():
+    """Test that Message.to_log() preserves thought signatures for Text parts."""
+    msg = Message(
+        "assistant",
+        [Text("Hello", thought_signature="sig_text")],
+    )
+
+    log = msg.to_log()
+    assert log["role"] == "assistant"
+    assert len(log["content"]) == 1
+    assert log["content"][0]["type"] == "text"
+    assert log["content"][0]["text"] == "Hello"
+    assert log["content"][0]["thought_signature"] == "sig_text"
+
+
 def test_message_from_log_with_thinking_signature():
     """Test that Message.from_log() restores thought signatures for Thinking parts."""
     log_data = {
@@ -86,6 +110,27 @@ def test_message_from_log_with_thinking_signature():
     assert isinstance(msg.parts[0], Thinking)
     assert msg.parts[0].content == "Hmm..."
     assert msg.parts[0].thought_signature == "sig_789"
+
+
+def test_message_from_log_with_text_signature():
+    """Test that Message.from_log() restores thought signatures for Text parts."""
+    log_data = {
+        "role": "assistant",
+        "content": [
+            {
+                "type": "text",
+                "text": "Hello",
+                "thought_signature": "sig_text",
+            }
+        ],
+    }
+
+    msg = Message.from_log(log_data)
+    assert msg.role == "assistant"
+    assert len(msg.parts) == 1
+    assert isinstance(msg.parts[0], Text)
+    assert msg.parts[0].text == "Hello"
+    assert msg.parts[0].thought_signature == "sig_text"
 
 
 def test_message_to_log_with_toolcall_signature():
@@ -170,11 +215,14 @@ def test_conversation_roundtrip_with_signatures():
 
 if __name__ == "__main__":
     test_thinking_signature_serialization()
+    test_text_signature_serialization()
     test_thinking_without_signature()
     test_toolcall_signature_serialization()
     test_toolcall_without_signature()
     test_message_to_log_with_thinking_signature()
+    test_message_to_log_with_text_signature()
     test_message_from_log_with_thinking_signature()
+    test_message_from_log_with_text_signature()
     test_message_to_log_with_toolcall_signature()
     test_message_from_log_with_toolcall_signature()
     test_conversation_roundtrip_with_signatures()

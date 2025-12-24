@@ -263,7 +263,12 @@ class GeminiRequest(APIRequestBase):
                                 thought_sig = part.get("thoughtSignature")
 
                                 if "text" in part:
-                                    parts.append(Text(part["text"]))
+                                    parts.append(
+                                        Text(
+                                            part["text"],
+                                            thought_signature=thought_sig,
+                                        )
+                                    )
                                 elif "thought" in part:
                                     # Thought with optional signature
                                     parts.append(
@@ -285,6 +290,10 @@ class GeminiRequest(APIRequestBase):
                                             arguments=func_call.get("args", {}),
                                             thought_signature=thought_sig,
                                         )
+                                    )
+                                elif thought_sig:
+                                    parts.append(
+                                        Text("", thought_signature=thought_sig)
                                     )
 
                     content = Message("assistant", parts)
