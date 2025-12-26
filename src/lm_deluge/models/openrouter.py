@@ -151,4 +151,16 @@ OPENROUTER_MODELS = {
         "cache_write_cost": 0.6,
         "output_cost": 2.20,
     },
+    "minimax-m2.1-openrouter": {
+        "id": "minimax-m2.1-openrouter",
+        "name": "minimax/minimax-m2.1",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 0.3,
+        "cached_input_cost": 0.3,
+        "cache_write_cost": 0.3,
+        "output_cost": 1.20,
+    },
 }
