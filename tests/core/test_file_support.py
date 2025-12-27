@@ -4,8 +4,7 @@ import io
 import tempfile
 from pathlib import Path
 
-from lm_deluge.file import File
-from lm_deluge.prompt import Conversation, Message, Text
+from lm_deluge.prompt import Conversation, Message, Text, File
 
 """Integration tests for File support with API requests."""
 

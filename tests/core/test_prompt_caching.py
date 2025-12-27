@@ -2,7 +2,7 @@ import asyncio
 
 from lm_deluge.config import SamplingParams
 from lm_deluge.prompt import Conversation, Message
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tool import Tool
 
 import dotenv
@@ -169,7 +169,7 @@ async def test_bedrock_caching():
     """Test that Bedrock Anthropic models support prompt caching."""
     from lm_deluge.api_requests.bedrock import BedrockRequest
     from lm_deluge.config import SamplingParams
-    from lm_deluge.request_context import RequestContext
+    from lm_deluge.api_requests.context import RequestContext
     from lm_deluge.tool import Tool
     from lm_deluge.tracker import StatusTracker
 

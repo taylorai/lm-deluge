@@ -2,7 +2,7 @@ import asyncio
 
 from lm_deluge import Conversation, LLMClient, SamplingParams
 from lm_deluge.models import APIModel
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
 import dotenv

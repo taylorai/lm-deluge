@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Callable, Sequence, TYPE_CHECKING
 
-from .config import SamplingParams
-from .prompt import CachePattern, Conversation
-from .tracker import StatusTracker
+from ..config import SamplingParams
+from ..prompt import CachePattern, Conversation
+from ..tracker import StatusTracker
 
 if TYPE_CHECKING:
     from pydantic import BaseModel

@@ -12,7 +12,7 @@ from lm_deluge.api_requests.anthropic import _build_anthropic_request
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel
 from lm_deluge.prompt import Conversation, Message
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 
 
 class SimpleResponse(BaseModel):

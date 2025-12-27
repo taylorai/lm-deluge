@@ -4,7 +4,7 @@ from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.api_requests.openai import _build_oa_chat_request
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel, registry
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 
 
 def _build_prompt() -> Conversation:

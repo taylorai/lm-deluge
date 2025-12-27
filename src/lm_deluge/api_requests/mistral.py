@@ -7,7 +7,7 @@ from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
 from ..prompt import Message
-from ..request_context import RequestContext
+from ..api_requests.context import RequestContext
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 

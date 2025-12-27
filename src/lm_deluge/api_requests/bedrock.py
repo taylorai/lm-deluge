@@ -20,7 +20,7 @@ from lm_deluge.prompt import (
     Thinking,
     ToolCall,
 )
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 

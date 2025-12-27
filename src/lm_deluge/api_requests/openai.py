@@ -7,7 +7,7 @@ from typing import Sequence
 import aiohttp
 from aiohttp import ClientResponse
 
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.util.schema import (
     prepare_output_schema,

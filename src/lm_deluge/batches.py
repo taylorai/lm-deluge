@@ -22,7 +22,7 @@ from lm_deluge.prompt import (
     Prompt,
     prompts_to_conversations,
 )
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 
 
 def _create_batch_status_display(

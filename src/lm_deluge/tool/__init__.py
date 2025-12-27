@@ -18,7 +18,7 @@ from fastmcp import Client  # pip install fastmcp >= 2.0
 from mcp.types import Tool as MCPTool
 from pydantic import BaseModel, Field, TypeAdapter, field_validator
 
-from lm_deluge.image import Image
+from lm_deluge.prompt import Image
 from lm_deluge.prompt import Text, ToolResultPart
 
 
