@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import types
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import (
@@ -9,6 +10,7 @@ from typing import (
     Coroutine,
     Literal,
     TypedDict,
+    cast,
     get_args,
     get_origin,
     get_type_hints,
@@ -52,23 +54,17 @@ def _get_cached_typeadapter(cls: type | Callable) -> TypeAdapter:
 
             # Create new function with processed annotations if changed
             if processed_hints != cls.__annotations__:
-                import types
-
+                # Get the underlying function (from method or directly)
                 if inspect.ismethod(cls):
-                    actual_func = cls.__func__
-                    code = actual_func.__code__
-                    globals_dict = actual_func.__globals__
-                    name = actual_func.__name__
-                    defaults = actual_func.__defaults__
-                    kwdefaults = actual_func.__kwdefaults__
-                    closure = actual_func.__closure__
+                    func = cast(types.FunctionType, cls.__func__)
                 else:
-                    code = cls.__code__
-                    globals_dict = cls.__globals__
-                    name = cls.__name__
-                    defaults = cls.__defaults__
-                    kwdefaults = cls.__kwdefaults__
-                    closure = cls.__closure__
+                    func = cast(types.FunctionType, cls)
+                code = func.__code__
+                globals_dict = func.__globals__
+                name = func.__name__
+                defaults = func.__defaults__
+                kwdefaults = func.__kwdefaults__
+                closure = func.__closure__
 
                 new_func = types.FunctionType(
                     code,
@@ -410,6 +406,7 @@ async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
                 else:
                     content_blocks = raw_result
                 for block in content_blocks:
+                    block = cast(Any, block)  # MCP content block type
                     if block.type == "text":
                         results.append(Text(block.text))
                     elif block.type == "image":
@@ -661,10 +658,12 @@ class Tool(BaseModel):
             # Returns: list[dict]"
         """
         # Get function name (use override if provided)
-        tool_name = name if name is not None else func.__name__
+        # Cast to FunctionType for attribute access (Callable doesn't expose these)
+        func_typed = cast(types.FunctionType, func)
+        tool_name = name if name is not None else func_typed.__name__
 
         # Get docstring for description
-        description = func.__doc__ or f"Call the {tool_name} function"
+        description = func_typed.__doc__ or f"Call the {tool_name} function"
         description = description.strip()
 
         # Use TypeAdapter for robust schema generation

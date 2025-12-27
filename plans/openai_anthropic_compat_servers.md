@@ -124,7 +124,7 @@ from pydantic import BaseModel
 
 class OpenAIMessage(BaseModel):
     role: Literal["system", "user", "assistant", "tool"]
-    content: Optional[Union[str, List[Dict[str, Any]]]] = None
+    content: Optional[Union[str, list[Dict[str, Any]]]] = None
     name: Optional[str] = None
     tool_call_id: Optional[str] = None
 
@@ -142,7 +142,7 @@ class OpenAITool(BaseModel):
 
 class OpenAIChatCompletionsRequest(BaseModel):
     model: str
-    messages: List[OpenAIMessage]
+    messages: list[OpenAIMessage]
     stream: bool = False
 
     # common sampling knobs
@@ -152,7 +152,7 @@ class OpenAIChatCompletionsRequest(BaseModel):
 
     # tool calling / function calling
     tools: Optional[List[OpenAITool]] = None
-    tool_choice: Optional[Union[str, Dict[str, Any]]] = None
+    tool_choice: Optional[Union[str, dict[str, Any]]] = None
 
     # response formatting / json mode (optional)
     response_format: Optional[Dict[str, Any]] = None
@@ -175,7 +175,7 @@ class OpenAIChatCompletionsResponse(BaseModel):
     object: Literal["chat.completion"] = "chat.completion"
     created: int
     model: str
-    choices: List[OpenAIChatCompletionsChoice]
+    choices: list[OpenAIChatCompletionsChoice]
     usage: Optional[OpenAIUsage] = None
 
 
@@ -197,7 +197,7 @@ class OpenAIChatCompletionsChunk(BaseModel):
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
     created: int
     model: str
-    choices: List[OpenAIChatCompletionsChunkChoice]
+    choices: list[OpenAIChatCompletionsChunkChoice]
 ```
 
 ---
@@ -223,7 +223,7 @@ class AnthropicContentBlock(BaseModel):
 
 class AnthropicMessage(BaseModel):
     role: Literal["user", "assistant"]
-    content: Union[str, List[AnthropicContentBlock]]
+    content: str | list[AnthropicContentBlock]
 
 
 class AnthropicTool(BaseModel):
@@ -235,10 +235,10 @@ class AnthropicTool(BaseModel):
 class AnthropicMessagesRequest(BaseModel):
     model: str
     max_tokens: int
-    messages: List[AnthropicMessage]
+    messages: list[AnthropicMessage]
     stream: bool = False
 
-    system: Optional[Union[str, List[AnthropicContentBlock]]] = None
+    system: Optional[Union[str, list[AnthropicContentBlock]]] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None
     tools: Optional[List[AnthropicTool]] = None
@@ -255,7 +255,7 @@ class AnthropicMessagesResponse(BaseModel):
     type: Literal["message"] = "message"
     role: Literal["assistant"] = "assistant"
     model: str
-    content: List[AnthropicContentBlock]
+    content: list[AnthropicContentBlock]
     stop_reason: Optional[str] = None
     stop_sequence: Optional[str] = None
     usage: Optional[AnthropicUsage] = None
@@ -288,7 +288,7 @@ class InternalMessage:
 @dataclass
 class InternalRequest:
     model: str
-    messages: List[InternalMessage]
+    messages: list[InternalMessage]
     max_tokens: Optional[int] = None
     temperature: Optional[float] = None
     top_p: Optional[float] = None

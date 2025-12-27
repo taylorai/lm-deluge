@@ -2,7 +2,7 @@
 """Integration tests for Pydantic model support in structured outputs."""
 
 from pydantic import BaseModel, Field
-from typing import Optional, List, Literal
+from typing import Optional, Literal
 
 from lm_deluge.api_requests.openai import (
     _build_oa_chat_request,
@@ -58,7 +58,7 @@ class TaskStatus(BaseModel):
 class ItemList(BaseModel):
     """A list of items."""
 
-    items: List[str]
+    items: list[str]
     count: int
 
 

@@ -162,7 +162,7 @@ def get_anthropic_cu_tools(
     if "bash" in exclude_tools:
         result = [x for x in result if x["name"] != "bash"]
     if "editor" in exclude_tools:
-        result = [x for x in result if "edit" not in x["name"]]
+        result = [x for x in result if "edit" not in str(x["name"])]
     if "computer" in exclude_tools:
         result = [x for x in result if x["name"] != "computer"]
 

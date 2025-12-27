@@ -2,7 +2,7 @@
 """Example demonstrating Pydantic model support for structured outputs."""
 
 from pydantic import BaseModel, Field
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
 from lm_deluge import LLMClient
 
@@ -31,7 +31,7 @@ class Contact(BaseModel):
 
     person: Person
     address: Address
-    phone_numbers: List[str]
+    phone_numbers: list[str]
 
 
 class TaskPriority(BaseModel):

@@ -1,4 +1,4 @@
-from typing import Any, List, Literal, TypedDict, Union
+from typing import Any, Literal, TypedDict
 
 Coord = tuple[int, int]
 
@@ -30,7 +30,7 @@ class Drag(CUActionBase):
     kind: Literal["drag"]
     start_x: int | None  # if missing, current cursor position
     start_y: int | None  # if missing, current cursor position
-    path: List[Coord]  # path to drag after mousedown
+    path: list[Coord]  # path to drag after mousedown
 
 
 class Scroll(CUActionBase):
@@ -43,7 +43,7 @@ class Scroll(CUActionBase):
 
 class Keypress(CUActionBase):
     kind: Literal["keypress"]
-    keys: List[str]
+    keys: list[str]
 
 
 class Type(CUActionBase):
@@ -118,31 +118,31 @@ class Edit(CUActionBase):
     path: str
     # optional, keep names identical to Anthropic spec
     file_text: str | None
-    view_range: List[int] | None
+    view_range: list[int] | None
     old_str: str | None
     new_str: str | None
     insert_line: int | None
 
 
-CUAction = Union[
-    Click,
-    DoubleClick,
-    TripleClick,
-    MouseDown,
-    MouseUp,
-    Drag,
-    Move,
-    Scroll,
-    Keypress,
-    Type,
-    HoldKey,
-    Wait,
-    Screenshot,
-    CursorPos,
-    Navigate,
-    GoBack,
-    GoForward,
-    Search,
-    Bash,
-    Edit,
-]
+CUAction = (
+    Click
+    | TripleClick
+    | DoubleClick
+    | MouseDown
+    | MouseUp
+    | Drag
+    | Move
+    | Scroll
+    | Keypress
+    | Type
+    | HoldKey
+    | Wait
+    | Screenshot
+    | CursorPos
+    | Navigate
+    | GoBack
+    | GoForward
+    | Search
+    | Bash
+    | Edit
+)

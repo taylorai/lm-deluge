@@ -69,7 +69,9 @@ class MemoryManager:
 
         if memories:
             if isinstance(memories, dict):
-                self._memories = {k: self._coerce(v) for k, v in memories.items()}
+                # Cast is needed because isinstance(memories, dict) narrows to dict[object, object]
+                mem_dict: dict[int, MemoryLike] = memories  # type: ignore[assignment]
+                self._memories = {k: self._coerce(v) for k, v in mem_dict.items()}
             else:
                 coerced = [self._coerce(mem) for mem in memories]
                 self._memories = {x.id: x for x in coerced}

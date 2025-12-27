@@ -1,0 +1,2018 @@
+ruff.....................................................................[42mPassed[m
+ruff-format..............................................................[42mPassed[m
+pyright..................................................................[42mPassed[m
+Detect hardcoded secrets.................................................[42mPassed[m
+Block files over 2 500 lines.............................................[42mPassed[m
+ty (typecheck)...........................................................[41mFailed[m
+[2m- hook id: ty-check[m
+[2m- exit code: 1[m
+
+error[invalid-assignment]: Invalid subscript assignment with key of type `Literal["thinkingConfig"]` and value of type `dict[Unknown | str, Unknown | str]` on object of type `list[dict[Unknown, Unknown]]`
+  --> src/lm_deluge/api_requests/gemini.py:86:9
+   |
+84 |             effort = level_map[effort_key]
+85 |         thinking_config = {"thinkingLevel": effort}
+86 |         request_json["generationConfig"]["thinkingConfig"] = thinking_config
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+87 |
+88 |     elif model.reasoning_model:
+   |
+info: The full type of the subscripted object is `Unknown | list[dict[Unknown, Unknown]] | dict[Unknown | str, Unknown | int | float]`
+info: rule `invalid-assignment` is enabled by default
+
+error[invalid-assignment]: Invalid subscript assignment with key of type `Literal["thinkingConfig"]` and value of type `dict[Unknown | str, Unknown | int]` on object of type `list[dict[Unknown, Unknown]]`
+   --> src/lm_deluge/api_requests/gemini.py:129:9
+    |
+127 |             thinking_config = {"includeThoughts": False, "thinkingBudget": 0}
+128 |
+129 |         request_json["generationConfig"]["thinkingConfig"] = thinking_config
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+130 |
+131 |     else:
+    |
+info: The full type of the subscripted object is `Unknown | list[dict[Unknown, Unknown]] | dict[Unknown | str, Unknown | int | float]`
+info: rule `invalid-assignment` is enabled by default
+
+error[invalid-assignment]: Invalid subscript assignment with key of type `Literal["responseMimeType"]` and value of type `Literal["application/json"]` on object of type `list[dict[Unknown, Unknown]]`
+   --> src/lm_deluge/api_requests/gemini.py:174:9
+    |
+172 |     # Handle JSON mode
+173 |     if sampling_params.json_mode and model.supports_json:
+174 |         request_json["generationConfig"]["responseMimeType"] = "application/json"
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+175 |
+176 |     # Handle media_resolution for Gemini 3 (requires v1alpha)
+    |
+info: The full type of the subscripted object is `Unknown | list[dict[Unknown, Unknown]] | dict[Unknown | str, Unknown | int | float]`
+info: rule `invalid-assignment` is enabled by default
+
+error[invalid-assignment]: Invalid subscript assignment with key of type `Literal["mediaResolution"]` and value of type `dict[Unknown | str, Unknown | str]` on object of type `list[dict[Unknown, Unknown]]`
+   --> src/lm_deluge/api_requests/gemini.py:181:13
+    |
+179 |           if is_gemini_3:
+180 |               # Add global media resolution to generationConfig
+181 | /             request_json["generationConfig"]["mediaResolution"] = {
+182 | |                 "level": sampling_params.media_resolution
+183 | |             }
+    | |_____________^
+184 |           else:
+185 |               # Warn if trying to use media_resolution on non-Gemini-3 models
+    |
+info: The full type of the subscripted object is `Unknown | list[dict[Unknown, Unknown]] | dict[Unknown | str, Unknown | int | float]`
+info: rule `invalid-assignment` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `Iterable[BrowserExtension] | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `Iterable[BrowserExtension] | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+476 |         extensions: Iterable[BrowserExtension] | Omit = omit,
+    |         ---------------------------------------------------- Parameter declared here
+477 |         headless: bool | Omit = omit,
+478 |         invocation_id: str | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `bool | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `bool | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+476 |         extensions: Iterable[BrowserExtension] | Omit = omit,
+477 |         headless: bool | Omit = omit,
+    |         ---------------------------- Parameter declared here
+478 |         invocation_id: str | Omit = omit,
+479 |         kiosk_mode: bool | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `str | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `str | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+476 |         extensions: Iterable[BrowserExtension] | Omit = omit,
+477 |         headless: bool | Omit = omit,
+478 |         invocation_id: str | Omit = omit,
+    |         -------------------------------- Parameter declared here
+479 |         kiosk_mode: bool | Omit = omit,
+480 |         persistence: BrowserPersistenceParam | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `bool | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `bool | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:479:9
+    |
+477 |         headless: bool | Omit = omit,
+478 |         invocation_id: str | Omit = omit,
+479 |         kiosk_mode: bool | Omit = omit,
+    |         ------------------------------ Parameter declared here
+480 |         persistence: BrowserPersistenceParam | Omit = omit,
+481 |         profile: BrowserProfile | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `BrowserPersistenceParam | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `BrowserPersistenceParam | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:480:9
+    |
+478 |         invocation_id: str | Omit = omit,
+479 |         kiosk_mode: bool | Omit = omit,
+480 |         persistence: BrowserPersistenceParam | Omit = omit,
+    |         -------------------------------------------------- Parameter declared here
+481 |         profile: BrowserProfile | Omit = omit,
+482 |         proxy_id: str | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `BrowserProfile | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `BrowserProfile | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:481:9
+    |
+479 |         kiosk_mode: bool | Omit = omit,
+480 |         persistence: BrowserPersistenceParam | Omit = omit,
+481 |         profile: BrowserProfile | Omit = omit,
+    |         ------------------------------------- Parameter declared here
+482 |         proxy_id: str | Omit = omit,
+483 |         stealth: bool | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `str | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `str | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:482:9
+    |
+480 |         persistence: BrowserPersistenceParam | Omit = omit,
+481 |         profile: BrowserProfile | Omit = omit,
+482 |         proxy_id: str | Omit = omit,
+    |         --------------------------- Parameter declared here
+483 |         stealth: bool | Omit = omit,
+484 |         timeout_seconds: int | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `bool | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `bool | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:483:9
+    |
+481 |         profile: BrowserProfile | Omit = omit,
+482 |         proxy_id: str | Omit = omit,
+483 |         stealth: bool | Omit = omit,
+    |         --------------------------- Parameter declared here
+484 |         timeout_seconds: int | Omit = omit,
+485 |         viewport: BrowserViewport | Omit = omit,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `int | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Element `dict[Unknown | str, Unknown | int]` of this union is not assignable to `int | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:484:9
+    |
+482 |         proxy_id: str | Omit = omit,
+483 |         stealth: bool | Omit = omit,
+484 |         timeout_seconds: int | Omit = omit,
+    |         ---------------------------------- Parameter declared here
+485 |         viewport: BrowserViewport | Omit = omit,
+486 |         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `BrowserViewport | Omit`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `BrowserViewport | Omit`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:485:9
+    |
+483 |         stealth: bool | Omit = omit,
+484 |         timeout_seconds: int | Omit = omit,
+485 |         viewport: BrowserViewport | Omit = omit,
+    |         --------------------------------------- Parameter declared here
+486 |         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+487 |         # The extra values given here take precedence over values defined on the client or passed to this method.
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `Mapping[str, str | Omit] | None`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Union elements `int` and `dict[Unknown | str, Unknown | int]` are not assignable to `Mapping[str, str | Omit] | None`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:488:9
+    |
+486 |         # Use the following arguments if you need to pass additional parameters to the API that aren't available via kwargs.
+487 |         # The extra values given here take precedence over values defined on the client or passed to this method.
+488 |         extra_headers: Headers | None = None,
+    |         ------------------------------------ Parameter declared here
+489 |         extra_query: Query | None = None,
+490 |         extra_body: Body | None = None,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `Mapping[str, object] | None`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Element `int` of this union is not assignable to `Mapping[str, object] | None`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:489:9
+    |
+487 |         # The extra values given here take precedence over values defined on the client or passed to this method.
+488 |         extra_headers: Headers | None = None,
+489 |         extra_query: Query | None = None,
+    |         -------------------------------- Parameter declared here
+490 |         extra_body: Body | None = None,
+491 |         timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `create` is incorrect
+   --> src/lm_deluge/tool/cua/kernel.py:171:54
+    |
+169 |             create_params["persistence"] = {"id": self.persistence_id}
+170 |
+171 |         browser = await self._client.browsers.create(**create_params)
+    |                                                      ^^^^^^^^^^^^^^^ Expected `int | float | Timeout | None | NotGiven`, found `Unknown | int | dict[Unknown | str, Unknown | int]`
+172 |         self.session_id = browser.session_id
+173 |         return self
+    |
+info: Element `dict[Unknown | str, Unknown | int]` of this union is not assignable to `int | float | Timeout | None | NotGiven`
+info: Method defined here
+   --> .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:473:15
+    |
+471 |         return AsyncBrowsersResourceWithStreamingResponse(self)
+472 |
+473 |     async def create(
+    |               ^^^^^^
+474 |         self,
+475 |         *,
+    |
+   ::: .venv/lib/python3.11/site-packages/kernel/resources/browsers/browsers.py:491:9
+    |
+489 |         extra_query: Query | None = None,
+490 |         extra_body: Body | None = None,
+491 |         timeout: float | httpx.Timeout | None | NotGiven = not_given,
+    |         ------------------------------------------------------------ Parameter declared here
+492 |     ) -> BrowserCreateResponse:
+493 |         """
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+Found 17 diagnostics
+error[invalid-argument-type]: Argument to function `_create_batch_status_display` is incorrect
+   --> src/lm_deluge/batches.py:492:21
+    |
+490 |                 display = _create_batch_status_display(
+491 |                     batch_id,
+492 |                     current_status["status"],
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `str`, found `Unknown | str | None`
+493 |                     elapsed,
+494 |                     current_status["counts"],
+    |
+info: Element `None` of this union is not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/batches.py:28:5
+   |
+28 | def _create_batch_status_display(
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+29 |     batch_id: str,
+30 |     status: str,
+   |     ----------- Parameter declared here
+31 |     elapsed: float,
+32 |     counts: dict | None,
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `_create_batch_status_display` is incorrect
+   --> src/lm_deluge/batches.py:494:21
+    |
+492 |                     current_status["status"],
+493 |                     elapsed,
+494 |                     current_status["counts"],
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `dict[Unknown, Unknown] | None`, found `Unknown | str | None`
+495 |                     "anthropic",
+496 |                 )
+    |
+info: Element `str` of this union is not assignable to `dict[Unknown, Unknown] | None`
+info: Function defined here
+  --> src/lm_deluge/batches.py:28:5
+   |
+28 | def _create_batch_status_display(
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+29 |     batch_id: str,
+30 |     status: str,
+31 |     elapsed: float,
+32 |     counts: dict | None,
+   |     ------------------- Parameter declared here
+33 |     provider: str,
+34 | ):
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `_create_batch_status_display` is incorrect
+   --> src/lm_deluge/batches.py:644:21
+    |
+642 |                 display = _create_batch_status_display(
+643 |                     batch_id,
+644 |                     current_status["status"],
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `str`, found `Unknown | str | None`
+645 |                     elapsed,
+646 |                     current_status["counts"],
+    |
+info: Element `None` of this union is not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/batches.py:28:5
+   |
+28 | def _create_batch_status_display(
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+29 |     batch_id: str,
+30 |     status: str,
+   |     ----------- Parameter declared here
+31 |     elapsed: float,
+32 |     counts: dict | None,
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `_create_batch_status_display` is incorrect
+   --> src/lm_deluge/batches.py:646:21
+    |
+644 |                     current_status["status"],
+645 |                     elapsed,
+646 |                     current_status["counts"],
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `dict[Unknown, Unknown] | None`, found `Unknown | str | None`
+647 |                     "openai",
+648 |                 )
+    |
+info: Element `str` of this union is not assignable to `dict[Unknown, Unknown] | None`
+info: Function defined here
+  --> src/lm_deluge/batches.py:28:5
+   |
+28 | def _create_batch_status_display(
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+29 |     batch_id: str,
+30 |     status: str,
+31 |     elapsed: float,
+32 |     counts: dict | None,
+   |     ------------------- Parameter declared here
+33 |     provider: str,
+34 | ):
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Any` has no attribute `__code__`
+  --> src/lm_deluge/tool/__init__.py:59:28
+   |
+57 |                 if inspect.ismethod(cls):
+58 |                     actual_func = cls.__func__
+59 |                     code = actual_func.__code__
+   |                            ^^^^^^^^^^^^^^^^^^^^
+60 |                     globals_dict = actual_func.__globals__
+61 |                     name = actual_func.__name__
+   |
+help: Function objects have a `__code__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Any` has no attribute `__globals__`
+  --> src/lm_deluge/tool/__init__.py:60:36
+   |
+58 |                     actual_func = cls.__func__
+59 |                     code = actual_func.__code__
+60 |                     globals_dict = actual_func.__globals__
+   |                                    ^^^^^^^^^^^^^^^^^^^^^^^
+61 |                     name = actual_func.__name__
+62 |                     defaults = actual_func.__defaults__
+   |
+help: Function objects have a `__globals__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Any` has no attribute `__name__`
+  --> src/lm_deluge/tool/__init__.py:61:28
+   |
+59 |                     code = actual_func.__code__
+60 |                     globals_dict = actual_func.__globals__
+61 |                     name = actual_func.__name__
+   |                            ^^^^^^^^^^^^^^^^^^^^
+62 |                     defaults = actual_func.__defaults__
+63 |                     kwdefaults = actual_func.__kwdefaults__
+   |
+help: Function objects have a `__name__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Any` has no attribute `__defaults__`
+  --> src/lm_deluge/tool/__init__.py:62:32
+   |
+60 |                     globals_dict = actual_func.__globals__
+61 |                     name = actual_func.__name__
+62 |                     defaults = actual_func.__defaults__
+   |                                ^^^^^^^^^^^^^^^^^^^^^^^^
+63 |                     kwdefaults = actual_func.__kwdefaults__
+64 |                     closure = actual_func.__closure__
+   |
+help: Function objects have a `__defaults__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Any` has no attribute `__kwdefaults__`
+  --> src/lm_deluge/tool/__init__.py:63:34
+   |
+61 |                     name = actual_func.__name__
+62 |                     defaults = actual_func.__defaults__
+63 |                     kwdefaults = actual_func.__kwdefaults__
+   |                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+64 |                     closure = actual_func.__closure__
+65 |                 else:
+   |
+help: Function objects have a `__kwdefaults__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Any` has no attribute `__closure__`
+  --> src/lm_deluge/tool/__init__.py:64:31
+   |
+62 |                     defaults = actual_func.__defaults__
+63 |                     kwdefaults = actual_func.__kwdefaults__
+64 |                     closure = actual_func.__closure__
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^
+65 |                 else:
+66 |                     code = cls.__code__
+   |
+help: Function objects have a `__closure__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `type`
+   --> src/lm_deluge/tool/__init__.py:413:24
+    |
+411 |                     content_blocks = raw_result
+412 |                 for block in content_blocks:
+413 |                     if block.type == "text":
+    |                        ^^^^^^^^^^
+414 |                         results.append(Text(block.text))
+415 |                     elif block.type == "image":
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `text`
+   --> src/lm_deluge/tool/__init__.py:414:45
+    |
+412 |                 for block in content_blocks:
+413 |                     if block.type == "text":
+414 |                         results.append(Text(block.text))
+    |                                             ^^^^^^^^^^
+415 |                     elif block.type == "image":
+416 |                         data_url = f"data:{block.mimeType};base64,{block.data}"
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `type`
+   --> src/lm_deluge/tool/__init__.py:415:26
+    |
+413 |                     if block.type == "text":
+414 |                         results.append(Text(block.text))
+415 |                     elif block.type == "image":
+    |                          ^^^^^^^^^^
+416 |                         data_url = f"data:{block.mimeType};base64,{block.data}"
+417 |                         results.append(Image(data=data_url))
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `mimeType`
+   --> src/lm_deluge/tool/__init__.py:416:44
+    |
+414 |                         results.append(Text(block.text))
+415 |                     elif block.type == "image":
+416 |                         data_url = f"data:{block.mimeType};base64,{block.data}"
+    |                                            ^^^^^^^^^^^^^^
+417 |                         results.append(Image(data=data_url))
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `data`
+   --> src/lm_deluge/tool/__init__.py:416:68
+    |
+414 |                         results.append(Text(block.text))
+415 |                     elif block.type == "image":
+416 |                         data_url = f"data:{block.mimeType};base64,{block.data}"
+    |                                                                    ^^^^^^^^^^
+417 |                         results.append(Image(data=data_url))
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `(...) -> Unknown` has no attribute `__name__`
+   --> src/lm_deluge/tool/__init__.py:664:51
+    |
+662 |         """
+663 |         # Get function name (use override if provided)
+664 |         tool_name = name if name is not None else func.__name__
+    |                                                   ^^^^^^^^^^^^^
+665 |
+666 |         # Get docstring for description
+    |
+help: Function objects have a `__name__` attribute, but not all callable objects are functions
+info: rule `unresolved-attribute` is enabled by default
+
+Found 16 diagnostics
+error[unresolved-import]: Cannot resolve imported module `vllm`
+  --> src/lm_deluge/config.py:29:18
+   |
+27 |     def to_vllm(self):
+28 |         try:
+29 |             from vllm import SamplingParams as VLLMSamplingParams  # pyright: ignore
+   |                  ^^^^
+30 |         except ImportError as e:
+31 |             print(
+   |
+info: Searched in the following paths during module resolution:
+info:   1. /Users/benjamin/Desktop/repos/lm-deluge/src (first-party code)
+info:   2. /Users/benjamin/Desktop/repos/lm-deluge (first-party code)
+info:   3. vendored://stdlib (stdlib typeshed stubs vendored by ty)
+info:   4. /Users/benjamin/Desktop/repos/lm-deluge/.venv/lib/python3.11/site-packages (site-packages)
+info: make sure your Python environment is properly configured: https://docs.astral.sh/ty/modules/#python-environment
+info: rule `unresolved-import` is enabled by default
+
+error[unsupported-operator]: Unsupported `not in` operation
+   --> src/lm_deluge/tool/builtin/anthropic/__init__.py:165:40
+    |
+163 |         result = [x for x in result if x["name"] != "bash"]
+164 |     if "editor" in exclude_tools:
+165 |         result = [x for x in result if "edit" not in x["name"]]
+    |                                        ------^^^^^^^^---------
+    |                                        |             |
+    |                                        |             Has type `Unknown | str | int | None`
+    |                                        Has type `Literal["edit"]`
+166 |     if "computer" in exclude_tools:
+167 |         result = [x for x in result if x["name"] != "computer"]
+    |
+info: Operation fails because operator `not in` is not supported between objects of type `Literal["edit"]` and `int`
+info: rule `unsupported-operator` is enabled by default
+
+error[invalid-assignment]: Object of type `dict[object, MemoryItem | Unknown]` is not assignable to attribute `_memories` of type `dict[int, MemoryItem]`
+  --> src/lm_deluge/tool/prefab/memory.py:72:17
+   |
+70 |         if memories:
+71 |             if isinstance(memories, dict):
+72 |                 self._memories = {k: self._coerce(v) for k, v in memories.items()}
+   |                 ^^^^^^^^^^^^^^
+73 |             else:
+74 |                 coerced = [self._coerce(mem) for mem in memories]
+   |
+info: rule `invalid-assignment` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `_coerce` is incorrect
+  --> src/lm_deluge/tool/prefab/memory.py:72:51
+   |
+70 |         if memories:
+71 |             if isinstance(memories, dict):
+72 |                 self._memories = {k: self._coerce(v) for k, v in memories.items()}
+   |                                                   ^ Expected `MemoryItem | MemoryItemDict`, found `object`
+73 |             else:
+74 |                 coerced = [self._coerce(mem) for mem in memories]
+   |
+info: Method defined here
+  --> src/lm_deluge/tool/prefab/memory.py:87:9
+   |
+85 |         return cls(memories)
+86 |
+87 |     def _coerce(self, mem: MemoryLike) -> MemoryItem:
+   |         ^^^^^^^       --------------- Parameter declared here
+88 |         if isinstance(mem, MemoryItem):
+89 |             return mem
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-assignment]: Object of type `None` is not assignable to `<module 'pydantic'>`
+  --> src/lm_deluge/util/schema.py:25:5
+   |
+23 |     from pydantic import BaseModel as _BaseModel
+24 | except ImportError:
+25 |     pydantic = None
+   |     --------   ^^^^ Incompatible value of type `None`
+   |     |
+   |     Declared type `<module 'pydantic'>`
+26 |     _BaseModel = None  # type: ignore
+   |
+info: rule `invalid-assignment` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:170:12
+    |
+169 |     # Process $defs recursively
+170 |     defs = json_schema.get("$defs")
+    |            ^^^^^^^^^^^^^^^
+171 |     if is_dict(defs):
+172 |         for def_name, def_schema in defs.items():
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:178:19
+    |
+177 |     # Process definitions recursively
+178 |     definitions = json_schema.get("definitions")
+    |                   ^^^^^^^^^^^^^^^
+179 |     if is_dict(definitions):
+180 |         for definition_name, definition_schema in definitions.items():
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:187:11
+    |
+185 |             )
+186 |
+187 |     typ = json_schema.get("type")
+    |           ^^^^^^^^^^^^^^^
+188 |
+189 |     # Object types - add additionalProperties: false and make all fields required
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unsupported-operator]: Unsupported `not in` operation
+   --> src/lm_deluge/util/schema.py:190:28
+    |
+189 |     # Object types - add additionalProperties: false and make all fields required
+190 |     if typ == "object" and "additionalProperties" not in json_schema:
+    |                            ----------------------^^^^^^^^-----------
+    |                            |                             |
+    |                            |                             Has type `object`
+    |                            Has type `Literal["additionalProperties"]`
+191 |         json_schema["additionalProperties"] = False
+    |
+info: rule `unsupported-operator` is enabled by default
+
+error[invalid-assignment]: Cannot assign to a subscript on an object of type `object`
+   --> src/lm_deluge/util/schema.py:191:9
+    |
+189 |     # Object types - add additionalProperties: false and make all fields required
+190 |     if typ == "object" and "additionalProperties" not in json_schema:
+191 |         json_schema["additionalProperties"] = False
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+192 |
+193 |     properties = json_schema.get("properties")
+    |
+info: `object` does not have a `__setitem__` method.
+info: rule `invalid-assignment` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:193:18
+    |
+191 |         json_schema["additionalProperties"] = False
+192 |
+193 |     properties = json_schema.get("properties")
+    |                  ^^^^^^^^^^^^^^^
+194 |     if is_dict(properties):
+195 |         # Make all properties required
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[invalid-assignment]: Cannot assign to a subscript on an object of type `object`
+   --> src/lm_deluge/util/schema.py:196:9
+    |
+194 |     if is_dict(properties):
+195 |         # Make all properties required
+196 |         json_schema["required"] = list(properties.keys())
+    |         ^^^^^^^^^^^^^^^^^^^^^^^
+197 |
+198 |         # Process each property recursively
+    |
+info: `object` does not have a `__setitem__` method.
+info: rule `invalid-assignment` is enabled by default
+
+error[invalid-assignment]: Cannot assign to a subscript on an object of type `object`
+   --> src/lm_deluge/util/schema.py:199:9
+    |
+198 |         # Process each property recursively
+199 |         json_schema["properties"] = {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^
+200 |             key: _ensure_strict_json_schema(
+201 |                 prop_schema, path=(*path, "properties", key), root=root
+    |
+info: `object` does not have a `__setitem__` method.
+info: rule `invalid-assignment` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:207:13
+    |
+206 |     # Arrays - process items schema
+207 |     items = json_schema.get("items")
+    |             ^^^^^^^^^^^^^^^
+208 |     if is_dict(items):
+209 |         json_schema["items"] = _ensure_strict_json_schema(
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[invalid-assignment]: Cannot assign to a subscript on an object of type `object`
+   --> src/lm_deluge/util/schema.py:209:9
+    |
+207 |     items = json_schema.get("items")
+208 |     if is_dict(items):
+209 |         json_schema["items"] = _ensure_strict_json_schema(
+    |         ^^^^^^^^^^^^^^^^^^^^
+210 |             items, path=(*path, "items"), root=root
+211 |         )
+    |
+info: `object` does not have a `__setitem__` method.
+info: rule `invalid-assignment` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:214:14
+    |
+213 |     # Unions - process each variant
+214 |     any_of = json_schema.get("anyOf")
+    |              ^^^^^^^^^^^^^^^
+215 |     if isinstance(any_of, list):
+216 |         json_schema["anyOf"] = [
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[invalid-assignment]: Cannot assign to a subscript on an object of type `object`
+   --> src/lm_deluge/util/schema.py:216:9
+    |
+214 |     any_of = json_schema.get("anyOf")
+215 |     if isinstance(any_of, list):
+216 |         json_schema["anyOf"] = [
+    |         ^^^^^^^^^^^^^^^^^^^^
+217 |             _ensure_strict_json_schema(
+218 |                 variant, path=(*path, "anyOf", str(i)), root=root
+    |
+info: `object` does not have a `__setitem__` method.
+info: rule `invalid-assignment` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:224:14
+    |
+223 |     # Intersections - process each entry
+224 |     all_of = json_schema.get("allOf")
+    |              ^^^^^^^^^^^^^^^
+225 |     if isinstance(all_of, list):
+226 |         if len(all_of) == 1:
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `update`
+   --> src/lm_deluge/util/schema.py:228:13
+    |
+226 |         if len(all_of) == 1:
+227 |             # Flatten single-element allOf
+228 |             json_schema.update(
+    |             ^^^^^^^^^^^^^^^^^^
+229 |                 _ensure_strict_json_schema(
+230 |                     all_of[0], path=(*path, "allOf", "0"), root=root
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `pop`
+   --> src/lm_deluge/util/schema.py:233:13
+    |
+231 |                 )
+232 |             )
+233 |             json_schema.pop("allOf")
+    |             ^^^^^^^^^^^^^^^
+234 |         else:
+235 |             json_schema["allOf"] = [
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[invalid-assignment]: Cannot assign to a subscript on an object of type `object`
+   --> src/lm_deluge/util/schema.py:235:13
+    |
+233 |             json_schema.pop("allOf")
+234 |         else:
+235 |             json_schema["allOf"] = [
+    |             ^^^^^^^^^^^^^^^^^^^^
+236 |                 _ensure_strict_json_schema(
+237 |                     entry, path=(*path, "allOf", str(i)), root=root
+    |
+info: `object` does not have a `__setitem__` method.
+info: rule `invalid-assignment` is enabled by default
+
+error[unsupported-operator]: Unsupported `in` operation
+   --> src/lm_deluge/util/schema.py:243:8
+    |
+242 |     # Remove None defaults (redundant with nullable)
+243 |     if "default" in json_schema and json_schema["default"] is None:
+    |        ---------^^^^-----------
+    |        |            |
+    |        |            Has type `object`
+    |        Has type `Literal["default"]`
+244 |         json_schema.pop("default")
+    |
+info: rule `unsupported-operator` is enabled by default
+
+error[non-subscriptable]: Cannot subscript object of type `object` with no `__getitem__` method
+   --> src/lm_deluge/util/schema.py:243:37
+    |
+242 |     # Remove None defaults (redundant with nullable)
+243 |     if "default" in json_schema and json_schema["default"] is None:
+    |                                     ^^^^^^^^^^^^^^^^^^^^^^
+244 |         json_schema.pop("default")
+    |
+info: rule `non-subscriptable` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `pop`
+   --> src/lm_deluge/util/schema.py:244:9
+    |
+242 |     # Remove None defaults (redundant with nullable)
+243 |     if "default" in json_schema and json_schema["default"] is None:
+244 |         json_schema.pop("default")
+    |         ^^^^^^^^^^^^^^^
+245 |
+246 |     # Expand $refs that are mixed with other properties
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `get`
+   --> src/lm_deluge/util/schema.py:247:11
+    |
+246 |     # Expand $refs that are mixed with other properties
+247 |     ref = json_schema.get("$ref")
+    |           ^^^^^^^^^^^^^^^
+248 |     if ref and has_more_than_n_keys(json_schema, 1):
+249 |         if not isinstance(ref, str):
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[invalid-argument-type]: Argument to function `has_more_than_n_keys` is incorrect
+   --> src/lm_deluge/util/schema.py:248:37
+    |
+246 |     # Expand $refs that are mixed with other properties
+247 |     ref = json_schema.get("$ref")
+248 |     if ref and has_more_than_n_keys(json_schema, 1):
+    |                                     ^^^^^^^^^^^ Expected `dict[str, object]`, found `object`
+249 |         if not isinstance(ref, str):
+250 |             raise ValueError(f"Received non-string $ref - {ref}")
+    |
+info: Function defined here
+  --> src/lm_deluge/util/schema.py:41:5
+   |
+41 | def has_more_than_n_keys(obj: dict[str, object], n: int) -> bool:
+   |     ^^^^^^^^^^^^^^^^^^^^ ---------------------- Parameter declared here
+42 |     """Check if a dictionary has more than n keys."""
+43 |     i = 0
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `update`
+   --> src/lm_deluge/util/schema.py:259:9
+    |
+258 |         # Properties from json_schema take priority over $ref
+259 |         json_schema.update({**resolved, **json_schema})
+    |         ^^^^^^^^^^^^^^^^^^
+260 |         json_schema.pop("$ref")
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[unresolved-attribute]: Object of type `object` has no attribute `pop`
+   --> src/lm_deluge/util/schema.py:260:9
+    |
+258 |         # Properties from json_schema take priority over $ref
+259 |         json_schema.update({**resolved, **json_schema})
+260 |         json_schema.pop("$ref")
+    |         ^^^^^^^^^^^^^^^
+261 |
+262 |         # Re-process the expanded schema
+    |
+info: rule `unresolved-attribute` is enabled by default
+
+error[invalid-return-type]: Return type does not match returned value
+   --> src/lm_deluge/util/schema.py:265:12
+    |
+263 |         return _ensure_strict_json_schema(json_schema, path=path, root=root)
+264 |
+265 |     return json_schema
+    |            ^^^^^^^^^^^ expected `dict[str, Any]`, found `object`
+    |
+   ::: src/lm_deluge/util/schema.py:148:6
+    |
+146 |     path: tuple[str, ...],
+147 |     root: dict[str, object],
+148 | ) -> dict[str, Any]:
+    |      -------------- Expected `dict[str, Any]` because of return type
+149 |     """Recursively ensure a JSON schema conforms to strict mode requirements.
+    |
+info: rule `invalid-return-type` is enabled by default
+
+Found 29 diagnostics
+error[invalid-argument-type]: Argument to function `_message_contents_to_string` is incorrect
+  --> src/lm_deluge/api_requests/openai.py:78:64
+   |
+76 |     # if tinker, for now hack to mush into 1 string
+77 |     if "tinker" in model.name:
+78 |         request_json["messages"] = _message_contents_to_string(request_json["messages"])
+   |                                                                ^^^^^^^^^^^^^^^^^^^^^^^^ Expected `list[dict[Unknown, Unknown]]`, found `Unknown | str | list[dict[Unknown, Unknown]] | int | float`
+79 |
+80 |     # set max_tokens or max_completion_tokens dep. on provider
+   |
+info: Union element `str`, and 2 more union elements, are not assignable to `list[dict[Unknown, Unknown]]`
+info: Function defined here
+  --> src/lm_deluge/api_requests/openai.py:25:5
+   |
+25 | def _message_contents_to_string(messages: list[dict]):
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ -------------------- Parameter declared here
+26 |     messages = messages.copy()
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[unresolved-import]: Module `typing` has no member `Self`
+  --> src/lm_deluge/client.py:10:5
+   |
+ 8 |     ClassVar,
+ 9 |     Literal,
+10 |     Self,
+   |     ^^^^
+11 |     Sequence,
+12 |     cast,
+   |
+info: The member may be available on other Python versions or platforms
+info: Python 3.10 was assumed when resolving imports
+  --> pyproject.toml:10:19
+   |
+ 8 | description = "Python utility for using LLM API models."
+ 9 | readme = "README.md"
+10 | requires-python = ">=3.10"
+   |                   ^^^^^^^^ Python version configuration
+11 | keywords = []
+12 | license = { text = "" }
+   |
+info: rule `unresolved-import` is enabled by default
+
+error[invalid-return-type]: Return type does not match returned value
+   --> src/lm_deluge/client.py:282:31
+    |
+280 |         return self
+281 |
+282 |     def _get_tracker(self) -> StatusTracker:
+    |                               ------------- Expected `StatusTracker` because of return type
+283 |         if self._tracker is None:
+284 |             self.open()
+285 |             assert self._tracker, "should have tracker now"
+286 |         return self._tracker
+    |                ^^^^^^^^^^^^^ expected `StatusTracker`, found `StatusTracker | None`
+287 |
+288 |     @property
+    |
+info: rule `invalid-return-type` is enabled by default
+
+error[call-non-callable]: Object of type `None` is not callable
+   --> src/lm_deluge/tool/prefab/otc/executor.py:165:36
+    |
+163 |             try:
+164 |                 if asyncio.iscoroutinefunction(tool.run):
+165 |                     result = await tool.run(**call["kwargs"])
+    |                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+166 |                 elif tool.run is not None:
+167 |                     result = tool.run(**call["kwargs"])
+    |
+info: Union variant `None` is incompatible with this call site
+info: Attempted to call union type `Unknown | ((...) -> Unknown) | None`
+info: rule `call-non-callable` is enabled by default
+
+error[call-non-callable]: Object of type `BaseModel` is not callable
+  --> src/lm_deluge/util/validation.py:12:16
+   |
+10 |     try:
+11 |         model_dict = load_json(json_string)
+12 |         return model_class(**model_dict)  # pyright: ignore
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+13 |     except ValidationError as ve:
+14 |         # Handle validation errors if necessary
+   |
+info: rule `call-non-callable` is enabled by default
+
+error[call-non-callable]: Object of type `BaseModel` is not callable
+  --> src/lm_deluge/util/validation.py:35:20
+   |
+34 |         try:
+35 |             return model_class(**model_dict)  # pyright: ignore
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+36 |         except ValidationError as ve:
+37 |             # Handle validation errors if necessary
+   |
+info: rule `call-non-callable` is enabled by default
+
+error[call-non-callable]: Object of type `BaseModel` is not callable
+  --> src/lm_deluge/util/validation.py:43:20
+   |
+41 |         model_dict = xml_to_object(xml_string)
+42 |         try:
+43 |             return model_class(**model_dict)  # pyright: ignore
+   |                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+44 |         except ValidationError as ve:
+45 |             # Handle validation errors if necessary
+   |
+info: rule `call-non-callable` is enabled by default
+
+Found 7 diagnostics
+warning[possibly-missing-attribute]: Attribute `copy` may be missing on object of type `Unknown | dict[str, str] | None`
+   --> src/lm_deluge/api_requests/bedrock.py:270:21
+    |
+268 |             url=self.url,
+269 |             data=payload,
+270 |             headers=self.request_header.copy(),
+    |                     ^^^^^^^^^^^^^^^^^^^^^^^^
+271 |         )
+    |
+info: rule `possibly-missing-attribute` is enabled by default
+
+error[invalid-argument-type]: Argument to bound method `post` is incorrect
+   --> src/lm_deluge/api_requests/bedrock.py:280:21
+    |
+278 |             async with aiohttp.ClientSession(timeout=timeout) as session:
+279 |                 async with session.post(
+280 |                     url=self.url,
+    |                     ^^^^^^^^^^^^ Expected `str | URL`, found `Unknown | str | None`
+281 |                     headers=signed_headers,
+282 |                     data=payload,
+    |
+info: Element `None` of this union is not assignable to `str | URL`
+info: Method defined here
+    --> .venv/lib/python3.11/site-packages/aiohttp/client.py:1227:13
+     |
+1225 |             )
+1226 |
+1227 |         def post(
+     |             ^^^^
+1228 |             self, url: StrOrURL, *, data: Any = None, **kwargs: Any
+     |                   ------------- Parameter declared here
+1229 |         ) -> "_RequestContextManager":
+1230 |             """Perform HTTP POST request."""
+     |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-assignment]: Object of type `None` is not assignable to `<module 'PIL.Image'>`
+  --> src/lm_deluge/pipelines/extract.py:16:5
+   |
+14 |     from PIL import Image as PILImage
+15 | except ImportError:
+16 |     PILImage = None
+   |     --------   ^^^^ Incompatible value of type `None`
+   |     |
+   |     Declared type `<module 'PIL.Image'>`
+   |
+info: rule `invalid-assignment` is enabled by default
+
+Found 3 diagnostics
+error[unsupported-operator]: Unsupported `+=` operation
+   --> src/lm_deluge/api_requests/anthropic.py:106:13
+    |
+104 |                 request_json["top_p"] = max(request_json["top_p"], 0.95)
+105 |             request_json["temperature"] = 1.0
+106 |             request_json["max_tokens"] += budget
+    |             --------------------------^^^^------
+    |             |                             |
+    |             |                             Has type `int`
+    |             Has type `str`
+107 |         else:
+108 |             request_json["thinking"] = {"type": "disabled"}
+    |
+info: rule `unsupported-operator` is enabled by default
+
+error[unsupported-operator]: Unsupported `+=` operation
+   --> src/lm_deluge/api_requests/anthropic.py:106:13
+    |
+104 |                 request_json["top_p"] = max(request_json["top_p"], 0.95)
+105 |             request_json["temperature"] = 1.0
+106 |             request_json["max_tokens"] += budget
+    |             --------------------------^^^^------
+    |             |                             |
+    |             |                             Has type `int`
+    |             Has type `list[dict[Unknown, Unknown]]`
+107 |         else:
+108 |             request_json["thinking"] = {"type": "disabled"}
+    |
+info: rule `unsupported-operator` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `str`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `int`, and 2 more union elements, are not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/models/__init__.py:92:5
+   |
+92 | def register_model(
+   |     ^^^^^^^^^^^^^^
+93 |     id: str,
+   |     ------- Parameter declared here
+94 |     name: str,
+95 |     api_base: str,
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `str`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `int`, and 2 more union elements, are not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/models/__init__.py:92:5
+   |
+92 | def register_model(
+   |     ^^^^^^^^^^^^^^
+93 |     id: str,
+94 |     name: str,
+   |     --------- Parameter declared here
+95 |     api_base: str,
+96 |     api_key_env_var: str,
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `str`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `int`, and 2 more union elements, are not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/models/__init__.py:92:5
+   |
+92 | def register_model(
+   |     ^^^^^^^^^^^^^^
+93 |     id: str,
+94 |     name: str,
+95 |     api_base: str,
+   |     ------------- Parameter declared here
+96 |     api_key_env_var: str,
+97 |     api_spec: str = "openai",
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `str`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `int`, and 2 more union elements, are not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/models/__init__.py:92:5
+   |
+92 | def register_model(
+   |     ^^^^^^^^^^^^^^
+93 |     id: str,
+94 |     name: str,
+95 |     api_base: str,
+96 |     api_key_env_var: str,
+   |     -------------------- Parameter declared here
+97 |     api_spec: str = "openai",
+98 |     input_cost: float | None = 0,  # $ per million input tokens
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `str`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `int`, and 2 more union elements, are not assignable to `str`
+info: Function defined here
+  --> src/lm_deluge/models/__init__.py:92:5
+   |
+92 | def register_model(
+   |     ^^^^^^^^^^^^^^
+93 |     id: str,
+94 |     name: str,
+95 |     api_base: str,
+96 |     api_key_env_var: str,
+97 |     api_spec: str = "openai",
+   |     ------------------------ Parameter declared here
+98 |     input_cost: float | None = 0,  # $ per million input tokens
+99 |     cached_input_cost: float | None = 0,
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `int | float | None`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union elements `str` and `list[Unknown | str]` are not assignable to `int | float | None`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:98:5
+    |
+ 96 |     api_key_env_var: str,
+ 97 |     api_spec: str = "openai",
+ 98 |     input_cost: float | None = 0,  # $ per million input tokens
+    |     ---------------------------- Parameter declared here
+ 99 |     cached_input_cost: float | None = 0,
+100 |     cache_write_cost: float | None = 0,  # $ per million cache write tokens
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `int | float | None`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union elements `str` and `list[Unknown | str]` are not assignable to `int | float | None`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:99:5
+    |
+ 97 |     api_spec: str = "openai",
+ 98 |     input_cost: float | None = 0,  # $ per million input tokens
+ 99 |     cached_input_cost: float | None = 0,
+    |     ----------------------------------- Parameter declared here
+100 |     cache_write_cost: float | None = 0,  # $ per million cache write tokens
+101 |     output_cost: float | None = 0,  # $ per million output tokens
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `int | float | None`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union elements `str` and `list[Unknown | str]` are not assignable to `int | float | None`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:100:5
+    |
+ 98 |     input_cost: float | None = 0,  # $ per million input tokens
+ 99 |     cached_input_cost: float | None = 0,
+100 |     cache_write_cost: float | None = 0,  # $ per million cache write tokens
+    |     ---------------------------------- Parameter declared here
+101 |     output_cost: float | None = 0,  # $ per million output tokens
+102 |     supports_json: bool = False,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `int | float | None`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union elements `str` and `list[Unknown | str]` are not assignable to `int | float | None`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:101:5
+    |
+ 99 |     cached_input_cost: float | None = 0,
+100 |     cache_write_cost: float | None = 0,  # $ per million cache write tokens
+101 |     output_cost: float | None = 0,  # $ per million output tokens
+    |     ----------------------------- Parameter declared here
+102 |     supports_json: bool = False,
+103 |     supports_logprobs: bool = False,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `bool`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `str`, and 3 more union elements, are not assignable to `bool`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:102:5
+    |
+100 |     cache_write_cost: float | None = 0,  # $ per million cache write tokens
+101 |     output_cost: float | None = 0,  # $ per million output tokens
+102 |     supports_json: bool = False,
+    |     --------------------------- Parameter declared here
+103 |     supports_logprobs: bool = False,
+104 |     supports_responses: bool = False,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `bool`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `str`, and 3 more union elements, are not assignable to `bool`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:103:5
+    |
+101 |     output_cost: float | None = 0,  # $ per million output tokens
+102 |     supports_json: bool = False,
+103 |     supports_logprobs: bool = False,
+    |     ------------------------------- Parameter declared here
+104 |     supports_responses: bool = False,
+105 |     reasoning_model: bool = False,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `bool`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `str`, and 3 more union elements, are not assignable to `bool`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:104:5
+    |
+102 |     supports_json: bool = False,
+103 |     supports_logprobs: bool = False,
+104 |     supports_responses: bool = False,
+    |     -------------------------------- Parameter declared here
+105 |     reasoning_model: bool = False,
+106 |     supports_xhigh: bool = False,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `bool`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `str`, and 3 more union elements, are not assignable to `bool`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:105:5
+    |
+103 |     supports_logprobs: bool = False,
+104 |     supports_responses: bool = False,
+105 |     reasoning_model: bool = False,
+    |     ----------------------------- Parameter declared here
+106 |     supports_xhigh: bool = False,
+107 |     regions: list[str] | dict[str, int] = field(default_factory=list),
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `bool`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `str`, and 3 more union elements, are not assignable to `bool`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:106:5
+    |
+104 |     supports_responses: bool = False,
+105 |     reasoning_model: bool = False,
+106 |     supports_xhigh: bool = False,
+    |     ---------------------------- Parameter declared here
+107 |     regions: list[str] | dict[str, int] = field(default_factory=list),
+108 |     # tokens_per_minute: int | None = None,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `register_model` is incorrect
+   --> src/lm_deluge/models/__init__.py:157:24
+    |
+155 | ]:
+156 |     for cfg in model_dict.values():
+157 |         register_model(**cfg)
+    |                        ^^^^^ Expected `list[str] | dict[str, int]`, found `Unknown | str | int | float | list[Unknown | str]`
+    |
+info: Union element `str`, and 2 more union elements, are not assignable to `list[str] | dict[str, int]`
+info: Function defined here
+   --> src/lm_deluge/models/__init__.py:92:5
+    |
+ 92 | def register_model(
+    |     ^^^^^^^^^^^^^^
+ 93 |     id: str,
+ 94 |     name: str,
+    |
+   ::: src/lm_deluge/models/__init__.py:107:5
+    |
+105 |     reasoning_model: bool = False,
+106 |     supports_xhigh: bool = False,
+107 |     regions: list[str] | dict[str, int] = field(default_factory=list),
+    |     ----------------------------------------------------------------- Parameter declared here
+108 |     # tokens_per_minute: int | None = None,
+109 |     # requests_per_minute: int | None = None,
+    |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `int`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `str`, and 10 more union elements, are not assignable to `int`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `str`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 10 more union elements, are not assignable to `str`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `Conversation`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 10 more union elements, are not assignable to `Conversation`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `SamplingParams`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 10 more union elements, are not assignable to `SamplingParams`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `int`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `str`, and 10 more union elements, are not assignable to `int`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `int`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `str`, and 10 more union elements, are not assignable to `int`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `StatusTracker | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 9 more union elements, are not assignable to `StatusTracker | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `list[Any] | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 10 more union elements, are not assignable to `list[Any] | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `((...) -> Unknown) | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 8 more union elements, are not assignable to `((...) -> Unknown) | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `Sequence[Any] | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 8 more union elements, are not assignable to `Sequence[Any] | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `type[BaseModel] | dict[Unknown, Unknown] | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 6 more union elements, are not assignable to `type[BaseModel] | dict[Unknown, Unknown] | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `Literal["tools_only", "system_and_tools", "last_user_message", "last_2_user_messages", "last_3_user_messages"] | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 10 more union elements, are not assignable to `Literal["tools_only", "system_and_tools", "last_user_message", "last_2_user_messages", "last_3_user_messages"] | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `bool`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 11 more union elements, are not assignable to `bool`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `bool`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 11 more union elements, are not assignable to `bool`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `str | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 9 more union elements, are not assignable to `str | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `dict[str, str] | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 7 more union elements, are not assignable to `dict[str, str] | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `dict[str, Any] | None`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 7 more union elements, are not assignable to `dict[str, Any] | None`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument is incorrect
+  --> src/lm_deluge/request_context.py:86:31
+   |
+84 |         current_values.update(overrides)
+85 |
+86 |         return RequestContext(**current_values)
+   |                               ^^^^^^^^^^^^^^^^ Expected `bool`, found `Unknown | int | str | ... omitted 10 union elements`
+   |
+info: Union element `int`, and 11 more union elements, are not assignable to `bool`
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-key]: TypedDict `SearchResultContent` can only be subscripted with a string literal key, got key of type `Unknown | str`
+   --> src/lm_deluge/tool/prefab/full_text_search/__init__.py:126:44
+    |
+124 |             for field in self.preview_fields:
+125 |                 if field in result.content:
+126 |                     value = result.content[field]
+    |                                            ^^^^^
+127 |                     # Truncate long values
+128 |                     if isinstance(value, str) and len(value) > 200:
+    |
+info: rule `invalid-key` is enabled by default
+
+Found 36 diagnostics
+error[invalid-argument-type]: Argument to function `to_thread` is incorrect
+   --> src/lm_deluge/tool/prefab/sandbox/seatbelt_sandbox.py:633:25
+    |
+631 |                     asyncio.to_thread(
+632 |                         subprocess.run,
+633 |                         sandboxed_args,
+    |                         ^^^^^^^^^^^^^^ Expected `Overload[(args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: Literal[True], timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, *, universal_newlines: Literal[True], startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: Literal[False] | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: None = None, errors: None = None, input: Buffer | None = None, text: Literal[False] | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: Buffer | str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown]`, found `list[str]`
+634 |                         cwd=str(self.working_dir),
+635 |                         capture_output=True,
+    |
+info: Function defined here
+  --> stdlib/asyncio/threads.pyi:12:11
+   |
+10 | _R = TypeVar("_R")
+11 |
+12 | async def to_thread(func: Callable[_P, _R], /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+   |           ^^^^^^^^^                            -------------- Parameter declared here
+13 |     """Asynchronously run function *func* in a separate thread.
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `to_thread` is incorrect
+   --> src/lm_deluge/tool/prefab/sandbox/seatbelt_sandbox.py:634:25
+    |
+632 |                         subprocess.run,
+633 |                         sandboxed_args,
+634 |                         cwd=str(self.working_dir),
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^ Expected `Overload[(args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: Literal[True], timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, *, universal_newlines: Literal[True], startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: Literal[False] | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: None = None, errors: None = None, input: Buffer | None = None, text: Literal[False] | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: Buffer | str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown]`, found `str`
+635 |                         capture_output=True,
+636 |                         timeout=timeout_seconds,
+    |
+info: Function defined here
+  --> stdlib/asyncio/threads.pyi:12:11
+   |
+10 | _R = TypeVar("_R")
+11 |
+12 | async def to_thread(func: Callable[_P, _R], /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+   |           ^^^^^^^^^                                            ------------------- Parameter declared here
+13 |     """Asynchronously run function *func* in a separate thread.
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `to_thread` is incorrect
+   --> src/lm_deluge/tool/prefab/sandbox/seatbelt_sandbox.py:635:25
+    |
+633 |                         sandboxed_args,
+634 |                         cwd=str(self.working_dir),
+635 |                         capture_output=True,
+    |                         ^^^^^^^^^^^^^^^^^^^ Expected `Overload[(args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: Literal[True], timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, *, universal_newlines: Literal[True], startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: Literal[False] | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: None = None, errors: None = None, input: Buffer | None = None, text: Literal[False] | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: Buffer | str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown]`, found `Literal[True]`
+636 |                         timeout=timeout_seconds,
+637 |                     ),
+    |
+info: Function defined here
+  --> stdlib/asyncio/threads.pyi:12:11
+   |
+10 | _R = TypeVar("_R")
+11 |
+12 | async def to_thread(func: Callable[_P, _R], /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+   |           ^^^^^^^^^                                            ------------------- Parameter declared here
+13 |     """Asynchronously run function *func* in a separate thread.
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+error[invalid-argument-type]: Argument to function `to_thread` is incorrect
+   --> src/lm_deluge/tool/prefab/sandbox/seatbelt_sandbox.py:636:25
+    |
+634 |                         cwd=str(self.working_dir),
+635 |                         capture_output=True,
+636 |                         timeout=timeout_seconds,
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^ Expected `Overload[(args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: Literal[True], timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, *, universal_newlines: Literal[True], startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: Literal[False] | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: None = None, errors: None = None, input: Buffer | None = None, text: Literal[False] | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown, (args: Sequence[str | bytes | PathLike[str] | PathLike[bytes]] | bytes | PathLike[str] | PathLike[bytes], bufsize: int = -1, executable: str | bytes | PathLike[str] | PathLike[bytes] | None = None, stdin: None | int | IO[Any] = None, stdout: None | int | IO[Any] = None, stderr: None | int | IO[Any] = None, preexec_fn: (() -> Any) | None = None, close_fds: bool = True, shell: bool = False, cwd: str | bytes | PathLike[str] | PathLike[bytes] | None = None, env: Mapping[bytes, str | bytes | PathLike[str] | PathLike[bytes]] | Mapping[str, str | bytes | PathLike[str] | PathLike[bytes]] | None = None, universal_newlines: bool | None = None, startupinfo: Any = None, creationflags: int = 0, restore_signals: bool = True, start_new_session: bool = False, pass_fds: Collection[int] = ..., *, capture_output: bool = False, check: bool = False, encoding: str | None = None, errors: str | None = None, input: Buffer | str | None = None, text: bool | None = None, timeout: int | float | None = None, user: str | int | None = None, group: str | int | None = None, extra_groups: Iterable[str | int] | None = None, umask: int = -1, pipesize: int = -1) -> Unknown]`, found `None | int | float`
+637 |                     ),
+638 |                     timeout=timeout_seconds + 5 if timeout_seconds else None,
+    |
+info: Function defined here
+  --> stdlib/asyncio/threads.pyi:12:11
+   |
+10 | _R = TypeVar("_R")
+11 |
+12 | async def to_thread(func: Callable[_P, _R], /, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+   |           ^^^^^^^^^                                            ------------------- Parameter declared here
+13 |     """Asynchronously run function *func* in a separate thread.
+   |
+info: rule `invalid-argument-type` is enabled by default
+
+warning[possibly-missing-attribute]: Attribute `decode` may be missing on object of type `str | Any | bytes`
+   --> src/lm_deluge/tool/prefab/sandbox/seatbelt_sandbox.py:641:26
+    |
+639 |                 )
+640 |
+641 |                 output = result.stdout.decode("utf-8", errors="replace")
+    |                          ^^^^^^^^^^^^^^^^^^^^
+642 |                 stderr = result.stderr.decode("utf-8", errors="replace")
+    |
+info: rule `possibly-missing-attribute` is enabled by default
+
+warning[possibly-missing-attribute]: Attribute `decode` may be missing on object of type `str | Any | bytes`
+   --> src/lm_deluge/tool/prefab/sandbox/seatbelt_sandbox.py:642:26
+    |
+641 |                 output = result.stdout.decode("utf-8", errors="replace")
+642 |                 stderr = result.stderr.decode("utf-8", errors="replace")
+    |                          ^^^^^^^^^^^^^^^^^^^^
+643 |
+644 |                 # Combine stdout and stderr
+    |
+info: rule `possibly-missing-attribute` is enabled by default
+
+Found 6 diagnostics
+error[invalid-assignment]: Object of type `None` is not assignable to `<module 'plyvel'>`
+  --> src/lm_deluge/cache.py:11:5
+   |
+ 9 |     import plyvel  # type: ignore
+10 | except ImportError:
+11 |     plyvel = None
+   |     ------   ^^^^ Incompatible value of type `None`
+   |     |
+   |     Declared type `<module 'plyvel'>`
+12 |     print("Warning: plyvel not installed, cannot use LevelDB.")
+   |
+info: rule `invalid-assignment` is enabled by default
+
+Found 1 diagnostic
+
+Block forbidden strings in backend files.................................[42mPassed[m
+Block weird space characters in all text files...........................[42mPassed[m

@@ -101,8 +101,8 @@ def test_list_and_dict_fields():
     """Test handling of List and Dict fields."""
 
     class ModelWithCollections(BaseModel):
-        tags: List[str]
-        scores: List[int]
+        tags: list[str]
+        scores: list[int]
         metadata: dict
 
     schema = to_strict_json_schema(ModelWithCollections)
