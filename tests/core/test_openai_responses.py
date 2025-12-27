@@ -9,6 +9,10 @@ from lm_deluge.models import APIModel
 from lm_deluge.prompt import Conversation, Message, Text, ToolCall, ToolResult
 from lm_deluge.tool.builtin.openai import computer_use_openai
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 async def test_openai_responses_basic():
     """Test basic text generation with OpenAI Responses API"""

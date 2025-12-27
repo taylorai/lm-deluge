@@ -49,7 +49,7 @@ async def main():
             [
                 Conversation.system("You are a helpful assistant").add(
                     Message.user()
-                    .add_text("What's in this image?")
+                    .with_text("What's in this image?")
                     .add_image("tests/image.jpg")
                 )
             ],

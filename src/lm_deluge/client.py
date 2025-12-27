@@ -290,6 +290,28 @@ class _LLMClient(BaseModel):
         return self.model_names  # why? idk
 
     @staticmethod
+    def _preprocess_tinker_model(model_name: str) -> str:
+        if model_name.startswith("tinker://"):
+            model_id = model_name
+            if model_id not in registry:
+                register_model(
+                    id=model_name,
+                    name=model_name,
+                    api_base="https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1",
+                    api_key_env_var="TINKER_API_KEY",
+                    api_spec="openai",
+                    supports_json=True,
+                    supports_logprobs=False,
+                    supports_responses=False,
+                    input_cost=0,  # Unknown costs for arbitrary tinker models
+                    cached_input_cost=0,
+                    cache_write_cost=0,
+                    output_cost=0,
+                )
+
+        return model_name
+
+    @staticmethod
     def _preprocess_openrouter_model(model_name: str) -> str:
         """Process openrouter: prefix and register model if needed."""
         if model_name.startswith("openrouter:"):
@@ -315,7 +337,8 @@ class _LLMClient(BaseModel):
                 )
 
             return model_id
-        return model_name
+        else:
+            return model_name
 
     @model_validator(mode="before")
     @classmethod
@@ -327,6 +350,9 @@ class _LLMClient(BaseModel):
             # Single model as string
             # First, handle OpenRouter prefix
             model_name = cls._preprocess_openrouter_model(model_names)
+
+            # next handle tinker prefix
+            model_name = cls._preprocess_tinker_model(model_name)
 
             # Then handle reasoning effort suffix (e.g., "gpt-5-high")
             model_name, effort = cls._strip_reasoning_suffix_if_registered(model_name)

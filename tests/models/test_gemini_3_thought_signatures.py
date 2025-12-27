@@ -1,4 +1,16 @@
-from lm_deluge.prompt import Conversation, Message, Text, Thinking, ToolCall
+from lm_deluge.prompt import (
+    Conversation,
+    Message,
+    Text,
+    ThoughtSignature,
+    Thinking,
+    ToolCall,
+)
+
+
+def assert_signature(signature: ThoughtSignature | None, value: str) -> None:
+    assert isinstance(signature, ThoughtSignature)
+    assert signature.value == value
 
 
 def test_thinking_signature_serialization():
@@ -109,7 +121,7 @@ def test_message_from_log_with_thinking_signature():
     assert len(msg.parts) == 1
     assert isinstance(msg.parts[0], Thinking)
     assert msg.parts[0].content == "Hmm..."
-    assert msg.parts[0].thought_signature == "sig_789"
+    assert_signature(msg.parts[0].thought_signature, "sig_789")
 
 
 def test_message_from_log_with_text_signature():
@@ -130,7 +142,7 @@ def test_message_from_log_with_text_signature():
     assert len(msg.parts) == 1
     assert isinstance(msg.parts[0], Text)
     assert msg.parts[0].text == "Hello"
-    assert msg.parts[0].thought_signature == "sig_text"
+    assert_signature(msg.parts[0].thought_signature, "sig_text")
 
 
 def test_message_to_log_with_toolcall_signature():
@@ -173,7 +185,7 @@ def test_message_from_log_with_toolcall_signature():
     assert msg.role == "assistant"
     assert len(msg.parts) == 1
     assert isinstance(msg.parts[0], ToolCall)
-    assert msg.parts[0].thought_signature == "call_sig"
+    assert_signature(msg.parts[0].thought_signature, "call_sig")
 
 
 def test_conversation_roundtrip_with_signatures():
@@ -206,11 +218,11 @@ def test_conversation_roundtrip_with_signatures():
 
     thinking_part = restored.messages[1].parts[0]
     assert isinstance(thinking_part, Thinking)
-    assert thinking_part.thought_signature == "sig1"
+    assert_signature(thinking_part.thought_signature, "sig1")
 
     toolcall_part = restored.messages[1].parts[1]
     assert isinstance(toolcall_part, ToolCall)
-    assert toolcall_part.thought_signature == "sig2"
+    assert_signature(toolcall_part.thought_signature, "sig2")
 
 
 if __name__ == "__main__":

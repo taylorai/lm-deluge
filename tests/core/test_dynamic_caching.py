@@ -1,6 +1,9 @@
 import asyncio
 
 from lm_deluge import Conversation, LLMClient
+import dotenv
+
+dotenv.load_dotenv()
 
 
 class SimpleCache:

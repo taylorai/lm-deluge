@@ -13,6 +13,10 @@ from lm_deluge.prompt import Conversation, Message
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 def _make_prompt() -> Conversation:
     convo = Conversation()

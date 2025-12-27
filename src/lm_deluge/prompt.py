@@ -23,6 +23,79 @@ CachePattern = Literal[
 # 1. Low-level content blocks – either text or an image                       #
 ###############################################################################
 Role = Literal["system", "user", "assistant", "tool"]
+SignatureProvider = Literal["anthropic", "gemini"]
+
+
+@dataclass(slots=True)
+class ThoughtSignature:
+    value: str
+    provider: SignatureProvider | None = None
+
+    def for_provider(self, provider: SignatureProvider) -> str | None:
+        if self.provider is None or self.provider == provider:
+            return self.value
+        return None
+
+
+ThoughtSignatureLike: TypeAlias = ThoughtSignature | str
+
+
+def _normalize_signature(
+    signature: ThoughtSignatureLike | None,
+    *,
+    provider: SignatureProvider | None = None,
+) -> ThoughtSignature | None:
+    if signature is None:
+        return None
+    if isinstance(signature, ThoughtSignature):
+        if provider is not None and signature.provider is None:
+            return ThoughtSignature(signature.value, provider)
+        return signature
+    return ThoughtSignature(signature, provider)
+
+
+def _signature_for_provider(
+    signature: ThoughtSignatureLike | None, provider: SignatureProvider
+) -> str | None:
+    if signature is None:
+        return None
+    if isinstance(signature, ThoughtSignature):
+        return signature.for_provider(provider)
+    return signature
+
+
+def _signature_value(signature: ThoughtSignatureLike | None) -> str | None:
+    if signature is None:
+        return None
+    if isinstance(signature, ThoughtSignature):
+        return signature.value
+    return signature
+
+
+def _serialize_signature(signature: ThoughtSignatureLike | None) -> str | dict | None:
+    if signature is None:
+        return None
+    if isinstance(signature, ThoughtSignature):
+        if signature.provider is None:
+            return signature.value
+        return {"value": signature.value, "provider": signature.provider}
+    return signature
+
+
+def _deserialize_signature(payload: str | dict | None) -> ThoughtSignature | None:
+    if payload is None:
+        return None
+    if isinstance(payload, dict):
+        value = payload.get("value")
+        provider = payload.get("provider")
+        if isinstance(value, str):
+            if provider in ("anthropic", "gemini"):
+                return ThoughtSignature(value, provider)
+            return ThoughtSignature(value)
+        return None
+    if isinstance(payload, str):
+        return ThoughtSignature(payload)
+    return None
 
 
 @dataclass(slots=True)
@@ -30,11 +103,14 @@ class Text:
     text: str
     type: str = field(init=False, default="text")
     # for gemini 3 - thought signatures to maintain reasoning context
-    thought_signature: str | None = None
+    thought_signature: ThoughtSignatureLike | None = None
+
+    def __post_init__(self) -> None:
+        self.thought_signature = _normalize_signature(self.thought_signature)
 
     @property
     def fingerprint(self) -> str:
-        signature = self.thought_signature or ""
+        signature = _signature_value(self.thought_signature) or ""
         return xxhash.xxh64(f"{self.text}:{signature}".encode()).hexdigest()
 
     # ── provider-specific emission ────────────────────────────────────────────
@@ -49,8 +125,9 @@ class Text:
 
     def gemini(self) -> dict:
         result = {"text": self.text}
-        if self.thought_signature is not None:
-            result["thoughtSignature"] = self.thought_signature
+        signature = _signature_for_provider(self.thought_signature, "gemini")
+        if signature is not None:
+            result["thoughtSignature"] = signature
         return result
 
     def mistral(self) -> dict:
@@ -68,7 +145,10 @@ class ToolCall:
     built_in_type: str | None = None
     extra_body: dict | None = None
     # for gemini 3 - thought signatures to maintain reasoning context
-    thought_signature: str | None = None
+    thought_signature: ThoughtSignatureLike | None = None
+
+    def __post_init__(self) -> None:
+        self.thought_signature = _normalize_signature(self.thought_signature)
 
     @property
     def fingerprint(self) -> str:
@@ -102,8 +182,9 @@ class ToolCall:
 
     def gemini(self) -> dict:
         result = {"functionCall": {"name": self.name, "args": self.arguments}}
-        if self.thought_signature is not None:
-            result["thoughtSignature"] = self.thought_signature  # type: ignore
+        signature = _signature_for_provider(self.thought_signature, "gemini")
+        if signature is not None:
+            result["thoughtSignature"] = signature  # type: ignore
         return result
 
     def mistral(self) -> dict:
@@ -293,8 +374,11 @@ class Thinking:
     # for openai - to keep conversation chain
     raw_payload: dict | None = None
     # for gemini 3 - thought signatures to maintain reasoning context
-    thought_signature: str | None = None
+    thought_signature: ThoughtSignatureLike | None = None
     summary: str | None = None  # to differentiate summary text from actual content
+
+    def __post_init__(self) -> None:
+        self.thought_signature = _normalize_signature(self.thought_signature)
 
     @property
     def fingerprint(self) -> str:
@@ -312,14 +396,16 @@ class Thinking:
         if self.raw_payload:
             return dict(self.raw_payload)
         result = {"type": "thinking", "thinking": self.content}
-        if self.thought_signature is not None:
-            result["signature"] = self.thought_signature
+        signature = _signature_for_provider(self.thought_signature, "anthropic")
+        if signature is not None:
+            result["signature"] = signature
         return result
 
     def gemini(self) -> dict:
         result = {"text": f"[Thinking: {self.content}]"}
-        if self.thought_signature is not None:
-            result["thoughtSignature"] = self.thought_signature
+        signature = _signature_for_provider(self.thought_signature, "gemini")
+        if signature is not None:
+            result["thoughtSignature"] = signature
         return result
 
     def mistral(self) -> dict:
@@ -391,10 +477,15 @@ class Message:
     #         return {"type": "file", "tag": f"<File ({size} bytes)>"}
     #     return repr(value)
 
-    def to_log(self) -> dict:
+    def to_log(self, *, preserve_media: bool = False) -> dict:
         """
         Return a JSON-serialisable dict that fully captures the message.
+
+        Args:
+            preserve_media: If True, store full base64-encoded bytes for images and files.
+                           If False (default), replace with placeholder tags.
         """
+        import base64
 
         def _json_safe(value):
             if isinstance(value, (str, int, float, bool)) or value is None:
@@ -416,16 +507,41 @@ class Message:
         content_blocks: list[dict] = []
         for p in self.parts:
             if isinstance(p, Text):
-                text_block = {"type": "text", "text": p.text}
-                if p.thought_signature is not None:
-                    text_block["thought_signature"] = p.thought_signature
+                text_block: dict = {"type": "text", "text": p.text}
+                signature = _serialize_signature(p.thought_signature)
+                if signature is not None:
+                    text_block["thought_signature"] = signature
                 content_blocks.append(text_block)
-            elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
-                w, h = p.size
-                content_blocks.append({"type": "image", "tag": f"<Image ({w}×{h})>"})
-            elif isinstance(p, File):  # File – redact the bytes, keep a hint
-                size = p.size
-                content_blocks.append({"type": "file", "tag": f"<File ({size} bytes)>"})
+            elif isinstance(p, Image):
+                if preserve_media:
+                    content_blocks.append(
+                        {
+                            "type": "image",
+                            "data": base64.b64encode(p._bytes()).decode("ascii"),
+                            "media_type": p.media_type,
+                            "detail": p.detail,
+                        }
+                    )
+                else:
+                    w, h = p.size
+                    content_blocks.append(
+                        {"type": "image", "tag": f"<Image ({w}×{h})>"}
+                    )
+            elif isinstance(p, File):
+                if preserve_media:
+                    content_blocks.append(
+                        {
+                            "type": "file",
+                            "data": base64.b64encode(p._bytes()).decode("ascii"),
+                            "media_type": p.media_type,
+                            "filename": p.filename,
+                        }
+                    )
+                else:
+                    size = p.size
+                    content_blocks.append(
+                        {"type": "file", "tag": f"<File ({size} bytes)>"}
+                    )
             elif isinstance(p, ToolCall):
                 tool_call_block = {
                     "type": "tool_call",
@@ -433,8 +549,9 @@ class Message:
                     "name": p.name,
                     "arguments": _json_safe(p.arguments),
                 }
-                if p.thought_signature is not None:
-                    tool_call_block["thought_signature"] = p.thought_signature
+                signature = _serialize_signature(p.thought_signature)
+                if signature is not None:
+                    tool_call_block["thought_signature"] = signature
                 content_blocks.append(tool_call_block)
             elif isinstance(p, ToolResult):
                 content_blocks.append(
@@ -445,9 +562,10 @@ class Message:
                     }
                 )
             elif isinstance(p, Thinking):
-                thinking_block = {"type": "thinking", "content": p.content}
-                if p.thought_signature is not None:
-                    thinking_block["thought_signature"] = p.thought_signature
+                thinking_block: dict = {"type": "thinking", "content": p.content}
+                signature = _serialize_signature(p.thought_signature)
+                if signature is not None:
+                    thinking_block["thought_signature"] = signature
                 content_blocks.append(thinking_block)
 
         return {"role": self.role, "content": content_blocks}
@@ -455,30 +573,56 @@ class Message:
     @classmethod
     def from_log(cls, data: dict) -> "Message":
         """Re-hydrate a Message previously produced by `to_log()`."""
-        # DEBUG: Track when from_log is called
-        # print(f"DEBUG: Message.from_log called for {data['role']} message with {len(data['content'])} content blocks")
+        import base64
+
         role: Role = data["role"]
         parts: list[Part] = []
 
         for p in data["content"]:
             if p["type"] == "text":
                 parts.append(
-                    Text(p["text"], thought_signature=p.get("thought_signature"))
+                    Text(
+                        p["text"],
+                        thought_signature=_deserialize_signature(
+                            p.get("thought_signature")
+                        ),
+                    )
                 )
             elif p["type"] == "image":
-                # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
-                # print(f"DEBUG: Message.from_log creating Text placeholder for image: {p['tag']}")
-                parts.append(Text(p["tag"]))
+                if "data" in p:
+                    # Full image data was preserved
+                    parts.append(
+                        Image(
+                            data=base64.b64decode(p["data"]),
+                            media_type=p.get("media_type"),
+                            detail=p.get("detail", "auto"),
+                        )
+                    )
+                else:
+                    # Placeholder tag only
+                    parts.append(Text(p["tag"]))
             elif p["type"] == "file":
-                # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
-                parts.append(Text(p["tag"]))
+                if "data" in p:
+                    # Full file data was preserved
+                    parts.append(
+                        File(
+                            data=base64.b64decode(p["data"]),
+                            media_type=p.get("media_type"),
+                            filename=p.get("filename"),
+                        )
+                    )
+                else:
+                    # Placeholder tag only
+                    parts.append(Text(p["tag"]))
             elif p["type"] == "tool_call":
                 parts.append(
                     ToolCall(
                         id=p["id"],
                         name=p["name"],
                         arguments=p["arguments"],
-                        thought_signature=p.get("thought_signature"),
+                        thought_signature=_deserialize_signature(
+                            p.get("thought_signature")
+                        ),
                     )
                 )
             elif p["type"] == "tool_result":
@@ -489,7 +633,9 @@ class Message:
                 parts.append(
                     Thinking(
                         content=p["content"],
-                        thought_signature=p.get("thought_signature"),
+                        thought_signature=_deserialize_signature(
+                            p.get("thought_signature")
+                        ),
                     )
                 )
             else:
@@ -822,7 +968,15 @@ class Message:
         # Anthropic: system message is *not* in the list
         if self.role == "system":
             raise ValueError("Anthropic keeps system outside message list")
-        content = [p.anthropic() for p in self.parts]
+        content: list[dict] = []
+        for part in self.parts:
+            if isinstance(part, Thinking) and part.raw_payload is None:
+                signature = _signature_for_provider(part.thought_signature, "anthropic")
+                if signature is None:
+                    continue
+            content.append(part.anthropic())
+        if not content:
+            content = [{"type": "text", "text": ""}]
         # Shortcut: single text becomes a bare string
         if len(content) == 1 and content[0].get("type") == "text":
             content = content[0]["text"]
@@ -1153,7 +1307,7 @@ class Conversation:
         def _anthropic_content_to_parts(
             role: Role,
             content: str | list[dict] | None,
-            signature_state: dict[str, str | None] | None = None,
+            signature_state: dict[str, ThoughtSignature | None] | None = None,
         ) -> list[Part]:
             parts: list[Part] = []
             if content is None:
@@ -1201,7 +1355,10 @@ class Conversation:
                     )
                 elif block_type == "thinking":
                     thinking_content = block.get("thinking", "")
-                    signature = block.get("signature")
+                    signature = _normalize_signature(
+                        block.get("signature"),
+                        provider="anthropic",
+                    )
                     parts.append(
                         Thinking(
                             content=thinking_content,
@@ -1209,7 +1366,7 @@ class Conversation:
                             thought_signature=signature,
                         )
                     )
-                    if signature_state is not None and signature:
+                    if signature_state is not None and signature is not None:
                         signature_state["pending"] = signature
                 elif block_type == "tool_result":
                     tool_use_id = block.get("tool_use_id")
@@ -1249,7 +1406,7 @@ class Conversation:
             content = message.get("content")
             if isinstance(content, list):
                 buffer_parts: list[Part] = []
-                signature_state: None | dict[str, str | None] = (
+                signature_state: None | dict[str, ThoughtSignature | None] = (
                     {"pending": None} if base_role == "assistant" else None
                 )
                 for block in content:
@@ -1273,7 +1430,6 @@ class Conversation:
                             )
                         )
                     else:
-                        assert signature_state is not None
                         block_parts = _anthropic_content_to_parts(
                             base_role,
                             [block],
@@ -1620,30 +1776,57 @@ class Conversation:
         hasher.update(json.dumps([m.fingerprint for m in self.messages]).encode())
         return hasher.hexdigest()
 
-    def to_log(self) -> dict:
+    def to_log(self, *, preserve_media: bool = False) -> dict:
         """
         Return a JSON-serialisable dict that fully captures the conversation.
+
+        Args:
+            preserve_media: If True, store full base64-encoded bytes for images and files.
+                           If False (default), replace with placeholder tags.
         """
+        import base64
+
         serialized: list[dict] = []
 
         for msg in self.messages:
             content_blocks: list[dict] = []
             for p in msg.parts:
                 if isinstance(p, Text):
-                    text_block = {"type": "text", "text": p.text}
-                    if p.thought_signature is not None:
-                        text_block["thought_signature"] = p.thought_signature
+                    text_block: dict = {"type": "text", "text": p.text}
+                    signature = _serialize_signature(p.thought_signature)
+                    if signature is not None:
+                        text_block["thought_signature"] = signature
                     content_blocks.append(text_block)
-                elif isinstance(p, Image):  # Image – redact the bytes, keep a hint
-                    w, h = p.size
-                    content_blocks.append(
-                        {"type": "image", "tag": f"<Image ({w}×{h})>"}
-                    )
-                elif isinstance(p, File):  # File – redact the bytes, keep a hint
-                    size = p.size
-                    content_blocks.append(
-                        {"type": "file", "tag": f"<File ({size} bytes)>"}
-                    )
+                elif isinstance(p, Image):
+                    if preserve_media:
+                        content_blocks.append(
+                            {
+                                "type": "image",
+                                "data": base64.b64encode(p._bytes()).decode("ascii"),
+                                "media_type": p.media_type,
+                                "detail": p.detail,
+                            }
+                        )
+                    else:
+                        w, h = p.size
+                        content_blocks.append(
+                            {"type": "image", "tag": f"<Image ({w}×{h})>"}
+                        )
+                elif isinstance(p, File):
+                    if preserve_media:
+                        content_blocks.append(
+                            {
+                                "type": "file",
+                                "data": base64.b64encode(p._bytes()).decode("ascii"),
+                                "media_type": p.media_type,
+                                "filename": p.filename,
+                            }
+                        )
+                    else:
+                        size = p.size
+                        content_blocks.append(
+                            {"type": "file", "tag": f"<File ({size} bytes)>"}
+                        )
                 elif isinstance(p, ToolCall):
                     tool_call_block = {
                         "type": "tool_call",
@@ -1651,8 +1834,9 @@ class Conversation:
                         "name": p.name,
                         "arguments": p.arguments,
                     }
-                    if p.thought_signature is not None:
-                        tool_call_block["thought_signature"] = p.thought_signature
+                    signature = _serialize_signature(p.thought_signature)
+                    if signature is not None:
+                        tool_call_block["thought_signature"] = signature
                     content_blocks.append(tool_call_block)
                 elif isinstance(p, ToolResult):
                     content_blocks.append(
@@ -1665,9 +1849,10 @@ class Conversation:
                         }
                     )
                 elif isinstance(p, Thinking):
-                    thinking_block = {"type": "thinking", "content": p.content}
-                    if p.thought_signature is not None:
-                        thinking_block["thought_signature"] = p.thought_signature
+                    thinking_block: dict = {"type": "thinking", "content": p.content}
+                    signature = _serialize_signature(p.thought_signature)
+                    if signature is not None:
+                        thinking_block["thought_signature"] = signature
                     content_blocks.append(thinking_block)
             serialized.append({"role": msg.role, "content": content_blocks})
 
@@ -1781,6 +1966,8 @@ class Conversation:
     @classmethod
     def from_log(cls, payload: dict) -> "Conversation":
         """Re-hydrate a Conversation previously produced by `to_log()`."""
+        import base64
+
         msgs: list[Message] = []
 
         for m in payload.get("messages", []):
@@ -1789,20 +1976,49 @@ class Conversation:
 
             for p in m["content"]:
                 if p["type"] == "text":
-                    parts.append(Text(p["text"]))
+                    parts.append(
+                        Text(
+                            p["text"],
+                            thought_signature=_deserialize_signature(
+                                p.get("thought_signature")
+                            ),
+                        )
+                    )
                 elif p["type"] == "image":
-                    # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
-                    parts.append(Text(p["tag"]))
+                    if "data" in p:
+                        # Full image data was preserved
+                        parts.append(
+                            Image(
+                                data=base64.b64decode(p["data"]),
+                                media_type=p.get("media_type"),
+                                detail=p.get("detail", "auto"),
+                            )
+                        )
+                    else:
+                        # Placeholder tag only
+                        parts.append(Text(p["tag"]))
                 elif p["type"] == "file":
-                    # We only stored a placeholder tag; rehydrate as inert text to avoid byte access.
-                    parts.append(Text(p["tag"]))
+                    if "data" in p:
+                        # Full file data was preserved
+                        parts.append(
+                            File(
+                                data=base64.b64decode(p["data"]),
+                                media_type=p.get("media_type"),
+                                filename=p.get("filename"),
+                            )
+                        )
+                    else:
+                        # Placeholder tag only
+                        parts.append(Text(p["tag"]))
                 elif p["type"] == "tool_call":
                     parts.append(
                         ToolCall(
                             id=p["id"],
                             name=p["name"],
                             arguments=p["arguments"],
-                            thought_signature=p.get("thought_signature"),
+                            thought_signature=_deserialize_signature(
+                                p.get("thought_signature")
+                            ),
                         )
                     )
                 elif p["type"] == "tool_result":
@@ -1813,7 +2029,9 @@ class Conversation:
                     parts.append(
                         Thinking(
                             content=p["content"],
-                            thought_signature=p.get("thought_signature"),
+                            thought_signature=_deserialize_signature(
+                                p.get("thought_signature")
+                            ),
                         )
                     )
                 else:

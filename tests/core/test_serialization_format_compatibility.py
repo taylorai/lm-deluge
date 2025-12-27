@@ -63,7 +63,7 @@ def test_tool_call_serialization_format():
 
     # Add assistant message with tool call
     assistant_msg = Message("assistant", [])
-    assistant_msg.add_text("I'll generate a random number for you.")
+    assistant_msg.with_text("I'll generate a random number for you.")
     assistant_msg.add_tool_call("call_123", "random_number", {"max_value": 10})
     conversation.add(assistant_msg)
 
@@ -113,7 +113,7 @@ def test_round_trip_consistency():
 
     # Assistant with tool call
     assistant_msg = Message("assistant", [])
-    assistant_msg.add_text("Let me help you with that.")
+    assistant_msg.with_text("Let me help you with that.")
     assistant_msg.add_tool_call("test_call", "test_function", {"param": "value"})
     conversation.add(assistant_msg)
 

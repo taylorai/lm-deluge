@@ -18,7 +18,7 @@ async def test_service_tier_default():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("o4-mini")
         results = await client.process_prompts_async(
             prompts=["Say 'hello' and nothing else"],
             service_tier="default",
@@ -51,7 +51,7 @@ async def test_service_tier_auto():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("o4-mini")
         results = await client.process_prompts_async(
             prompts=["Say 'auto' and nothing else"],
             service_tier="auto",
@@ -84,7 +84,7 @@ async def test_service_tier_flex():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("o4-mini")
         results = await client.process_prompts_async(
             prompts=["Say 'flex' and nothing else"],
             service_tier="flex",
@@ -117,7 +117,7 @@ async def test_service_tier_priority():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("o4-mini")
         results = await client.process_prompts_async(
             prompts=["Say 'priority' and nothing else"],
             service_tier="priority",
@@ -150,7 +150,7 @@ async def test_service_tier_unset():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("o4-mini")
         # Don't pass service_tier parameter at all
         results = await client.process_prompts_async(
             prompts=["Say 'unset' and nothing else"],
@@ -183,7 +183,7 @@ async def test_service_tier_with_responses_api():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini", use_responses_api=True)
+        client = LLMClient("o4-mini", use_responses_api=True)
         results = await client.process_prompts_async(
             prompts=["Say 'responses' and nothing else"],
             service_tier="default",
@@ -218,7 +218,7 @@ async def test_service_tier_multiple_requests():
         return True
 
     try:
-        client = LLMClient("gpt-4.1-mini")
+        client = LLMClient("o4-mini")
         prompts = ["Count to 1", "Count to 2", "Count to 3"]
 
         results = await client.process_prompts_async(

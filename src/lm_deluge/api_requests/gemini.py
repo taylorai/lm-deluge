@@ -9,7 +9,7 @@ from lm_deluge.warnings import maybe_warn
 
 from ..config import SamplingParams
 from ..models import APIModel
-from ..prompt import Conversation, Message, Text, Thinking, ToolCall
+from ..prompt import Conversation, Message, Text, ThoughtSignature, Thinking, ToolCall
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
@@ -260,7 +260,12 @@ class GeminiRequest(APIRequestBase):
                         if "content" in candidate and "parts" in candidate["content"]:
                             for part in candidate["content"]["parts"]:
                                 # Extract thought signature if present
-                                thought_sig = part.get("thoughtSignature")
+                                raw_sig = part.get("thoughtSignature")
+                                thought_sig = (
+                                    ThoughtSignature(raw_sig, provider="gemini")
+                                    if raw_sig is not None
+                                    else None
+                                )
 
                                 if "text" in part:
                                     parts.append(

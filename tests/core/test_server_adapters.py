@@ -4,7 +4,14 @@ from lm_deluge.api_requests.response import APIResponse
 from lm_deluge.config import SamplingParams
 from lm_deluge.file import File
 from lm_deluge.image import Image
-from lm_deluge.prompt import Conversation, Message, Text, Thinking, ToolCall
+from lm_deluge.prompt import (
+    Conversation,
+    Message,
+    Text,
+    ThoughtSignature,
+    Thinking,
+    ToolCall,
+)
 from lm_deluge.server.adapters import (
     anthropic_request_to_conversation,
     anthropic_tools_to_lm_deluge,
@@ -133,8 +140,12 @@ def test_anthropic_request_preserves_thinking_signature_for_tools():
     )
     tool_part = next(part for part in assistant_msg.parts if isinstance(part, ToolCall))
 
-    assert thinking_part.thought_signature == "sig"
-    assert tool_part.thought_signature == "sig"
+    assert isinstance(thinking_part.thought_signature, ThoughtSignature)
+    assert thinking_part.thought_signature.value == "sig"
+    assert thinking_part.thought_signature.provider == "anthropic"
+    assert isinstance(tool_part.thought_signature, ThoughtSignature)
+    assert tool_part.thought_signature.value == "sig"
+    assert tool_part.thought_signature.provider == "anthropic"
 
 
 def test_api_response_to_anthropic_maps_stop_reason_and_thinking():
@@ -146,14 +157,25 @@ def test_api_response_to_anthropic_maps_stop_reason_and_thinking():
         status_code=200,
         is_error=False,
         error_message=None,
-        content=Message("assistant", [Text("Hello"), Thinking(content="Plan")]),
+        content=Message(
+            "assistant",
+            [
+                Text("Hello"),
+                Thinking(
+                    content="Plan",
+                    thought_signature=ThoughtSignature("sig", provider="anthropic"),
+                ),
+            ],
+        ),
         finish_reason="length",
     )
 
     converted = api_response_to_anthropic(response, "gpt-4.1")
     assert converted.stop_reason == "max_tokens"
     assert any(
-        block.type == "thinking" and block.thinking == "Plan"
+        block.type == "thinking"
+        and block.thinking == "Plan"
+        and block.signature == "sig"
         for block in converted.content
     )
 
@@ -174,7 +196,7 @@ def test_api_response_to_anthropic_adds_signature_thinking_for_tool_call():
                     id="tool_1",
                     name="get_weather",
                     arguments={"location": "Paris"},
-                    thought_signature="sig",
+                    thought_signature=ThoughtSignature("sig", provider="anthropic"),
                 )
             ],
         ),
@@ -193,6 +215,36 @@ def test_api_response_to_anthropic_adds_signature_thinking_for_tool_call():
     assert converted.content.index(thinking_blocks[0]) < converted.content.index(
         tool_blocks[0]
     )
+
+
+def test_api_response_to_anthropic_skips_non_anthropic_signature():
+    response = APIResponse(
+        id=4,
+        model_internal="gemini-3-flash-preview",
+        prompt=Conversation.user("Hello"),
+        sampling_params=SamplingParams(),
+        status_code=200,
+        is_error=False,
+        error_message=None,
+        content=Message(
+            "assistant",
+            [
+                ToolCall(
+                    id="tool_2",
+                    name="get_weather",
+                    arguments={"location": "Paris"},
+                    thought_signature=ThoughtSignature("sig", provider="gemini"),
+                )
+            ],
+        ),
+        finish_reason="tool_calls",
+    )
+
+    converted = api_response_to_anthropic(response, "gemini-3-flash-preview")
+    thinking_blocks = [block for block in converted.content if block.type == "thinking"]
+    tool_blocks = [block for block in converted.content if block.type == "tool_use"]
+    assert not thinking_blocks
+    assert tool_blocks
 
 
 def test_api_response_to_anthropic_prefers_raw_stop_reason():

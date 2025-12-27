@@ -4,6 +4,10 @@ from lm_deluge import Conversation, LLMClient, SamplingParams
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 class SimpleCache:
     """Simple in-memory cache for testing."""

@@ -71,7 +71,7 @@ def test_with_thinking():
 def test_add_and_with_equivalence():
     """Test that add_ and with_ methods produce the same results."""
     # Test with text
-    msg1 = Message.user().add_text("test")
+    msg1 = Message.user().with_text("test")
     msg2 = Message.user().with_text("test")
     assert msg1.parts[0].text == msg2.parts[0].text
 

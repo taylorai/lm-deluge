@@ -10,6 +10,47 @@ from lm_deluge.tool.builtin.anthropic import web_search_tool
 dotenv.load_dotenv()
 
 
+def _raw_content_blocks(resp) -> list[dict]:
+    raw_response = resp.raw_response or {}
+    content = raw_response.get("content")
+    assert isinstance(content, list), "Expected raw_response content list"
+    return [block for block in content if isinstance(block, dict)]
+
+
+class WebSearchUnavailable(Exception):
+    """Raised when web search service is temporarily unavailable."""
+
+    pass
+
+
+def assert_web_search_called(resp) -> None:
+    content = _raw_content_blocks(resp)
+    tool_use_blocks = [
+        block for block in content if block.get("type") == "server_tool_use"
+    ]
+    assert tool_use_blocks, "Expected server_tool_use blocks in raw response"
+    has_web_search = any(block.get("name") == "web_search" for block in tool_use_blocks)
+    assert has_web_search, "Expected web_search server_tool_use block in raw response"
+    result_blocks = [
+        block for block in content if block.get("type") == "web_search_tool_result"
+    ]
+    assert result_blocks, "Expected web_search_tool_result block in raw response"
+
+    # Check for errors - raise specific exception for transient issues
+    for result_block in result_blocks:
+        block_content = result_block.get("content")
+        if isinstance(block_content, dict):
+            if block_content.get("type") == "web_search_tool_result_error":
+                error_code = block_content.get("error_code", "unknown")
+                # Transient errors that aren't our fault
+                if error_code in ("unavailable", "too_many_requests"):
+                    raise WebSearchUnavailable(
+                        f"Web search temporarily unavailable: {error_code}"
+                    )
+                # Actual test failures
+                raise AssertionError(f"Web search returned error: {error_code}")
+
+
 async def test_web_search_single():
     """Test Anthropic's built-in web search tool with a single agent loop."""
     client = LLMClient("claude-4-sonnet")
@@ -35,14 +76,12 @@ async def test_web_search_single():
 
     # Anthropic's built-in web search returns results inline as text parts,
     # not as separate tool call messages like user-defined tools.
-    # We can verify web search was used by checking if the response mentions search results.
+    # We can verify web search was used by checking raw response tool blocks.
     print("\n--- Full Conversation ---")
     conv.print()
     print("--- End Conversation ---\n")
 
-    assert (
-        "search" in completion_lower or "result" in completion_lower
-    ), "Expected response to mention search results"
+    assert_web_search_called(resp)
 
     print("single web search test passed")
     print(f"Response: {resp.completion[:300]}...")
@@ -80,6 +119,7 @@ async def test_web_search_batch():
     assert any(
         term in completion1_lower for term in ["tokyo", "million", "population"]
     ), f"Expected Tokyo population info, got: {resp1.completion[:200]}"
+    assert_web_search_called(resp1)
 
     # Check second result (Super Bowl)
     conv2, resp2 = results[1]
@@ -89,6 +129,7 @@ async def test_web_search_batch():
         term in completion2_lower
         for term in ["super bowl", "won", "champion", "chiefs", "eagles", "49ers"]
     ), f"Expected Super Bowl info, got: {resp2.completion[:200]}"
+    assert_web_search_called(resp2)
 
     print("batch web search test passed")
     print(f"Tokyo response: {resp1.completion[:200]}...")
@@ -115,6 +156,7 @@ async def test_web_search_with_domain_filter():
     )
 
     assert resp.completion, "Expected a completion"
+    assert_web_search_called(resp)
     print("domain filter web search test passed")
     print(f"Response: {resp.completion[:300]}...")
 
@@ -123,17 +165,36 @@ async def main():
     print("Testing Anthropic built-in web search tool...")
     print("=" * 50)
 
-    await test_web_search_single()
+    skipped = 0
+
+    try:
+        await test_web_search_single()
+    except WebSearchUnavailable as e:
+        print(f"⚠️  SKIPPED: {e}")
+        skipped += 1
     print()
 
-    await test_web_search_batch()
+    try:
+        await test_web_search_batch()
+    except WebSearchUnavailable as e:
+        print(f"⚠️  SKIPPED: {e}")
+        skipped += 1
     print()
 
-    await test_web_search_with_domain_filter()
+    try:
+        await test_web_search_with_domain_filter()
+    except WebSearchUnavailable as e:
+        print(f"⚠️  SKIPPED: {e}")
+        skipped += 1
     print()
 
     print("=" * 50)
-    print("All web search tests passed!")
+    if skipped > 0:
+        print(
+            f"Web search tests completed with {skipped} skipped due to service unavailability"
+        )
+    else:
+        print("All web search tests passed!")
 
 
 if __name__ == "__main__":

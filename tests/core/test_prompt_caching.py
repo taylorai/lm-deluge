@@ -1,7 +1,13 @@
+import asyncio
+
 from lm_deluge.config import SamplingParams
 from lm_deluge.prompt import Conversation, Message
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tool import Tool
+
+import dotenv
+
+dotenv.load_dotenv()
 
 
 def test_cache_patterns():
@@ -43,7 +49,7 @@ def test_cache_patterns():
         ), "User message content should be converted to list format for caching"
 
 
-def test_tools_only_caching():
+async def test_tools_only_caching():
     """Test that tools_only caching works at the API request level."""
     from lm_deluge.api_requests.anthropic import AnthropicRequest
     from lm_deluge.tracker import StatusTracker
@@ -68,7 +74,7 @@ def test_tools_only_caching():
     request = AnthropicRequest(
         RequestContext(
             task_id=1,
-            model_name="claude-3.5-sonnet",
+            model_name="claude-4-sonnet",
             sampling_params=SamplingParams(),
             prompt=conv,
             attempts_left=1,
@@ -78,6 +84,9 @@ def test_tools_only_caching():
             cache="tools_only",
         )
     )
+
+    # Build request to populate request_json
+    await request.build_request()
 
     # Check that cache control was added to the last tool
     tools = request.request_json.get("tools", [])
@@ -108,14 +117,14 @@ def test_usage_tracking():
     assert usage.has_cache_write
     assert usage.total_input_tokens == 200  # 100 + 75 + 25
 
-    # Test OpenAI usage (no cache support)
+    # Test OpenAI usage (no cache data in response)
     openai_usage = {"prompt_tokens": 120, "completion_tokens": 80}
 
     usage = Usage.from_openai_usage(openai_usage)
     assert usage.input_tokens == 120
     assert usage.output_tokens == 80
-    assert usage.cache_read_tokens is None
-    assert usage.cache_write_tokens is None
+    assert usage.cache_read_tokens == 0  # OpenAI sets to 0 when no cache data
+    assert usage.cache_write_tokens == 0
     assert not usage.has_cache_hit
     assert not usage.has_cache_write
     assert usage.total_input_tokens == 120
@@ -153,10 +162,10 @@ def test_cache_warnings_non_anthropic():
         assert request
 
         assert len(w) == 1
-        assert "only supported for Anthropic models" in str(w[0].message)
+        assert "not supported" in str(w[0].message)
 
 
-def test_bedrock_caching():
+async def test_bedrock_caching():
     """Test that Bedrock Anthropic models support prompt caching."""
     from lm_deluge.api_requests.bedrock import BedrockRequest
     from lm_deluge.config import SamplingParams
@@ -194,6 +203,7 @@ def test_bedrock_caching():
         cache="system_and_tools",
     )
     request = BedrockRequest(context=context1)
+    await request.build_request()
 
     # Check that system message has cache control
     system_msg = request.request_json.get("system")
@@ -215,6 +225,7 @@ def test_bedrock_caching():
         cache="tools_only",
     )
     request = BedrockRequest(context=context2)
+    await request.build_request()
 
     # Check that cache control was added to the last tool
     tools = request.request_json.get("tools", [])
@@ -228,10 +239,9 @@ def test_image_locking():
     """Test that images are locked as bytes when caching is enabled."""
 
     # Create a conversation with an image
-    conv = Conversation.user("What's in this image?")
     # Add a simple 1x1 PNG image as bytes (simple test data)
     png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00"
-    conv.messages[0].add_image(png_bytes)
+    conv = Conversation.user("What's in this image?", image=png_bytes)
 
     # Lock images as bytes
     conv.lock_images_as_bytes()
@@ -265,10 +275,10 @@ def test_no_cache_control_without_cache():
 
 if __name__ == "__main__":
     test_cache_patterns()
-    test_tools_only_caching()
+    asyncio.run(test_tools_only_caching())
     test_usage_tracking()
     test_cache_warnings_non_anthropic()
-    test_bedrock_caching()
+    asyncio.run(test_bedrock_caching())
     test_image_locking()
     test_no_cache_control_without_cache()
     print("✅ All prompt caching tests passed!")

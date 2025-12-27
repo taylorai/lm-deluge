@@ -8,6 +8,7 @@ import dotenv
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.config import SamplingParams
 from lm_deluge.tool import Tool
+from lm_deluge.prompt import ThoughtSignature
 
 dotenv.load_dotenv()
 
@@ -132,7 +133,12 @@ def test_gemini_3_with_function_calling():
             print(f"  - {tc.name}({tc.arguments})")
             # Check if thought signature was preserved
             if tc.thought_signature:
-                print(f"    → Has thought signature: {tc.thought_signature[:50]}...")
+                signature = tc.thought_signature
+                if isinstance(signature, ThoughtSignature):
+                    signature_value = signature.value
+                else:
+                    signature_value = signature
+                print(f"    → Has thought signature: {signature_value[:50]}...")
 
 
 def test_gemini_3_media_resolution():

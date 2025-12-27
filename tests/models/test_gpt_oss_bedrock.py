@@ -52,7 +52,7 @@ def test_bedrock_request_handles_openai_models():
     context = RequestContext(
         task_id=1,
         model_name=model_name,
-        prompt=Conversation().add(Message.user().add_text("Hello")),
+        prompt=Conversation().add(Message.user().with_text("Hello")),
         sampling_params=SamplingParams(),
         use_responses_api=False,
         force_local_mcp=False,
@@ -82,7 +82,7 @@ async def test_gpt_oss_bedrock_api_call():
             client = LLMClient(model_name)
 
             test_prompt = Conversation.system("You are a helpful assistant.").add(
-                Message.user().add_text(
+                Message.user().with_text(
                     "What is the capital of France? Give a brief answer."
                 )
             )
@@ -142,7 +142,9 @@ async def test_gpt_oss_bedrock_with_tools():
 
             client = LLMClient(model_name)
             test_prompt = Conversation.system("You are a helpful assistant.").add(
-                Message.user().add_text("What is 7 × 9? Use the multiply_numbers tool.")
+                Message.user().with_text(
+                    "What is 7 × 9? Use the multiply_numbers tool."
+                )
             )
 
             results = await client.process_prompts_async(
@@ -185,7 +187,7 @@ async def test_gpt_oss_bedrock_json_mode():
 
             client = LLMClient(model_name, json_mode=True)
             test_prompt = Conversation.system("You are a helpful assistant.").add(
-                Message.user().add_text("What is the capital of France?")
+                Message.user().with_text("What is the capital of France?")
             )
 
             results = await client.process_prompts_async(

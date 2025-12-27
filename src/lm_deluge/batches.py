@@ -141,31 +141,22 @@ async def submit_batch_oa(file_path: str):
         return batch_id
 
 
-async def _submit_anthropic_batch(file_path: str, headers: dict, model: str):
-    """Upload a JSONL file and create one Anthropic batch."""
+async def _submit_anthropic_batch(requests: list[dict], headers: dict, model: str):
+    """Submit batch requests to Anthropic's Message Batches API."""
 
     async with aiohttp.ClientSession() as session:
         url = f"{registry[model].api_base}/messages/batches"
-        data = aiohttp.FormData()
-        with open(file_path, "rb") as f:
-            data.add_field(
-                "file",
-                f,
-                filename=os.path.basename(file_path),
-                content_type="application/json",
-            )
+        payload = {"requests": requests}
 
-            async with session.post(url, data=data, headers=headers) as response:
-                if response.status != 200:
-                    text = await response.text()
-                    raise ValueError(f"Error creating batch: {text}")
+        async with session.post(url, json=payload, headers=headers) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise ValueError(f"Error creating batch: {text}")
 
-                batch_data = await response.json()
-                batch_id = batch_data["id"]
-                print(f"Anthropic batch job started successfully: id = {batch_id}")
-
-        os.remove(file_path)
-        return batch_id
+            batch_data = await response.json()
+            batch_id = batch_data["id"]
+            print(f"Anthropic batch job started successfully: id = {batch_id}")
+            return batch_id
 
 
 async def create_batch_files_oa(
@@ -409,20 +400,10 @@ async def submit_batches_anthropic(
 
         if current_batch and (would_exceed_size or would_exceed_items):
             # Submit current batch
-            def write_batch_file():
-                with tempfile.NamedTemporaryFile(
-                    mode="w+", suffix=".jsonl", delete=False
-                ) as f:
-                    for batch_request in current_batch:
-                        json.dump(batch_request, f)
-                        f.write("\n")
-                    print("wrote", len(current_batch), "items")
-                    return f.name
-
-            file_path = await asyncio.to_thread(write_batch_file)
+            print("wrote", len(current_batch), "items")
             batch_tasks.append(
                 asyncio.create_task(
-                    _submit_anthropic_batch(file_path, request_headers, model)  # type: ignore
+                    _submit_anthropic_batch(current_batch, request_headers, model)  # type: ignore
                 )
             )
 
@@ -436,21 +417,10 @@ async def submit_batches_anthropic(
 
     # Submit final batch if it has items
     if current_batch:
-
-        def write_final_batch_file():
-            with tempfile.NamedTemporaryFile(
-                mode="w+", suffix=".jsonl", delete=False
-            ) as f:
-                for batch_request in current_batch:
-                    json.dump(batch_request, f)
-                    f.write("\n")
-                print("wrote", len(current_batch), "items")
-                return f.name
-
-        file_path = await asyncio.to_thread(write_final_batch_file)
+        print("wrote", len(current_batch), "items")
         batch_tasks.append(
             asyncio.create_task(
-                _submit_anthropic_batch(file_path, request_headers, model)  # type: ignore
+                _submit_anthropic_batch(current_batch, request_headers, model)  # type: ignore
             )
         )
 

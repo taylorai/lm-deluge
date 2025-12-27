@@ -6,6 +6,7 @@ from aiohttp import ClientResponse
 from lm_deluge.prompt import (
     Message,
     Text,
+    ThoughtSignature,
     Thinking,
     ToolCall,
 )
@@ -252,11 +253,17 @@ class AnthropicRequest(APIRequestBase):
                     elif item["type"] == "thinking":
                         thinking_content = item.get("thinking", "")
                         thinking = thinking_content
+                        signature = item.get("signature")
                         parts.append(
                             Thinking(
                                 thinking_content,
                                 raw_payload=item,
-                                thought_signature=item.get("signature"),
+                                thought_signature=ThoughtSignature(
+                                    signature,
+                                    provider="anthropic",
+                                )
+                                if signature is not None
+                                else None,
                             )
                         )
                     elif item["type"] == "redacted_thinking":

@@ -13,6 +13,10 @@ from lm_deluge.request_context import RequestContext
 from lm_deluge.tracker import StatusTracker
 from lm_deluge.usage import Usage
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 def test_sampling_params_logprobs():
     """Test that SamplingParams properly stores logprobs and top_logprobs."""
@@ -35,7 +39,7 @@ def test_sampling_params_logprobs():
 def test_client_basic_with_logprobs():
     """Test that LLMClient properly passes logprobs to SamplingParams."""
     client = LLMClient(
-        model="gpt-4o-mini",
+        "gpt-4o-mini",
         logprobs=True,
         top_logprobs=10,
         temperature=0.5,
@@ -58,9 +62,7 @@ def test_client_logprobs_validation():
         ValueError, match="logprobs can only be enabled if all models support it"
     ):
         LLMClient(
-            model_names=[
-                "claude-3.5-sonnet"
-            ],  # Anthropic model doesn't support logprobs
+            "claude-3.5-sonnet",
             max_requests_per_minute=100,
             max_tokens_per_minute=10000,
             max_concurrent_requests=10,
@@ -70,7 +72,7 @@ def test_client_logprobs_validation():
     # Test with invalid top_logprobs value
     with pytest.raises(ValueError, match="top_logprobs must be 0-20"):
         LLMClient(
-            model_names=["gpt-4o-mini"],
+            "gpt-4o-mini",
             max_requests_per_minute=100,
             max_tokens_per_minute=10000,
             max_concurrent_requests=10,
@@ -78,7 +80,7 @@ def test_client_logprobs_validation():
         )
 
 
-def test_api_request_uses_sampling_params_logprobs():
+async def test_api_request_uses_sampling_params_logprobs():
     """Test that API requests use logprobs from SamplingParams."""
     prompt = Conversation.user("Hello, world!")
     sampling_params = SamplingParams(logprobs=True, top_logprobs=5)
@@ -108,6 +110,7 @@ def test_api_request_uses_sampling_params_logprobs():
 
     # For OpenAI requests, check that the request JSON includes logprobs
     if isinstance(request, OpenAIRequest):
+        await request.build_request()
         assert "logprobs" in request.request_json
         assert request.request_json["logprobs"] is True
         assert request.request_json["top_logprobs"] == 5
@@ -288,7 +291,7 @@ if __name__ == "__main__":
     print("✓ Passed")
 
     print("\nRunning test_api_request_uses_sampling_params_logprobs...")
-    test_api_request_uses_sampling_params_logprobs()
+    asyncio.run(test_api_request_uses_sampling_params_logprobs())
     print("✓ Passed")
 
     print("\nRunning test_api_response_with_logprobs...")

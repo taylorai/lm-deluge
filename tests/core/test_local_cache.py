@@ -3,6 +3,10 @@ import time
 from lm_deluge import LLMClient
 from lm_deluge.cache import DistributedDictCache, LevelDBCache, SqliteCache
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 class FakeDistributedDict(dict):
     def put(self, k, v):

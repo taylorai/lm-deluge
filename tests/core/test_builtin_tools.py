@@ -6,6 +6,10 @@ import os
 from lm_deluge import LLMClient
 from lm_deluge.tool.builtin.openai import image_generation_openai
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 async def test_openai_image_gen():
     """Test basic text generation with OpenAI Responses API"""

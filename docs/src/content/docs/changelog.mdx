@@ -5,6 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.90 · 2025-12-26
+
+- Proxy server adds configurable model policy (allowlists, defaults, alias routes) with CLI/config support, plus optional request/provider logging and forwarded `anthropic-beta` headers.
+- Added thought signature preservation for Gemini 3 and Anthropic responses (including redacted thinking), with updated adapters and tests.
+- Sandbox prefabs reorganized into a package and expanded with a macOS-only SeatbeltSandbox and coverage for the new sandbox flows.
+- Added `minimax-m2.1` via OpenRouter, expanding the model catalog.
+
 ## 0.0.89 · 2025-12-17
 
 - Added `gemini-3-flash-preview` model with v1alpha API endpoint and pricing ($0.50/$3.0 per million tokens input/output).

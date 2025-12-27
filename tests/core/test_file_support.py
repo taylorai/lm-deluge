@@ -7,8 +7,6 @@ from pathlib import Path
 from lm_deluge.file import File
 from lm_deluge.prompt import Conversation, Message, Text
 
-#!/usr/bin/env python3
-
 """Integration tests for File support with API requests."""
 
 
@@ -130,9 +128,9 @@ def test_mixed_content_integration():
 
     # Create message with multiple parts
     msg = Message.user()
-    msg.add_text("Please analyze this document:")
-    msg.add_file(pdf_bytes, filename="report.pdf")
-    msg.add_text("Focus on the executive summary.")
+    msg.with_text("Please analyze this document:")
+    msg.with_file(pdf_bytes, filename="report.pdf")
+    msg.with_text("Focus on the executive summary.")
 
     conv = Conversation([msg])
 
@@ -269,8 +267,9 @@ def test_message_with_files():
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<<>>\nstartxref\n9\n%%EOF"
 
     # Test adding file to message
-    msg = Message.user("Analyze this document")
-    msg.add_file(pdf_bytes, filename="test.pdf")
+    msg = Message.user("Analyze this document").with_file(
+        pdf_bytes, filename="test.pdf"
+    )
 
     assert len(msg.parts) == 2  # Text + File
     assert isinstance(msg.parts[0], Text)
@@ -324,10 +323,11 @@ def test_file_to_log_and_from_log():
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<<>>\nstartxref\n9\n%%EOF"
 
     # Create message with file
-    msg = Message.user("Analyze this document")
-    msg.add_file(pdf_bytes, filename="test.pdf")
+    msg = Message.user("Analyze this document").with_file(
+        pdf_bytes, filename="test.pdf"
+    )
 
-    # Test to_log (should redact file bytes)
+    # Test to_log without preserve_media (should redact file bytes)
     log_data = msg.to_log()
     assert len(log_data["content"]) == 2
 
@@ -336,10 +336,27 @@ def test_file_to_log_and_from_log():
     assert "tag" in file_block
     assert "bytes" in file_block["tag"]
 
-    # Test from_log (creates placeholder)
+    # Test from_log without preserved media (creates Text placeholder)
     restored_msg = Message.from_log(log_data)
     assert len(restored_msg.parts) == 2
-    assert isinstance(restored_msg.parts[1], File)
+    assert isinstance(restored_msg.parts[1], Text)
+    assert "bytes" in restored_msg.parts[1].text
+
+    # Test to_log with preserve_media=True (should include full data)
+    log_data_full = msg.to_log(preserve_media=True)
+    assert len(log_data_full["content"]) == 2
+
+    file_block_full = log_data_full["content"][1]
+    assert file_block_full["type"] == "file"
+    assert "data" in file_block_full
+    assert file_block_full["filename"] == "test.pdf"
+
+    # Test from_log with preserved media (restores actual File)
+    restored_msg_full = Message.from_log(log_data_full)
+    assert len(restored_msg_full.parts) == 2
+    assert isinstance(restored_msg_full.parts[1], File)
+    assert restored_msg_full.parts[1].filename == "test.pdf"
+    assert restored_msg_full.parts[1]._bytes() == pdf_bytes
 
 
 if __name__ == "__main__":

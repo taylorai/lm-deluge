@@ -22,6 +22,24 @@ from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
 
+def _message_contents_to_string(messages: list[dict]):
+    messages = messages.copy()
+
+    for msg in messages:
+        content = msg.get("content")
+        assert content
+        if isinstance(content, list):
+            new_content = ""
+            for part in content:
+                assert "text" in part, "Invalid text part: " + str(part)
+                new_content += part["text"]
+                new_content += "\n"
+
+            msg["content"] = new_content.strip()
+
+    return messages
+
+
 async def _build_oa_chat_request(
     model: APIModel,
     context: RequestContext,
@@ -55,6 +73,10 @@ async def _build_oa_chat_request(
                 request_json["service_tier"] = context.service_tier
         else:
             request_json["service_tier"] = context.service_tier
+    # if tinker, for now hack to mush into 1 string
+    if "tinker" in model.name:
+        request_json["messages"] = _message_contents_to_string(request_json["messages"])
+
     # set max_tokens or max_completion_tokens dep. on provider
     if "cohere" in model.api_base:
         request_json["max_tokens"] = sampling_params.max_new_tokens
@@ -217,7 +239,7 @@ class OpenAIRequest(APIRequestBase):
                         parts.append(Text(message["content"]))
 
                     # Add tool calls if present
-                    if "tool_calls" in message:
+                    if "tool_calls" in message and message["tool_calls"] is not None:
                         for tool_call in message["tool_calls"]:
                             parts.append(
                                 ToolCall(
@@ -238,9 +260,9 @@ class OpenAIRequest(APIRequestBase):
                         and "logprobs" in data["choices"][0]
                     ):
                         logprobs = data["choices"][0]["logprobs"]["content"]
-                except Exception:
+                except Exception as e:
                     is_error = True
-                    error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response."
+                    error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response: {data}. Error: {e}"
         elif mimetype and "json" in mimetype.lower():
             is_error = True  # expected status is 200, otherwise it's an error
             data = await http_response.json()
@@ -655,7 +677,12 @@ async def stream_chat(
         request_header.update(filtered_extra)
 
     context = SimpleNamespace(
-        prompt=prompt, tools=tools, sampling_params=sampling_params
+        prompt=prompt,
+        tools=tools,
+        sampling_params=sampling_params,
+        service_tier=None,
+        output_schema=None,
+        model_name=model_name,
     )
 
     request_json = await _build_oa_chat_request(model, context)  # type: ignore

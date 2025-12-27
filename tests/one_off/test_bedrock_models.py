@@ -70,7 +70,7 @@ def test_reasoning_model_flags():
     ]
     non_reasoning_models = [
         "claude-3-haiku-bedrock",
-        "claude-3.5-sonnet-bedrock",
+        "claude-4-sonnet-bedrock",
     ]
 
     for model_name in reasoning_models:
@@ -103,7 +103,7 @@ async def test_bedrock_api_calls():
     ]
 
     test_prompt = Conversation.system("You are a helpful assistant").add(
-        Message.user().add_text("What is 2+2? Give a brief answer.")
+        Message.user().with_text("What is 2+2? Give a brief answer.")
     )
 
     for model_name in models_to_test:
@@ -167,7 +167,7 @@ async def test_bedrock_with_tools():
 
         client = LLMClient(model_name)
         test_prompt = Conversation.system("You are a helpful assistant").add(
-            Message.user().add_text("What is 15 + 27? Use the add_numbers tool.")
+            Message.user().with_text("What is 15 + 27? Use the add_numbers tool.")
         )
 
         results = await client.process_prompts_async(

@@ -29,17 +29,17 @@ async def test_max_concurrent_requests_one():
     end_time = time.time()
 
     # Should complete successfully without hanging
-    assert len(results) == 3
+    assert len(results) == 8
     assert all(
         r is not None and isinstance(r, APIResponse) and r.completion is not None
         for r in results
     )
 
     # Should take at least some time since requests are sequential
-    assert end_time - start_time > 1.0  # At least 1 second for 3 requests
+    assert end_time - start_time > 1.0  # At least 1 second for 8 requests
 
     print(f"Test completed successfully in {end_time - start_time:.2f} seconds")
-    print("All 3 requests completed with max_concurrent_requests=1")
+    print("All 8 requests completed with max_concurrent_requests=1")
 
 
 if __name__ == "__main__":

@@ -214,7 +214,7 @@ async def test_real_caching_integration():
     print("🧪 Running real Anthropic caching integration test...")
 
     # Create client
-    client = LLMClient("claude-3.5-sonnet")
+    client = LLMClient("claude-4-sonnet")
 
     # Create long system message and tools to ensure we hit 1024+ tokens
     system_msg = create_long_system_message()

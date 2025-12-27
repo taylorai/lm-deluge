@@ -6,6 +6,10 @@ import os
 from lm_deluge import LLMClient
 from lm_deluge.tool import MCPServer
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 async def test_native_mcp_anthropic():
     """Test basic text generation with OpenAI Responses API"""

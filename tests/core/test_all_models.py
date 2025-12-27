@@ -88,7 +88,7 @@ async def main():
         res = await client.process_prompts_async(
             [
                 Conversation.system("You are a helpful assistant").add(
-                    Message.user().add_text("What's the capital of Paris?")
+                    Message.user().with_text("What's the capital of Paris?")
                 )
             ],
             show_progress=False,

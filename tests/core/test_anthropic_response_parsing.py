@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 from lm_deluge.api_requests.anthropic import AnthropicRequest
 from lm_deluge.config import SamplingParams
-from lm_deluge.prompt import Conversation, Text, Thinking, ToolCall
+from lm_deluge.prompt import Conversation, Text, ThoughtSignature, Thinking, ToolCall
 from lm_deluge.request_context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
@@ -54,7 +54,9 @@ async def test_anthropic_response_preserves_thinking_signatures():
 
     parts = result.content.parts
     assert isinstance(parts[0], Thinking)
-    assert parts[0].thought_signature == "sig-1"
+    assert isinstance(parts[0].thought_signature, ThoughtSignature)
+    assert parts[0].thought_signature.value == "sig-1"
+    assert parts[0].thought_signature.provider == "anthropic"
     assert parts[0].raw_payload is not None
     assert parts[0].raw_payload["signature"] == "sig-1"
 

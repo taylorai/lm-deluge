@@ -9,7 +9,7 @@ from typing import Any
 
 from lm_deluge.api_requests.response import APIResponse
 from lm_deluge.config import SamplingParams
-from lm_deluge.prompt import Conversation, Text, Thinking, ToolCall
+from lm_deluge.prompt import Conversation, Text, ThoughtSignature, Thinking, ToolCall
 from lm_deluge.tool import Tool
 
 from .models_anthropic import (
@@ -87,6 +87,18 @@ def openai_tools_to_lm_deluge(tools: list[Any]) -> list[Tool]:
             )
             lm_tools.append(lm_tool)
     return lm_tools
+
+
+def _signature_for_provider(
+    signature: ThoughtSignature | str | None, provider: str
+) -> str | None:
+    if signature is None:
+        return None
+    if isinstance(signature, ThoughtSignature):
+        if signature.provider is None or signature.provider == provider:
+            return signature.value
+        return None
+    return signature
 
 
 # ============================================================================
@@ -285,15 +297,19 @@ def api_response_to_anthropic(
                     AnthropicResponseContentBlock(type="text", text=part.text)
                 )
             elif isinstance(part, ToolCall):
-                if part.thought_signature and part.thought_signature != last_signature:
+                signature = _signature_for_provider(
+                    part.thought_signature,
+                    "anthropic",
+                )
+                if signature and signature != last_signature:
                     content_blocks.append(
                         AnthropicResponseContentBlock(
                             type="thinking",
                             thinking="",
-                            signature=part.thought_signature,
+                            signature=signature,
                         )
                     )
-                    last_signature = part.thought_signature
+                    last_signature = signature
                 content_blocks.append(
                     AnthropicResponseContentBlock(
                         type="tool_use",
@@ -303,15 +319,21 @@ def api_response_to_anthropic(
                     )
                 )
             elif isinstance(part, Thinking):
+                signature = _signature_for_provider(
+                    part.thought_signature,
+                    "anthropic",
+                )
+                if signature is None and part.raw_payload is None:
+                    continue
                 content_blocks.append(
                     AnthropicResponseContentBlock(
                         type="thinking",
                         thinking=part.content,
-                        signature=part.thought_signature,
+                        signature=signature,
                     )
                 )
-                if part.thought_signature:
-                    last_signature = part.thought_signature
+                if signature:
+                    last_signature = signature
 
     # Ensure at least one content block
     if not content_blocks:

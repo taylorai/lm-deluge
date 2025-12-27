@@ -39,8 +39,7 @@ async def test_sandbox_creation():
     assert "command" in tools[0].parameters  # type: ignore
     assert tools[0].parameters["command"]["type"] == "string"  # type: ignore
     assert "timeout" in tools[0].parameters  # type: ignore
-    assert "cwd" in tools[0].parameters  # type: ignore
-    assert "env" in tools[0].parameters  # type: ignore
+    assert "description" in tools[0].parameters  # type: ignore
     assert tools[0].required == ["command"]
 
     # Verify read_file tool has correct parameters
@@ -162,8 +161,8 @@ async def test_bash_with_cwd():
     # Create a file in /tmp
     await sandbox._write_file("/tmp/test_cwd.txt", "test")
 
-    # Run command with cwd set to /tmp
-    output = await sandbox._exec("ls test_cwd.txt", cwd="/tmp")
+    # Run command with cd to /tmp first
+    output = await sandbox._exec("cd /tmp && ls test_cwd.txt")
     assert "test_cwd.txt" in output
 
     print(f"Output: {output}")

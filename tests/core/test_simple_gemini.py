@@ -6,6 +6,10 @@ import os
 
 from lm_deluge import Conversation, LLMClient
 
+import dotenv
+
+dotenv.load_dotenv()
+
 
 async def main():
     if not os.getenv("GEMINI_API_KEY"):
@@ -14,8 +18,8 @@ async def main():
 
     print("Testing native Gemini API support...")
 
-    # Test the new -gemini model
-    client = LLMClient("gemini-2.0-flash-gemini")
+    # Test the new  model
+    client = LLMClient("gemini-2.0-flash")
     client.max_attempts = 2
     client.request_timeout = 30
 

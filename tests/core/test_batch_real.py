@@ -9,6 +9,9 @@ import asyncio
 import os
 
 from lm_deluge.client import LLMClient
+import dotenv
+
+dotenv.load_dotenv()
 
 
 async def test_openai_batch():
