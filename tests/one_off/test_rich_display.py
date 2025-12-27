@@ -6,8 +6,10 @@ import importlib.util
 import pathlib
 
 spec = importlib.util.spec_from_file_location(
-    "status_tracker", pathlib.Path(__file__).resolve().parents[2] / "src" / "lm_deluge" / "tracker.py"
+    "status_tracker",
+    pathlib.Path(__file__).resolve().parents[2] / "src" / "lm_deluge" / "tracker.py",
 )
+assert spec is not None
 tracker_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(tracker_module)  # type: ignore
 StatusTracker = tracker_module.StatusTracker

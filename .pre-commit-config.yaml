@@ -12,14 +12,41 @@ repos:
     rev: v1.1.407
     hooks:
       - id: pyright
-  - repo: https://github.com/sqlfluff/sqlfluff
-    rev: 3.3.0
-    hooks:
-      - id: sqlfluff-lint
-      - id: sqlfluff-fix
-        # Arbitrary arguments to show an example
-        # args: [--rules, "LT02,CP02"]
+
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
     hooks:
       - id: gitleaks
+  # make sure no file exceeds 2500 lines
+  - repo: local
+    hooks:
+      - id: max-file-lines
+        name: "Block files over 2 500 lines"
+        language: script
+        entry: scripts/max-lines-check.sh
+        files: \.(py|js|ts|tsx|jsx)$
+
+  - repo: local
+    hooks:
+      - id: ty-check
+        name: ty (typecheck)
+        entry: uv run ty check
+        language: system
+        types_or: [python, pyi]
+        files: ^(src|tests)/.*\.py$
+        exclude: ^backend/(tests|scripts)/
+        pass_filenames: true
+  - repo: local
+    hooks:
+      - id: banned-strings-backend
+        name: "Block forbidden strings in backend files"
+        language: script
+        entry: scripts/banned-strings-py.sh # path to your script
+        files: \.py$
+  - repo: local
+    hooks:
+      - id: banned-weird-spaces
+        name: "Block weird space characters in all text files"
+        language: script
+        entry: scripts/banned-weird-spaces.sh
+        files: \.(py|js|ts|tsx|jsx|json|yaml|yml|txt|css|scss|sass|less|html|xml|svg|sql|sh|bash|zsh|fish|conf|config|ini|toml|lock|gitignore|gitattributes|dockerignore|editorconfig|env|example|sample)$
