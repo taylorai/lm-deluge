@@ -1,6 +1,6 @@
+import math
 import re
-import numpy as np
-from typing import TypedDict, Callable
+from typing import Callable, TypedDict
 
 
 class TopLogprob(TypedDict):
@@ -420,7 +420,7 @@ def extract_prob(
                 "top_logprobs must be present in logprobs to use top_logprobs=True."
             )
         top_tokens = [t["token"] for t in entry["top_logprobs"]]
-        top_probs = [np.exp(t["logprob"]) for t in entry["top_logprobs"]]
+        top_probs = [math.exp(t["logprob"]) for t in entry["top_logprobs"]]
         combined_prob = sum(
             [p for t, p in zip(top_tokens, top_probs) if is_match(t, token)]
         )
@@ -437,7 +437,7 @@ def extract_prob(
 
     else:
         top_token = entry["token"]
-        top_prob = np.exp(entry["logprob"])
+        top_prob = math.exp(entry["logprob"])
         if is_match(top_token, token):
             return top_prob
         elif use_complement:

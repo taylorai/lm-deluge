@@ -54,15 +54,9 @@ class RandomTools:
         """
         try:
             value = random.random()
-            return json.dumps({
-                "status": "success",
-                "value": value
-            })
+            return json.dumps({"status": "success", "value": value})
         except Exception as e:
-            return json.dumps({
-                "status": "error",
-                "error": str(e)
-            })
+            return json.dumps({"status": "error", "error": str(e)})
 
     def _random_choice(self, items: list[Any]) -> str:
         """
@@ -76,21 +70,14 @@ class RandomTools:
         """
         try:
             if not items:
-                return json.dumps({
-                    "status": "error",
-                    "error": "Cannot choose from an empty list"
-                })
+                return json.dumps(
+                    {"status": "error", "error": "Cannot choose from an empty list"}
+                )
 
             choice = random.choice(items)
-            return json.dumps({
-                "status": "success",
-                "value": choice
-            })
+            return json.dumps({"status": "success", "value": choice})
         except Exception as e:
-            return json.dumps({
-                "status": "error",
-                "error": str(e)
-            })
+            return json.dumps({"status": "error", "error": str(e)})
 
     def _random_int(self, min_value: int, max_value: int) -> str:
         """
@@ -105,21 +92,17 @@ class RandomTools:
         """
         try:
             if min_value > max_value:
-                return json.dumps({
-                    "status": "error",
-                    "error": f"min_value ({min_value}) cannot be greater than max_value ({max_value})"
-                })
+                return json.dumps(
+                    {
+                        "status": "error",
+                        "error": f"min_value ({min_value}) cannot be greater than max_value ({max_value})",
+                    }
+                )
 
             value = random.randint(min_value, max_value)
-            return json.dumps({
-                "status": "success",
-                "value": value
-            })
+            return json.dumps({"status": "success", "value": value})
         except Exception as e:
-            return json.dumps({
-                "status": "error",
-                "error": str(e)
-            })
+            return json.dumps({"status": "error", "error": str(e)})
 
     def _random_token(self, length: int = 32) -> str:
         """
@@ -133,21 +116,14 @@ class RandomTools:
         """
         try:
             if length <= 0:
-                return json.dumps({
-                    "status": "error",
-                    "error": "length must be greater than 0"
-                })
+                return json.dumps(
+                    {"status": "error", "error": "length must be greater than 0"}
+                )
 
             token = secrets.token_urlsafe(length)
-            return json.dumps({
-                "status": "success",
-                "value": token
-            })
+            return json.dumps({"status": "success", "value": token})
         except Exception as e:
-            return json.dumps({
-                "status": "error",
-                "error": str(e)
-            })
+            return json.dumps({"status": "error", "error": str(e)})
 
     def get_tools(self) -> list[Tool]:
         """Return the list of random generation tools."""
@@ -160,7 +136,7 @@ class RandomTools:
                 description="Generate a random float between 0 and 1 (inclusive of 0, exclusive of 1).",
                 run=self._random_float,
                 parameters={},
-                required=[]
+                required=[],
             ),
             Tool(
                 name=self.choice_tool_name,
@@ -170,10 +146,10 @@ class RandomTools:
                     "items": {
                         "type": "array",
                         "description": "List of items to choose from. Can contain any JSON-serializable values.",
-                        "items": {}
+                        "items": {},
                     }
                 },
-                required=["items"]
+                required=["items"],
             ),
             Tool(
                 name=self.int_tool_name,
@@ -182,14 +158,14 @@ class RandomTools:
                 parameters={
                     "min_value": {
                         "type": "integer",
-                        "description": "Minimum value (inclusive)"
+                        "description": "Minimum value (inclusive)",
                     },
                     "max_value": {
                         "type": "integer",
-                        "description": "Maximum value (inclusive)"
-                    }
+                        "description": "Maximum value (inclusive)",
+                    },
                 },
-                required=["min_value", "max_value"]
+                required=["min_value", "max_value"],
             ),
             Tool(
                 name=self.token_tool_name,
@@ -202,11 +178,11 @@ class RandomTools:
                     "length": {
                         "type": "integer",
                         "description": "Number of random bytes to use for the token (default: 32). The actual token will be longer due to base64 encoding.",
-                        "default": 32
+                        "default": 32,
                     }
                 },
-                required=[]
-            )
+                required=[],
+            ),
         ]
 
         return self._tools

@@ -1,4 +1,5 @@
 import asyncio
+import random
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -12,7 +13,6 @@ from typing import (
     overload,
 )
 
-import numpy as np
 import yaml
 from pydantic import BaseModel, PrivateAttr
 from pydantic.functional_validators import model_validator
@@ -486,7 +486,9 @@ class _LLMClient(BaseModel):
 
     def _select_model(self):
         assert isinstance(self.model_weights, list)
-        model_idx = np.random.choice(range(len(self.models)), p=self.model_weights)
+        model_idx = random.choices(range(len(self.models)), weights=self.model_weights)[
+            0
+        ]
         return self.models[model_idx], self.sampling_params[model_idx]
 
     def _select_different_model(self, current_model: str):
@@ -497,11 +499,11 @@ class _LLMClient(BaseModel):
             return current_model, self.sampling_params[self.models.index(current_model)]
 
         # Get weights for other models
+        assert isinstance(self.model_weights, list)
         other_indices = [self.models.index(m) for m in other_models]
         weights = [self.model_weights[idx] for idx in other_indices]
-        weights = [w / sum(weights) for w in weights]  # type: ignore
 
-        model_idx = np.random.choice(range(len(other_models)), p=weights)
+        model_idx = random.choices(range(len(other_models)), weights=weights)[0]
         chosen_model = other_models[model_idx]
         chosen_sp = self.sampling_params[self.models.index(chosen_model)]
         return chosen_model, chosen_sp

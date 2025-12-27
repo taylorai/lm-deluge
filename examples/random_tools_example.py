@@ -21,11 +21,11 @@ custom_random_tools = RandomTools(
     float_tool_name="generate_random_number",
     choice_tool_name="pick_random_item",
     int_tool_name="random_integer",
-    token_tool_name="create_secure_token"
+    token_tool_name="create_secure_token",
 )
 
 custom_tools = custom_random_tools.get_tools()
-print(f"\nCustom tool names:")
+print("\nCustom tool names:")
 for tool in custom_tools:
     print(f"  - {tool.name}")
 

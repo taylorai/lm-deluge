@@ -17,4 +17,3 @@ def test_message_to_log_handles_unserialisable_results():
     data = msg.to_log()
     json.dumps(data)  # should not raise
     assert data["content"][0]["result"]["fn"] == repr(max)
-
