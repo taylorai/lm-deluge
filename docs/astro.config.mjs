@@ -53,6 +53,10 @@ export default defineConfig({
             { label: "Using Custom Models", slug: "reference/custom-models" },
           ],
         },
+        {
+          label: "Server",
+          items: [{ label: "Proxy Server", slug: "server/proxy" }],
+        },
         { label: "API Reference", link: "/reference/api/" },
         { label: "Changelog", link: "/changelog/" },
         { label: "Blog", link: "/blog" },

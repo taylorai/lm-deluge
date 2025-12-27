@@ -8,9 +8,9 @@
 - **Spray across models/providers** – Configure a client with multiple models from any provider(s), and sampling weights. The client samples a model for each request.
 - **Tool Use** – Unified API for defining tools for all providers, and creating tools automatically from python functions.
 - **MCP Support** – Instantiate a `Tool` from a local or remote MCP server so that any LLM can use it, whether or not that provider natively supports MCP.
-- **Computer Use** – We support Claude Computer Use via the computer_use argument to process_prompts_sync/async. It works with Anthropic's API; Bedrock's API is broken right now and rejects the tool definitions, but in principle this will work there too when Bedrock gets their sh*t together.
-- **Caching** – Save completions in a local or distributed cache to avoid repeated LLM calls to process the same input.
-- **Convenient message constructor** – No more looking up how to build an Anthropic messages list with images. Our `Conversation` and `Message` classes work great with our client or with the `openai` and `anthropic` packages.
+- **Computer Use** – We support computer use for all major providers, and have pre-fabricated tools to integrate with Kernel, TryCUA, and more.
+- **Local & Remote Caching** – Use Anthropic caching more easily with common patterns (system-only, tools-only, last N messages, etc.) Use client-side caching to save completions to avoid repeated LLM calls to process the same input.
+- **Convenient message constructor** – No more looking up how to build an Anthropic messages list with images. Our `Conversation` and `Message` classes work great with our `LLMClient` or with the `openai` and `anthropic` packages.
 - **Sync and async APIs** – Use the client from sync or async code.
 
 **STREAMING IS NOT IN SCOPE.** There are plenty of packages that let you stream chat completions across providers. The sole purpose of this package is to do very fast batch inference using APIs. Sorry!
