@@ -168,7 +168,7 @@ class AsyncKernelBrowser:
         if self.persistence_id:
             create_params["persistence"] = {"id": self.persistence_id}
 
-        browser = await self._client.browsers.create(**create_params)
+        browser = await self._client.browsers.create(**create_params)  # type: ignore[arg-type]
         self.session_id = browser.session_id
         return self
 

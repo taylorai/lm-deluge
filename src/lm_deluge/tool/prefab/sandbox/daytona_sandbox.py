@@ -277,7 +277,7 @@ class DaytonaSandbox:
         assert self.sandbox, "no sandbox"
 
         if pattern:
-            # API: find_files(path, pattern) -> List[Match]
+            # API: find_files(path, pattern) -> list[Match]
             matches = await self.sandbox.fs.find_files(path=path, pattern=pattern)
             if not matches:
                 return f"No files matching '{pattern}' found in {path}"
@@ -286,7 +286,7 @@ class DaytonaSandbox:
             files = [match.file for match in matches]
             return "\n".join(files)
         else:
-            # API: list_files(path) -> List[FileInfo]
+            # API: list_files(path) -> list[FileInfo]
             file_infos = await self.sandbox.fs.list_files(path=path)
 
             if not file_infos:

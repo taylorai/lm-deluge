@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Any
 
 from aiohttp import ClientResponse
 
@@ -37,13 +38,14 @@ async def _build_gemini_request(
                             part_type="function call",
                         )
 
-    request_json = {
+    generation_config: dict[str, Any] = {
+        "temperature": sampling_params.temperature,
+        "topP": sampling_params.top_p,
+        "maxOutputTokens": sampling_params.max_new_tokens,
+    }
+    request_json: dict[str, Any] = {
         "contents": messages,
-        "generationConfig": {
-            "temperature": sampling_params.temperature,
-            "topP": sampling_params.top_p,
-            "maxOutputTokens": sampling_params.max_new_tokens,
-        },
+        "generationConfig": generation_config,
     }
 
     # Add system instruction if present
@@ -83,7 +85,7 @@ async def _build_gemini_request(
                 }
             effort = level_map[effort_key]
         thinking_config = {"thinkingLevel": effort}
-        request_json["generationConfig"]["thinkingConfig"] = thinking_config
+        generation_config["thinkingConfig"] = thinking_config
 
     elif model.reasoning_model:
         if (
@@ -126,7 +128,7 @@ async def _build_gemini_request(
             # no thoughts head empty
             thinking_config = {"includeThoughts": False, "thinkingBudget": 0}
 
-        request_json["generationConfig"]["thinkingConfig"] = thinking_config
+        generation_config["thinkingConfig"] = thinking_config
 
     else:
         if sampling_params.reasoning_effort:
@@ -171,14 +173,14 @@ async def _build_gemini_request(
 
     # Handle JSON mode
     if sampling_params.json_mode and model.supports_json:
-        request_json["generationConfig"]["responseMimeType"] = "application/json"
+        generation_config["responseMimeType"] = "application/json"
 
     # Handle media_resolution for Gemini 3 (requires v1alpha)
     if sampling_params.media_resolution is not None:
         is_gemini_3 = "gemini-3" in model.name.lower()
         if is_gemini_3:
             # Add global media resolution to generationConfig
-            request_json["generationConfig"]["mediaResolution"] = {
+            generation_config["mediaResolution"] = {
                 "level": sampling_params.media_resolution
             }
         else:

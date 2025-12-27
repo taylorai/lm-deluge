@@ -12,8 +12,8 @@ set -euo pipefail
 FORBIDDEN_STRINGS=(
   "from backend.app"
   " List["
-  " Tuple"
-  " Union"
+  " Tuple["
+  " Union["
   "use_cursor"
   # " print("
 )

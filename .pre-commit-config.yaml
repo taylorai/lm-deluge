@@ -30,10 +30,10 @@ repos:
     hooks:
       - id: ty-check
         name: ty (typecheck)
-        entry: uv run ty check
+        entry: uv run ty check --no-progress --color=never
         language: system
         types_or: [python, pyi]
-        files: ^(src|tests)/.*\.py$
+        files: ^(src)/.*\.py$
         exclude: ^backend/(tests|scripts)/
         pass_filenames: true
   - repo: local

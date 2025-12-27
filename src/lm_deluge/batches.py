@@ -3,7 +3,7 @@ import json
 import os
 import tempfile
 import time
-from typing import Literal, Sequence, cast
+from typing import Any, Literal, Sequence, cast
 
 import aiohttp
 from rich.console import Console
@@ -480,7 +480,7 @@ async def _wait_for_anthropic_batch_completion_async(
 
     # Event to signal when to stop the display updater
     stop_display_event = asyncio.Event()
-    current_status = {"status": "processing", "counts": None}
+    current_status: dict[str, Any] = {"status": "processing", "counts": None}
 
     async def display_updater():
         """Update display independently of polling."""
@@ -632,7 +632,7 @@ async def _wait_for_openai_batch_completion_async(
 
     # Event to signal when to stop the display updater
     stop_display_event = asyncio.Event()
-    current_status = {"status": "pending", "counts": None}
+    current_status: dict[str, Any] = {"status": "pending", "counts": None}
 
     async def display_updater():
         """Update display independently of polling."""

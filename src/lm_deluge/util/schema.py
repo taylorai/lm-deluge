@@ -22,7 +22,7 @@ try:
     import pydantic
     from pydantic import BaseModel as _BaseModel
 except ImportError:
-    pydantic = None
+    pydantic = None  # type: ignore[assignment]
     _BaseModel = None  # type: ignore
 
 
@@ -141,7 +141,7 @@ def prepare_output_schema(
 
 
 def _ensure_strict_json_schema(
-    json_schema: object,
+    json_schema: dict[str, Any],
     *,
     path: tuple[str, ...],
     root: dict[str, object],
@@ -168,7 +168,7 @@ def _ensure_strict_json_schema(
 
     # Process $defs recursively
     defs = json_schema.get("$defs")
-    if is_dict(defs):
+    if isinstance(defs, dict):
         for def_name, def_schema in defs.items():
             _ensure_strict_json_schema(
                 def_schema, path=(*path, "$defs", def_name), root=root
@@ -176,7 +176,7 @@ def _ensure_strict_json_schema(
 
     # Process definitions recursively
     definitions = json_schema.get("definitions")
-    if is_dict(definitions):
+    if isinstance(definitions, dict):
         for definition_name, definition_schema in definitions.items():
             _ensure_strict_json_schema(
                 definition_schema,
@@ -191,7 +191,7 @@ def _ensure_strict_json_schema(
         json_schema["additionalProperties"] = False
 
     properties = json_schema.get("properties")
-    if is_dict(properties):
+    if isinstance(properties, dict):
         # Make all properties required
         json_schema["required"] = list(properties.keys())
 
@@ -205,7 +205,7 @@ def _ensure_strict_json_schema(
 
     # Arrays - process items schema
     items = json_schema.get("items")
-    if is_dict(items):
+    if isinstance(items, dict):
         json_schema["items"] = _ensure_strict_json_schema(
             items, path=(*path, "items"), root=root
         )

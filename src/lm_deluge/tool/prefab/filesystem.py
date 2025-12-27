@@ -11,7 +11,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Protocol
+from typing import Any, Literal, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
@@ -84,7 +84,7 @@ class InMemoryWorkspaceBackend:
     """Simple backend that stores files in memory."""
 
     def __init__(self, files: dict[str, str] | None = None):
-        self._files: Dict[str, str] = {}
+        self._files: dict[str, str] = {}
         if files:
             for path, content in files.items():
                 key = _normalize_path(path)
