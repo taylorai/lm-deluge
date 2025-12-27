@@ -1,6 +1,11 @@
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from pydantic import BaseModel
+
+Effort: TypeAlias = Literal["none", "minimal", "low", "medium", "high", "xhigh"]
+MediaResolution: TypeAlias = Literal[
+    "media_resolution_low", "media_resolution_medium", "media_resolution_high"
+]
 
 
 class SamplingParams(BaseModel):
@@ -8,38 +13,11 @@ class SamplingParams(BaseModel):
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 2_048
-    global_effort: Literal["low", "medium", "high"] = "high"  # for opus-4.5
-    reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", None
-    ] = None
+    global_effort: Effort = "high"  # for opus-4.5
+    reasoning_effort: Effort | None = None
     thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
     strict_tools: bool = True
     # Gemini 3 only - controls multimodal vision processing fidelity
-    media_resolution: (
-        Literal[
-            "media_resolution_low", "media_resolution_medium", "media_resolution_high"
-        ]
-        | None
-    ) = None
-
-    def to_vllm(self):
-        try:
-            from vllm import SamplingParams as VLLMSamplingParams  # pyright: ignore
-        except ImportError as e:
-            print(
-                "Unable to import from vLLM. Make sure it's installed with `pip install vllm`."
-            )
-            raise e
-        return VLLMSamplingParams(
-            temperature=self.temperature,
-            top_p=self.top_p,
-            max_tokens=self.max_new_tokens,
-        )
-
-
-class ComputerUseParams(BaseModel):
-    enabled: bool = False
-    display_width: int = 1024
-    display_height: int = 768
+    media_resolution: MediaResolution | None = None

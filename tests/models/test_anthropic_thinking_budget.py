@@ -5,7 +5,7 @@ from lm_deluge.api_requests.anthropic import _build_anthropic_request
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel
 from lm_deluge.prompt import Conversation
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 
 
 def test_anthropic_thinking_budget_overrides_effort():

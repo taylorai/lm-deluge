@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from ..request_context import RequestContext
+from ..api_requests.context import RequestContext
 from .anthropic import ANTHROPIC_MODELS
 
 # Import and register all provider models

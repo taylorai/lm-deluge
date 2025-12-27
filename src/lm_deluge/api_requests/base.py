@@ -10,7 +10,7 @@ from aiohttp import ClientResponse
 
 from ..errors import raise_if_modal_exception
 from ..models.openai import OPENAI_MODELS
-from ..request_context import RequestContext
+from ..api_requests.context import RequestContext
 from .response import APIResponse
 
 

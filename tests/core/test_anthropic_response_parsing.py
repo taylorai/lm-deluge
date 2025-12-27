@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 from lm_deluge.api_requests.anthropic import AnthropicRequest
 from lm_deluge.config import SamplingParams
 from lm_deluge.prompt import Conversation, Text, ThoughtSignature, Thinking, ToolCall
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
 

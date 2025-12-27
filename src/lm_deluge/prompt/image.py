@@ -23,16 +23,6 @@ class Image:
     _fingerprint_cache: str | None = field(init=False, default=None)
     _size_cache: tuple[int, int] | None = field(init=False, default=None)
 
-    # def __post_init__(self):
-    # DEBUG: Track image data at creation
-    # data_type = type(self.data)
-    # data_preview = (
-    #     str(self.data)[:100]
-    #     if isinstance(self.data, str)
-    #     else f"[{data_type.__name__}]"
-    # )
-    # print(f"DEBUG: Image.__post_init__: id={id(self)}, data={data_type}, preview={data_preview}")
-
     def __repr__(self):
         return f"Image(data=[{type(self.data)}], media_type={self.media_type}, detail={self.detail})"
 

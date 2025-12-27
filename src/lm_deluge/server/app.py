@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 
 from lm_deluge.models import APIModel, registry
 from lm_deluge.prompt import CachePattern
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
 from .adapters import (

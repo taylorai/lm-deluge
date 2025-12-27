@@ -3,7 +3,7 @@ import os
 
 from aiohttp import ClientResponse
 
-from lm_deluge.request_context import RequestContext
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tool import Tool
 from lm_deluge.warnings import maybe_warn
 

@@ -8,8 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from lm_deluge import LLMClient
-from lm_deluge.file import File
-from lm_deluge.prompt import Conversation, Message
+from lm_deluge.prompt import Conversation, Message, File
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,6 +16,7 @@ load_dotenv()
 
 async def test_openai_file_upload():
     """Test file upload to OpenAI Files API"""
+    temp_path = None
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set, skipping test")
         return True
@@ -44,13 +44,14 @@ async def test_openai_file_upload():
 
     except Exception as e:
         print(f"✗ OpenAI file upload test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_anthropic_file_upload():
     """Test file upload to Anthropic Files API"""
+    temp_path = None
     if not os.getenv("ANTHROPIC_API_KEY"):
         print("ANTHROPIC_API_KEY not set, skipping test")
         return True
@@ -77,13 +78,14 @@ async def test_anthropic_file_upload():
 
     except Exception as e:
         print(f"✗ Anthropic file upload test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_google_file_upload():
     """Test file upload to Google Gemini Files API"""
+    temp_path = None
     if not os.getenv("GEMINI_API_KEY"):
         print("GEMINI_API_KEY not set, skipping test")
         return True
@@ -110,13 +112,14 @@ async def test_google_file_upload():
 
     except Exception as e:
         print(f"✗ Google file upload test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_provider_validation():
     """Test that provider validation works in emission functions"""
+    temp_path = None
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set, skipping provider validation test")
         return True
@@ -153,13 +156,14 @@ async def test_provider_validation():
 
     except Exception as e:
         print(f"✗ Provider validation test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_already_remote_same_provider():
     """Test that uploading an already remote file with same provider returns itself"""
+    temp_path = None
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set, skipping same provider test")
         return True
@@ -188,13 +192,14 @@ async def test_already_remote_same_provider():
 
     except Exception as e:
         print(f"✗ Same provider test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_cross_provider_upload_blocked():
     """Test that trying to upload a remote file to different provider raises error"""
+    temp_path = None
     if not os.getenv("OPENAI_API_KEY") or not os.getenv("ANTHROPIC_API_KEY"):
         print("Both API keys not set, skipping cross-provider test")
         return True
@@ -225,13 +230,14 @@ async def test_cross_provider_upload_blocked():
 
     except Exception as e:
         print(f"✗ Cross-provider test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_local_file_emission():
     """Test that local files can still be emitted to any provider"""
+    temp_path = None
     try:
         # Create a temporary test file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
@@ -258,7 +264,7 @@ async def test_local_file_emission():
 
     except Exception as e:
         print(f"✗ Local file emission test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
@@ -300,6 +306,7 @@ async def test_openai_llm_call_with_uploaded_file():
             return False
 
         # Check that the response mentions "oakland" (case-insensitive)
+        assert result.content, "content is None"
         response_text = (
             result.content.completion.lower() if result.content.completion else ""
         )
@@ -351,6 +358,7 @@ async def test_anthropic_llm_call_with_uploaded_file():
         if result.is_error:
             print(f"✗ LLM call error: {result.error_message}")
             return False
+        assert result.content, "content is None"
 
         # Check that the response mentions "oakland" (case-insensitive)
         response_text = (
@@ -406,6 +414,7 @@ async def test_google_llm_call_with_uploaded_file():
             return False
 
         # Check that the response mentions "oakland" (case-insensitive)
+        assert result.content, "content is None"
         response_text = (
             result.content.completion.lower() if result.content.completion else ""
         )
@@ -460,6 +469,7 @@ async def test_openai_responses_api_with_uploaded_file():
             return False
 
         # Check that the response mentions "oakland" (case-insensitive)
+        assert result.content, "content is None"
         response_text = (
             result.content.completion.lower() if result.content.completion else ""
         )
@@ -483,7 +493,7 @@ async def test_delete_openai_file():
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set, skipping OpenAI delete test")
         return True
-
+    temp_path = None
     try:
         # Create a temporary test file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
@@ -509,13 +519,14 @@ async def test_delete_openai_file():
 
     except Exception as e:
         print(f"✗ OpenAI file deletion test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_delete_anthropic_file():
     """Test deleting an uploaded file from Anthropic"""
+    temp_path = None
     if not os.getenv("ANTHROPIC_API_KEY"):
         print("ANTHROPIC_API_KEY not set, skipping Anthropic delete test")
         return True
@@ -545,13 +556,14 @@ async def test_delete_anthropic_file():
 
     except Exception as e:
         print(f"✗ Anthropic file deletion test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 
 
 async def test_delete_google_file():
     """Test deleting an uploaded file from Google"""
+    temp_path = None
     if not os.getenv("GEMINI_API_KEY"):
         print("GEMINI_API_KEY not set, skipping Google delete test")
         return True
@@ -581,7 +593,7 @@ async def test_delete_google_file():
 
     except Exception as e:
         print(f"✗ Google file deletion test failed: {e}")
-        if "temp_path" in locals():
+        if temp_path is not None:
             os.remove(temp_path)
         return False
 

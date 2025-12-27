@@ -42,7 +42,7 @@ def test_bedrock_request_handles_openai_models():
     """Test that BedrockRequest can handle OpenAI models."""
     from lm_deluge.api_requests.bedrock import BedrockRequest
     from lm_deluge.config import SamplingParams
-    from lm_deluge.request_context import RequestContext
+    from lm_deluge.api_requests.context import RequestContext
 
     model_name = "gpt-oss-120b-bedrock"
     model = APIModel.from_registry(model_name)

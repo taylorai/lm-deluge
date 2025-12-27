@@ -177,7 +177,7 @@ async def test_background_mode_context_copy():
     """Test that background mode is preserved during context copy (for retries)"""
     from lm_deluge.config import SamplingParams
     from lm_deluge.prompt import Conversation
-    from lm_deluge.request_context import RequestContext
+    from lm_deluge.api_requests.context import RequestContext
 
     # Create a context with background=True
     context = RequestContext(
