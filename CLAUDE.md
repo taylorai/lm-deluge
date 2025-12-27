@@ -1,7 +1,7 @@
-- use uv for installing packages
+- use uv for installing and managing packages. "pip [command]" will fail.
 - absent intervention, you often make up FAKE methods when working on this library and writing tests. there is NO EXCUSE for doing this. you can read the entire library, and you have access to the documentation site in docs.
 - if there's a .venv (there usually is) always use the python in there (.venv/bin/python) so you get all the installed dependencies needed for it to work, unless you're using python just to do bash-like things that don't require deps.
-- whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. if it's a test we would want to continue running in the future, put it in tests/core. if it's very niche and testing a one-off thing, put it in tests/one_off.
+- whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. if it's a test we would want to continue running in the future, put it in tests/core. if it's very niche and testing a one-off thing, or if it relies on some transitory thing like an external local server, put it in tests/one_off.
 - don't use == True and == False as these always lead to ruff errors
 - we currently run tests in this repo by just doing python tests/path_to_test.py, not pytest
 

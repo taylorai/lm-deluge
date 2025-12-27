@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import aiohttp
-import numpy as np
 from tqdm.auto import tqdm
 
 from .tracker import StatusTracker
@@ -370,13 +369,10 @@ async def embed_parallel_async(
     return output
 
 
-def stack_results(
-    results: list[EmbeddingResponse], return_numpy: bool = True
-) -> list[list[float]] | np.ndarray:
+def stack_results(results: list[EmbeddingResponse]) -> list[list[float]]:
     if not all(response.status_code == 200 for response in results):
         raise ValueError("Some responses were not successful; cannot coalesce results.")
-    stacked = np.concatenate([response.embeddings for response in results], axis=0)
-    return stacked.tolist() if not return_numpy else stacked  # type: ignore
+    return [emb for response in results for emb in response.embeddings]
 
 
 def submit_batch_request():

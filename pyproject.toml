@@ -15,7 +15,6 @@ dependencies = [
     "python-dotenv",
     "json5",
     "PyYAML",
-    "pandas",
     "aiohttp",
     "tiktoken",
     "xxhash",
