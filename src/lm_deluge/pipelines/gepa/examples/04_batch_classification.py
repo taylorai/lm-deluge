@@ -133,7 +133,7 @@ def make_evaluate_fn(task_client: LLMClient):  # type: ignore
     ) -> EvalResult:
         """Evaluate one classification example."""
         # Build conversation
-        conv = Conversation.system(component_values["system_prompt"])
+        conv = Conversation().system(component_values["system_prompt"])
 
         user_msg = f"""Text to classify:
 "{example['text']}"

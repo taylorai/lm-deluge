@@ -25,7 +25,7 @@ async def main():
 
     try:
         res = await client.process_prompts_async(
-            [Conversation.user("What is the capital of France? Answer briefly.")],
+            [Conversation().user("What is the capital of France? Answer briefly.")],
             show_progress=False,
         )
         assert res[0]

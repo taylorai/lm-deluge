@@ -17,6 +17,7 @@ META_MODELS = {
         "input_cost": 0.0,
         "output_cost": 0.0,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "llama-4-maverick": {
         "id": "llama-4-maverick",
@@ -29,6 +30,7 @@ META_MODELS = {
         "input_cost": 0.0,
         "output_cost": 0.0,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "llama-3.3-70b": {
         "id": "llama-3.3-70b",

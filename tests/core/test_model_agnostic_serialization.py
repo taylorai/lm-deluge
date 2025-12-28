@@ -40,7 +40,7 @@ async def test_text_only_cross_model_conversation():
     # Step 1: Start conversation with Claude
     claude_client = LLMClient("claude-3-haiku")
 
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are a helpful assistant. Keep responses brief."
     )
     conversation.add(Message.user("What is 2+2?"))
@@ -125,7 +125,7 @@ async def test_tool_calls_cross_model_conversation():
     # Step 1: Start conversation with Claude and tool
     claude_client = LLMClient("claude-3-haiku")
 
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are a helpful assistant with access to tools."
     )
     conversation.add(
@@ -334,7 +334,7 @@ async def test_three_way_model_switching():
 
     # Step 1: Start with Claude
     claude_client = LLMClient("claude-3-haiku")
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are a helpful math assistant. Keep answers concise."
     )
     conversation.add(Message.user("What is the capital of France?"))
@@ -393,7 +393,7 @@ async def test_gemini_tool_calls_cross_model():
 
     # Step 1: Start with Gemini and tool
     gemini_client = LLMClient("gemini-2.0-flash")
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are a helpful assistant with access to tools."
     )
     conversation.add(
@@ -506,7 +506,7 @@ async def test_round_robin_all_models():
         ("gemini-2.0-flash", LLMClient("gemini-2.0-flash")),
     ]
 
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are participating in a relay conversation. Each response should acknowledge the previous response and add something new."
     )
 

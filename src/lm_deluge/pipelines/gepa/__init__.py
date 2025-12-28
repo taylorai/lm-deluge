@@ -21,7 +21,7 @@ Example usage:
     # Define how to evaluate one example
     def evaluate(client: LLMClient, values: dict[str, str], example: dict) -> EvalResult:
         # Build prompt with current component values
-        conv = Conversation.system(values["system_prompt"])
+        conv = Conversation().system(values["system_prompt"])
         conv = conv.add(Message.user(example["question"]))
 
         # Run inference

@@ -76,7 +76,7 @@ from lm_deluge import Conversation
 from lm_deluge.config import SamplingParams
 
 async def custom_streaming():
-    conversation = Conversation.user("Explain quantum computing in simple terms.")
+    conversation = Conversation().user("Explain quantum computing in simple terms.")
     sampling_params = SamplingParams(temperature=0.7, max_new_tokens=500)
 
     content = ""

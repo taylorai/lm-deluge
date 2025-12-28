@@ -50,6 +50,7 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 1.95,
         "output_cost": 8.0,
+        "supports_images": True,
     },
     "llama-4-maverick-together": {
         "id": "llama-4-maverick-together",
@@ -60,6 +61,7 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.27,
         "output_cost": 0.85,
+        "supports_images": True,
     },
     "llama-4-scout-together": {
         "id": "llama-4-scout-together",
@@ -70,6 +72,7 @@ TOGETHER_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.18,
         "output_cost": 0.59,
+        "supports_images": True,
     },
     "gpt-oss-120b-together": {
         "id": "gpt-oss-120b-together",

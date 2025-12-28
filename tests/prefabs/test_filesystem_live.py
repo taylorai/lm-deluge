@@ -20,7 +20,7 @@ async def test_filesystem_manager_live_flow():
     manager = FilesystemManager(backend=backend, tool_name="filesystem")
     client = LLMClient("gpt-5-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "You are running a live integration test for a virtual filesystem tool. "
         "Follow these steps EXACTLY and only interact via the `filesystem` tool:\n"
         "1. Immediately call the tool with command `list_dir` and path '.' (non-recursive) "

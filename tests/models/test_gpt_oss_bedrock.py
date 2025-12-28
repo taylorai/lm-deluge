@@ -81,9 +81,13 @@ async def test_gpt_oss_bedrock_api_call():
             print(f"Testing {model_name}...")
             client = LLMClient(model_name)
 
-            test_prompt = Conversation.system("You are a helpful assistant.").add(
-                Message.user().with_text(
-                    "What is the capital of France? Give a brief answer."
+            test_prompt = (
+                Conversation()
+                .system("You are a helpful assistant.")
+                .add(
+                    Message.user().with_text(
+                        "What is the capital of France? Give a brief answer."
+                    )
                 )
             )
 
@@ -141,9 +145,13 @@ async def test_gpt_oss_bedrock_with_tools():
             tool = Tool.from_function(multiply_numbers)
 
             client = LLMClient(model_name)
-            test_prompt = Conversation.system("You are a helpful assistant.").add(
-                Message.user().with_text(
-                    "What is 7 × 9? Use the multiply_numbers tool."
+            test_prompt = (
+                Conversation()
+                .system("You are a helpful assistant.")
+                .add(
+                    Message.user().with_text(
+                        "What is 7 × 9? Use the multiply_numbers tool."
+                    )
                 )
             )
 
@@ -186,8 +194,10 @@ async def test_gpt_oss_bedrock_json_mode():
             warnings.simplefilter("always")
 
             client = LLMClient(model_name, json_mode=True)
-            test_prompt = Conversation.system("You are a helpful assistant.").add(
-                Message.user().with_text("What is the capital of France?")
+            test_prompt = (
+                Conversation()
+                .system("You are a helpful assistant.")
+                .add(Message.user().with_text("What is the capital of France?"))
             )
 
             results = await client.process_prompts_async(

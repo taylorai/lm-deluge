@@ -47,7 +47,9 @@ async def main():
         client = LLMClient(model)
         res = await client.process_prompts_async(
             [
-                Conversation.system("You are a helpful assistant").add(
+                Conversation()
+                .system("You are a helpful assistant")
+                .add(
                     Message.user()
                     .with_text("What's in this image?")
                     .add_image("tests/image.jpg")

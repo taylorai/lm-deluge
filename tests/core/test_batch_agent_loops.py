@@ -28,7 +28,7 @@ async def test_batch_agent_loops_basic():
     client = LLMClient("gpt-4.1-mini")
 
     prompts = [
-        Conversation.user(
+        Conversation().user(
             f"Use the hash tool to hash the string 'INPUT{i}' and return just the hash."
         )
         for i in range(3)
@@ -57,7 +57,7 @@ async def test_batch_agent_loops_ordering():
     # Use unique identifiable inputs
     inputs = ["ALPHA", "BRAVO", "CHARLIE", "DELTA"]
     prompts = [
-        Conversation.user(
+        Conversation().user(
             f"Use the reverse tool to reverse the string '{s}' and return just the reversed string."
         )
         for s in inputs
@@ -106,7 +106,7 @@ async def test_batch_agent_loops_concurrency_limit():
     slow_tool = Tool.from_function(slow_hash)
 
     prompts = [
-        Conversation.user(f"Hash the string 'TEST{i}' and return the result.")
+        Conversation().user(f"Hash the string 'TEST{i}' and return the result.")
         for i in range(6)
     ]
 

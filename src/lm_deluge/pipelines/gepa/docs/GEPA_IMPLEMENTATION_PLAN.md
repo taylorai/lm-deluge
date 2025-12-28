@@ -256,7 +256,7 @@ responses = litellm.batch_completion(
 
 # NEW
 responses = await task_client.process_prompts_async(
-    [Conversation.user(msg) for msg in messages],
+    [Conversation().user(msg) for msg in messages],
     show_progress=False
 )
 ```

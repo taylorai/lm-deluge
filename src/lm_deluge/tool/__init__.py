@@ -1087,6 +1087,54 @@ class MCPServer(BaseModel):
             headers=spec.get("headers"),
         )
 
+    @classmethod
+    def from_mcp_config(
+        cls,
+        config: dict[str, Any],
+    ) -> list["MCPServer"]:
+        """
+        Create MCPServer instances from a Claude-Desktop-style MCP config.
+
+        Only URL-based servers are supported (not command-based stdio servers).
+        For command-based servers, use Tool.from_mcp_config() instead to load
+        the tools client-side.
+
+        Args:
+            config: Full Claude-Desktop-style dict OR just the "mcpServers" block.
+
+        Returns:
+            List of MCPServer instances for all URL-based servers in the config.
+
+        Example:
+            config = {
+                "mcpServers": {
+                    "weather": {"url": "https://weather.example.com/mcp"},
+                    "search": {"url": "https://search.example.com/mcp", "token": "..."},
+                }
+            }
+            servers = MCPServer.from_mcp_config(config)
+        """
+        # Allow caller to pass either the whole desktop file or just the sub-dict
+        servers_block = config.get("mcpServers", config)
+
+        servers: list[MCPServer] = []
+        for name, spec in servers_block.items():
+            # Only process URL-based servers
+            if "url" not in spec:
+                # Skip command-based servers - use Tool.from_mcp_config for those
+                continue
+
+            server = cls(
+                name=name,
+                url=spec["url"],
+                token=spec.get("token"),
+                configuration=spec.get("configuration"),
+                headers=spec.get("headers"),
+            )
+            servers.append(server)
+
+        return servers
+
     def for_openai_responses(self):
         res: dict[str, Any] = {
             "type": "mcp",

@@ -228,7 +228,7 @@ async def test_docs_with_llm():
     tools = manager.get_tools()
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "You have access to a Google Doc. Follow these steps:\n"
         "1. Get the document metadata to see its title and line count.\n"
         "2. Read the entire document (start_line=1, no end_line).\n"

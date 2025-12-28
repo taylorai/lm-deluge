@@ -122,8 +122,9 @@ class FullTextSearchManager:
         # Add preview fields
         if self.preview_fields:
             for field in self.preview_fields:
-                if field in result.content:
-                    value = result.content[field]
+                content = result.content
+                if field in content:
+                    value = content.get(field)  # type: ignore[attr-defined]
                     # Truncate long values
                     if isinstance(value, str) and len(value) > 200:
                         value = value[:200] + "..."

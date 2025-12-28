@@ -102,8 +102,10 @@ async def test_bedrock_api_calls():
         "claude-3.7-sonnet-bedrock",  # reasoning model
     ]
 
-    test_prompt = Conversation.system("You are a helpful assistant").add(
-        Message.user().with_text("What is 2+2? Give a brief answer.")
+    test_prompt = (
+        Conversation()
+        .system("You are a helpful assistant")
+        .add(Message.user().with_text("What is 2+2? Give a brief answer."))
     )
 
     for model_name in models_to_test:
@@ -166,8 +168,10 @@ async def test_bedrock_with_tools():
         tool = Tool.from_function(add_numbers)
 
         client = LLMClient(model_name)
-        test_prompt = Conversation.system("You are a helpful assistant").add(
-            Message.user().with_text("What is 15 + 27? Use the add_numbers tool.")
+        test_prompt = (
+            Conversation()
+            .system("You are a helpful assistant")
+            .add(Message.user().with_text("What is 15 + 27? Use the add_numbers tool."))
         )
 
         results = await client.process_prompts_async(

@@ -9,7 +9,7 @@ def example_basic_file_usage():
     """Basic example of using files with conversations."""
 
     # Example 1: Create a conversation with a local PDF file
-    conv1 = Conversation.user(
+    conv1 = Conversation().user(
         "Please summarize the key points in this document.",
         file="/path/to/document.pdf",
     )
@@ -38,7 +38,7 @@ def example_basic_file_usage():
         file_id="file-abc123",
     )
 
-    conv3 = Conversation.user("Analyze this document")
+    conv3 = Conversation().user("Analyze this document")
     conv3.messages[0].parts.append(file_with_id)
 
     return conv1, conv2, conv3

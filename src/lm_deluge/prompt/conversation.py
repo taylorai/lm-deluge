@@ -40,24 +40,42 @@ class Conversation:
     messages: list[Message] = field(default_factory=list)
 
     # ── convenience shorthands ------------------------------------------------
-    @classmethod
-    def system(cls, text: str) -> "Conversation":
-        return cls([Message.system(text)])
+    def system(self, text: str) -> "Conversation":
+        """Add a system message and return self for chaining."""
+        self.messages.append(Message.system(text))
+        return self
 
-    @classmethod
     def user(
-        cls,
+        self,
         text: str,
         *,
         image: bytes | str | Path | None = None,
         file: bytes | str | Path | None = None,
     ) -> "Conversation":
+        """Add a user message and return self for chaining."""
         msg = Message.user(text)
         if image is not None:
             msg.with_image(image)
         if file is not None:
             msg.with_file(file)
-        return cls([msg])
+        self.messages.append(msg)
+        return self
+
+    def ai(
+        self,
+        text: str,
+        *,
+        image: bytes | str | Path | None = None,
+        file: bytes | str | Path | None = None,
+    ) -> "Conversation":
+        """Add an assistant message and return self for chaining."""
+        msg = Message.ai(text)
+        if image is not None:
+            msg.with_image(image)
+        if file is not None:
+            msg.with_file(file)
+        self.messages.append(msg)
+        return self
 
     @classmethod
     def from_openai_chat(cls, messages: list[dict]):

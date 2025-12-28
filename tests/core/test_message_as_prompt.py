@@ -49,7 +49,7 @@ def test_mixed_prompts_all_convert_to_conversations():
     # Second: Already a Conversation
     assert result[1] is conv
 
-    # Third: String converted to Conversation.user()
+    # Third: String converted to Conversation().user()
     assert len(result[2].messages) == 1
     assert result[2].messages[0].role == "user"
     assert result[2].messages[0].completion == "String prompt"

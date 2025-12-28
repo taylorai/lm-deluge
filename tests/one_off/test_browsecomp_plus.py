@@ -228,7 +228,7 @@ async def run_agent_on_query(
     print(f"Query {query_id}: {query[:100]}...")
 
     # Build conversation with system prompt and user message
-    conversation = Conversation.system(AGENT_SYSTEM_PROMPT)
+    conversation = Conversation().system(AGENT_SYSTEM_PROMPT)
     conversation.messages.append(Message("user", [Text(f"Question: {query}")]))
 
     # Run agent loop

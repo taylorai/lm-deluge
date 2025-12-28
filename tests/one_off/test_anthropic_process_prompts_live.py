@@ -51,7 +51,7 @@ async def test_process_prompts_non_interleaved_thinking():
         required=["token"],
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "Call echo_token with token 'alpha' and wait for the tool result. "
         "After the tool result, respond with a single word: OK."
     )
@@ -96,7 +96,7 @@ async def test_process_prompts_interleaved_thinking():
         required=["token"],
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "You must call step_one with seed 'alpha'. After you receive its result, "
         "call step_two with token equal to the exact step_one result. Do not do any "
         "user-facing text until you're done calling all the tools, i.e. "

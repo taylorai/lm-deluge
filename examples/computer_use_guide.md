@@ -36,7 +36,7 @@ async def computer_use_example():
     )
 
     # Create conversation requesting a screenshot
-    conversation = Conversation.user("Take a screenshot of the current screen")
+    conversation = Conversation().user("Take a screenshot of the current screen")
 
     # Process with Computer Use enabled
     results = await client.process_prompts_async(
@@ -87,7 +87,7 @@ async def bedrock_computer_use_example():
     )
 
     # Create conversation requesting a screenshot
-    conversation = Conversation.user("Take a screenshot of the current screen")
+    conversation = Conversation().user("Take a screenshot of the current screen")
 
     # Process with Computer Use enabled
     results = await client.process_prompts_async(
@@ -198,7 +198,7 @@ async def multi_turn_computer_use():
     )
 
     # Start conversation
-    conversation = Conversation.user("Open a text editor and write a Python hello world script")
+    conversation = Conversation().user("Open a text editor and write a Python hello world script")
 
     max_turns = 10
     for turn in range(max_turns):
@@ -334,7 +334,7 @@ async def robust_computer_use():
         max_attempts=3  # Retry failed requests
     )
 
-    conversation = Conversation.user("Take a screenshot")
+    conversation = Conversation().user("Take a screenshot")
 
     try:
         results = await client.process_prompts_async(

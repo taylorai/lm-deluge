@@ -33,6 +33,7 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
+        "supports_images": True,
     },
     "aya-vision-32b": {
         "id": "aya-vision-32b",
@@ -42,6 +43,7 @@ COHERE_MODELS = {
         "api_spec": "openai",
         "input_cost": 0.5,
         "output_cost": 1.5,
+        "supports_images": True,
     },
     "command-a": {
         "id": "command-a",

@@ -27,7 +27,7 @@ async def _fetch_gemini_response(tools: list) -> tuple[Conversation, Message, li
         request_timeout=120,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "You must call the random_int tool with min_value=1 and max_value=6. "
         "Do not answer with text. Only call the tool."
     )

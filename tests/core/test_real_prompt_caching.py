@@ -221,8 +221,10 @@ async def test_real_caching_integration():
     tools = create_comprehensive_tools()
 
     # Create initial conversation with system message
-    conv1 = Conversation.system(system_msg).add(
-        Message.user("What are the key principles of clean code architecture?")
+    conv1 = (
+        Conversation()
+        .system(system_msg)
+        .add(Message.user("What are the key principles of clean code architecture?"))
     )
 
     print("📝 First request - should write to cache...")
@@ -255,7 +257,8 @@ async def test_real_caching_integration():
 
     # Create follow-up conversation (continuing the conversation)
     conv2 = (
-        Conversation.system(system_msg)
+        Conversation()
+        .system(system_msg)
         .add(Message.user("What are the key principles of clean code architecture?"))
         .add(Message.ai(result1.completion or "Here are the key principles..."))
         .add(
@@ -336,8 +339,10 @@ async def test_real_caching_bedrock_integration():
     tools = create_comprehensive_tools()
 
     # Create initial conversation with system message
-    conv1 = Conversation.system(system_msg).add(
-        Message.user("What are the key principles of clean code architecture?")
+    conv1 = (
+        Conversation()
+        .system(system_msg)
+        .add(Message.user("What are the key principles of clean code architecture?"))
     )
 
     print("📝 First request - should write to cache...")
@@ -370,7 +375,8 @@ async def test_real_caching_bedrock_integration():
 
     # Create follow-up conversation (continuing the conversation)
     conv2 = (
-        Conversation.system(system_msg)
+        Conversation()
+        .system(system_msg)
         .add(Message.user("What are the key principles of clean code architecture?"))
         .add(Message.ai(result1.completion or "Here are the key principles..."))
         .add(

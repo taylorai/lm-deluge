@@ -14,7 +14,7 @@ add_tool = Tool.from_function(add)
 
 async def main():
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user("What is 2+2? Use the add tool if needed.")
+    conv = Conversation().user("What is 2+2? Use the add tool if needed.")
     conv, resp = await client.run_agent_loop(conv, tools=[add_tool])
     print(resp.content.completion)
 

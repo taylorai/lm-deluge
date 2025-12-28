@@ -20,8 +20,7 @@ import os
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.image import Image
-from lm_deluge.prompt import Message, ToolResult
+from lm_deluge.prompt import Message, ToolResult, Image
 from lm_deluge.tool.builtin.anthropic import get_anthropic_cu_tools
 from lm_deluge.tool.cua import (
     AsyncTryCUAConnection,
@@ -86,7 +85,7 @@ async def browse_and_report(
         tools = [batch_tool, *cu_tools]
 
         # Claude handles the full flow from the desktop
-        conversation = Conversation.system(
+        conversation = Conversation().system(
             "You are controlling a Linux desktop computer. "
             "The computer has Firefox browser installed. "
             "\n\n"

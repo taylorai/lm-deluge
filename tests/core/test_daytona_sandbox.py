@@ -207,7 +207,7 @@ async def test_llm_agent_with_sandbox():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the bash tool to run the command 'echo \"Hello from Daytona\"'. "
         "Report what you see in the output."
     )
@@ -238,7 +238,7 @@ async def test_llm_agent_file_operations():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the write_file tool to create a file at /tmp/test.txt with the content 'sandbox test'. "
         "Then use the read_file tool to read it back. "
         "Report the file contents you read."
@@ -269,7 +269,7 @@ async def test_llm_agent_python_execution():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use bash to run a Python command that calculates 123 * 456 and prints the result. "
         "Report the result of the calculation."
     )
@@ -301,7 +301,7 @@ async def test_llm_agent_list_and_read():
     await sandbox._write_file("/tmp/llm_test_file.txt", "This is a test file for LLM")
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "First, use bash to create a file at /tmp/myfile.txt with content 'Hello from LLM'. "
         "Then use list_files to see files in /tmp. "
         "Finally use read_file to read /tmp/myfile.txt. "
@@ -334,7 +334,7 @@ async def test_llm_agent_complex_task():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Do the following steps:\n"
         "1. Create a Python script at /tmp/calc.py that calculates the factorial of 5\n"
         "2. Run the script using bash\n"

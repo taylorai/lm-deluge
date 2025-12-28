@@ -35,7 +35,7 @@ async def test_process_prompts_async_never_returns_none(monkeypatch):
         fake_process_single_request,
     )
 
-    prompts = [Conversation.user("hi") for _ in range(3)]
+    prompts = [Conversation().user("hi") for _ in range(3)]
     results = await client.process_prompts_async(prompts, show_progress=False)
 
     for result in results:

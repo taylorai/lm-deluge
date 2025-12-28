@@ -11,6 +11,7 @@ CEREBRAS_MODELS = {
         "name": "llama-4-scout-17b-16e-instruct",
         "api_base": "https://api.cerebras.ai/v1",
         "api_key_env_var": "CEREBRAS_API_KEY",
+        "supports_images": True,
     },
     "llama-3.1-8b-cerebras": {
         "id": "llama-3.1-8b-cerebras",
@@ -36,6 +37,7 @@ CEREBRAS_MODELS = {
         "name": "llama-4-maverick-17b-128e-instruct",
         "api_base": "https://api.cerebras.ai/v1",
         "api_key_env_var": "CEREBRAS_API_KEY",
+        "supports_images": True,
     },
     "qwen-3-235b-instruct-cerebras": {
         "id": "qwen-3-235b-instruct-cerebras",

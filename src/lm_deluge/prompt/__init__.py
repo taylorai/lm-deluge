@@ -19,7 +19,7 @@ def prompts_to_conversations(prompts: Sequence[Prompt]) -> Sequence[Conversation
         elif isinstance(prompt, Message):
             converted.append(Conversation([prompt]))
         elif isinstance(prompt, str):
-            converted.append(Conversation.user(prompt))
+            converted.append(Conversation().user(prompt))
         elif isinstance(prompt, list):
             conv, provider = Conversation.from_unknown(prompt)
             converted.append(conv)

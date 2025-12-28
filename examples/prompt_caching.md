@@ -20,7 +20,7 @@ from lm_deluge import LLMClient, Conversation, Message
 client = LLMClient("claude-4.5-sonnet")
 
 # Create a conversation with a long system prompt
-conv = Conversation.system("""
+conv = Conversation().system("""
 You are an expert software architect with 20+ years of experience in:
 - Distributed systems design
 - Microservices architecture
@@ -69,7 +69,7 @@ tools = [
     Tool.from_function(calculate_tip)
 ]
 
-conv = Conversation.system("You are a helpful assistant.").add(
+conv = Conversation().system("You are a helpful assistant.").add(
     Message.user("What's the weather in Paris and what's a 20% tip on $50?")
 )
 
@@ -94,7 +94,7 @@ system_prompts = [
 ]
 
 for system_prompt in system_prompts:
-    conv = Conversation.system(system_prompt).add(
+    conv = Conversation().system(system_prompt).add(
         Message.user("Help me plan something")
     )
 
@@ -112,7 +112,7 @@ Useful for iterative refinement where you're building on the same base query.
 ```python
 # Base conversation that will be reused
 base_conv = (
-    Conversation.system("You are a code reviewer.")
+    Conversation().system("You are a code reviewer.")
     .add(Message.user("Please review this Python function:"))
     .add(Message.user("""
 def process_data(items):
@@ -148,7 +148,7 @@ Cache multiple recent user messages for longer context reuse.
 ```python
 # Long conversation with context to cache
 conv = (
-    Conversation.system("You are a SQL expert.")
+    Conversation().system("You are a SQL expert.")
     .add(Message.user("I have a database schema with users, orders, and products tables."))
     .add(Message.ai("Great! I can help you with SQL queries for that schema."))
     .add(Message.user("Users table has: id, name, email, created_at"))
@@ -187,7 +187,7 @@ async def demonstrate_cost_savings():
 
     # First batch - cache gets created (normal cost)
     conversations = [
-        Conversation.system(long_system_prompt).add(Message.user(q))
+        Conversation().system(long_system_prompt).add(Message.user(q))
         for q in questions
     ]
 
@@ -215,7 +215,7 @@ When building multi-turn conversations, you can cache earlier parts of the conve
 
 ```python
 # Start with a cached system message
-conv = Conversation.system("""
+conv = Conversation().system("""
 You are an expert Python tutor. You explain concepts clearly and provide
 practical examples. You adapt your teaching style to the student's level.
 """)
@@ -252,7 +252,7 @@ resps3 = client.process_prompts_sync([conv], cache="last_user_message")
 
 ```python
 # Images are automatically handled for caching
-conv = Conversation.user("Analyze this chart").add_image("chart.png")
+conv = Conversation().user("Analyze this chart").add_image("chart.png")
 
 # Images get locked as bytes when cache is specified
 resps = client.process_prompts_sync([conv], cache="last_user_message")

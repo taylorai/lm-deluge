@@ -91,9 +91,7 @@ def _client_for(policy=None):
 
 
 def test_openai_multi_turn_tools_files_images():
-    from lm_deluge.file import File
-    from lm_deluge.image import Image
-    from lm_deluge.prompt import Message, Text, ToolCall
+    from lm_deluge.prompt import Message, Text, ToolCall, File, Image
     from lm_deluge.server.model_policy import ProxyModelPolicy
 
     capture = []
@@ -224,8 +222,7 @@ def test_openai_sampling_params_flags():
 
 
 def test_openai_gemini_files_images():
-    from lm_deluge.file import File
-    from lm_deluge.image import Image
+    from lm_deluge.prompt import File, Image
     from lm_deluge.server.model_policy import ProxyModelPolicy
 
     capture = []
@@ -267,9 +264,7 @@ def test_openai_gemini_files_images():
 
 
 def test_anthropic_multi_turn_documents_images_thinking_tools():
-    from lm_deluge.file import File
-    from lm_deluge.image import Image
-    from lm_deluge.prompt import Message, Text, Thinking, ToolCall
+    from lm_deluge.prompt import File, Image, Message, Text, Thinking, ToolCall
     from lm_deluge.server.model_policy import ProxyModelPolicy
 
     capture = []
@@ -368,7 +363,7 @@ def test_anthropic_multi_turn_documents_images_thinking_tools():
 
 
 def test_anthropic_gemini_accepts_images():
-    from lm_deluge.image import Image
+    from lm_deluge.prompt import Image
     from lm_deluge.server.model_policy import ProxyModelPolicy
 
     capture = []

@@ -131,7 +131,7 @@ async def test_llm_agent_with_sandbox():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the bash tool to run the command 'echo \"Hello from sandbox\"'. "
         "Report what you see in the output."
     )
@@ -162,7 +162,7 @@ async def test_llm_agent_file_operations():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Create a file called test.txt with the content 'sandbox test' using bash. "
         "Then read it back using cat. Report the file contents."
     )
@@ -192,7 +192,7 @@ async def test_llm_agent_python_execution():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use bash to run a Python command that calculates 123 * 456 and prints the result. "
         "Report the result of the calculation."
     )
@@ -233,7 +233,7 @@ async def test_add_local_files():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "I have added a 'tests' directory and a 'README.md' file to this sandbox. "
         "They should be located in /root/. Please:\n"
         "1. List the contents of /root/ to verify both exist\n"
@@ -270,7 +270,7 @@ async def test_webserver_with_tunnel():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Execute these commands in order and tell me the URL at the end:\n"
         "1. bash: python3 -m http.server 8080 (with run_in_background=true, name=server)\n"
         "2. bash: sleep 1\n"
@@ -309,7 +309,7 @@ async def test_webserver_interactive():
 
     # Use longer timeout (120s) for models that generate verbose output
     client = LLMClient("gpt-4.1-mini", request_timeout=120)
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Create a simple but nice-looking webpage and serve it on port 8080.\n\n"
         "Steps:\n"
         "1. Create an index.html file with a fun, styled webpage (use inline CSS)\n"

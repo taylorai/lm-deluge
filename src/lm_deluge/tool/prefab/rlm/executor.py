@@ -217,7 +217,7 @@ class RLMExecutor:
         # Start all calls in parallel using start_nowait
         task_mapping: list[tuple[int, int]] = []  # (call_id, task_id)
         for call in pending_calls:
-            conv = Conversation.user(call["prompt"])
+            conv = Conversation().user(call["prompt"])
             task_id = self.client.start_nowait(conv)
             task_mapping.append((call["id"], task_id))
 

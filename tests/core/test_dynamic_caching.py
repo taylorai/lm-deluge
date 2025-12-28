@@ -48,14 +48,14 @@ async def test_dynamic_caching():
 
     # Create multiple identical prompts to test dynamic caching
     prompts = [
-        Conversation.user("Say 'test'"),
-        Conversation.user("Say 'test'"),  # Same as first
-        Conversation.user("Say 'test'"),  # Same as first
-        Conversation.user("Say 'test'"),  # Same as first
-        Conversation.user("Say 'test'"),  # Same as first
-        Conversation.user("Say 'test'"),  # Same as first
-        Conversation.user("Say 'test'"),  # Same as first
-        Conversation.user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),
+        Conversation().user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),  # Same as first
+        Conversation().user("Say 'test'"),  # Same as first
     ]
 
     print("Starting dynamic caching test...")

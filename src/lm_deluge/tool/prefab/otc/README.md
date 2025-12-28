@@ -26,7 +26,7 @@ def multiply(a: float, b: float) -> float: return a * b
 composer = ToolComposer([Tool.from_function(add), Tool.from_function(multiply)])
 tools = composer.get_all_tools()
 
-conv = Conversation.user(
+conv = Conversation().user(
     "Use compose with this program:\n"
     "total = add(2, 3)\n"
     "result = multiply(total, 4)\n"

@@ -16,7 +16,7 @@ class SubAgentManager:
         ...     tools=[search_tool, calculator_tool]  # Tools available to subagents
         ... )
         >>> main_client = LLMClient("gpt-4o")  # More expensive main model
-        >>> conv = Conversation.user("Research AI and calculate market size")
+        >>> conv = Conversation().user("Research AI and calculate market size")
         >>> # Main model can now call manager tools to spawn subagents
         >>> conv, resp = await main_client.run_agent_loop(
         ...     conv,

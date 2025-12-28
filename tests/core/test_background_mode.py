@@ -183,7 +183,7 @@ async def test_background_mode_context_copy():
     context = RequestContext(
         task_id=1,
         model_name="gpt-4.1-mini",
-        prompt=Conversation.user("test"),
+        prompt=Conversation().user("test"),
         sampling_params=SamplingParams(),
         background=True,
         attempts_left=3,

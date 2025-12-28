@@ -263,6 +263,11 @@ class BedrockRequest(APIRequestBase):
         # Create a fake requests.PreparedRequest object for AWS4Auth to sign
         import requests
 
+        assert self.url is not None, "URL must be set after build_request"
+        assert (
+            self.request_header is not None
+        ), "Headers must be set after build_request"
+
         fake_request = requests.Request(
             method="POST",
             url=self.url,

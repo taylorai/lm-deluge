@@ -106,8 +106,7 @@ def create_computer_batch_tool(
 
     async def run_batch(actions: list[dict[str, Any]]) -> str | list:
         """Execute a batch of computer actions and return results."""
-        from ...image import Image
-        from ...prompt import Text
+        from ...prompt import Text, Image
 
         results = []
         final_screenshot = None

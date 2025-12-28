@@ -188,7 +188,7 @@ async def test_openai_computer_use_loop():
 
         # Test 1: Initial computer use request
         print("\nTest 1: Initial computer use request")
-        conversation = Conversation.user(
+        conversation = Conversation().user(
             "Please click on the 'File' menu in the screenshot"
         )
 

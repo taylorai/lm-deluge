@@ -42,7 +42,7 @@ async def test_batch_tool_live_executes_math_program():
 
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the batch tool to submit every math call at once: "
         "add 12 and 30, multiply the sum by 4, then subtract 6. "
         "Return only the final number. Keep everything in a single batch call."

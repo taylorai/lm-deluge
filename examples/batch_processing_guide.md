@@ -173,9 +173,9 @@ client = LLMClient(
 
 # Create conversations that might use tools
 conversations = [
-    Conversation.user("What's the weather in Paris?"),
-    Conversation.user("Tell me about the weather in Tokyo"),
-    Conversation.user("Is it nice in London today?")
+    Conversation().user("What's the weather in Paris?"),
+    Conversation().user("Tell me about the weather in Tokyo"),
+    Conversation().user("Is it nice in London today?")
 ]
 
 # Submit batch with tools

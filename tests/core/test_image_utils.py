@@ -3,7 +3,7 @@ import io
 
 from PIL import Image as PILImage
 
-from lm_deluge.image import Image
+from lm_deluge.prompt import Image
 
 PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/Ps4TAAAAAElFTkSuQmCC"
 PNG_BYTES = base64.b64decode(PNG_B64)

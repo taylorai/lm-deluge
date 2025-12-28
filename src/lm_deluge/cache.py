@@ -8,7 +8,7 @@ from .api_requests.base import APIResponse
 try:
     import plyvel  # type: ignore
 except ImportError:
-    plyvel = None
+    plyvel: Any = None
     print("Warning: plyvel not installed, cannot use LevelDB.")
 
 

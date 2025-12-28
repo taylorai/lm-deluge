@@ -14,7 +14,8 @@ def test_cache_patterns():
     """Test that cache control is correctly applied for different patterns."""
     # Create a conversation with system message and user message
     conv = (
-        Conversation.system("You are a helpful assistant.")
+        Conversation()
+        .system("You are a helpful assistant.")
         .add(Message.user("Hello, how are you?"))
         .add(Message.ai("I'm doing well, thank you!"))
         .add(Message.user("What's the weather like?"))
@@ -55,7 +56,7 @@ async def test_tools_only_caching():
     from lm_deluge.tracker import StatusTracker
 
     # Create a simple conversation
-    conv = Conversation.user("Hello")
+    conv = Conversation().user("Hello")
 
     # Create a simple tool
     def test_function(arg: str) -> str:
@@ -137,7 +138,7 @@ def test_cache_warnings_non_anthropic():
     from lm_deluge.api_requests.openai import OpenAIRequest
     from lm_deluge.tracker import StatusTracker
 
-    conv = Conversation.user("Hello")
+    conv = Conversation().user("Hello")
     status_tracker = StatusTracker(
         max_requests_per_minute=10,
         max_tokens_per_minute=10_000,
@@ -174,8 +175,10 @@ async def test_bedrock_caching():
     from lm_deluge.tracker import StatusTracker
 
     # Create a conversation with system message and user message
-    conv = Conversation.system("You are a helpful assistant.").add(
-        Message.user("Hello, how are you?")
+    conv = (
+        Conversation()
+        .system("You are a helpful assistant.")
+        .add(Message.user("Hello, how are you?"))
     )
 
     # Create a simple tool
@@ -241,7 +244,7 @@ def test_image_locking():
     # Create a conversation with an image
     # Add a simple 1x1 PNG image as bytes (simple test data)
     png_bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00"
-    conv = Conversation.user("What's in this image?", image=png_bytes)
+    conv = Conversation().user("What's in this image?", image=png_bytes)
 
     # Lock images as bytes
     conv.lock_images_as_bytes()
@@ -256,7 +259,7 @@ def test_image_locking():
 
 def test_no_cache_control_without_cache():
     """Test that no cache control is added when cache is None."""
-    conv = Conversation.system("You are helpful.").add(Message.user("Hello"))
+    conv = Conversation().system("You are helpful.").add(Message.user("Hello"))
 
     system_msg, messages = conv.to_anthropic(cache_pattern=None)
 

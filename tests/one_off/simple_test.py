@@ -14,7 +14,7 @@ async def main():
 
     try:
         res = await client.process_prompts_async(
-            [Conversation.user("Hi")],
+            [Conversation().user("Hi")],
             show_progress=False,
         )
         print(f"Got result: {res}")

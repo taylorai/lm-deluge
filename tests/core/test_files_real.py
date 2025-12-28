@@ -3,7 +3,7 @@ import asyncio
 import dotenv
 
 from lm_deluge.client import LLMClient
-from lm_deluge.file import File
+from lm_deluge.prompt import File
 
 dotenv.load_dotenv()
 
@@ -27,7 +27,7 @@ async def main():
         # Create conversation with file
         from lm_deluge.prompt import Conversation
 
-        conversation = Conversation.user(prompt, file="tests/sample.pdf")
+        conversation = Conversation().user(prompt, file="tests/sample.pdf")
 
         try:
             result = await client.process_prompts_async(

@@ -43,7 +43,7 @@ def evaluate(
     4. Returns the full trajectory with feedback
     """
     # Build conversation with current system prompt
-    conv = Conversation.system(component_values["system_prompt"])
+    conv = Conversation().system(component_values["system_prompt"])
     conv = conv.add(Message.user(example["question"]))
 
     # Run inference

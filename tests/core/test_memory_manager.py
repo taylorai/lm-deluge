@@ -61,7 +61,7 @@ async def test_memory_manager_live_search_read():
     )
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use ONLY the memory tools to do this:\n"
         "1) Call memsearch with queries that will find the alpha release timeline.\n"
         "2) Call memread on the ID(s) you found to read the full memory.\n"
@@ -88,7 +88,7 @@ async def test_memory_manager_live_write_and_read_back():
     description = "integration test memory"
     content = "Memory created during automated test; mentions zebras and sunsets."
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "You must persist and verify a memory using ONLY the tools:\n"
         f"- Call memwrite once to create a memory with description: '{description}' "
         f"and content: '{content}'.\n"

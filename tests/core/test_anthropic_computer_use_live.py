@@ -18,8 +18,7 @@ from pathlib import Path
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.image import Image
-from lm_deluge.prompt import Message, ToolResult
+from lm_deluge.prompt import Message, ToolResult, Image
 from lm_deluge.tool.builtin.anthropic import (
     get_anthropic_cu_tools,
 )
@@ -66,7 +65,7 @@ async def run_agent_loop(
     - turns: number of conversation turns
     - final_response: Claude's final text response (if any)
     """
-    conversation = Conversation.user(initial_prompt)
+    conversation = Conversation().user(initial_prompt)
     actions_seen = []
     turns = 0
     final_response = None

@@ -15,7 +15,7 @@ Use short names like `claude-3.5-haiku`, `claude-4-sonnet`, `gpt-4.1-mini`. See 
 from lm_deluge import LLMClient, Conversation
 
 llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=1024)
-response = await llm.start(Conversation.user("Hello!"))
+response = await llm.start(Conversation().user("Hello!"))
 print(response.completion)  # NOT .text
 ```
 
@@ -26,7 +26,7 @@ from lm_deluge import LLMClient, Conversation, Tool
 # Tools are passed to run_agent_loop, NOT to the constructor
 llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=1024)
 
-conv = Conversation.user("Do something with tools")
+conv = Conversation().user("Do something with tools")
 final_conv, response = await llm.run_agent_loop(
     conv,
     tools=my_tools,  # list of Tool objects

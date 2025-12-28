@@ -2,9 +2,9 @@ import base64
 
 from lm_deluge.api_requests.response import APIResponse
 from lm_deluge.config import SamplingParams
-from lm_deluge.file import File
-from lm_deluge.image import Image
 from lm_deluge.prompt import (
+    File,
+    Image,
     Conversation,
     Message,
     Text,
@@ -152,7 +152,7 @@ def test_api_response_to_anthropic_maps_stop_reason_and_thinking():
     response = APIResponse(
         id=1,
         model_internal="gpt-4.1",
-        prompt=Conversation.user("Hello"),
+        prompt=Conversation().user("Hello"),
         sampling_params=SamplingParams(),
         status_code=200,
         is_error=False,
@@ -184,7 +184,7 @@ def test_api_response_to_anthropic_adds_signature_thinking_for_tool_call():
     response = APIResponse(
         id=3,
         model_internal="gemini-3-flash-preview",
-        prompt=Conversation.user("Hello"),
+        prompt=Conversation().user("Hello"),
         sampling_params=SamplingParams(),
         status_code=200,
         is_error=False,
@@ -221,7 +221,7 @@ def test_api_response_to_anthropic_skips_non_anthropic_signature():
     response = APIResponse(
         id=4,
         model_internal="gemini-3-flash-preview",
-        prompt=Conversation.user("Hello"),
+        prompt=Conversation().user("Hello"),
         sampling_params=SamplingParams(),
         status_code=200,
         is_error=False,
@@ -251,7 +251,7 @@ def test_api_response_to_anthropic_prefers_raw_stop_reason():
     response = APIResponse(
         id=2,
         model_internal="gpt-4.1",
-        prompt=Conversation.user("Hello"),
+        prompt=Conversation().user("Hello"),
         sampling_params=SamplingParams(),
         status_code=200,
         is_error=False,

@@ -4,9 +4,9 @@ import random
 from dataclasses import dataclass, field
 
 from ..api_requests.context import RequestContext
-from .anthropic import ANTHROPIC_MODELS
 
 # Import and register all provider models
+from .anthropic import ANTHROPIC_MODELS
 from .arcee import ARCEE_MODELS
 from .bedrock import BEDROCK_MODELS
 from .cerebras import CEREBRAS_MODELS
@@ -33,21 +33,18 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
+    provider: str = ""  # The actual provider (anthropic, openai, together, etc.)
     cached_input_cost: float | None = 0  # $ per million cached/read input tokens
     cache_write_cost: float | None = 0  # $ per million cache write tokens
     input_cost: float | None = 0  # $ per million input tokens
     output_cost: float | None = 0  # $ per million output tokens
     supports_json: bool = False
+    supports_images: bool = False
     supports_logprobs: bool = False
     supports_responses: bool = False
     reasoning_model: bool = False
-    supports_xhigh: bool = (
-        False  # supports xhigh reasoning_effort (gpt-5.2, gpt-5.1-codex-max)
-    )
+    supports_xhigh: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
-    # tokens_per_minute: int | None = None
-    # requests_per_minute: int | None = None
-    # gpus: list[str] | None = None
 
     @classmethod
     def from_registry(cls, name: str):
@@ -67,7 +64,7 @@ class APIModel:
             weights = self.regions.values()
         else:
             raise ValueError("no regions to sample")
-        random.sample(regions, 1, counts=weights)[0]
+        return random.sample(regions, 1, counts=weights)[0]
 
     def make_request(self, context: RequestContext):
         from ..api_requests.common import CLASSES
@@ -95,11 +92,13 @@ def register_model(
     api_base: str,
     api_key_env_var: str,
     api_spec: str = "openai",
+    provider: str = "",
     input_cost: float | None = 0,  # $ per million input tokens
     cached_input_cost: float | None = 0,
     cache_write_cost: float | None = 0,  # $ per million cache write tokens
     output_cost: float | None = 0,  # $ per million output tokens
     supports_json: bool = False,
+    supports_images: bool = False,
     supports_logprobs: bool = False,
     supports_responses: bool = False,
     reasoning_model: bool = False,
@@ -115,11 +114,13 @@ def register_model(
         api_base=api_base,
         api_key_env_var=api_key_env_var,
         api_spec=api_spec,
+        provider=provider,
         cached_input_cost=cached_input_cost,
         cache_write_cost=cache_write_cost,
         input_cost=input_cost,
         output_cost=output_cost,
         supports_json=supports_json,
+        supports_images=supports_images,
         supports_logprobs=supports_logprobs,
         supports_responses=supports_responses,
         reasoning_model=reasoning_model,
@@ -133,28 +134,134 @@ def register_model(
 
 
 # Register all models from all providers
-for model_dict in [
-    ANTHROPIC_MODELS,
-    ZAI_MODELS,
-    ARCEE_MODELS,
-    BEDROCK_MODELS,
-    COHERE_MODELS,
-    DEEPSEEK_MODELS,
-    FIREWORKS_MODELS,
-    GOOGLE_MODELS,
-    XAI_MODELS,
-    KIMI_MODELS,
-    META_MODELS,
-    MINIMAX_MODELS,
-    MISTRAL_MODELS,
-    OPENAI_MODELS,
-    OPENROUTER_MODELS,
-    TOGETHER_MODELS,
-    GROQ_MODELS,
-    CEREBRAS_MODELS,
-]:
+# Maps each model dict to its provider name
+_PROVIDER_MODELS = [
+    (ANTHROPIC_MODELS, "anthropic"),
+    (ZAI_MODELS, "zai"),
+    (ARCEE_MODELS, "arcee"),
+    (BEDROCK_MODELS, "bedrock"),
+    (COHERE_MODELS, "cohere"),
+    (DEEPSEEK_MODELS, "deepseek"),
+    (FIREWORKS_MODELS, "fireworks"),
+    (GOOGLE_MODELS, "google"),
+    (XAI_MODELS, "xai"),
+    (KIMI_MODELS, "kimi"),
+    (META_MODELS, "meta"),
+    (MINIMAX_MODELS, "minimax"),
+    (MISTRAL_MODELS, "mistral"),
+    (OPENAI_MODELS, "openai"),
+    (OPENROUTER_MODELS, "openrouter"),
+    (TOGETHER_MODELS, "together"),
+    (GROQ_MODELS, "groq"),
+    (CEREBRAS_MODELS, "cerebras"),
+]
+
+for model_dict, provider_name in _PROVIDER_MODELS:
     for cfg in model_dict.values():
-        register_model(**cfg)
+        register_model(**cfg, provider=provider_name)  # type: ignore[arg-type]
 
 
 # print("Valid models:", registry.keys())
+
+
+def find_models(
+    *,
+    provider: str | None = None,
+    supports_json: bool | None = None,
+    supports_images: bool | None = None,
+    supports_logprobs: bool | None = None,
+    reasoning_model: bool | None = None,
+    min_input_cost: float | None = None,
+    max_input_cost: float | None = None,
+    min_output_cost: float | None = None,
+    max_output_cost: float | None = None,
+    name_contains: str | None = None,
+    sort_by: str | None = None,
+    limit: int | None = None,
+) -> list[APIModel]:
+    """
+    Find models matching the given criteria.
+
+    All parameters are optional filters. Only models matching ALL specified
+    criteria are returned.
+
+    Args:
+        provider: Filter by provider (e.g., "openai", "anthropic", "together", "fireworks")
+        supports_json: Filter by JSON mode support
+        supports_images: Filter by image input support
+        supports_logprobs: Filter by logprobs support
+        reasoning_model: Filter by reasoning model capability
+        min_input_cost: Minimum input cost ($ per million tokens)
+        max_input_cost: Maximum input cost ($ per million tokens)
+        min_output_cost: Minimum output cost ($ per million tokens)
+        max_output_cost: Maximum output cost ($ per million tokens)
+        name_contains: Filter by substring in model ID (case-insensitive)
+        sort_by: Sort results by "input_cost", "output_cost", "-input_cost", "-output_cost"
+        limit: Maximum number of results to return
+
+    Returns:
+        List of APIModel objects matching all criteria
+    """
+    results = list(registry.values())
+
+    if provider is not None:
+        results = [m for m in results if m.provider == provider]
+
+    if supports_json is not None:
+        results = [m for m in results if m.supports_json == supports_json]
+
+    if supports_images is not None:
+        results = [m for m in results if m.supports_images == supports_images]
+
+    if supports_logprobs is not None:
+        results = [m for m in results if m.supports_logprobs == supports_logprobs]
+
+    if reasoning_model is not None:
+        results = [m for m in results if m.reasoning_model == reasoning_model]
+
+    if min_input_cost is not None:
+        results = [
+            m
+            for m in results
+            if m.input_cost is not None and m.input_cost >= min_input_cost
+        ]
+
+    if max_input_cost is not None:
+        results = [
+            m
+            for m in results
+            if m.input_cost is not None and m.input_cost <= max_input_cost
+        ]
+
+    if min_output_cost is not None:
+        results = [
+            m
+            for m in results
+            if m.output_cost is not None and m.output_cost >= min_output_cost
+        ]
+
+    if max_output_cost is not None:
+        results = [
+            m
+            for m in results
+            if m.output_cost is not None and m.output_cost <= max_output_cost
+        ]
+
+    if name_contains is not None:
+        name_lower = name_contains.lower()
+        results = [m for m in results if name_lower in m.id.lower()]
+
+    if sort_by is not None:
+        reverse = sort_by.startswith("-")
+        field = sort_by.lstrip("-")
+        if field == "input_cost":
+            results = [m for m in results if m.input_cost is not None]
+            results.sort(key=lambda m: m.input_cost or 0, reverse=reverse)
+        elif field == "output_cost":
+            results = [m for m in results if m.output_cost is not None]
+            results.sort(key=lambda m: m.output_cost or 0, reverse=reverse)
+
+    if limit is not None:
+        results = results[:limit]
+
+    return results

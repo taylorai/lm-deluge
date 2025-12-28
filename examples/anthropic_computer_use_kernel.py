@@ -31,8 +31,7 @@ from pathlib import Path
 import dotenv
 
 from lm_deluge import Conversation, LLMClient
-from lm_deluge.image import Image
-from lm_deluge.prompt import Message, ToolResult
+from lm_deluge.prompt import Message, ToolResult, Image
 from lm_deluge.tool.builtin.anthropic import get_anthropic_cu_tools
 from lm_deluge.tool.cua import (
     AsyncKernelBrowser,
@@ -148,7 +147,7 @@ Be precise with coordinates - click in the center of buttons and links.
 
 Start by taking a screenshot to see the current browser state, then proceed with the task."""
 
-        conversation = Conversation.system(system_prompt)
+        conversation = Conversation().system(system_prompt)
         conversation.add(Message.user(initial_prompt))
 
         turn = 0

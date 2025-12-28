@@ -17,6 +17,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -627,14 +628,15 @@ class SeatbeltSandbox:
         if not run_in_background:
             # Synchronous execution
             try:
+                run_func = partial(
+                    subprocess.run,
+                    sandboxed_args,
+                    cwd=str(self.working_dir),
+                    capture_output=True,
+                    timeout=timeout_seconds,
+                )
                 result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        subprocess.run,
-                        sandboxed_args,
-                        cwd=str(self.working_dir),
-                        capture_output=True,
-                        timeout=timeout_seconds,
-                    ),
+                    asyncio.to_thread(run_func),
                     timeout=timeout_seconds + 5 if timeout_seconds else None,
                 )
 
