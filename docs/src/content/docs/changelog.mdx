@@ -5,6 +5,17 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.91 · 2025-12-28
+
+- CLI overhaul: installable `deluge` and `deluge-server` entrypoints with `list`, `run`, and `agent` subcommands, model filtering, JSON output, stdin/file inputs, image prompts, and MCP/prefab-enabled agent loops.
+- Model registry now tracks provider + `supports_images` metadata and exposes `find_models()` for filtering/sorting by capabilities and cost.
+- OpenRouter catalog expanded with NVIDIA Nemotron 3 Nano 30B (free/paid), Nemotron Nano 12B v2 VL (free/paid vision), Mistral Devstral 2 (free/paid), Xiaomi Mimo V2 Flash (free), AllenAI OLMo 3.1 32B Think (free), and a Trinity Mini free SKU. Removed retired Anthropic models.
+- Prompt refactor: `Conversation.system`/`user` are now instance methods (use `Conversation().system(...).user(...)`), added `Conversation.ai`, and prompt primitives (`File`, `Image`, etc.) live under `lm_deluge.prompt` with top-level re-exports; `RequestContext` moved to `lm_deluge.api_requests.context`.
+- MCP tooling adds `MCPServer.from_mcp_config` for Claude Desktop config parsing, and `MCPServer` is now exported at the top level.
+- Dependencies trimmed: removed numpy/pandas; embedding `stack_results()` now returns Python lists only; logprob utilities use `math`.
+- Config cleanup: dropped `SamplingParams.to_vllm` and `ComputerUseParams`.
+- Docs and repo hygiene: added proxy server docs + nav entry, refreshed README/examples for the new Conversation builder, added lint helper scripts (banned strings/weird spaces/max lines).
+
 ## 0.0.90 · 2025-12-26
 
 - Proxy server adds configurable model policy (allowlists, defaults, alias routes) with CLI/config support, optional request/provider logging, forwarded `anthropic-beta` headers, and richer Anthropic request support (thinking config, expanded content blocks).
