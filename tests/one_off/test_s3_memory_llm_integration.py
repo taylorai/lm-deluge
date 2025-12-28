@@ -44,7 +44,7 @@ async def test_llm_adds_and_retrieves_memories():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to memory tools. "
             "Please save two memories: "
             "1. 'User prefers dark mode' with content explaining they like dark themes in all apps "
@@ -99,7 +99,7 @@ async def test_llm_searches_and_reads():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to memory tools. "
             "Search for information about 'API' and tell me what you find. "
             "Read the full memory content and summarize it."
@@ -139,7 +139,7 @@ async def test_llm_updates_memory():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to memory tools. "
             "Search for 'project status', then update that memory to say "
             "the project is now in the development phase and 50% complete. "
@@ -181,7 +181,7 @@ async def test_llm_deletes_memory():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to memory tools. "
             "Search for all memories, then delete the one that says it should be deleted or is outdated. "
             "Confirm what you deleted."
@@ -220,7 +220,7 @@ async def test_llm_multi_session_persistence():
         manager1 = S3MemoryManager(bucket=bucket, key=key)
         tools1 = manager1.get_tools()
 
-        conv1 = Conversation.user(
+        conv1 = Conversation().user(
             "You have access to memory tools. "
             "Save a memory with description 'Secret code' and content 'The secret code is BLUE42'."
         )
@@ -233,7 +233,7 @@ async def test_llm_multi_session_persistence():
         manager2 = S3MemoryManager(bucket=bucket, key=key)  # Fresh instance
         tools2 = manager2.get_tools()
 
-        conv2 = Conversation.user(
+        conv2 = Conversation().user(
             "You have access to memory tools. "
             "Search for 'secret' and tell me what the secret code is."
         )

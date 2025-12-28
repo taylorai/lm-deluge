@@ -53,7 +53,7 @@ async def _run_process_prompts_flow():
             usage=None,
         )
 
-    prompts = [Conversation.user(f"hello {i}") for i in range(3)]
+    prompts = [Conversation().user(f"hello {i}") for i in range(3)]
 
     with patch(
         "lm_deluge.api_requests.openai.OpenAIRequest.execute_once", mock_execute_once
@@ -120,7 +120,7 @@ async def _run_start_nowait_flow():
     ):
         # Queue a few tasks immediately
         for i in range(3):
-            ids.append(client.start_nowait(Conversation.user(f"nowait {i}")))
+            ids.append(client.start_nowait(Conversation().user(f"nowait {i}")))
 
         start = time.time()
         # Consume as they complete

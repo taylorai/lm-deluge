@@ -43,7 +43,7 @@ async def basic_mcp_example():
     Search for recent information about solar panel efficiency improvements.
     """
 
-    conversation = Conversation.user(prompt)
+    conversation = Conversation().user(prompt)
 
     # Let the model use MCP tools
     for round_num in range(3):  # Allow multiple tool calls

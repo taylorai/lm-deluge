@@ -12,7 +12,7 @@ Constructing prompts for modern LLM APIs means juggling arrays of messages, mult
 from lm_deluge import Conversation, Message
 
 conv = (
-    Conversation.system("You are a helpful assistant.")
+    Conversation().system("You are a helpful assistant.")
     .add(Message.user("List 3 science facts."))
     .add(Message.ai("1. Water expands when it freezes..."))
     .add(Message.user("Now explain fact 2 in more detail."))
@@ -34,7 +34,7 @@ msg = (
     .with_image("https://example.com/chart-B.png")
     .with_file("/tmp/data.pdf")
 )
-conv = Conversation.system("You are a quant analyst.").add(msg)
+conv = Conversation().system("You are a quant analyst.").add(msg)
 ```
 
 See [Working with Images](/core/conversations/images/) and [Working with Files](/core/conversations/files/) for multimodal details.
@@ -57,7 +57,7 @@ tool_result = Message("tool", []).with_tool_result(
     result="{\"temperature\": \"63F\"}",
 )
 
-conv = Conversation.system("You are helpful.")
+conv = Conversation().system("You are helpful.")
 conv.with_message(assistant_msg).with_message(tool_result)
 ```
 
@@ -83,7 +83,7 @@ print(f"Estimated tokens (prompt + completion): {tokens}")
 
 ## Reusable Conversations
 
-The `Conversation.user()` constructor accepts optional `image=` and `file=` parameters, so you can create templated conversations with multimodal context. Conversations are mutable; clone them with `copy.deepcopy()` if you want to keep a pristine version after adding responses or tool outputs.
+The `Conversation().user()` constructor accepts optional `image=` and `file=` parameters, so you can create templated conversations with multimodal context. Conversations are mutable; clone them with `copy.deepcopy()` if you want to keep a pristine version after adding responses or tool outputs.
 
 ## Next Steps
 

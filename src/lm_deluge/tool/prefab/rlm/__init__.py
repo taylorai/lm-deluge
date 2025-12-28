@@ -77,7 +77,7 @@ class RLMManager:
         ...     client=LLMClient("gpt-4.1-mini"),  # For lm() calls
         ... )
         >>> main_client = LLMClient("gpt-4.1")
-        >>> conv = Conversation.system(manager.get_system_prompt())
+        >>> conv = Conversation().system(manager.get_system_prompt())
         >>> conv = conv.user("What are the main themes in this document?")
         >>> conv, resp = await main_client.run_agent_loop(
         ...     conv,
@@ -252,7 +252,7 @@ class RLMPipeline:
         )
 
         # Build conversation with system prompt and question
-        conv = Conversation.system(manager.get_system_prompt())
+        conv = Conversation().system(manager.get_system_prompt())
         conv = conv.user(
             f"Question to answer about the context:\n\n{self.question}\n\n"
             "Use the execute tool to analyze the context and find the answer. "

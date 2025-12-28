@@ -1671,7 +1671,7 @@ Read(src/lm_deluge/api_requests/base.py)…
           client.process_prompts_async(
              c(
           19              [
-          20                  Conversation.system("You
+          20                  Conversation().system("You
           are a helpful assistant").add(
              helpful assistant").add(
           21
@@ -1738,7 +1738,7 @@ Read(src/lm_deluge/api_requests/base.py)…
              async(
           42                  [
           43
-          Conversation.system("You ar
+          Conversation().system("You ar
              e a helpful assistant").add(
           44
           Message.user().add_text

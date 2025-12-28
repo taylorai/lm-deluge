@@ -21,7 +21,7 @@ from lm_deluge import LLMClient, Conversation
 client = LLMClient(model="claude-4.5-sonnet")
 
 # Create conversation with a file
-conversation = Conversation.user(
+conversation = Conversation().user(
     "Please summarize the key points in this document.",
     file="./documents/report.pdf"
 )
@@ -73,7 +73,7 @@ msg.parts.append(file1)
 # From URL
 file = File("https://example.com/document.pdf")
 
-conversation = Conversation.user("Analyze this document:", file=file)
+conversation = Conversation().user("Analyze this document:", file=file)
 ```
 
 ### 3. Raw Bytes

@@ -48,7 +48,7 @@ async def main():
         print("Asking LLM to write a poem to a markdown file...")
         print()
 
-        conv = Conversation.user(
+        conv = Conversation().user(
             "Write a short haiku about coding and save it to poem.md. "
             "Then read back the file to confirm it was saved."
         )
@@ -86,7 +86,7 @@ async def main():
         # Verify the sandbox blocked reading outside workspace
         print("Verifying sandbox restrictions...")
 
-        conv2 = Conversation.user(
+        conv2 = Conversation().user(
             "Try to read /Users/benjamin/.zshrc and tell me what happened."
         )
 

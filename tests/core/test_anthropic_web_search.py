@@ -55,7 +55,7 @@ async def test_web_search_single():
     """Test Anthropic's built-in web search tool with a single agent loop."""
     client = LLMClient("claude-4-sonnet")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "What is the current weather in San Francisco? "
         "Use web search to find the answer and give me a brief summary."
     )
@@ -94,10 +94,10 @@ async def test_web_search_batch():
     client = LLMClient("claude-4-sonnet")
 
     prompts = [
-        Conversation.user(
+        Conversation().user(
             "What is the population of Tokyo? Use web search to find the current estimate."
         ),
-        Conversation.user(
+        Conversation().user(
             "Who won the most recent Super Bowl? Use web search to find out."
         ),
     ]
@@ -140,7 +140,7 @@ async def test_web_search_with_domain_filter():
     """Test web search with domain filtering."""
     client = LLMClient("claude-4-sonnet")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Search for information about Python programming language. "
         "Use web search to find official documentation."
     )

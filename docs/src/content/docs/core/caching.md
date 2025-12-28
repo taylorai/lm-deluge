@@ -65,7 +65,7 @@ Anthropic models support server-side prompt caching, which reduces costs and lat
 from lm_deluge import LLMClient, Conversation, Message
 
 conv = (
-    Conversation.system("You are an expert Python developer with deep knowledge of async programming.")
+    Conversation().system("You are an expert Python developer with deep knowledge of async programming.")
     .add(Message.user("How do I use asyncio.gather?"))
 )
 

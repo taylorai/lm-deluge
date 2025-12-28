@@ -25,7 +25,7 @@ async def test_execute_once_real():
     context = RequestContext(
         task_id=0,
         model_name="gpt-4o-mini",
-        prompt=Conversation.user("Say 'hello'"),
+        prompt=Conversation().user("Say 'hello'"),
         sampling_params=SamplingParams(max_new_tokens=10),
         attempts_left=3,
         status_tracker=tracker,

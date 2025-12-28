@@ -43,7 +43,7 @@ def main():
         score = matches / len(TARGET_KEYWORDS)
 
         # Build a minimal conversation (required by EvalResult)
-        conv = Conversation.system(prompt)
+        conv = Conversation().system(prompt)
         conv = conv.add(Message.user(example["question"]))
         conv = conv.add(
             Message.ai(f"[Keyword score: {matches}/{len(TARGET_KEYWORDS)}]")

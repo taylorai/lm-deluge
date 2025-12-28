@@ -32,7 +32,7 @@ async def test_web_search_with_llm():
 
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the web_search tool to search for 'Python programming language official website'. "
         "Then use the web_fetch tool to fetch the contents of python.org. "
         "Tell me what you found in both steps."

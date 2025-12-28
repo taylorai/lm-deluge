@@ -8,7 +8,7 @@ Images are first-class citizens in LM Deluge. `Message.with_image()` accepts loc
 ```python
 from lm_deluge import Conversation, Message, LLMClient
 
-prompt = Conversation.system("You are a vision assistant.").add(
+prompt = Conversation().system("You are a vision assistant.").add(
     Message.user("What is happening in this photo?").with_image("tests/data/dog.jpg")
 )
 
@@ -24,7 +24,7 @@ print(client.process_prompts_sync([prompt])[0].completion)
 - **Base64 data URL**: e.g. `data:image/png;base64,iVBORw0...`
 - **`Image` instances**: construct `Image(data, media_type, detail)` for full control and reuse.
 
-`Message.user()` also exposes `image=` so you can attach an image alongside the text body: `Conversation.user("Describe this.", image="/tmp/pic.png")`.
+`Message.user()` also exposes `image=` so you can attach an image alongside the text body: `Conversation().user("Describe this.", image="/tmp/pic.png")`.
 
 ## Multiple Images
 
@@ -57,10 +57,10 @@ The underlying `Image` object exposes a `resize(max_size)` method and caches its
 Use `Image.from_pdf()` to convert each PDF page into a JPEG `Image`:
 
 ```python
-from lm_deluge.image import Image
+from lm_deluge.prompt import Image
 
 pages = Image.from_pdf("reports/q4.pdf", target_size=1024)
-conv = Conversation.user("Summarize the figures on the first page.")
+conv = Conversation().user("Summarize the figures on the first page.")
 conv.messages[0].with_image(pages[0])
 ```
 

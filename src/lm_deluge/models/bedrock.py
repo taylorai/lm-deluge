@@ -16,6 +16,7 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 0.25,
         "output_cost": 1.25,
+        "supports_images": True,
     },
     "claude-3.5-haiku-bedrock": {
         "id": "claude-3.5-haiku-bedrock",
@@ -26,6 +27,7 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 0.25,
         "output_cost": 1.25,
+        "supports_images": True,
     },
     "claude-3.5-sonnet-bedrock": {
         "id": "claude-3.5-sonnet-bedrock",
@@ -37,6 +39,7 @@ BEDROCK_MODELS = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "claude-3.6-sonnet-bedrock": {
         "id": "claude-3.6-sonnet-bedrock",
@@ -48,6 +51,7 @@ BEDROCK_MODELS = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "claude-3.7-sonnet-bedrock": {
         "id": "claude-3.7-sonnet-bedrock",
@@ -59,6 +63,7 @@ BEDROCK_MODELS = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "claude-4-sonnet-bedrock": {
         "id": "claude-4-sonnet-bedrock",
@@ -70,6 +75,7 @@ BEDROCK_MODELS = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "claude-4-opus-bedrock": {
         "id": "claude-4-opus-bedrock",
@@ -81,6 +87,7 @@ BEDROCK_MODELS = {
         "input_cost": 3.0,
         "output_cost": 15.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     # GPT-OSS on AWS Bedrock
     "gpt-oss-120b-bedrock": {
@@ -96,6 +103,7 @@ BEDROCK_MODELS = {
         "supports_logprobs": False,
         "supports_responses": False,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "gpt-oss-20b-bedrock": {
         "id": "gpt-oss-20b-bedrock",
@@ -110,5 +118,6 @@ BEDROCK_MODELS = {
         "supports_logprobs": False,
         "supports_responses": False,
         "reasoning_model": False,
+        "supports_images": True,
     },
 }

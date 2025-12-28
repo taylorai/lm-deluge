@@ -18,6 +18,7 @@ XAI_MODELS = {
         "input_cost": 0.2,
         "output_cost": 1.5,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "grok-4.1-fast": {
         "id": "grok-4.1-fast",
@@ -30,6 +31,7 @@ XAI_MODELS = {
         "input_cost": 0.2,
         "output_cost": 1.5,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "grok-code-fast-1": {
         "id": "grok-code-fast-1",
@@ -54,6 +56,7 @@ XAI_MODELS = {
         "input_cost": 0.2,
         "output_cost": 0.5,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "grok-4-fast-non-reasoning": {
         "id": "grok-4-fast-non-reasoning",
@@ -66,6 +69,7 @@ XAI_MODELS = {
         "input_cost": 0.2,
         "output_cost": 0.5,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "grok-4": {
         "id": "grok-4",

@@ -27,7 +27,7 @@ hash_tool = Tool.from_function(hash_string)
 
 async def simple_agent_loop():
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Reverse each of the following strings using the reverse string tool. "
         "Then, return all of the reversed strings in your final message. "
         "\n - 'YBCNOVPTK'"
@@ -52,7 +52,7 @@ async def simple_agent_loop():
 
 async def sequential_agent_loop():
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Apply the hash function to the input string 3 times, e.g. "
         "hash(hash(hash(input))), and then return the result. "
         "You'll have to do it sequentially as each call depends "
@@ -81,7 +81,7 @@ async def mcp_agent_loop():
     server = MCPServer(
         name="exa", url=f"https://mcp.exa.ai/mcp?exaApiKey={EXA_API_KEY}"
     )
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use Exa to search for the following 3 queries:"
         "\n - best restaurant in san francisco"
         "\n - what to do in Prague"
@@ -122,7 +122,7 @@ async def fulltext_search_mcp_agent():
             "headers": None,
         }
     )
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Search the California building codes for information about "
         "green building standards and summarize the results."
     )
@@ -154,7 +154,7 @@ async def pdf_search_mcp_agent():
 
     for tool in tool_specs:
         print(json.dumps(tool.for_openai(), indent=4))
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Search the provided plans to identify the site plan drawing, making sure to include images. "
         "Then describe the drawings visually."
     )
@@ -174,7 +174,7 @@ async def test_agent_loop_nowait():
     client = LLMClient("gpt-4.1-mini")
 
     # Test with simple agent loop
-    conv1 = Conversation.user(
+    conv1 = Conversation().user(
         "Reverse each of the following strings using the reverse string tool. "
         "Then, return all of the reversed strings in your final message. "
         "\n - 'HELLO'"
@@ -185,7 +185,7 @@ async def test_agent_loop_nowait():
     task_id = client.start_agent_loop_nowait(conv1, tools=[reverse_tool])
 
     # Can start other tasks while the first is running
-    conv2 = Conversation.user(
+    conv2 = Conversation().user(
         "Use the hash tool to hash the string 'TEST' and return the result."
     )
     task_id2 = client.start_agent_loop_nowait(conv2, tools=[hash_tool])
@@ -214,7 +214,7 @@ async def test_parallel_agent_loops():
     # Start multiple agent loops
     task_ids = []
     for i in range(3):
-        conv = Conversation.user(
+        conv = Conversation().user(
             f"Use the hash tool to hash the string 'INPUT{i}' and return just the hash."
         )
         task_id = client.start_agent_loop_nowait(conv, tools=[hash_tool])

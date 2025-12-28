@@ -12,7 +12,7 @@ from lm_deluge import LLMClient, Conversation, Message
 
 async def chat_loop():
     # Initialize the conversation with a system message
-    conversation = Conversation.system("You are a helpful assistant.")
+    conversation = Conversation().system("You are a helpful assistant.")
 
     # Create a client with your preferred model
     client = LLMClient("gpt-4o-mini")  # or any other supported model
@@ -72,7 +72,7 @@ from lm_deluge import LLMClient, Conversation, Message
 
 async def enhanced_chat_loop():
     # Initialize conversation
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are a helpful assistant. Keep your responses concise and helpful."
     )
 
@@ -116,7 +116,7 @@ async def enhanced_chat_loop():
                 continue
 
             elif user_input.lower() == 'clear':
-                conversation = Conversation.system(
+                conversation = Conversation().system(
                     "You are a helpful assistant. Keep your responses concise and helpful."
                 )
                 print("🗑️  Conversation history cleared!")

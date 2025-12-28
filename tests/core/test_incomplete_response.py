@@ -36,7 +36,7 @@ async def test_incomplete_response_handling():
     # Create request context
     context = RequestContext(
         model_name="gpt-4.1-mini",
-        prompt=Conversation.user("test"),
+        prompt=Conversation().user("test"),
         sampling_params=SamplingParams(),
         task_id=1,
         status_tracker=StatusTracker(
@@ -98,7 +98,7 @@ async def test_complete_response_handling():
     # Create request context
     context = RequestContext(
         model_name="gpt-4.1-mini",
-        prompt=Conversation.user("test"),
+        prompt=Conversation().user("test"),
         sampling_params=SamplingParams(),
         task_id=1,
         status_tracker=StatusTracker(

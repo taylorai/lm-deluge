@@ -57,7 +57,7 @@ async def test_otc_math_composition_live():
 
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Call the compose tool with the code needed to solve the problem. "
         "You MUST use the compose tool to compose tool calls to solve the problem, "
         "even if it's easy. After you get the result, report it back.\n"

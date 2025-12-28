@@ -39,7 +39,7 @@ async def main():
     ]
 
     client = LLMClient("gpt-4o-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Search for the population of Tokyo, then calculate what 10% of that number is"
     )
 
@@ -68,7 +68,7 @@ async def process_multiple_queries(queries: list[str]):
     # Start all agent loops without waiting
     task_ids = []
     for query in queries:
-        conv = Conversation.user(query)
+        conv = Conversation().user(query)
         task_id = client.start_agent_loop_nowait(conv, tools=tools)
         task_ids.append(task_id)
 
@@ -111,7 +111,7 @@ async def main():
     manager = SubAgentManager(client=subagent_client, tools=research_tools)
 
     main_client = LLMClient("gpt-4o")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Research three rival products. Start a subagent per product, use check_subagent to poll, "
         "then wait_for_subagent once you have all the data, and summarize everything."
     )
@@ -185,7 +185,7 @@ def send_email(email: str, message: str) -> str:
 # The agent will:
 # 1. Call get_user_info("123") to get the email
 # 2. Call send_email(email, message) with the result
-conv = Conversation.user("Send a welcome email to user 123")
+conv = Conversation().user("Send a welcome email to user 123")
 conv, resp = await client.run_agent_loop(conv, tools=tools)
 ```
 
@@ -198,7 +198,7 @@ Many models can call multiple tools in a single turn:
 # - get_weather("London")
 # - get_weather("Paris")
 # Then use both results to compare
-conv = Conversation.user("Compare the weather in London and Paris")
+conv = Conversation().user("Compare the weather in London and Paris")
 conv, resp = await client.run_agent_loop(conv, tools=[weather_tool])
 ```
 
@@ -214,7 +214,7 @@ def divide(a: float, b: float) -> str:
     return str(a / b)
 
 # The agent sees the error and can try a different approach
-conv = Conversation.user("What is 10 divided by 0?")
+conv = Conversation().user("What is 10 divided by 0?")
 conv, resp = await client.run_agent_loop(conv, tools=[Tool.from_function(divide)])
 # Model will explain that division by zero is undefined
 ```
@@ -236,7 +236,7 @@ async def main():
     )
 
     client = LLMClient("gpt-4o-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Create a file called notes.txt with a list of 5 project ideas"
     )
 

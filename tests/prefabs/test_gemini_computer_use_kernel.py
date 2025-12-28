@@ -71,7 +71,7 @@ async def browse_and_report_gemini(
         _ = base64.b64encode(initial_screenshot["screenshot"]["content"]).decode()
 
         # Build conversation with initial screenshot
-        conversation = Conversation.system(
+        conversation = Conversation().system(
             "You are controlling a web browser. Use the computer use functions to navigate."
         )
         conversation.add(
@@ -81,7 +81,7 @@ async def browse_and_report_gemini(
             )
         )
         # Add initial screenshot as image
-        from lm_deluge.image import Image
+        from lm_deluge.prompt import Image
 
         conversation.messages[-1].parts.append(
             Image(

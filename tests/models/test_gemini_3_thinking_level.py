@@ -9,7 +9,7 @@ from lm_deluge.prompt import Conversation
 def test_gemini_3_thinking_level_high():
     """Gemini 3 should use thinkingLevel=high for reasoning_effort=high."""
     model = APIModel.from_registry("gemini-3-pro-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -28,7 +28,7 @@ def test_gemini_3_thinking_level_high():
 def test_gemini_3_thinking_level_low():
     """Gemini 3 should use thinkingLevel=low for reasoning_effort=low/minimal."""
     model = APIModel.from_registry("gemini-3-pro-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
 
     # Test low
     request = asyncio.run(
@@ -60,7 +60,7 @@ def test_gemini_3_thinking_level_low():
 def test_gemini_3_thinking_level_medium():
     """Gemini 3 should map medium effort to high until medium is supported."""
     model = APIModel.from_registry("gemini-3-pro-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -77,7 +77,7 @@ def test_gemini_3_thinking_level_medium():
 def test_gemini_3_thinking_level_none():
     """Gemini 3 should use thinkingLevel=low for reasoning_effort='none'."""
     model = APIModel.from_registry("gemini-3-pro-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -94,7 +94,7 @@ def test_gemini_3_thinking_level_none():
 def test_gemini_3_default_thinking_level():
     """Gemini 3 should default to low thinking level when reasoning_effort is None."""
     model = APIModel.from_registry("gemini-3-pro-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -111,7 +111,7 @@ def test_gemini_3_default_thinking_level():
 def test_gemini_25_still_uses_thinking_budget():
     """Gemini 2.5 models should still use thinkingBudget (legacy behavior)."""
     model = APIModel.from_registry("gemini-2.5-pro")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -131,7 +131,7 @@ def test_gemini_25_still_uses_thinking_budget():
 def test_gemini_3_flash_thinking_level_minimal():
     """Gemini 3 Flash should support thinkingLevel=minimal directly."""
     model = APIModel.from_registry("gemini-3-flash-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -148,7 +148,7 @@ def test_gemini_3_flash_thinking_level_minimal():
 def test_gemini_3_flash_thinking_level_medium():
     """Gemini 3 Flash should support thinkingLevel=medium directly."""
     model = APIModel.from_registry("gemini-3-flash-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -165,7 +165,7 @@ def test_gemini_3_flash_thinking_level_medium():
 def test_gemini_3_flash_thinking_level_low():
     """Gemini 3 Flash should use thinkingLevel=low for reasoning_effort=low."""
     model = APIModel.from_registry("gemini-3-flash-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,
@@ -182,7 +182,7 @@ def test_gemini_3_flash_thinking_level_low():
 def test_gemini_3_flash_thinking_level_high():
     """Gemini 3 Flash should use thinkingLevel=high for reasoning_effort=high."""
     model = APIModel.from_registry("gemini-3-flash-preview")
-    convo = Conversation.user("Hello")
+    convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
             model,

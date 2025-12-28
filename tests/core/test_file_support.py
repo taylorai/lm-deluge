@@ -14,7 +14,7 @@ def test_file_openai_integration():
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<<>>\nstartxref\n9\n%%EOF"
 
     # Create conversation with file
-    conv = Conversation.user("What's in this PDF?", file=pdf_bytes)
+    conv = Conversation().user("What's in this PDF?", file=pdf_bytes)
 
     # Convert to OpenAI format
     openai_messages = conv.to_openai()
@@ -43,7 +43,7 @@ def test_file_openai_responses_integration():
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<<>>\nstartxref\n9\n%%EOF"
 
     # Create conversation with file
-    conv = Conversation.user("What's in this PDF?", file=pdf_bytes)
+    conv = Conversation().user("What's in this PDF?", file=pdf_bytes)
 
     # Convert to OpenAI Responses format
     openai_responses = conv.to_openai_responses()
@@ -73,7 +73,7 @@ def test_file_anthropic_integration():
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<<>>\nstartxref\n9\n%%EOF"
 
     # Create conversation with file
-    conv = Conversation.user("What's in this PDF?", file=pdf_bytes)
+    conv = Conversation().user("What's in this PDF?", file=pdf_bytes)
 
     # Convert to Anthropic format
     system_msg, messages = conv.to_anthropic()
@@ -291,7 +291,7 @@ def test_conversation_with_files():
     pdf_bytes = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\nxref\n0 1\n0000000000 65535 f \ntrailer\n<<>>\nstartxref\n9\n%%EOF"
 
     # Test conversation factory method with file
-    conv = Conversation.user("Analyze this document", file=pdf_bytes)
+    conv = Conversation().user("Analyze this document", file=pdf_bytes)
     assert len(conv.messages) == 1
     assert len(conv.messages[0].parts) == 2
     assert isinstance(conv.messages[0].parts[1], File)

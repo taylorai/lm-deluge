@@ -45,7 +45,7 @@ async def test_llm_creates_and_reads_file():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to a filesystem tool. "
             "Please create a file called 'hello.txt' with the content 'Hello from Claude!' "
             "Then read the file back to confirm it was created correctly. "
@@ -90,7 +90,7 @@ async def test_llm_organizes_files():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to a filesystem tool. "
             "First, list the files in the root directory to see what's there. "
             "Then create an organized directory structure by: "
@@ -148,7 +148,7 @@ async def test_llm_searches_files():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to a filesystem tool. "
             "Search for all TODO comments in the project directory and tell me what needs to be done. "
             "Use the grep command with pattern 'TODO'."
@@ -190,7 +190,7 @@ async def test_llm_edits_file():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to a filesystem tool. "
             "Read the config.json file, then update it to set debug to true and increase max_retries to 5. "
             "Write the updated config back to the file, then read it again to confirm the changes."
@@ -228,7 +228,7 @@ async def test_llm_handles_errors():
     client = LLMClient("claude-4-sonnet")
 
     try:
-        conv = Conversation.user(
+        conv = Conversation().user(
             "You have access to a filesystem tool. "
             "Try to read a file called 'nonexistent.txt'. "
             "Report what happens and how you would handle this situation."

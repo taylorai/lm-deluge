@@ -12,7 +12,7 @@ def test_anthropic_thinking_budget_overrides_effort():
     """thinking_budget should take priority over reasoning_effort for Anthropic reasoning models."""
     os.environ.pop("WARN_THINKING_BUDGET_AND_REASONING_EFFORT", None)
     model = APIModel.from_registry("claude-4.1-opus")
-    prompt = Conversation.user("Hello")
+    prompt = Conversation().user("Hello")
     context = RequestContext(
         task_id=1,
         model_name=model.id,
@@ -39,7 +39,7 @@ def test_anthropic_thinking_budget_overrides_effort():
 def test_claude_45_opus_includes_effort_beta():
     """claude-4.5-opus should send effort parameter and beta header."""
     model = APIModel.from_registry("claude-4.5-opus")
-    prompt = Conversation.user("Ping")
+    prompt = Conversation().user("Ping")
     context = RequestContext(
         task_id=2,
         model_name=model.id,

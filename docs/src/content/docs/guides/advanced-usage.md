@@ -15,7 +15,7 @@ from lm_deluge import Conversation, LLMClient
 
 async def stream_once():
     client = LLMClient("gpt-4.1-mini")
-    final = await client.stream(Conversation.user("Count to five"))
+    final = await client.stream(Conversation().user("Count to five"))
     print("\nFinal response:", final.completion)
 
 asyncio.run(stream_once())
@@ -34,7 +34,7 @@ from lm_deluge import Conversation, LLMClient
 async def fan_out(prompts):
     client = LLMClient("claude-4.5-sonnet", name="batch-job")
     client.open(total=len(prompts))
-    task_ids = [client.start_nowait(Conversation.user(p)) for p in prompts]
+    task_ids = [client.start_nowait(Conversation().user(p)) for p in prompts]
 
     async for task_id, response in client.as_completed(task_ids):
         print(task_id, response.completion)
@@ -57,7 +57,7 @@ from lm_deluge import Conversation, LLMClient
 async def submit_batch(prompts):
     client = LLMClient("gpt-4.1-mini")
     batch_ids = await client.submit_batch_job(
-        [Conversation.user(p) for p in prompts],
+        [Conversation().user(p) for p in prompts],
         batch_size=10_000,
     )
     await client.wait_for_batch_job(batch_ids, provider="openai")

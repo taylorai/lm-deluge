@@ -20,7 +20,7 @@ def test_async_start_and_wait():
 
         ids: list[int] = []
         for i in range(3):
-            prompt = Conversation.user(f"hello there, number {i}!")
+            prompt = Conversation().user(f"hello there, number {i}!")
             task_id = client.start_nowait(prompt)
             ids.append(task_id)
 
@@ -35,7 +35,7 @@ def test_async_start_and_wait():
         print("✅ Queued and waited for all completions")
 
         # start that waits immediately
-        prompt = Conversation.user("new")
+        prompt = Conversation().user("new")
         res = await client.start(prompt)
         assert res and res.completion
         print("✅ Queued and waited for single blocking completion")
@@ -64,7 +64,7 @@ def test_async_as_completed():
 
         ids: list[int] = []
         for i in range(3):
-            prompt = Conversation.user(f"hello as_completed {i}")
+            prompt = Conversation().user(f"hello as_completed {i}")
             ids.append(client.start_nowait(prompt))
 
         seen: set[int] = set()

@@ -40,7 +40,7 @@ async def test_basic_subagent():
 
     # Create main agent with manager tools
     main_client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Calculate (5 + 3) * 2. Use a subagent to do the calculation."
     )
 
@@ -75,7 +75,7 @@ async def test_multiple_subagents():
     )
 
     main_client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "I need you to calculate three things using subagents:\n"
         "1. What is 10 + 20?\n"
         "2. What is 5 * 6?\n"
@@ -112,7 +112,7 @@ async def test_subagent_with_check():
     )
 
     main_client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Start a subagent to calculate 100 + 200. "
         "Then check its status. "
         "If it's done, report the result. "

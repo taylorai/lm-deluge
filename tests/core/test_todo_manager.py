@@ -15,7 +15,7 @@ async def test_todo_manager_creates_list():
     manager = TodoManager()
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "You are in a live integration test. Manage the todo list using ONLY the "
         "todowrite and todoread tools and follow these exact steps:\n"
         "1. Call todowrite to create THREE todos using these exact names and priorities:\n"
@@ -67,7 +67,7 @@ async def test_todo_manager_handles_existing_state():
     manager = TodoManager(initial_todos)
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Continue managing the existing todo list using the todowrite and todoread tools. "
         "Follow these instructions precisely:\n"
         "1. Call todoread right away to inspect the current todos.\n"

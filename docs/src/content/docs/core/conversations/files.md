@@ -10,8 +10,8 @@ Use the `File` helper when you need to attach long documents, audio, or other bi
 ```python
 from lm_deluge import Conversation, File, Message
 
-conv = Conversation.system("You are a forensic accountant.").add(
-    Conversation.user(
+conv = Conversation().system("You are a forensic accountant.").add(
+    Conversation().user(
         "Summarize the anomalies in this report",
         file="reports/q1.pdf",
     )
@@ -24,7 +24,7 @@ message = Message.user("Analyze this report").with_file(file)
 
 - Pass local paths, URLs, byte buffers, or base64 data URLs to `File(data, media_type=None, filename=None)`.
 - `Message.with_file()` appends the file to the message and returns the message for chaining.
-- `Conversation.user(text, file=...)` is a shortcut for the common “text + file” pattern.
+- `Conversation().user(text, file=...)` is a shortcut for the common “text + file” pattern.
 
 ## Remote Files and Upload APIs
 

@@ -72,7 +72,7 @@ async def browse_and_report_openai(
         )
 
         # Build conversation - OpenAI starts from a blank browser
-        conversation = Conversation.system(
+        conversation = Conversation().system(
             "You are controlling a web browser. The browser just started and shows an empty new tab page. "
             "You can use computer actions to navigate. "
             "To go to a URL: first take a screenshot, then type the URL, then take another screenshot to verify."

@@ -102,7 +102,7 @@ SamplingParams(
 
 `Conversation` is a dataclass that holds a list of `Message` objects and exposes helpers for building prompts:
 
-- `Conversation.system(text)` and `Conversation.user(text, image=None, file=None)` create new conversations with a single message.
+- `Conversation().system(text)` and `Conversation().user(text, image=None, file=None)` create new conversations with a single message.
 - `.add(message)` / `.with_message(message)` append new messages.
 - `.with_tool_result(tool_call_id, result)` appends tool outputs, handling parallel calls automatically.
 - `.to_openai()`, `.to_openai_responses()`, `.to_anthropic(cache_pattern=None)` emit provider-specific payloads.

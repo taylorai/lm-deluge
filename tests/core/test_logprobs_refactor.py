@@ -82,7 +82,7 @@ def test_client_logprobs_validation():
 
 async def test_api_request_uses_sampling_params_logprobs():
     """Test that API requests use logprobs from SamplingParams."""
-    prompt = Conversation.user("Hello, world!")
+    prompt = Conversation().user("Hello, world!")
     sampling_params = SamplingParams(logprobs=True, top_logprobs=5)
     status_tracker = StatusTracker(
         max_requests_per_minute=10,
@@ -122,7 +122,7 @@ def test_api_response_with_logprobs():
     response = APIResponse(
         id=1,
         model_internal="gpt-4o-mini",
-        prompt=Conversation.user("Test"),
+        prompt=Conversation().user("Test"),
         sampling_params=SamplingParams(logprobs=True, top_logprobs=3),
         status_code=200,
         is_error=False,
@@ -210,7 +210,7 @@ def test_integration_logprobs_openai():
         )
 
         # Simple prompt
-        prompt = Conversation.user("Say 'Hello world!'")
+        prompt = Conversation().user("Say 'Hello world!'")
 
         try:
             # Process the prompt

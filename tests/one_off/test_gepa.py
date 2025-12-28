@@ -255,7 +255,7 @@ def test_conversation_trajectory_record():
 
     # Trajectory includes a conversation object
     def trajectory_fn(item, output, score, candidate):
-        conv = Conversation.user(f"Q: {item['q']}")
+        conv = Conversation().user(f"Q: {item['q']}")
         conv = conv.add(Message(role="assistant", parts=[Text(f"A: {output}")]))
         return {"conversation": conv, "score": score}
 

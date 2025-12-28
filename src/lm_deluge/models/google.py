@@ -21,6 +21,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "gemini-2.0-flash-lite-compat": {
         "id": "gemini-2.0-flash-lite-compat",
@@ -33,6 +34,7 @@ GOOGLE_MODELS = {
         "input_cost": 0.075,
         "output_cost": 0.3,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "gemini-2.5-pro-compat": {
         "id": "gemini-2.5-pro-compat",
@@ -46,6 +48,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.31,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "gemini-2.5-flash-compat": {
         "id": "gemini-2.5-flash-compat",
@@ -59,6 +62,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.075,
         "output_cost": 2.5,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "gemini-2.5-flash-lite-compat": {
         "id": "gemini-2.5-flash-lite-compat",
@@ -72,6 +76,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
         "reasoning_model": True,
+        "supports_images": True,
     },
     # Native Gemini API versions with file support
     "gemini-2.0-flash": {
@@ -86,6 +91,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "gemini-2.0-flash-lite": {
         "id": "gemini-2.0-flash-lite",
@@ -98,6 +104,7 @@ GOOGLE_MODELS = {
         "input_cost": 0.075,
         "output_cost": 0.3,
         "reasoning_model": False,
+        "supports_images": True,
     },
     "gemini-2.5-pro": {
         "id": "gemini-2.5-pro",
@@ -111,6 +118,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.31,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "gemini-2.5-flash": {
         "id": "gemini-2.5-flash",
@@ -124,6 +132,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.075,
         "output_cost": 2.5,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "gemini-2.5-flash-lite": {
         "id": "gemini-2.5-flash-lite",
@@ -137,6 +146,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 0.4,
         "reasoning_model": True,
+        "supports_images": True,
     },
     # Gemini 3 models - advanced reasoning with thought signatures
     "gemini-3-pro-preview": {
@@ -152,6 +162,7 @@ GOOGLE_MODELS = {
         "output_cost": 12.0,  # <200k tokens
         # Note: >200k tokens pricing is $4/$18 per million
         "reasoning_model": True,
+        "supports_images": True,
     },
     "gemini-3-flash-preview": {
         "id": "gemini-3-flash-preview",
@@ -165,6 +176,7 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.125,  # estimated
         "output_cost": 3.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     # Gemini 2.5 Computer Use model
     "gemini-2.5-computer-use": {
@@ -179,5 +191,6 @@ GOOGLE_MODELS = {
         "cached_input_cost": 0.31,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
 }

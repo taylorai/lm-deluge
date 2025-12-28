@@ -36,7 +36,7 @@ async def test_process_single_request_success():
     context = RequestContext(
         task_id=0,
         model_name="gpt-4o-mini",
-        prompt=Conversation.user("Say 'test'"),
+        prompt=Conversation().user("Say 'test'"),
         sampling_params=SamplingParams(max_new_tokens=10),
         attempts_left=3,
         status_tracker=tracker,
@@ -67,7 +67,7 @@ async def test_process_single_request_with_cache():
     context = RequestContext(
         task_id=0,
         model_name="gpt-4o-mini",
-        prompt=Conversation.user("Say 'cached test'"),
+        prompt=Conversation().user("Say 'cached test'"),
         sampling_params=SamplingParams(max_new_tokens=10),
         attempts_left=3,
         status_tracker=tracker,
@@ -117,7 +117,7 @@ async def test_process_single_request_retry():
     context = RequestContext(
         task_id=0,
         model_name="gpt-4o-mini",
-        prompt=Conversation.user("Say 'retry test'"),
+        prompt=Conversation().user("Say 'retry test'"),
         sampling_params=SamplingParams(max_new_tokens=10),
         attempts_left=2,
         status_tracker=tracker,

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import random
 from dataclasses import dataclass
@@ -7,7 +9,6 @@ from typing import (
     Callable,
     ClassVar,
     Literal,
-    Self,
     Sequence,
     cast,
     overload,
@@ -282,7 +283,7 @@ class _LLMClient(BaseModel):
     def _get_tracker(self) -> StatusTracker:
         if self._tracker is None:
             self.open()
-            assert self._tracker, "should have tracker now"
+        assert self._tracker is not None, "should have tracker now"
         return self._tracker
 
     @property
@@ -408,7 +409,7 @@ class _LLMClient(BaseModel):
         return model_name, None
 
     @model_validator(mode="after")
-    def validate_client(self) -> Self:
+    def validate_client(self) -> _LLMClient:
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
         if any(m not in registry for m in self.model_names):

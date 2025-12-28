@@ -30,6 +30,7 @@ GROQ_MODELS = {
         "api_key_env_var": "GROQ_API_KEY",
         "supports_json": False,
         "api_spec": "openai",
+        "supports_images": True,
     },
     "llama-4-scout-groq": {
         "id": "llama-4-scout-groq",
@@ -38,6 +39,7 @@ GROQ_MODELS = {
         "api_key_env_var": "GROQ_API_KEY",
         "supports_json": False,
         "api_spec": "openai",
+        "supports_images": True,
     },
     "kimi-k2-groq": {
         "id": "kimi-k2-groq",

@@ -75,7 +75,9 @@ async def _build_oa_chat_request(
             request_json["service_tier"] = context.service_tier
     # if tinker, for now hack to mush into 1 string
     if "tinker" in model.name:
-        request_json["messages"] = _message_contents_to_string(request_json["messages"])
+        messages = request_json["messages"]
+        assert isinstance(messages, list)
+        request_json["messages"] = _message_contents_to_string(messages)
 
     # set max_tokens or max_completion_tokens dep. on provider
     if "cohere" in model.api_base:

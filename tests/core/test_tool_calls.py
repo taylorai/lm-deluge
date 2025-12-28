@@ -149,7 +149,7 @@ async def test_openai_complete_tool_execution():
 
     # Step 3: Create conversation with tool result and send back to model
     # Build the conversation history
-    conversation = Conversation.user(prompt)
+    conversation = Conversation().user(prompt)
 
     # Add the assistant's response with tool call
     assistant_msg = response.content
@@ -216,7 +216,7 @@ async def test_anthropic_complete_tool_execution():
     assert isinstance(tool_result, str), "Tool result should be a string"
 
     # Step 3: Create conversation with tool result and send back to model
-    conversation = Conversation.user(prompt)
+    conversation = Conversation().user(prompt)
 
     # Add the assistant's response with tool call
     assistant_msg = response.content
@@ -325,7 +325,7 @@ async def test_multi_turn_tool_conversation():
     client = LLMClient("gpt-4.1-mini")
 
     # Start a conversation
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "Please generate two random numbers: first between 0-10, then between 0-5"
     )
 

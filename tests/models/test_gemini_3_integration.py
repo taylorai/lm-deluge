@@ -28,7 +28,7 @@ def test_gemini_3_basic_reasoning():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "What is 17 * 23? Calculate step by step and show your reasoning."
     )
 
@@ -60,7 +60,7 @@ def test_gemini_3_thinking_levels():
         print("Skipping Gemini 3 thinking levels test - no API key")
         return
 
-    conversation = Conversation.user("What is 5 + 3?")
+    conversation = Conversation().user("What is 5 + 3?")
 
     for effort in ["low", "high"]:
         client = LLMClient(
@@ -109,7 +109,7 @@ def test_gemini_3_with_function_calling():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "What's the weather like in San Francisco? Also, what time is it in PST?"
     )
 
@@ -210,7 +210,7 @@ def test_gemini_3_json_mode():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         'Generate a JSON object with "name", "age", and "city" for a fictional person.'
     )
 
@@ -261,7 +261,7 @@ def test_gemini_3_thought_signature_preservation():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user("What is 15 * 24? Please calculate it.")
+    conversation = Conversation().user("What is 15 * 24? Please calculate it.")
 
     responses = asyncio.run(
         client.process_prompts_async([conversation], tools=[calc_tool])
@@ -302,7 +302,7 @@ def test_gemini_3_complex_reasoning():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         """A train leaves Station A at 2:00 PM traveling at 60 mph.
         Another train leaves Station B (which is 180 miles from Station A) at 3:00 PM
         traveling toward Station A at 90 mph. At what time will they meet?

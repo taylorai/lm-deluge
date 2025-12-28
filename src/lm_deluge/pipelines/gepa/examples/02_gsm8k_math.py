@@ -98,7 +98,7 @@ async def evaluate(
 ) -> EvalResult:
     """Evaluate one math problem."""
     # Build conversation
-    conv = Conversation.system(component_values["system_prompt"])
+    conv = Conversation().system(component_values["system_prompt"])
     user_msg = f"""Problem: {example["question"]}
 
 Solve this step by step, then provide your final numerical answer."""

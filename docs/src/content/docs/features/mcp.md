@@ -128,7 +128,7 @@ async def main():
     )
 
     client = LLMClient("gpt-4o-mini")
-    conv = Conversation.user("Create a file called test.txt with the content 'Hello World'")
+    conv = Conversation().user("Create a file called test.txt with the content 'Hello World'")
 
     conv, resp = await client.run_agent_loop(conv, tools=tools)
     print(resp.content.completion)

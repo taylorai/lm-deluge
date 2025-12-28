@@ -83,4 +83,4 @@ class RequestContext:
         # Update with any overrides
         current_values.update(overrides)
 
-        return RequestContext(**current_values)
+        return RequestContext(**current_values)  # type: ignore[arg-type]

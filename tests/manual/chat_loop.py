@@ -29,7 +29,7 @@ def print_usage_info(usage):
 
 async def chat_loop():
     # Initialize the conversation with a system message
-    conversation = Conversation.system(
+    conversation = Conversation().system(
         "You are a helpful AI assistant. Provide clear, concise, and accurate responses. "
         "When appropriate, ask follow-up questions to better understand the user's needs. "
         "Be friendly and professional in your interactions."

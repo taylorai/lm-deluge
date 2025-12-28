@@ -161,12 +161,12 @@ class OTCExecutor:
         async def execute_one(call: dict) -> tuple[int, Any]:
             tool = self.tools[call["tool"]]
             try:
+                if tool.run is None:
+                    raise OTCExecutionError("tool is not executable")
                 if asyncio.iscoroutinefunction(tool.run):
                     result = await tool.run(**call["kwargs"])
-                elif tool.run is not None:
-                    result = tool.run(**call["kwargs"])
                 else:
-                    raise OTCExecutionError("tool is not executable")
+                    result = tool.run(**call["kwargs"])
 
                 # Try to parse as JSON if it's a string
                 if isinstance(result, str):

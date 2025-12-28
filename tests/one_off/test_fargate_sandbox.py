@@ -207,7 +207,7 @@ async def test_llm_agent_with_sandbox():
         tools = sandbox.get_tools()
 
         client = LLMClient("gpt-4.1-mini")
-        conv = Conversation.user(
+        conv = Conversation().user(
             "Use the bash tool to run the command 'echo \"Hello from Fargate\"'. "
             "Report what you see in the output."
         )

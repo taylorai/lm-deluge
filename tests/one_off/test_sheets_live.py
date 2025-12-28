@@ -196,7 +196,7 @@ async def test_sheets_with_llm():
     tools = manager.get_tools()
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "You have access to a Google Sheets spreadsheet. Follow these steps:\n"
         "1. List all sheets in the spreadsheet to see what's available.\n"
         "2. Get the used range of the first sheet to understand its dimensions.\n"

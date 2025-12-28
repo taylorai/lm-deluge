@@ -121,7 +121,7 @@ async def test_arcee_complete_tool_execution():
     assert isinstance(tool_result, str), "Tool result should be a string"
 
     # Step 3: Create conversation with tool result and send back to model
-    conversation = Conversation.user(prompt)
+    conversation = Conversation().user(prompt)
 
     # Add the assistant's response with tool call
     assistant_msg = response.content

@@ -105,7 +105,7 @@ Constructing conversations to pass to models is notoriously annoying. Each provi
 ```python
 from lm_deluge import Message, Conversation
 
-prompt = Conversation.system("You are a helpful assistant.").add(
+prompt = Conversation().system("You are a helpful assistant.").add(
     Message.user("What's in this image?").add_image("tests/image.jpg")
 )
 
@@ -126,7 +126,7 @@ from lm_deluge import LLMClient, Conversation
 
 # Simple file upload
 client = LLMClient("gpt-4.1-mini")
-conversation = Conversation.user(
+conversation = Conversation().user(
     "Please summarize this document",
     file="path/to/document.pdf"
 )
@@ -135,7 +135,7 @@ resps = client.process_prompts_sync([conversation])
 # You can also create File objects for more control
 from lm_deluge import File
 file = File("path/to/report.pdf", filename="Q4_Report.pdf")
-conversation = Conversation.user("Analyze this financial report")
+conversation = Conversation().user("Analyze this financial report")
 conversation.messages[0].parts.append(file)
 ```
 
@@ -205,7 +205,7 @@ for tool_call in resps[0].tool_calls:
 import asyncio
 
 async def main():
-    conv = Conversation.user("List the files in the current directory")
+    conv = Conversation().user("List the files in the current directory")
     conv, resp = await client.run_agent_loop(conv, tools=tools)
     print(resp.content.completion)
 
@@ -221,7 +221,7 @@ from lm_deluge import LLMClient, Conversation, Message
 
 # Create a conversation with system message
 conv = (
-    Conversation.system("You are an expert Python developer with deep knowledge of async programming.")
+    Conversation().system("You are an expert Python developer with deep knowledge of async programming.")
     .add(Message.user("How do I use asyncio.gather?"))
 )
 

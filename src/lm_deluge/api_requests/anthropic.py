@@ -103,7 +103,9 @@ def _build_anthropic_request(
             if "top_p" in request_json:
                 request_json["top_p"] = max(request_json["top_p"], 0.95)
             request_json["temperature"] = 1.0
-            request_json["max_tokens"] += budget
+            max_tokens = request_json["max_tokens"]
+            assert isinstance(max_tokens, int)
+            request_json["max_tokens"] = max_tokens + budget
         else:
             request_json["thinking"] = {"type": "disabled"}
             if "kimi" in model.id and "thinking" in model.id:

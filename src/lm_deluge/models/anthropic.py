@@ -48,6 +48,7 @@ ANTHROPIC_MODELS = {
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "claude-4.1-opus": {
         "id": "claude-4.1-opus",
@@ -61,6 +62,7 @@ ANTHROPIC_MODELS = {
         "cache_write_cost": 18.75,
         "output_cost": 75.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "claude-4-opus": {
         "id": "claude-4-opus",
@@ -74,6 +76,7 @@ ANTHROPIC_MODELS = {
         "cache_write_cost": 18.75,
         "output_cost": 75.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
     "claude-4-sonnet": {
         "id": "claude-4-sonnet",
@@ -86,6 +89,7 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.30,
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
+        "supports_images": True,
     },
     "claude-3.7-sonnet": {
         "id": "claude-3.7-sonnet",
@@ -99,19 +103,20 @@ ANTHROPIC_MODELS = {
         "cache_write_cost": 3.75,
         "output_cost": 15.0,
         "reasoning_model": True,
+        "supports_images": True,
     },
-    "claude-3.6-sonnet": {
-        "id": "claude-3.6-sonnet",
-        "name": "claude-3-5-sonnet-20241022",
-        "api_base": "https://api.anthropic.com/v1",
-        "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
-        "api_spec": "anthropic",
-        "input_cost": 3.0,
-        "cached_input_cost": 0.30,
-        "cache_write_cost": 3.75,
-        "output_cost": 15.0,
-    },
+    # "claude-3.6-sonnet": {
+    #     "id": "claude-3.6-sonnet",
+    #     "name": "claude-3-5-sonnet-20241022",
+    #     "api_base": "https://api.anthropic.com/v1",
+    #     "api_key_env_var": "ANTHROPIC_API_KEY",
+    #     "supports_json": False,
+    #     "api_spec": "anthropic",
+    #     "input_cost": 3.0,
+    #     "cached_input_cost": 0.30,
+    #     "cache_write_cost": 3.75,
+    #     "output_cost": 15.0,
+    # },
     # "claude-3.5-sonnet": {
     #     "id": "claude-3.5-sonnet",
     #     "name": "claude-3-5-sonnet-20240620",
@@ -133,6 +138,7 @@ ANTHROPIC_MODELS = {
         "api_spec": "anthropic",
         "input_cost": 15.0,
         "output_cost": 75.0,
+        "supports_images": True,
     },
     "claude-3.5-haiku": {
         "id": "claude-3.5-haiku",
@@ -145,6 +151,7 @@ ANTHROPIC_MODELS = {
         "cached_input_cost": 0.08,
         "cache_write_cost": 1.00,
         "output_cost": 4.00,
+        "supports_images": True,
     },
     "claude-3-haiku": {
         "id": "claude-3-haiku",
@@ -157,5 +164,6 @@ ANTHROPIC_MODELS = {
         "cache_write_cost": 0.30,
         "cached_input_cost": 0.03,
         "output_cost": 1.25,
+        "supports_images": True,
     },
 }

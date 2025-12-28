@@ -21,7 +21,9 @@ async def test_tinker_live_request() -> None:
         return
 
     client = LLMClient(TINKER_MODEL, max_new_tokens=64)
-    response = await client.start(Conversation.user("Reply with the single word: ok."))
+    response = await client.start(
+        Conversation().user("Reply with the single word: ok.")
+    )
 
     assert response.is_error is False
     assert response.completion

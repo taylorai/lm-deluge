@@ -5,15 +5,14 @@ import os
 from typing import Any
 
 from lm_deluge.client import _LLMClient
-from lm_deluge.file import File
 
-from ..prompt import Conversation
+from ..prompt import Conversation, File
 from ..util.json import load_json
 
 try:
     from PIL import Image as PILImage
 except ImportError:
-    PILImage = None
+    PILImage: Any = None
 
 
 async def extract_async(
@@ -86,13 +85,13 @@ async def extract_async(
             buffer = io.BytesIO()
             input.save(buffer, format="PNG")
             prompts.append(
-                Conversation.user(text=image_only_prompt, image=buffer.getvalue())
+                Conversation().user(text=image_only_prompt, image=buffer.getvalue())
             )
         elif isinstance(input, File):
             data = input.data
             if isinstance(data, io.BytesIO):
                 data = data.getvalue()
-            prompts.append(Conversation.user(text=file_prompt, file=data))
+            prompts.append(Conversation().user(text=file_prompt, file=data))
         else:
             raise ValueError(
                 "inputs must be a list of strings or PIL images or a File object."

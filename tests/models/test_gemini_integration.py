@@ -20,7 +20,7 @@ def test_gemini_basic_text():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user("What is 2+2? Answer briefly.")
+    conversation = Conversation().user("What is 2+2? Answer briefly.")
 
     responses = asyncio.run(client.process_prompts_async([conversation]))
 
@@ -125,7 +125,7 @@ def test_gemini_with_tools():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user("What's the weather like in San Francisco?")
+    conversation = Conversation().user("What's the weather like in San Francisco?")
 
     responses = asyncio.run(
         client.process_prompts_async([conversation], tools=[weather_tool])
@@ -167,7 +167,7 @@ def test_gemini_json_mode():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         'Return a JSON object with keys "name" and "age" for a fictional character.'
     )
 
@@ -210,7 +210,7 @@ def test_gemini_reasoning_model():
         max_tokens_per_minute=100_000,
     )
 
-    conversation = Conversation.user(
+    conversation = Conversation().user(
         "What is the 15th Fibonacci number? Show your reasoning."
     )
 

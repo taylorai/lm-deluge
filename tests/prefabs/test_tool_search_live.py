@@ -41,7 +41,7 @@ async def test_tool_search_live_find_and_call():
     tools = searcher.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "First, call the search helper to find the tool that adds numbers "
         "(use a regex like 'add'). Then call that tool by its id with a=14 and b=9. "
         "Use the dedicated call helper. Return only the sum as a number."

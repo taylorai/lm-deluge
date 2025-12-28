@@ -78,7 +78,7 @@ async def from_function_example():
     """
 
     # Start conversation
-    conversation = Conversation.user(prompt)
+    conversation = Conversation().user(prompt)
     tools = [tip_tool, coin_tool]
 
     for round_num in range(3):  # Allow multiple rounds
@@ -326,7 +326,7 @@ async def complete_tool_flow():
 
     if tool_calls:
         # Build conversation history
-        conversation = Conversation.user(prompt)
+        conversation = Conversation().user(prompt)
         conversation.add(response.content)  # Add assistant's response with tool calls
 
         # Execute tools and add results
@@ -435,7 +435,7 @@ async def multi_tool_example():
     tools = [weather_spec, calculator_spec, random_tool]
 
     # This might require multiple rounds of tool calls
-    conversation = Conversation.user(prompt)
+    conversation = Conversation().user(prompt)
     max_rounds = 5  # Prevent infinite loops
 
     for round_num in range(max_rounds):
@@ -532,7 +532,7 @@ async def error_handling_example():
     tool_calls = response.content.tool_calls
 
     if tool_calls:
-        conversation = Conversation.user(prompt)
+        conversation = Conversation().user(prompt)
         conversation.add(response.content)
 
         for tool_call in tool_calls:

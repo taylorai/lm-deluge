@@ -22,7 +22,7 @@ tool = Tool.from_function(get_weather)
 
 client = LLMClient("claude-4.5-haiku")
 response = client.process_prompts_sync(
-    [Conversation.user("What's the weather in Paris?")],
+    [Conversation().user("What's the weather in Paris?")],
     tools=[tool],
 )[0]
 
@@ -90,7 +90,7 @@ async def main():
     tools = [Tool.from_function(get_weather)]
 
     client = LLMClient("gpt-4o-mini")
-    conv = Conversation.user("What's the weather in London?")
+    conv = Conversation().user("What's the weather in London?")
 
     # Runs multiple turns automatically, calling tools as needed
     conv, resp = await client.run_agent_loop(conv, tools=tools)
@@ -120,7 +120,7 @@ async def main():
     # Start multiple agent loops without waiting
     task_ids = []
     for city in ["London", "Paris", "Tokyo"]:
-        conv = Conversation.user(f"What's the weather in {city}?")
+        conv = Conversation().user(f"What's the weather in {city}?")
         task_id = client.start_agent_loop_nowait(conv, tools=tools)
         task_ids.append(task_id)
 
@@ -196,7 +196,7 @@ async def main():
     )
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(f"Call the compose tool with this program:\\n{program}")
+    conv = Conversation().user(f"Call the compose tool with this program:\\n{program}")
 
     conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=6)
     print("Final:", resp.completion)
@@ -229,7 +229,7 @@ async def main():
     batch = BatchTool([Tool.from_function(search_docs), Tool.from_function(summarize)])
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the batch tool to search for 'tooling guide' then summarize the first result."
     )
 
@@ -261,7 +261,7 @@ async def main():
     tools = searcher.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Find the tool that adds numbers via the search helper, then call it with 3 and 4."
     )
 
@@ -288,7 +288,7 @@ async def main():
     manager = TodoManager()
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Plan today's coding session. Use the todowrite/todoread tools to create a task list, "
         "keep only one item in_progress at a time, and mark items complete as soon as they finish."
     )
@@ -342,7 +342,7 @@ async def main():
     manager = FilesystemManager(backend=backend, tool_name="fs")
     client = LLMClient("gpt-4.1-mini")
 
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the fs tool to inspect README.md, append a TODO section, "
         "list the workspace, and summarize what changed."
     )
@@ -375,7 +375,7 @@ async def main():
     tools = sandbox.get_tools()
 
     client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Use the bash tool to run `echo sandboxes rock` and tell me what it printed."
     )
 
@@ -413,7 +413,7 @@ async def main():
     manager = SubAgentManager(client=subagent_client, tools=research_tools, max_rounds=3)
 
     main_client = LLMClient("gpt-4.1-mini")
-    conv = Conversation.user(
+    conv = Conversation().user(
         "Research three potential suppliers in parallel. Start a subagent per supplier, "
         "check their status intermittently, then wait for each result and summarize."
     )

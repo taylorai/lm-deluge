@@ -12,8 +12,7 @@ import random
 import dotenv
 
 from lm_deluge import Conversation, LLMClient, Tool
-from lm_deluge.image import Image
-from lm_deluge.prompt import Message, Text, ToolResult
+from lm_deluge.prompt import Image, Message, Text, ToolResult
 from lm_deluge.tool.builtin.anthropic import (
     bash_tool,
     computer_tool,
@@ -260,7 +259,7 @@ async def test_computer_use_integration():
 
             # Test 1: Simple screenshot request
             print("\n  Test 1: Requesting a screenshot...")
-            conversation = Conversation.user(
+            conversation = Conversation().user(
                 "Please take a screenshot of the current screen. Just take the screenshot, don't do anything else."
             )
 
@@ -402,7 +401,7 @@ async def test_tool_combinations():
             max_concurrent_requests=2,
         )
 
-        conversation = Conversation.user("What time is it? Then take a screenshot.")
+        conversation = Conversation().user("What time is it? Then take a screenshot.")
 
         results = await client.process_prompts_async(
             [conversation],
