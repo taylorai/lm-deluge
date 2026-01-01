@@ -49,12 +49,66 @@ class APIModel:
 
     @classmethod
     def from_registry(cls, name: str):
+        import os
+        import re
+
         if name not in registry:
             raise ValueError(f"Model {name} not found in registry")
         cfg = registry[name]
         if isinstance(cfg, APIModel):
+            # Handle environment variable substitution in api_base for already-instantiated models
+            api_base = cfg.api_base
+            if "{" in api_base:
+                # Find all {ENV_VAR} patterns and replace with environment variable values
+                env_vars = re.findall(r"\{([^}]+)\}", api_base)
+                for env_var in env_vars:
+                    env_value = os.getenv(env_var)
+                    if env_value:
+                        api_base = api_base.replace(f"{{{env_var}}}", env_value)
+                    else:
+                        raise ValueError(
+                            f"Environment variable {env_var} not set for model {name}. "
+                            f"Please set {env_var} to your Azure AI Foundry endpoint URL."
+                        )
+                # Create a new instance with the resolved api_base
+                cfg = cls(
+                    id=cfg.id,
+                    name=cfg.name,
+                    api_base=api_base,
+                    api_key_env_var=cfg.api_key_env_var,
+                    api_spec=cfg.api_spec,
+                    provider=cfg.provider,
+                    cached_input_cost=cfg.cached_input_cost,
+                    cache_write_cost=cfg.cache_write_cost,
+                    input_cost=cfg.input_cost,
+                    output_cost=cfg.output_cost,
+                    supports_json=cfg.supports_json,
+                    supports_images=cfg.supports_images,
+                    supports_logprobs=cfg.supports_logprobs,
+                    supports_responses=cfg.supports_responses,
+                    reasoning_model=cfg.reasoning_model,
+                    supports_xhigh=cfg.supports_xhigh,
+                    regions=cfg.regions,
+                )
             return cfg
-        return cls(**cfg)
+
+        # Handle environment variable substitution for dict configs
+        cfg_dict = dict(cfg)
+        api_base = cfg_dict.get("api_base", "")
+        if "{" in api_base:
+            # Find all {ENV_VAR} patterns and replace with environment variable values
+            env_vars = re.findall(r"\{([^}]+)\}", api_base)
+            for env_var in env_vars:
+                env_value = os.getenv(env_var)
+                if env_value:
+                    api_base = api_base.replace(f"{{{env_var}}}", env_value)
+                else:
+                    raise ValueError(
+                        f"Environment variable {env_var} not set for model {name}. "
+                        f"Please set {env_var} to your Azure AI Foundry endpoint URL."
+                    )
+            cfg_dict["api_base"] = api_base
+        return cls(**cfg_dict)
 
     def sample_region(self):
         if isinstance(self.regions, list):
