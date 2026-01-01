@@ -10,6 +10,23 @@ from aiohttp import ClientSession, ClientTimeout
 
 from .. import Tool
 
+_HTML_TAG_RE = re.compile(r"<[a-z][^>]*>", re.IGNORECASE)
+
+
+def _ensure_markdown(text: str) -> str:
+    if not text:
+        return text
+    if _HTML_TAG_RE.search(text):
+        try:
+            from markdownify import markdownify as md
+        except ImportError:
+            raise ImportError(
+                "markdownify is required to convert Tavily HTML to markdown. "
+                "Install it with: pip install markdownify"
+            )
+        return md(text, strip=["img", "a"])
+    return text
+
 
 class AbstractWebSearchManager(abc.ABC):
     def __init__(
@@ -189,12 +206,14 @@ class TavilyWebSearchManager(AbstractWebSearchManager):
                 )
 
             item = results[0]
+            content = item.get("content") or item.get("raw_content") or ""
+            text = _ensure_markdown(content)
             return json.dumps(
                 {
                     "status": "success",
                     "title": "",  # Tavily extract doesn't return title
                     "url": item.get("url", url),
-                    "text": item.get("raw_content", ""),
+                    "text": text,
                 },
                 indent=2,
             )
@@ -804,12 +823,14 @@ async def _fetch_tavily(
             return json.dumps({"status": "error", "error": "No content found for URL"})
 
         item = results[0]
+        content = item.get("content") or item.get("raw_content") or ""
+        text = _ensure_markdown(content)
         return json.dumps(
             {
                 "status": "success",
                 "title": "",
                 "url": item.get("url", url),
-                "text": item.get("raw_content", ""),
+                "text": text,
             },
             indent=2,
         )

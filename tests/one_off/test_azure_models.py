@@ -49,7 +49,10 @@ def main():
     for model in AZURE_MODELS:
         print(f"\nTesting {model}...")
         try:
-            client = LLMClient(model, max_new_tokens=50)
+            client_kwargs = {"max_new_tokens": 50}
+            if model == "grok-4-fast-reasoning-azure":
+                client_kwargs["reasoning_effort"] = "low"
+            client = LLMClient(model, **client_kwargs)
             responses = client.process_prompts_sync(["Say hello in one word."])
             response = responses[0]
 

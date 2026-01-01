@@ -1,15 +1,33 @@
 import os
 
+from dotenv import dotenv_values, find_dotenv
+
+
+def _get_azure_url() -> str:
+    env_value = os.getenv("AZURE_URL")
+    if env_value:
+        return env_value
+
+    dotenv_path = find_dotenv(usecwd=True)
+    if not dotenv_path:
+        return ""
+
+    values = dotenv_values(dotenv_path)
+    return values.get("AZURE_URL") or ""
+
+
+AZURE_URL = _get_azure_url()
+
 AZURE_MODELS = {
     # GPT OSS / DeepSeek
     "gpt-oss-120b-azure": {
         "id": "gpt-oss-120b-azure",
         "name": "gpt-oss-120b",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 0.15,
         "cached_input_cost": 0.15,
@@ -19,11 +37,11 @@ AZURE_MODELS = {
     "deepseek-v3.2-azure": {
         "id": "deepseek-v3.2-azure",
         "name": "DeepSeek-V3.2",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 0.15,
         "cached_input_cost": 0.15,
@@ -34,11 +52,11 @@ AZURE_MODELS = {
     "grok-4-fast-reasoning-azure": {
         "id": "grok-4-fast-reasoning-azure",
         "name": "grok-4-fast-reasoning",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 0.15,
         "cached_input_cost": 0.15,
@@ -48,11 +66,11 @@ AZURE_MODELS = {
     "grok-4-fast-non-reasoning-azure": {
         "id": "grok-4-fast-non-reasoning-azure",
         "name": "grok-4-fast-non-reasoning",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 0.15,
         "cached_input_cost": 0.15,
@@ -63,7 +81,7 @@ AZURE_MODELS = {
     "gpt-4.1-azure": {
         "id": "gpt-4.1-azure",
         "name": "gpt-4.1",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -77,7 +95,7 @@ AZURE_MODELS = {
     "gpt-4.1-mini-azure": {
         "id": "gpt-4.1-mini-azure",
         "name": "gpt-4.1-mini",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -91,7 +109,7 @@ AZURE_MODELS = {
     "gpt-4.1-nano-azure": {
         "id": "gpt-4.1-nano-azure",
         "name": "gpt-4.1-nano",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -106,7 +124,7 @@ AZURE_MODELS = {
     "gpt-5-azure": {
         "id": "gpt-5-azure",
         "name": "gpt-5",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -120,7 +138,7 @@ AZURE_MODELS = {
     "gpt-5-mini-azure": {
         "id": "gpt-5-mini-azure",
         "name": "gpt-5-mini",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -134,7 +152,7 @@ AZURE_MODELS = {
     "gpt-5-nano-azure": {
         "id": "gpt-5-nano-azure",
         "name": "gpt-5-nano",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -148,7 +166,7 @@ AZURE_MODELS = {
     "gpt-5.1-azure": {
         "id": "gpt-5.1-azure",
         "name": "gpt-5.1",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -162,7 +180,7 @@ AZURE_MODELS = {
     "gpt-5.2-azure": {
         "id": "gpt-5.2-azure",
         "name": "gpt-5.2",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -178,11 +196,11 @@ AZURE_MODELS = {
     "kimi-k2-thinking-azure": {
         "id": "kimi-k2-thinking-azure",
         "name": "Kimi-K2-Thinking",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 0.15,
         "cached_input_cost": 0.15,
@@ -193,11 +211,11 @@ AZURE_MODELS = {
     "llama-4-maverick-azure": {
         "id": "llama-4-maverick-azure",
         "name": "Llama-4-Maverick-17B-128E-Instruct-FP8",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 0.15,
         "cached_input_cost": 0.15,
@@ -208,11 +226,11 @@ AZURE_MODELS = {
     "mistral-large-3-azure": {
         "id": "mistral-large-3-azure",
         "name": "Mistral-Large-3",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": False,
-        "supports_responses": True,
+        "supports_responses": False,
         "api_spec": "openai",
         "input_cost": 2.00,
         "cached_input_cost": 2.00,
@@ -223,7 +241,7 @@ AZURE_MODELS = {
     "gpt-4o-azure": {
         "id": "gpt-4o-azure",
         "name": "gpt-4o",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
@@ -237,7 +255,7 @@ AZURE_MODELS = {
     "gpt-4o-mini-azure": {
         "id": "gpt-4o-mini-azure",
         "name": "gpt-4o-mini",
-        "api_base": os.getenv("AZURE_URL"),
+        "api_base": AZURE_URL,
         "api_key_env_var": "AZURE_API_KEY",
         "supports_json": True,
         "supports_logprobs": True,
