@@ -25,7 +25,7 @@ async def test_anthropic_response_preserves_thinking_signatures():
     }
 
     context = RequestContext(
-        model_name="claude-3.5-sonnet",
+        model_name="claude-3.7-sonnet",
         prompt=Conversation().user("hi"),
         sampling_params=SamplingParams(),
         task_id=1,

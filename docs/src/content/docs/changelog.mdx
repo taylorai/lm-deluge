@@ -5,6 +5,14 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.92 · 2026-01-01
+
+- Added Amazon Nova support on Bedrock (new request handler, model registry entries, prompt/tool/image serialization, and cache-point handling).
+- Expanded Azure catalog with OpenAI-compatible model definitions, dotenv-aware `AZURE_URL` lookup, and Responses API enabled only for OpenAI family models.
+- Added Tavily + Brave web search managers plus a configurable WebSearchManager to mix search/fetch backends.
+- Tavily extract now guarantees markdown output by converting HTML responses with markdownify when needed.
+- New one-off test suites for Nova Bedrock, Azure models, and Tavily/Brave/WebSearchManager coverage.
+
 ## 0.0.91 · 2025-12-28
 
 - CLI overhaul: installable `deluge` and `deluge-server` entrypoints with `list`, `run`, and `agent` subcommands, model filtering, JSON output, stdin/file inputs, image prompts, and MCP/prefab-enabled agent loops.
