@@ -259,7 +259,7 @@ async def submit_batches_oa(
     MAX_BATCH_SIZE_ITEMS = batch_size
 
     if not isinstance(prompts, list):
-        prompts = prompts = cast(Sequence[Prompt], [prompts])
+        prompts = cast(Sequence[Prompt], [prompts])
 
     prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
     assert isinstance(prompts, Sequence)
@@ -367,7 +367,7 @@ async def submit_batches_anthropic(
 
     # Convert prompts to Conversations
     if not isinstance(prompts, list):
-        prompts = prompts = cast(Sequence[Prompt], [prompts])
+        prompts = cast(Sequence[Prompt], [prompts])
 
     prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
 
