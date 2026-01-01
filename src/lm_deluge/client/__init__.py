@@ -657,7 +657,7 @@ class _LLMClient(BaseModel):
         """
         # Convert prompts to Conversations
         if not isinstance(prompts, list):
-            prompts = prompts = cast(Sequence[Prompt], [prompts])
+            prompts = cast(Sequence[Prompt], [prompts])
         prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
 
         # Ensure tracker exists (start_nowait will call add_to_total for each task)
