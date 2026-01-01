@@ -261,6 +261,37 @@ asyncio.run(main())
 
 We support all models in `src/lm_deluge/models.py`. Vertex support is not planned in the short term, since Google allows you to connect your Vertex account to AI Studio, and Vertex authentication is a huge pain (requires service account credentials, etc.)
 
+### Azure AI Foundry
+
+Azure AI Foundry (formerly Azure AI Studio) is fully supported. To use Azure AI Foundry models:
+
+1. Set your deployment endpoint URL:
+   ```bash
+   export AZURE_AI_FOUNDRY_ENDPOINT="https://your-resource.inference.ai.azure.com"
+   ```
+
+2. Set your API key:
+   ```bash
+   export AZURE_AI_FOUNDRY_API_KEY="your-api-key"
+   ```
+
+3. Use any Azure AI Foundry model by appending `-azure` to the model name:
+   ```python
+   from lm_deluge import LLMClient
+
+   client = LLMClient("gpt-4o-azure")
+   resps = client.process_prompts_sync(["Hello from Azure!"])
+   print(resps[0].completion)
+   ```
+
+Available Azure AI Foundry models include:
+- OpenAI models: `gpt-4o-azure`, `gpt-4o-mini-azure`, `gpt-4-turbo-azure`, `gpt-35-turbo-azure`
+- Meta Llama models: `llama-3.1-70b-azure`, `llama-3.1-8b-azure`, `llama-3.2-90b-azure`
+- Mistral models: `mistral-large-azure`, `mistral-small-azure`, `mistral-nemo-azure`
+- Cohere models: `command-r-azure`, `command-r-plus-azure`
+- Microsoft Phi models: `phi-3-5-mini-azure`, `phi-3-5-vision-azure`
+- AI21 Jamba models: `jamba-1.5-large-azure`, `jamba-1.5-mini-azure`
+
 ## Feature Support
 
 We support structured outputs via `json_mode` parameter provided to `SamplingParams`. Structured outputs with a schema are planned. Reasoning models are supported via the `reasoning_effort` parameter, which is translated to a thinking budget for Claude/Gemini. Passing `None` (or the string `"none"`) disables Gemini thoughts entirely. Image models are supported. We support tool use as documented above. We support logprobs for OpenAI models that return them.
