@@ -140,6 +140,7 @@ _PROVIDER_MODELS = [
     (ANTHROPIC_MODELS, "anthropic"),
     (ZAI_MODELS, "zai"),
     (ARCEE_MODELS, "arcee"),
+    (AZURE_AI_FOUNDRY_MODELS, "azure_ai_foundry"),
     (BEDROCK_MODELS, "bedrock"),
     (COHERE_MODELS, "cohere"),
     (DEEPSEEK_MODELS, "deepseek"),
