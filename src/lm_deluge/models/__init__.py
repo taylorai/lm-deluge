@@ -8,6 +8,7 @@ from ..api_requests.context import RequestContext
 # Import and register all provider models
 from .anthropic import ANTHROPIC_MODELS
 from .arcee import ARCEE_MODELS
+from .azure_ai_foundry import AZURE_AI_FOUNDRY_MODELS
 from .bedrock import BEDROCK_MODELS
 from .cerebras import CEREBRAS_MODELS
 from .cohere import COHERE_MODELS
