@@ -525,3 +525,7 @@ class File:
     def mistral(self) -> dict:
         """For Mistral API - not yet supported."""
         raise NotImplementedError("File support for Mistral is not yet implemented")
+
+    def nova(self) -> dict:
+        """For Amazon Nova - not yet supported."""
+        raise NotImplementedError("File support for Nova is not yet implemented")

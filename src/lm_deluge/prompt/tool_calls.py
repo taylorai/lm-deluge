@@ -72,6 +72,15 @@ class ToolCall:
             "function": {"name": self.name, "arguments": json.dumps(self.arguments)},
         }
 
+    def nova(self) -> dict:
+        return {
+            "toolUse": {
+                "toolUseId": self.id,
+                "name": self.name,
+                "input": self.arguments,
+            }
+        }
+
 
 ToolResultPart = Text | Image
 
@@ -242,4 +251,28 @@ class ToolResult:
             "type": "tool_result",
             "tool_call_id": self.tool_call_id,
             "content": self.result,
+        }
+
+    def nova(self) -> dict:
+        # Build content based on result type
+        if isinstance(self.result, str):
+            content = [{"text": self.result}]
+        elif isinstance(self.result, list):
+            content = []
+            for part in self.result:
+                if isinstance(part, Text):
+                    content.append({"text": part.text})
+                elif isinstance(part, Image):
+                    content.append(part.nova())
+                else:
+                    content.append({"text": str(part)})
+        else:
+            content = [{"json": self.result}]
+
+        return {
+            "toolResult": {
+                "toolUseId": self.tool_call_id,
+                "content": content,
+                "status": "success",
+            }
         }

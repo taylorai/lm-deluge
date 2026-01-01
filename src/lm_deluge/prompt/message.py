@@ -569,3 +569,15 @@ class Message:
         # Shortcut: single text becomes a bare string
         role = self.role
         return {"role": role, "content": parts}
+
+    def nova(self) -> dict:
+        # Nova: system message is kept outside message list (like Anthropic/Gemini)
+        if self.role == "system":
+            raise ValueError("Nova keeps system outside message list")
+        # For tool messages, we need to emit tool results in user role
+        if self.role == "tool":
+            content = [p.nova() for p in self.parts if isinstance(p, ToolResult)]
+            return {"role": "user", "content": content}
+        # Regular user/assistant messages
+        content = [p.nova() for p in self.parts]
+        return {"role": self.role, "content": content}

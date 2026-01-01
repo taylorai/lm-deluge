@@ -53,3 +53,6 @@ class Thinking:
 
     def mistral(self) -> dict:
         return {"type": "text", "text": f"[Thinking: {self.content}]"}
+
+    def nova(self) -> dict:
+        return {"text": f"[Thinking: {self.content}]"}

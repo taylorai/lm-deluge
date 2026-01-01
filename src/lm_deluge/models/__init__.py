@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from ..api_requests.context import RequestContext
 
 # Import and register all provider models
+from .azure import AZURE_MODELS
 from .anthropic import ANTHROPIC_MODELS
 from .arcee import ARCEE_MODELS
 from .bedrock import BEDROCK_MODELS
@@ -136,6 +137,7 @@ def register_model(
 # Register all models from all providers
 # Maps each model dict to its provider name
 _PROVIDER_MODELS = [
+    (AZURE_MODELS, "azure"),
     (ANTHROPIC_MODELS, "anthropic"),
     (ZAI_MODELS, "zai"),
     (ARCEE_MODELS, "arcee"),

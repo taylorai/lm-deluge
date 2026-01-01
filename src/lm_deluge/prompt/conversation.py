@@ -788,6 +788,68 @@ class Conversation:
     def to_mistral(self) -> list[dict]:
         return [m.mistral() for m in self.messages]
 
+    def to_nova(
+        self, cache_pattern: CachePattern | None = None
+    ) -> tuple[list[dict] | None, list[dict]]:
+        # Extract system message as list of text blocks
+        system_list = None
+        for m in self.messages:
+            if m.role == "system" and isinstance(m.parts[0], Text):
+                system_list = [{"text": m.parts[0].text}]
+                break
+
+        # Convert other messages
+        other = [m.nova() for m in self.messages if m.role != "system"]
+
+        # Apply cache control if specified
+        if cache_pattern is not None:
+            system_list, other = self._apply_nova_cache_control(
+                system_list, other, cache_pattern
+            )
+
+        return system_list, other
+
+    def _apply_nova_cache_control(
+        self,
+        system_list: list[dict] | None,
+        messages: list[dict],
+        cache_pattern: CachePattern,
+    ) -> tuple[list[dict] | None, list[dict]]:
+        """Apply Nova-style cache control (cachePoint) to system and/or messages."""
+
+        if cache_pattern == "system_and_tools" and system_list is not None:
+            # Add cachePoint to the last system block
+            if system_list:
+                system_list[-1]["cachePoint"] = {"type": "default"}
+
+        if cache_pattern == "last_user_message":
+            # Cache the last user message
+            user_messages = [i for i, m in enumerate(messages) if m["role"] == "user"]
+            if user_messages:
+                last_user_idx = user_messages[-1]
+                self._add_nova_cache_point(messages[last_user_idx])
+
+        elif cache_pattern == "last_2_user_messages":
+            # Cache the last 2 user messages
+            user_messages = [i for i, m in enumerate(messages) if m["role"] == "user"]
+            for idx in user_messages[-2:]:
+                self._add_nova_cache_point(messages[idx])
+
+        elif cache_pattern == "last_3_user_messages":
+            # Cache the last 3 user messages
+            user_messages = [i for i, m in enumerate(messages) if m["role"] == "user"]
+            for idx in user_messages[-3:]:
+                self._add_nova_cache_point(messages[idx])
+
+        return system_list, messages
+
+    def _add_nova_cache_point(self, message: dict) -> None:
+        """Add Nova cachePoint to a message's last content block."""
+        content = message.get("content", [])
+        if isinstance(content, list) and content:
+            # Add cachePoint to the last content block
+            content[-1]["cachePoint"] = {"type": "default"}
+
     # ── misc helpers ----------------------------------------------------------
     _tok = tiktoken.encoding_for_model("gpt-4")
 

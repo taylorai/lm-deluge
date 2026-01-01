@@ -120,4 +120,43 @@ BEDROCK_MODELS = {
         "reasoning_model": False,
         "supports_images": True,
     },
+    #  ███╗   ██╗ ██████╗ ██╗   ██╗ █████╗
+    #  ████╗  ██║██╔═══██╗██║   ██║██╔══██╗
+    #  ██╔██╗ ██║██║   ██║██║   ██║███████║
+    #  ██║╚██╗██║██║   ██║╚██╗ ██╔╝██╔══██║
+    #  ██║ ╚████║╚██████╔╝ ╚████╔╝ ██║  ██║
+    #  ╚═╝  ╚═══╝ ╚═════╝   ╚═══╝  ╚═╝  ╚═╝
+    "nova-micro": {
+        "id": "nova-micro",
+        "name": "us.amazon.nova-micro-v1:0",
+        "regions": ["us-east-1", "us-west-2"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock-nova",
+        "input_cost": 0.035,
+        "output_cost": 0.14,
+        "supports_images": False,
+    },
+    "nova-lite": {
+        "id": "nova-lite",
+        "name": "us.amazon.nova-lite-v1:0",
+        "regions": ["us-east-1", "us-west-2"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock-nova",
+        "input_cost": 0.06,
+        "output_cost": 0.24,
+        "supports_images": True,
+    },
+    "nova-pro": {
+        "id": "nova-pro",
+        "name": "us.amazon.nova-pro-v1:0",
+        "regions": ["us-east-1", "us-west-2"],
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock-nova",
+        "input_cost": 0.80,
+        "output_cost": 3.20,
+        "supports_images": True,
+    },
 }

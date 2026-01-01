@@ -45,3 +45,6 @@ class Text:
 
     def mistral(self) -> dict:
         return {"type": "text", "text": self.text}
+
+    def nova(self) -> dict:
+        return {"text": self.text}

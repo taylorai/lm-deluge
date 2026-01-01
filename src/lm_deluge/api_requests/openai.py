@@ -80,7 +80,8 @@ async def _build_oa_chat_request(
         request_json["messages"] = _message_contents_to_string(messages)
 
     # set max_tokens or max_completion_tokens dep. on provider
-    if "cohere" in model.api_base:
+    # Some providers (Cohere, Mistral) use max_tokens instead of max_completion_tokens
+    if "cohere" in model.api_base or "mistral" in model.name.lower():
         request_json["max_tokens"] = sampling_params.max_new_tokens
     else:
         request_json["max_completion_tokens"] = sampling_params.max_new_tokens
@@ -267,8 +268,13 @@ class OpenAIRequest(APIRequestBase):
                     error_message = f"Error getting 'choices' and 'usage' from {self.model.name} response: {data}. Error: {e}"
         elif mimetype and "json" in mimetype.lower():
             is_error = True  # expected status is 200, otherwise it's an error
-            data = await http_response.json()
-            error_message = json.dumps(data)
+            text = await http_response.text()
+            try:
+                data = json.loads(text)
+                error_message = json.dumps(data)
+            except Exception:
+                # Some endpoints return JSON + extra text, just use raw text
+                error_message = text
         else:
             is_error = True
             text = await http_response.text()

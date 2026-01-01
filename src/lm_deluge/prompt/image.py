@@ -235,3 +235,23 @@ class Image:
                 "data": self._base64(include_header=False),
             }
         }
+
+    def nova(self) -> dict:
+        # Nova expects format as extension without the "image/" prefix
+        mime = self._mime()
+        # Convert mime type to Nova format (e.g., "image/jpeg" -> "jpeg")
+        format_map = {
+            "image/jpeg": "jpeg",
+            "image/png": "png",
+            "image/gif": "gif",
+            "image/webp": "webp",
+        }
+        nova_format = format_map.get(mime, mime.split("/")[-1])
+        return {
+            "image": {
+                "format": nova_format,
+                "source": {
+                    "bytes": self._base64(include_header=False),
+                },
+            }
+        }
