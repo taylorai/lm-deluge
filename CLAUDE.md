@@ -4,6 +4,7 @@
 - whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. if it's a test we would want to continue running in the future, put it in tests/core. if it's very niche and testing a one-off thing, or if it relies on some transitory thing like an external local server, put it in tests/one_off.
 - don't use == True and == False as these always lead to ruff errors
 - we currently run tests in this repo by just doing python tests/path_to_test.py, not pytest
+- DON'T do inline imports. imports should be at the top of the file ALWAYS unless there's a REALLY good reason (something might not be installed).
 
 ## Basic Library Usage
 

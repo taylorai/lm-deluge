@@ -205,6 +205,13 @@ class GeminiRequest(APIRequestBase):
                 cache_param=self.context.cache,
             )
 
+        # Skills are only supported by Anthropic
+        if self.context.skills:
+            raise NotImplementedError(
+                "Skills are only supported by Anthropic. "
+                "Use an Anthropic model (e.g., claude-3.5-haiku) to use skills."
+            )
+
         self.model = APIModel.from_registry(self.context.model_name)
 
     async def build_request(self):

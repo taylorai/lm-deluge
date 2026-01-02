@@ -1173,5 +1173,46 @@ class MCPServer(BaseModel):
             return tools
 
 
+class Skill(BaseModel):
+    """
+    Anthropic Skill definition for code execution environments.
+
+    Skills extend Claude's capabilities through organized folders of instructions,
+    scripts, and resources that execute in a code execution container.
+
+    Skills can be either:
+    - Anthropic-managed: Pre-built skills like 'pptx', 'xlsx', 'docx', 'pdf'
+    - Custom: User-uploaded skills with generated IDs like 'skill_01AbCdEf...'
+
+    Example:
+        # Anthropic-managed skill
+        skill = Skill(type="anthropic", skill_id="xlsx", version="latest")
+
+        # Custom skill
+        skill = Skill(type="custom", skill_id="skill_01AbCdEf...", version="latest")
+
+        # Use in request
+        response = await client.start(
+            conversation,
+            skills=[skill],  # Will be added to container
+        )
+
+    Note: Skills require code execution and are only supported by Anthropic.
+    Using skills with other providers will raise NotImplementedError.
+    """
+
+    type: Literal["anthropic", "custom"]
+    skill_id: str
+    version: str = "latest"
+
+    def for_anthropic(self) -> dict[str, Any]:
+        """Convert to Anthropic API skill format."""
+        return {
+            "type": self.type,
+            "skill_id": self.skill_id,
+            "version": self.version,
+        }
+
+
 # Note: prefab submodule is available via lm_deluge.tool.prefab
 # but not auto-imported here to avoid circular imports

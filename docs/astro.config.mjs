@@ -37,6 +37,7 @@ export default defineConfig({
           label: "Tooling & MCP",
           items: [
             { label: "Tool Use", slug: "features/tools" },
+            { label: "Anthropic Skills", slug: "features/skills" },
             { label: "Structured Outputs", slug: "features/structured-outputs" },
             { label: "MCP Integration", slug: "features/mcp" },
             { label: "Advanced Workflows", slug: "guides/advanced-usage" },

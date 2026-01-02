@@ -30,7 +30,7 @@ from lm_deluge.prompt import (
     Prompt,
     prompts_to_conversations,
 )
-from lm_deluge.tool import MCPServer, Tool
+from lm_deluge.tool import MCPServer, Skill, Tool
 
 from ..api_requests.base import APIResponse
 from ..config import SamplingParams
@@ -621,6 +621,7 @@ class _LLMClient(BaseModel):
         return_completions_only: Literal[True],
         show_progress: bool = ...,
         tools: Sequence[Tool | dict | MCPServer] | None = ...,
+        skills: Sequence[Skill] | None = ...,
         output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
@@ -634,6 +635,7 @@ class _LLMClient(BaseModel):
         return_completions_only: Literal[False] = ...,
         show_progress: bool = ...,
         tools: Sequence[Tool | dict | MCPServer] | None = ...,
+        skills: Sequence[Skill] | None = ...,
         output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
@@ -646,6 +648,7 @@ class _LLMClient(BaseModel):
         return_completions_only: bool = False,
         show_progress: bool = True,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
@@ -675,6 +678,7 @@ class _LLMClient(BaseModel):
             task_id = self.start_nowait(
                 prompt,
                 tools=tools,
+                skills=skills,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
@@ -721,6 +725,7 @@ class _LLMClient(BaseModel):
         return_completions_only: bool = False,
         show_progress=True,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
     ):
@@ -730,6 +735,7 @@ class _LLMClient(BaseModel):
                 return_completions_only=return_completions_only,
                 show_progress=show_progress,
                 tools=tools,
+                skills=skills,
                 output_schema=output_schema,
                 cache=cache,
             )
@@ -754,6 +760,8 @@ class _LLMClient(BaseModel):
         prompt: Prompt,
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
+        container_id: str | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
@@ -773,6 +781,8 @@ class _LLMClient(BaseModel):
             request_timeout=self.request_timeout,
             status_tracker=tracker,
             tools=tools,
+            skills=skills,
+            container_id=container_id,
             output_schema=output_schema,
             cache=cache,
             use_responses_api=self.use_responses_api,
@@ -791,6 +801,8 @@ class _LLMClient(BaseModel):
         prompt: Prompt,
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
+        container_id: str | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
@@ -798,6 +810,8 @@ class _LLMClient(BaseModel):
         task_id = self.start_nowait(
             prompt,
             tools=tools,
+            skills=skills,
+            container_id=container_id,
             output_schema=output_schema,
             cache=cache,
             service_tier=service_tier,
@@ -905,6 +919,7 @@ class _LLMClient(BaseModel):
         conversation: Conversation,
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
@@ -920,12 +935,20 @@ class _LLMClient(BaseModel):
                     expanded_tools.extend(mcp_tools)
 
         response: APIResponse | None = None
+        # Track container ID for reuse across rounds (Anthropic skills)
+        container_id: str | None = None
 
         for _ in range(max_rounds):
             response = await self.start(
                 conversation,
                 tools=tools,  # type: ignore
+                skills=skills,
+                container_id=container_id,
             )
+
+            # Capture container_id from response for reuse in next round
+            if response and response.container_id:
+                container_id = response.container_id
 
             if response is None or response.content is None:
                 break
@@ -969,6 +992,7 @@ class _LLMClient(BaseModel):
         conversation: Prompt,
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
@@ -984,7 +1008,7 @@ class _LLMClient(BaseModel):
 
         task = asyncio.create_task(
             self._run_agent_loop_internal(
-                task_id, conversation, tools=tools, max_rounds=max_rounds
+                task_id, conversation, tools=tools, skills=skills, max_rounds=max_rounds
             )
         )
         self._tasks[task_id] = task
@@ -1016,6 +1040,7 @@ class _LLMClient(BaseModel):
         conversation: Prompt,
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -1026,7 +1051,7 @@ class _LLMClient(BaseModel):
         instances or built‑in tool dictionaries.
         """
         task_id = self.start_agent_loop_nowait(
-            conversation, tools=tools, max_rounds=max_rounds
+            conversation, tools=tools, skills=skills, max_rounds=max_rounds
         )
         return await self.wait_for_agent_loop(task_id)
 
@@ -1035,6 +1060,7 @@ class _LLMClient(BaseModel):
         conversation: Prompt,
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -1044,6 +1070,7 @@ class _LLMClient(BaseModel):
             self.run_agent_loop(
                 conversation,
                 tools=tools,  # type: ignore
+                skills=skills,
                 max_rounds=max_rounds,
                 show_progress=show_progress,
             )
@@ -1054,6 +1081,7 @@ class _LLMClient(BaseModel):
         prompts: Sequence[Prompt],
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
@@ -1068,6 +1096,7 @@ class _LLMClient(BaseModel):
         Args:
             prompts: Sequence of prompts, each becoming a separate agent loop.
             tools: Tools available to all agent loops.
+            skills: Anthropic Skills available to all agent loops.
             max_rounds: Maximum rounds per agent loop (default 5).
             max_concurrent_agents: Maximum number of agent loops running
                 concurrently (default 10). This is separate from the LLM request
@@ -1099,7 +1128,7 @@ class _LLMClient(BaseModel):
                 task_id = self._next_task_id
                 self._next_task_id += 1
                 result = await self._run_agent_loop_internal(
-                    task_id, conv, tools=tools, max_rounds=max_rounds
+                    task_id, conv, tools=tools, skills=skills, max_rounds=max_rounds
                 )
                 return idx, result.conversation, result.final_response
 
@@ -1120,6 +1149,7 @@ class _LLMClient(BaseModel):
         prompts: Sequence[Prompt],
         *,
         tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
@@ -1129,6 +1159,7 @@ class _LLMClient(BaseModel):
             self.process_agent_loops_async(
                 prompts,
                 tools=tools,
+                skills=skills,
                 max_rounds=max_rounds,
                 max_concurrent_agents=max_concurrent_agents,
                 show_progress=show_progress,

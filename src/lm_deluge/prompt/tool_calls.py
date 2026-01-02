@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass, field
+from typing import TypedDict
 
 import xxhash
 from .text import Text
@@ -10,6 +11,19 @@ from .signatures import (
     normalize_signature,
     signature_for_provider,
 )
+
+
+class ContainerFile(TypedDict):
+    """
+    Metadata for a file created by Anthropic code execution or skills.
+
+    These files are stored in Anthropic's Files API and can be downloaded
+    using the file_id.
+    """
+
+    file_id: str | None
+    filename: str
+    media_type: str | None
 
 
 @dataclass(slots=True)
@@ -95,6 +109,8 @@ class ToolResult:
     # need to handle all built-ins for OpenAI
     built_in: bool = False
     built_in_type: str | None = None
+    # Files created by code execution / skills (Anthropic only)
+    files: list[ContainerFile] | None = None
 
     @property
     def fingerprint(self) -> str:

@@ -1,6 +1,6 @@
 from .client import APIResponse, LLMClient, SamplingParams
 from .prompt import Conversation, Message, File
-from .tool import Tool, MCPServer
+from .tool import Tool, MCPServer, Skill
 
 # dotenv.load_dotenv() - don't do this, fucks with other packages
 
@@ -12,5 +12,6 @@ __all__ = [
     "Message",
     "Tool",
     "MCPServer",
+    "Skill",
     "File",
 ]

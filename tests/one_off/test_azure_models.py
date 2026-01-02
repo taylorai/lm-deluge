@@ -1,10 +1,12 @@
 """Test all Azure models."""
 
 import os
+from typing import Any
 
 import dotenv
 
 from lm_deluge import LLMClient
+from lm_deluge.api_requests.response import APIResponse
 
 dotenv.load_dotenv()
 
@@ -49,13 +51,13 @@ def main():
     for model in AZURE_MODELS:
         print(f"\nTesting {model}...")
         try:
-            client_kwargs = {"max_new_tokens": 50}
+            client_kwargs: dict[str, Any] = {"max_new_tokens": 50}
             if model == "grok-4-fast-reasoning-azure":
                 client_kwargs["reasoning_effort"] = "low"
             client = LLMClient(model, **client_kwargs)
             responses = client.process_prompts_sync(["Say hello in one word."])
             response = responses[0]
-
+            assert isinstance(response, APIResponse)
             if response.is_error:
                 print(f"  ❌ Error: {response.error_message}")
                 failed.append((model, response.error_message))

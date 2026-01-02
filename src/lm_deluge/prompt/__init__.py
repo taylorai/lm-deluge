@@ -6,7 +6,7 @@ from .thinking import Thinking
 from .signatures import ThoughtSignature
 from .image import Image
 from .file import File
-from .tool_calls import ToolCall, ToolResult, ToolResultPart
+from .tool_calls import ToolCall, ToolResult, ToolResultPart, ContainerFile
 
 Prompt: TypeAlias = str | list[dict] | Message | Conversation
 
@@ -36,6 +36,7 @@ __all__ = [
     "ToolCall",
     "ToolResult",
     "ToolResultPart",
+    "ContainerFile",
     "Text",
     "Image",
     "File",

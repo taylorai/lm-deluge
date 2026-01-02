@@ -4,14 +4,16 @@ import os
 from aiohttp import ClientResponse
 
 from lm_deluge.prompt import (
+    ContainerFile,
     Message,
     Text,
     ThoughtSignature,
     Thinking,
     ToolCall,
+    ToolResult,
 )
 from lm_deluge.api_requests.context import RequestContext
-from lm_deluge.tool import MCPServer, Tool
+from lm_deluge.tool import MCPServer, Skill, Tool
 from lm_deluge.usage import Usage
 from lm_deluge.util.schema import (
     prepare_output_schema,
@@ -196,6 +198,47 @@ def _build_anthropic_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
+    # Handle Anthropic Skills
+    skills = context.skills
+    if skills:
+        # Add required beta headers for skills
+        _add_beta(base_headers, "code-execution-2025-08-25")
+        _add_beta(base_headers, "skills-2025-10-02")
+
+        # Build skills list for container
+        skill_definitions = []
+        for skill in skills:
+            if isinstance(skill, Skill):
+                skill_definitions.append(skill.for_anthropic())
+            elif isinstance(skill, dict):
+                # Allow raw dict format as well
+                skill_definitions.append(skill)
+
+        # Add container with skills (and optional container ID for reuse)
+        container: dict = {"skills": skill_definitions}
+        if context.container_id:
+            container["id"] = context.container_id
+        request_json["container"] = container
+
+        # If skills are present, code_execution tool is required
+        # Check if it's already in tools, if not add it
+        has_code_execution = False
+        if tools:
+            for tool in tools:
+                if isinstance(tool, dict) and tool.get("type", "").startswith(
+                    "code_execution"
+                ):
+                    has_code_execution = True
+                    break
+        if not has_code_execution:
+            # Add code_execution tool if not already present
+            if "tools" not in request_json:
+                request_json["tools"] = []
+            assert isinstance(request_json["tools"], list)
+            request_json["tools"].append(
+                {"type": "code_execution_20250825", "name": "code_execution"}
+            )
+
     # print("request json:", request_json)
     return request_json, base_headers
 
@@ -226,6 +269,7 @@ class AnthropicRequest(APIRequestBase):
         thinking = None
         content = None
         usage = None
+        container_id = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         rate_limits = {}
@@ -283,9 +327,61 @@ class AnthropicRequest(APIRequestBase):
                                 arguments=item["input"],
                             )
                         )
+                    elif item["type"] in [
+                        "bash_code_execution_tool_result",
+                        "text_editor_code_execution_tool_result",
+                    ]:
+                        # Code execution / skills result - parse as ToolResult
+                        inner_content = item.get("content", {})
+                        files: list[ContainerFile] = []
+                        text_content = ""
+
+                        result_type = inner_content.get("type", "")
+                        if result_type in [
+                            "bash_code_execution_result",
+                            "text_editor_code_execution_result",
+                        ]:
+                            # Capture stdout/stderr if present
+                            if inner_content.get("stdout"):
+                                text_content += inner_content["stdout"]
+                            if inner_content.get("stderr"):
+                                text_content += inner_content["stderr"]
+
+                            for content_item in inner_content.get("content", []):
+                                item_type = content_item.get("type", "")
+                                # Handle both "file" and "bash_code_execution_output" types
+                                if item_type in ["file", "bash_code_execution_output"]:
+                                    if "file_id" in content_item:
+                                        file_info: ContainerFile = {
+                                            "file_id": content_item["file_id"],
+                                            "filename": content_item.get(
+                                                "filename", "output"
+                                            ),
+                                            "media_type": content_item.get(
+                                                "media_type"
+                                            ),
+                                        }
+                                        files.append(file_info)
+                                elif item_type == "text":
+                                    text_content += content_item.get("text", "")
+
+                        parts.append(
+                            ToolResult(
+                                tool_call_id=item.get("tool_use_id", ""),
+                                result=text_content or inner_content,
+                                built_in=True,
+                                built_in_type="bash_code_execution",
+                                files=files if files else None,
+                            )
+                        )
 
                 content = Message("assistant", parts)
                 usage = Usage.from_anthropic_usage(data["usage"])
+
+                # Extract container ID if present (for skills/code execution)
+                container_data = data.get("container")
+                if container_data:
+                    container_id = container_data.get("id")
             except Exception as e:
                 is_error = True
                 response_text = await http_response.text()
@@ -325,6 +421,7 @@ class AnthropicRequest(APIRequestBase):
             model_internal=self.context.model_name,
             sampling_params=self.context.sampling_params,
             usage=usage,
+            container_id=container_id,
             raw_response=data,
             retry_with_different_model=retry_with_different_model,
         )

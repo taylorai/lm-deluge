@@ -35,6 +35,8 @@ class RequestContext:
 
     # Optional features
     tools: Sequence[Any] | None = None
+    skills: Sequence[Any] | None = None  # Anthropic skills
+    container_id: str | None = None  # Anthropic container ID for skills reuse
     output_schema: "type[BaseModel] | dict | None" = None
     cache: CachePattern | None = None
     use_responses_api: bool = False
@@ -70,6 +72,8 @@ class RequestContext:
             "results_arr": self.results_arr,
             "callback": self.callback,
             "tools": self.tools,
+            "skills": self.skills,
+            "container_id": self.container_id,
             "output_schema": self.output_schema,
             "cache": self.cache,
             "use_responses_api": self.use_responses_api,

@@ -118,6 +118,14 @@ class BedrockNovaRequest(APIRequestBase):
 
     def __init__(self, context: RequestContext):
         super().__init__(context=context)
+
+        # Skills are only supported by Anthropic (direct API, not Bedrock)
+        if self.context.skills:
+            raise NotImplementedError(
+                "Skills are only supported by Anthropic (direct API, not via Bedrock). "
+                "Use an Anthropic model (e.g., claude-3.5-haiku) to use skills."
+            )
+
         self.model = APIModel.from_registry(self.context.model_name)
         self.region = None
 
