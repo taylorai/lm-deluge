@@ -1,22 +1,23 @@
+import base64
 import io
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
-import base64
+
+from lm_deluge.warnings import deprecated
 
 from .file import File
 from .image import Image, MediaType
-from .thinking import Thinking
-from .tool_calls import ToolCall, ToolResult, ToolResultPart
-from .text import Text
 from .serialization import json_safe
 from .signatures import (
-    serialize_signature,
     deserialize_signature,
+    serialize_signature,
     signature_for_provider,
 )
-from lm_deluge.warnings import deprecated
+from .text import Text
+from .thinking import Thinking
+from .tool_calls import ToolCall, ToolResult, ToolResultPart
 
 Role = Literal["system", "user", "assistant", "tool"]
 Part = Text | Image | File | ToolCall | ToolResult | Thinking
@@ -373,7 +374,7 @@ class Message:
         text: str | None = None,
         *,
         image: str | bytes | Path | io.BytesIO | None = None,
-        file: str | bytes | Path | io.BytesIO | None = None,
+        file: File | str | bytes | Path | io.BytesIO | None = None,
     ) -> "Message":
         res = cls("user", [])
         if text is not None:

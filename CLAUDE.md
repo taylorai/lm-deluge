@@ -5,6 +5,7 @@
 - don't use == True and == False as these always lead to ruff errors
 - we currently run tests in this repo by just doing python tests/path_to_test.py, not pytest
 - DON'T do inline imports. imports should be at the top of the file ALWAYS unless there's a REALLY good reason (something might not be installed).
+- when using `dotenv.load_dotenv()`, put it AFTER all imports (not inline with imports) to avoid lint errors.
 
 ## Basic Library Usage
 

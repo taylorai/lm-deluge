@@ -270,6 +270,7 @@ class AnthropicRequest(APIRequestBase):
         content = None
         usage = None
         container_id = None
+        finish_reason = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
         rate_limits = {}
@@ -377,6 +378,7 @@ class AnthropicRequest(APIRequestBase):
 
                 content = Message("assistant", parts)
                 usage = Usage.from_anthropic_usage(data["usage"])
+                finish_reason = data.get("stop_reason")
 
                 # Extract container ID if present (for skills/code execution)
                 container_data = data.get("container")
@@ -421,6 +423,7 @@ class AnthropicRequest(APIRequestBase):
             model_internal=self.context.model_name,
             sampling_params=self.context.sampling_params,
             usage=usage,
+            finish_reason=finish_reason,
             container_id=container_id,
             raw_response=data,
             retry_with_different_model=retry_with_different_model,
