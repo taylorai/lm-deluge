@@ -116,6 +116,60 @@ async def save_anthropic_file(
     return output_path
 
 
+async def get_response_files(
+    response,
+    api_key: str | None = None,
+    fetch_metadata: bool = True,
+) -> dict[str, bytes]:
+    """
+    Get all files from ToolResult parts in an API response as a dict.
+
+    This function finds all ToolResult parts that have files (from code execution
+    or skills) and downloads them, returning a dict mapping filenames to content.
+
+    Args:
+        response: An APIResponse object that may contain ToolResult parts with files
+        api_key: Anthropic API key. If not provided, uses ANTHROPIC_API_KEY env var.
+        fetch_metadata: If True, fetch file metadata from API to get real filename.
+            Set to False if you want to use the filename from the response (may be generic).
+
+    Returns:
+        Dict mapping filename to file content as bytes.
+
+    Example:
+        response = await client.start(conv, skills=[skill])
+        files = await get_response_files(response)
+        for filename, content in files.items():
+            print(f"Got file: {filename} ({len(content)} bytes)")
+    """
+    if response.content is None:
+        return {}
+
+    files: dict[str, bytes] = {}
+
+    for part in response.content.parts:
+        if isinstance(part, ToolResult) and part.files:
+            for file_info in part.files:
+                file_id = file_info["file_id"]
+                if file_id is None:
+                    continue
+                filename = file_info["filename"]
+
+                # Try to get the real filename from metadata
+                if fetch_metadata and filename in ["output", "unknown"]:
+                    try:
+                        metadata = await get_anthropic_file_metadata(file_id, api_key)
+                        if metadata.get("filename"):
+                            filename = metadata["filename"]
+                    except Exception:
+                        pass  # Fall back to provided filename
+
+                content = await download_anthropic_file(file_id, api_key)
+                files[filename] = content
+
+    return files
+
+
 async def save_response_files(
     response,
     output_dir: str | Path = ".",
