@@ -16,6 +16,7 @@ from .subagents import SubAgentManager
 from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
 from .email import EmailManager
 from .full_text_search import FullTextSearchManager
+from .philips_hue import PhilipsHueManager
 
 __all__ = [
     "BatchTool",
@@ -42,4 +43,5 @@ __all__ = [
     "RandomTools",
     "EmailManager",
     "FullTextSearchManager",
+    "PhilipsHueManager",
 ]
