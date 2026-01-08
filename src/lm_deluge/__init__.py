@@ -1,4 +1,4 @@
-from .client import APIResponse, LLMClient, SamplingParams
+from .client import AgentLoopCallback, APIResponse, LLMClient, SamplingParams
 from .prompt import Conversation, Message, File
 from .tool import Tool, MCPServer, Skill, execute_tool_calls
 
@@ -8,6 +8,7 @@ __all__ = [
     "LLMClient",
     "SamplingParams",
     "APIResponse",
+    "AgentLoopCallback",
     "Conversation",
     "Message",
     "Tool",

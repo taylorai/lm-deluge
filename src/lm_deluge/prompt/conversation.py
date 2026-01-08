@@ -595,7 +595,7 @@ class Conversation:
         return self
 
     def with_tool_result(
-        self, tool_call_id: str, result: str | list[ToolResultPart]
+        self, tool_call_id: str, result: str | dict | list[ToolResultPart]
     ) -> "Conversation":
         """Add a tool result to the conversation.
 

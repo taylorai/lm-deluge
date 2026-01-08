@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import (
     Any,
     AsyncGenerator,
+    Awaitable,
     Callable,
     ClassVar,
     Literal,
@@ -45,6 +46,10 @@ class AgentLoopResponse:
 
     conversation: Conversation
     final_response: APIResponse
+
+
+# Type alias for agent loop callbacks
+AgentLoopCallback = Callable[[Conversation, APIResponse, int], Awaitable[None]]
 
 
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
@@ -921,6 +926,7 @@ class _LLMClient(BaseModel):
         tools: Sequence[Tool | dict | MCPServer] | None = None,
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
+        on_round_complete: AgentLoopCallback | None = None,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
 
@@ -938,7 +944,7 @@ class _LLMClient(BaseModel):
         # Track container ID for reuse across rounds (Anthropic skills)
         container_id: str | None = None
 
-        for _ in range(max_rounds):
+        for round_num in range(max_rounds):
             response = await self.start(
                 conversation,
                 tools=tools,  # type: ignore
@@ -954,6 +960,10 @@ class _LLMClient(BaseModel):
                 break
 
             conversation = conversation.with_message(response.content)
+
+            # Call the callback after adding the assistant message
+            if on_round_complete is not None:
+                await on_round_complete(conversation, response, round_num)
 
             tool_calls = response.content.tool_calls
             if not tool_calls:
@@ -976,6 +986,7 @@ class _LLMClient(BaseModel):
         tools: Sequence[Tool | dict | MCPServer] | None = None,
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
+        on_round_complete: AgentLoopCallback | None = None,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
 
@@ -990,7 +1001,12 @@ class _LLMClient(BaseModel):
 
         task = asyncio.create_task(
             self._run_agent_loop_internal(
-                task_id, conversation, tools=tools, skills=skills, max_rounds=max_rounds
+                task_id,
+                conversation,
+                tools=tools,
+                skills=skills,
+                max_rounds=max_rounds,
+                on_round_complete=on_round_complete,
             )
         )
         self._tasks[task_id] = task
@@ -1025,15 +1041,30 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
+        on_round_complete: AgentLoopCallback | None = None,
     ) -> tuple[Conversation, APIResponse]:
         """Run a simple agent loop until no more tool calls are returned.
 
         The provided ``conversation`` will be mutated and returned alongside the
         final ``APIResponse`` from the model. ``tools`` may include ``Tool``
         instances or built‑in tool dictionaries.
+
+        Args:
+            conversation: The conversation to continue.
+            tools: Tools available for the agent to use.
+            skills: Anthropic Skills available for the agent.
+            max_rounds: Maximum number of rounds before stopping.
+            show_progress: Whether to show progress (currently unused).
+            on_round_complete: Optional async callback called after each round.
+                Receives (conversation, response, round_number). Called after the
+                assistant message is added but before tool execution.
         """
         task_id = self.start_agent_loop_nowait(
-            conversation, tools=tools, skills=skills, max_rounds=max_rounds
+            conversation,
+            tools=tools,
+            skills=skills,
+            max_rounds=max_rounds,
+            on_round_complete=on_round_complete,
         )
         return await self.wait_for_agent_loop(task_id)
 
@@ -1045,6 +1076,7 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         show_progress: bool = False,
+        on_round_complete: AgentLoopCallback | None = None,
     ) -> tuple[Conversation, APIResponse]:
         """Synchronous wrapper for :meth:`run_agent_loop`."""
 
@@ -1055,6 +1087,7 @@ class _LLMClient(BaseModel):
                 skills=skills,
                 max_rounds=max_rounds,
                 show_progress=show_progress,
+                on_round_complete=on_round_complete,
             )
         )
 
@@ -1067,6 +1100,7 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
+        on_round_complete: AgentLoopCallback | None = None,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Process multiple agent loops concurrently.
 
@@ -1084,6 +1118,8 @@ class _LLMClient(BaseModel):
                 concurrently (default 10). This is separate from the LLM request
                 concurrency limit.
             show_progress: Whether to show progress bar for LLM requests.
+            on_round_complete: Optional async callback called after each round
+                of each agent loop.
 
         Returns:
             List of (Conversation, APIResponse) tuples in the same order as
@@ -1110,7 +1146,12 @@ class _LLMClient(BaseModel):
                 task_id = self._next_task_id
                 self._next_task_id += 1
                 result = await self._run_agent_loop_internal(
-                    task_id, conv, tools=tools, skills=skills, max_rounds=max_rounds
+                    task_id,
+                    conv,
+                    tools=tools,
+                    skills=skills,
+                    max_rounds=max_rounds,
+                    on_round_complete=on_round_complete,
                 )
                 return idx, result.conversation, result.final_response
 
@@ -1135,6 +1176,7 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
+        on_round_complete: AgentLoopCallback | None = None,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Synchronous wrapper for :meth:`process_agent_loops_async`."""
         return asyncio.run(
@@ -1145,6 +1187,7 @@ class _LLMClient(BaseModel):
                 max_rounds=max_rounds,
                 max_concurrent_agents=max_concurrent_agents,
                 show_progress=show_progress,
+                on_round_complete=on_round_complete,
             )
         )
 

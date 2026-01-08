@@ -614,7 +614,7 @@ class Tool(BaseModel):
         Find a tool by name from a list of tools.
 
         Args:
-            tools: Sequence of Tool objects to search.
+            tools: Sequence of Tool objects to search. Non-Tool items are skipped.
             name: The name of the tool to find.
 
         Returns:
@@ -627,7 +627,7 @@ class Tool(BaseModel):
                 result = await search_tool.acall(query="test")
         """
         for tool in tools:
-            if tool.name == name:
+            if isinstance(tool, Tool) and tool.name == name:
                 return tool
         return None
 
@@ -1245,14 +1245,15 @@ class Skill(BaseModel):
 
 async def execute_tool_calls(
     tool_calls: Sequence[ToolCall],
-    tools: Sequence[Tool],
+    tools: Sequence["Tool | MCPServer"],
 ) -> list[tuple[str, Any]]:
     """
     Execute a list of tool calls against a list of tools.
 
     Args:
         tool_calls: Sequence of ToolCall objects to execute.
-        tools: Sequence of Tool objects to search for matching tools.
+        tools: Sequence of Tool or MCPServer objects. MCPServers are expanded
+            to their constituent tools. Non-Tool/MCPServer items are ignored.
 
     Returns:
         List of (call_id, result) tuples in the same order as tool_calls.
@@ -1265,16 +1266,26 @@ async def execute_tool_calls(
         for call_id, result in results:
             conv = conv.with_tool_result(call_id, result)
     """
+    # Expand MCPServers to their constituent tools
+    expanded_tools: list[Tool] = []
+    for tool in tools:
+        if isinstance(tool, Tool):
+            expanded_tools.append(tool)
+        elif isinstance(tool, MCPServer):
+            mcp_tools = await tool.to_tools()
+            expanded_tools.extend(mcp_tools)
+        # Skip dicts and other types - they can't be executed client-side
+
     results: list[tuple[str, Any]] = []
 
     for call in tool_calls:
-        tool = Tool.find(tools, name=call.name)
+        tool_obj = Tool.find(expanded_tools, name=call.name)
 
-        if tool is None or tool.run is None:
+        if tool_obj is None or tool_obj.run is None:
             result: Any = f"Error: Tool '{call.name}' not found"
         else:
             try:
-                result = await tool.acall(**call.arguments)
+                result = await tool_obj.acall(**call.arguments)
             except Exception as e:
                 result = f"Error: {e}"
 

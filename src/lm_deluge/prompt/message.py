@@ -344,7 +344,7 @@ class Message:
         return self.with_tool_call(id, name, arguments)
 
     def with_tool_result(
-        self, tool_call_id: str, result: str | list[ToolResultPart]
+        self, tool_call_id: str, result: str | dict | list[ToolResultPart]
     ) -> "Message":
         """Append a tool result block and return self for chaining."""
         self.parts.append(ToolResult(tool_call_id=tool_call_id, result=result))
@@ -352,7 +352,7 @@ class Message:
 
     @deprecated("with_tool_result")
     def add_tool_result(
-        self, tool_call_id: str, result: str | list[ToolResultPart]
+        self, tool_call_id: str, result: str | dict | list[ToolResultPart]
     ) -> "Message":
         """Append a tool result block and return self for chaining."""
         return self.with_tool_result(tool_call_id, result)
