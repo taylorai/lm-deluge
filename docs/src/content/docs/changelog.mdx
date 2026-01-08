@@ -5,6 +5,26 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.96 · 2026-01-07
+
+- Agent loops now accept an `on_round_complete` callback on `run_agent_loop()`/`run_agent_loop_sync()`/`start_agent_loop_nowait()` (and batch agent loop helpers) for per-round hooks.
+- New tool execution helpers: `execute_tool_calls()` (plus `Tool.find()`) for running `ToolCall`s locally and collecting `(tool_call_id, result)` tuples.
+- Conversation ergonomics: `Conversation.with_tool_results()` for adding tool outputs in bulk, and `with_tool_result()`/`Message.with_tool_result()` now accept dict results.
+- Added core test coverage for agent loop callbacks and the new tool helper utilities.
+
+## 0.0.95 · 2026-01-06
+
+- Added `PhilipsHueManager` prefab (`lm_deluge.tool.prefab`) for controlling Philips Hue lights via the local bridge API (list lights, on/off, color, brightness; `HUE_BRIDGE_IP` + `HUE_API_KEY`).
+- Added an experimental `lm_deluge.pipelines.heartbeat` starter for running a model on a schedule.
+- Added a one-off live test for `PhilipsHueManager` (`tests/one_off/test_philips_hue_live.py`).
+
+## 0.0.94 · 2026-01-01
+
+- Added `get_response_files()` to `lm_deluge.util.anthropic_files` to download Anthropic response files in-memory (optionally resolving real filenames via metadata).
+- Anthropic requests now populate `APIResponse.finish_reason` from `stop_reason`.
+- `Message.user(..., file=...)` now accepts a `File` object directly.
+- Added a one-off regression test for Anthropic `finish_reason` parsing (`tests/one_off/test_anthropic_finish_reason.py`).
+
 ## 0.0.93 · 2026-01-01
 
 - Added Anthropic Skills support: pass `skills=[Skill(...)]` to `start()`, `run_agent_loop()`, or batch methods to use Anthropic's built-in skills (xlsx, pptx) or custom uploaded skills.
