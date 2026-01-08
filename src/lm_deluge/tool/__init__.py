@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Coroutine,
     Literal,
+    Sequence,
     TypedDict,
     cast,
     get_args,
@@ -22,6 +23,7 @@ from pydantic import BaseModel, Field, TypeAdapter, field_validator
 
 from lm_deluge.prompt import Image
 from lm_deluge.prompt import Text, ToolResultPart
+from lm_deluge.prompt.tool_calls import ToolCall
 
 
 @lru_cache(maxsize=1000)
@@ -605,6 +607,29 @@ class Tool(BaseModel):
             self._validate_output(result)
 
         return result
+
+    @staticmethod
+    def find(tools: "Sequence[Tool]", *, name: str) -> "Tool | None":
+        """
+        Find a tool by name from a list of tools.
+
+        Args:
+            tools: Sequence of Tool objects to search.
+            name: The name of the tool to find.
+
+        Returns:
+            The matching Tool, or None if not found.
+
+        Example:
+            tools = [tool1, tool2, tool3]
+            search_tool = Tool.find(tools, name="search")
+            if search_tool:
+                result = await search_tool.acall(query="test")
+        """
+        for tool in tools:
+            if tool.name == name:
+                return tool
+        return None
 
     @classmethod
     def from_function(
@@ -1216,3 +1241,46 @@ class Skill(BaseModel):
 
 # Note: prefab submodule is available via lm_deluge.tool.prefab
 # but not auto-imported here to avoid circular imports
+
+
+async def execute_tool_calls(
+    tool_calls: Sequence[ToolCall],
+    tools: Sequence[Tool],
+) -> list[tuple[str, Any]]:
+    """
+    Execute a list of tool calls against a list of tools.
+
+    Args:
+        tool_calls: Sequence of ToolCall objects to execute.
+        tools: Sequence of Tool objects to search for matching tools.
+
+    Returns:
+        List of (call_id, result) tuples in the same order as tool_calls.
+        Results are strings, dicts, or lists. If a tool is not found or
+        execution fails, the result will be an error string.
+
+    Example:
+        tool_calls = response.content.tool_calls
+        results = await execute_tool_calls(tool_calls, tools)
+        for call_id, result in results:
+            conv = conv.with_tool_result(call_id, result)
+    """
+    results: list[tuple[str, Any]] = []
+
+    for call in tool_calls:
+        tool = Tool.find(tools, name=call.name)
+
+        if tool is None or tool.run is None:
+            result: Any = f"Error: Tool '{call.name}' not found"
+        else:
+            try:
+                result = await tool.acall(**call.arguments)
+            except Exception as e:
+                result = f"Error: {e}"
+
+        if not isinstance(result, (str, dict, list)):
+            result = str(result)
+
+        results.append((call.id, result))
+
+    return results

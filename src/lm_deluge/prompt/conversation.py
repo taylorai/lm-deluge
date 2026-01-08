@@ -1,7 +1,7 @@
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 import base64
 import tiktoken
 import xxhash
@@ -610,6 +610,22 @@ class Conversation:
             tool_msg = Message("tool", [])
             tool_msg.with_tool_result(tool_call_id, result)
             self.messages.append(tool_msg)
+        return self
+
+    def with_tool_results(self, results: list[tuple[str, Any]]) -> "Conversation":
+        """Add multiple tool results to the conversation.
+
+        Convenience method that takes the output of execute_tool_calls() directly.
+
+        Args:
+            results: List of (tool_call_id, result) tuples.
+
+        Example:
+            results = await execute_tool_calls(tool_calls, tools)
+            conv = conv.with_tool_results(results)
+        """
+        for call_id, result in results:
+            self.with_tool_result(call_id, result)
         return self
 
     # ── conversions -----------------------------------------------------------

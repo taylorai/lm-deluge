@@ -30,7 +30,7 @@ from lm_deluge.prompt import (
     Prompt,
     prompts_to_conversations,
 )
-from lm_deluge.tool import MCPServer, Skill, Tool
+from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
 
 from ..api_requests.base import APIResponse
 from ..config import SamplingParams
@@ -959,26 +959,8 @@ class _LLMClient(BaseModel):
             if not tool_calls:
                 break
 
-            for call in tool_calls:
-                tool_obj = None
-                if expanded_tools:
-                    for t in expanded_tools:
-                        if t.name == call.name:
-                            tool_obj = t
-                            break
-
-                if isinstance(tool_obj, Tool) and tool_obj.run is not None:
-                    try:
-                        result = await tool_obj.acall(**call.arguments)
-                    except Exception as e:  # pragma: no cover - best effort
-                        result = f"Error: {e}"
-                else:
-                    result = f"Tool {call.name} not found"
-
-                if not isinstance(result, (str, dict, list)):
-                    result = str(result)
-
-                conversation = conversation.with_tool_result(call.id, result)  # type: ignore
+            results = await execute_tool_calls(tool_calls, expanded_tools)
+            conversation = conversation.with_tool_results(results)
 
         if response is None:
             raise RuntimeError("model did not return a response")
