@@ -91,8 +91,6 @@ async def _build_oa_chat_request(
             # Disable reasoning for Gemini models when no effort requested
             if "gemini" in model.id:
                 effort = "none"
-            elif "gpt-5" in model.id:
-                effort = "minimal"
             else:
                 effort = "low"
         # GPT-5.1 models don't support 'minimal', they support 'none' instead
