@@ -97,7 +97,7 @@ async def _build_oa_chat_request(
             else:
                 effort = "low"
         # GPT-5.1 and later models don't support 'minimal', they support 'none' instead
-        if effort == "minimal" and (re.match(r"^gpt-(5.\d+)", model.id) is not None):
+        if effort == "minimal" and (re.match(r"^gpt-(5\.\d+)", model.id) is not None):
             maybe_warn("WARN_MINIMAL_TO_NONE", model_name=context.model_name)
             effort = "none"
         elif effort == "minimal" and "gpt-5" not in model.id:
