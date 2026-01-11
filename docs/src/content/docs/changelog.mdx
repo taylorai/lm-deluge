@@ -5,6 +5,14 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.98 · 2026-01-10
+
+- OpenAI Responses API now supports client-side tool execution: when you pass `Tool` objects (or local MCP servers with `force_local_mcp=True`) to `start()`, the client automatically runs an internal tool loop—calling your tools, collecting results, and continuing until the model finishes. This brings Responses API parity with the existing chat completions agent loop.
+- Responses API response parsing now preserves raw item payloads (`raw_item`) in `ToolCall.extra_body` for function calls, MCP calls, web search, and other built-in tools, making it easier to reconstruct the exact request format when needed.
+- `Thinking` parts from Responses API now include `summary` and `raw_payload` fields for richer introspection.
+- Agent loops (`run_agent_loop`) now raise `NotImplementedError` when `use_responses_api=True` to prevent confusion—use `start()` instead, which handles the tool loop automatically.
+- Added test coverage for Responses API tool call handling in `tests/core/test_openai_responses_tool_calls.py`.
+
 ## 0.0.97 · 2026-01-10
 
 - Fixed GPT-5 reasoning effort defaults: GPT-5 models no longer special-case to `minimal` effort when none is specified; they now follow the standard `low` default like other reasoning models.
