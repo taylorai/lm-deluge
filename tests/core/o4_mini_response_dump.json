@@ -1,0 +1,90 @@
+{
+  "id": "resp_091826277aede4bb0069631f38d7888194a496446cd6a40af0",
+  "object": "response",
+  "created_at": 1768103736,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "openai"
+  },
+  "completed_at": 1768103740,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "model": "o4-mini-2025-04-16",
+  "output": [
+    {
+      "id": "rs_091826277aede4bb0069631f397cac819492d78c106323d242",
+      "type": "reasoning",
+      "summary": []
+    },
+    {
+      "id": "fc_091826277aede4bb0069631f3c66d08194aef7c93314e49421",
+      "type": "function_call",
+      "status": "completed",
+      "arguments": "{\"query\":\"applicant\"}",
+      "call_id": "call_D3b44dL1MW8XZwM1zQZjhVdr",
+      "name": "search_document"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": "medium",
+    "summary": "detailed"
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": true,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "type": "function",
+      "description": "Search for information in the document.",
+      "name": "search_document",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "The search query"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 1.0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 60,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 213,
+    "output_tokens_details": {
+      "reasoning_tokens": 192
+    },
+    "total_tokens": 273
+  },
+  "user": null,
+  "metadata": {}
+}

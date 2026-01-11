@@ -33,7 +33,17 @@ class Thinking:
         return {"type": "text", "text": f"[Thinking: {self.content}]"}
 
     def oa_resp(self) -> dict:  # OpenAI Responses
-        return {"type": "reasoning", "content": self.content}
+        # If we have the raw payload, use it (preserves all fields including id, summary)
+        if self.raw_payload:
+            return dict(self.raw_payload)
+
+        # Otherwise, construct with required fields
+        # The summary field is REQUIRED by OpenAI's Responses API for reasoning items
+        return {
+            "type": "reasoning",
+            "id": f"reasoning_{id(self)}",  # Generate an ID if needed
+            "summary": [{"type": "summary_text", "text": self.summary or self.content}],
+        }
 
     def anthropic(self) -> dict:  # Anthropic Messages
         if self.raw_payload:

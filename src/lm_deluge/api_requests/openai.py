@@ -520,19 +520,22 @@ class OpenAIResponsesRequest(APIRequestBase):
                                         elif content_item.get("type") == "refusal":
                                             parts.append(Text(content_item["refusal"]))
                                 elif item.get("type") == "reasoning":
-                                    summary = item["summary"]
-                                    if not summary:
-                                        continue
-                                    if isinstance(summary, list) and len(summary) > 0:
-                                        summary = summary[0]
-                                    assert isinstance(
-                                        summary, dict
-                                    ), "summary isn't a dict"
+                                    # Always create Thinking with raw_payload to preserve
+                                    # the item for round-tripping back to the API
+                                    summary_list = item.get("summary", [])
+                                    summary_text = ""
+                                    if (
+                                        isinstance(summary_list, list)
+                                        and len(summary_list) > 0
+                                    ):
+                                        first_summary = summary_list[0]
+                                        if isinstance(first_summary, dict):
+                                            summary_text = first_summary.get("text", "")
                                     parts.append(
                                         Thinking(
-                                            summary["text"],
+                                            content=summary_text or "[reasoning]",
                                             raw_payload=item,
-                                            summary=summary["text"],
+                                            summary=summary_text or None,
                                         )
                                     )
                                 elif item.get("type") == "function_call":
@@ -623,10 +626,16 @@ class OpenAIResponsesRequest(APIRequestBase):
                                         )
                                     )
 
-                            # Handle reasoning if present
+                            # Handle reasoning if present in top-level field
+                            # (used by some pseudo-OpenAI APIs)
                             if "reasoning" in data and data["reasoning"].get("summary"):
                                 thinking = data["reasoning"]["summary"]
-                                parts.append(Thinking(thinking))
+                                # Check if we already have a reasoning item from output
+                                has_reasoning = any(
+                                    isinstance(p, Thinking) for p in parts
+                                )
+                                if not has_reasoning:
+                                    parts.append(Thinking(thinking))
 
                             content = Message("assistant", parts)
 
