@@ -660,30 +660,61 @@ class Conversation:
         for m in self.messages:
             if m.role == "system":
                 continue
-            elif m.role == "assistant":
-                # For assistant messages, extract computer calls as separate items
-                text_parts = []
-                for p in m.parts:
-                    if isinstance(p, ToolCall) and p.built_in_type == "computer_call":
-                        # Computer calls become separate items in the input array
-                        # p.arguments already contains the full action dict with "type"
-                        input_items.append(
-                            {
-                                "type": "computer_call",
-                                "call_id": p.id,
-                                "action": p.arguments,
-                            }
-                        )
-                    elif isinstance(p, Text):
-                        text_parts.append({"type": "output_text", "text": p.text})
-                    # TODO: Handle other part types as needed
+            if m.role == "assistant":
+                pending_message_content: list[dict] = []
 
-                # Add message if it has text content
-                if text_parts:
-                    input_items.append({"role": m.role, "content": text_parts})
-            else:
-                # User and tool messages use normal format
-                input_items.append(m.oa_resp())
+                def flush_assistant_message() -> None:
+                    nonlocal pending_message_content
+                    if pending_message_content:
+                        input_items.append(
+                            {"role": "assistant", "content": pending_message_content}
+                        )
+                        pending_message_content = []
+
+                for p in m.parts:
+                    if isinstance(p, Text):
+                        pending_message_content.append(
+                            {"type": "output_text", "text": p.text}
+                        )
+                        continue
+
+                    if isinstance(p, ToolCall):
+                        flush_assistant_message()
+                        if p.built_in_type == "computer_call":
+                            input_items.append(
+                                {
+                                    "type": "computer_call",
+                                    "call_id": p.id,
+                                    "action": p.arguments,
+                                }
+                            )
+                        elif p.extra_body and isinstance(p.extra_body, dict):
+                            raw_item = p.extra_body.get("raw_item")
+                            if isinstance(raw_item, dict):
+                                input_items.append(raw_item)
+                            else:
+                                input_items.append(p.oa_resp())
+                        else:
+                            input_items.append(p.oa_resp())
+                        continue
+
+                    if isinstance(p, Thinking):
+                        flush_assistant_message()
+                        if p.raw_payload:
+                            input_items.append(dict(p.raw_payload))
+                        else:
+                            input_items.append(p.oa_resp())
+                        continue
+
+                flush_assistant_message()
+                continue
+
+            if m.role == "tool":
+                for tool_result in m.tool_results:
+                    input_items.append(tool_result.oa_resp())
+                continue
+
+            input_items.append(m.oa_resp())
 
         return {"input": input_items}
 

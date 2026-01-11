@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.97 · 2026-01-10
+
+- Fixed GPT-5 reasoning effort defaults: GPT-5 models no longer special-case to `minimal` effort when none is specified; they now follow the standard `low` default like other reasoning models.
+- Enabled JSON mode support (`supports_json: True`) for GPT-5 Codex variants (`gpt-5.1-codex`, `gpt-5.1-codex-mini`, `gpt-5-codex`) and `gpt-5-chat-latest`.
+- Updated Cerebras model catalog: added `glm-4.7-cerebras` (ZAI GLM 4.7); temporarily disabled preview models (`llama-4-scout`, `llama-4-maverick`, `qwen-3-235b-thinking`, `qwen-3-coder`) pending availability.
+
 ## 0.0.96 · 2026-01-07
 
 - Agent loops now accept an `on_round_complete` callback on `run_agent_loop()`/`run_agent_loop_sync()`/`start_agent_loop_nowait()` (and batch agent loop helpers) for per-round hooks.

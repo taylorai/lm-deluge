@@ -528,13 +528,24 @@ class OpenAIResponsesRequest(APIRequestBase):
                                     assert isinstance(
                                         summary, dict
                                     ), "summary isn't a dict"
-                                    parts.append(Thinking(summary["text"]))
+                                    parts.append(
+                                        Thinking(
+                                            summary["text"],
+                                            raw_payload=item,
+                                            summary=summary["text"],
+                                        )
+                                    )
                                 elif item.get("type") == "function_call":
                                     parts.append(
                                         ToolCall(
                                             id=item["call_id"],
                                             name=item["name"],
                                             arguments=json.loads(item["arguments"]),
+                                            extra_body={
+                                                "item_id": item.get("id"),
+                                                "arguments_json": item.get("arguments"),
+                                                "raw_item": item,
+                                            },
                                         )
                                     )
                                 elif item.get("type") == "mcp_call":
@@ -549,6 +560,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                                                 "server_label": item["server_label"],
                                                 "error": item.get("error"),
                                                 "output": item.get("output"),
+                                                "raw_item": item,
                                             },
                                         )
                                     )
@@ -561,6 +573,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                                             arguments=item.get("action"),
                                             built_in=True,
                                             built_in_type="computer_call",
+                                            extra_body={"raw_item": item},
                                         )
                                     )
 
@@ -572,7 +585,10 @@ class OpenAIResponsesRequest(APIRequestBase):
                                             arguments={},
                                             built_in=True,
                                             built_in_type="web_search_call",
-                                            extra_body={"status": item["status"]},
+                                            extra_body={
+                                                "status": item["status"],
+                                                "raw_item": item,
+                                            },
                                         )
                                     )
 
@@ -587,6 +603,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                                             extra_body={
                                                 "status": item["status"],
                                                 "results": item["results"],
+                                                "raw_item": item,
                                             },
                                         )
                                     )
@@ -601,6 +618,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                                             extra_body={
                                                 "status": item["status"],
                                                 "result": item["result"],
+                                                "raw_item": item,
                                             },
                                         )
                                     )

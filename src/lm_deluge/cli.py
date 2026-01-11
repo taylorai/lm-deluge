@@ -2,12 +2,13 @@
 LM-Deluge CLI
 
 Usage:
-    deluge list [--provider PROVIDER] [--name NAME] [--json] ...
+    deluge list [--provider PROVIDER] [--name NAME] [--auto] [--json] ...
     deluge run MODEL [--input INPUT | --file FILE] [--max-tokens N] [--temperature T] ...
     deluge agent MODEL [--mcp-config FILE] [--prefab TOOLS] [--input INPUT] ...
 
 Examples:
     deluge list
+    deluge list --auto                            # Only models with API keys set
     deluge list --provider anthropic --reasoning
     deluge list --name claude --json
     deluge run claude-3.5-haiku -i "What is 2+2?"
@@ -60,6 +61,7 @@ def cmd_list(args: argparse.Namespace) -> int:
         min_output_cost=args.min_output_cost,
         max_output_cost=args.max_output_cost,
         name_contains=args.name,
+        has_api_key=True if args.auto else None,
         sort_by=args.sort,
         limit=args.limit,
     )
@@ -492,6 +494,11 @@ def main():
         "--reasoning",
         action="store_true",
         help="Only show reasoning models",
+    )
+    list_parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Only show models whose provider API key is set in the environment",
     )
     list_parser.add_argument(
         "--min-input-cost",

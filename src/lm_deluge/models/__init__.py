@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 from dataclasses import dataclass, field
 
@@ -178,6 +179,7 @@ def find_models(
     min_output_cost: float | None = None,
     max_output_cost: float | None = None,
     name_contains: str | None = None,
+    has_api_key: bool | None = None,
     sort_by: str | None = None,
     limit: int | None = None,
 ) -> list[APIModel]:
@@ -198,6 +200,7 @@ def find_models(
         min_output_cost: Minimum output cost ($ per million tokens)
         max_output_cost: Maximum output cost ($ per million tokens)
         name_contains: Filter by substring in model ID (case-insensitive)
+        has_api_key: Filter to only models whose API key env var is set in the environment
         sort_by: Sort results by "input_cost", "output_cost", "-input_cost", "-output_cost"
         limit: Maximum number of results to return
 
@@ -252,6 +255,12 @@ def find_models(
     if name_contains is not None:
         name_lower = name_contains.lower()
         results = [m for m in results if name_lower in m.id.lower()]
+
+    if has_api_key is not None:
+        if has_api_key:
+            results = [m for m in results if os.environ.get(m.api_key_env_var)]
+        else:
+            results = [m for m in results if not os.environ.get(m.api_key_env_var)]
 
     if sort_by is not None:
         reverse = sort_by.startswith("-")

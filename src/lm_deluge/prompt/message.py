@@ -49,6 +49,18 @@ class Message:
         return [part for part in self.parts if part.type == "tool_call"]  # type: ignore
 
     @property
+    def tool_calls_to_execute(self) -> list["ToolCall"]:
+        """Get tool calls that require client-side execution."""
+        tool_calls: list[ToolCall] = []
+        for part in self.tool_calls:
+            if not part.built_in:
+                tool_calls.append(part)
+                continue
+            if part.built_in_type == "computer_call":
+                tool_calls.append(part)
+        return tool_calls
+
+    @property
     def tool_results(self) -> list["ToolResult"]:
         """Get all tool result parts with proper typing."""
         return [part for part in self.parts if part.type == "tool_result"]  # type: ignore

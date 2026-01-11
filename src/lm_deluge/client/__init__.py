@@ -28,7 +28,10 @@ from lm_deluge.batches import (
 from lm_deluge.prompt import (
     CachePattern,
     Conversation,
+    Message,
+    Part,
     Prompt,
+    ToolResult,
     prompts_to_conversations,
 )
 from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
@@ -746,7 +749,34 @@ class _LLMClient(BaseModel):
             )
         )
 
-    async def _run_context(self, context: RequestContext) -> APIResponse:
+    def _should_auto_tool_loop(
+        self, tools: Sequence[Tool | dict | MCPServer] | None
+    ) -> bool:
+        if not self.use_responses_api:
+            return False
+        if not tools:
+            return False
+        has_tool = any(isinstance(t, Tool) for t in tools)
+        has_local_mcp = self.force_local_mcp and any(
+            isinstance(t, MCPServer) for t in tools
+        )
+        return has_tool or has_local_mcp
+
+    async def _expand_executable_tools(
+        self, tools: Sequence[Tool | dict | MCPServer] | None
+    ) -> list[Tool]:
+        expanded_tools: list[Tool] = []
+        if not tools:
+            return expanded_tools
+        for tool in tools:
+            if isinstance(tool, Tool):
+                expanded_tools.append(tool)
+            elif isinstance(tool, MCPServer) and self.force_local_mcp:
+                mcp_tools = await tool.to_tools()
+                expanded_tools.extend(mcp_tools)
+        return expanded_tools
+
+    async def _run_context_single(self, context: RequestContext) -> APIResponse:
         tracker = self._get_tracker()
         retry = False
         retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
@@ -759,6 +789,62 @@ class _LLMClient(BaseModel):
                 return response
             current = await retry_queue.get()
             retry = True
+
+    async def _run_context_with_tool_loop(self, context: RequestContext) -> APIResponse:
+        expanded_tools = await self._expand_executable_tools(context.tools)
+
+        working = Conversation(
+            [Message(m.role, list(m.parts)) for m in context.prompt.messages]
+        )
+        current_container_id = context.container_id
+        last_response: APIResponse | None = None
+        max_rounds = 100
+
+        for round_num in range(max_rounds):
+            if round_num > 0 and context.status_tracker is not None:
+                context.status_tracker.add_to_total(1)
+
+            round_context = context.copy(
+                prompt=working,
+                container_id=current_container_id,
+            )
+            response = await self._run_context_single(round_context)
+            last_response = response
+
+            if response.container_id:
+                current_container_id = response.container_id
+
+            if response.content is None:
+                break
+
+            working = working.with_message(response.content)
+            tool_calls = response.content.tool_calls_to_execute
+            if not tool_calls:
+                break
+
+            results = await execute_tool_calls(tool_calls, expanded_tools)
+            by_id = {tc.id: tc for tc in tool_calls}
+            tool_parts: list[Part] = []
+            for call_id, result in results:
+                call = by_id.get(call_id)
+                if call is None:
+                    tool_parts.append(ToolResult(tool_call_id=call_id, result=result))
+                    continue
+                tool_parts.append(
+                    ToolResult(
+                        tool_call_id=call_id,
+                        result=result,
+                        built_in=call.built_in,
+                        built_in_type=call.built_in_type,
+                    )
+                )
+            working = working.with_message(Message("tool", tool_parts))
+
+        if last_response is None:
+            raise RuntimeError("model did not return a response")
+
+        self._results[context.task_id] = last_response
+        return last_response
 
     def start_nowait(
         self,
@@ -796,12 +882,36 @@ class _LLMClient(BaseModel):
             extra_headers=self.extra_headers,
             force_local_mcp=self.force_local_mcp,
         )
-        task = asyncio.create_task(self._run_context(context))
+        if self._should_auto_tool_loop(tools):
+            task = asyncio.create_task(self._run_context_with_tool_loop(context))
+        else:
+            task = asyncio.create_task(self._run_context_single(context))
         self._tasks[task_id] = task
         tracker.add_to_total(1)
         return task_id
 
     async def start(
+        self,
+        prompt: Prompt,
+        *,
+        tools: Sequence[Tool | dict | MCPServer] | None = None,
+        skills: Sequence[Skill] | None = None,
+        container_id: str | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+    ) -> APIResponse:
+        return await self._start_once(
+            prompt,
+            tools=tools,
+            skills=skills,
+            container_id=container_id,
+            output_schema=output_schema,
+            cache=cache,
+            service_tier=service_tier,
+        )
+
+    async def _start_once(
         self,
         prompt: Prompt,
         *,
@@ -927,8 +1037,16 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
+        if self.use_responses_api:
+            raise NotImplementedError(
+                "Agent loops are not available when use_responses_api=True. "
+                "Use start()/process_prompts_async() instead."
+            )
 
         # Expand MCPServer objects to their constituent tools for tool execution
         expanded_tools: list[Tool] = []
@@ -937,19 +1055,23 @@ class _LLMClient(BaseModel):
                 if isinstance(tool, Tool):
                     expanded_tools.append(tool)
                 elif isinstance(tool, MCPServer):
-                    mcp_tools = await tool.to_tools()
-                    expanded_tools.extend(mcp_tools)
+                    if self.force_local_mcp:
+                        mcp_tools = await tool.to_tools()
+                        expanded_tools.extend(mcp_tools)
 
         response: APIResponse | None = None
         # Track container ID for reuse across rounds (Anthropic skills)
         container_id: str | None = None
 
         for round_num in range(max_rounds):
-            response = await self.start(
+            response = await self._start_once(
                 conversation,
                 tools=tools,  # type: ignore
                 skills=skills,
                 container_id=container_id,
+                output_schema=output_schema,
+                cache=cache,
+                service_tier=service_tier,
             )
 
             # Capture container_id from response for reuse in next round
@@ -965,12 +1087,27 @@ class _LLMClient(BaseModel):
             if on_round_complete is not None:
                 await on_round_complete(conversation, response, round_num)
 
-            tool_calls = response.content.tool_calls
-            if not tool_calls:
+            tool_calls_to_execute = response.content.tool_calls_to_execute
+            if not tool_calls_to_execute:
                 break
 
-            results = await execute_tool_calls(tool_calls, expanded_tools)
-            conversation = conversation.with_tool_results(results)
+            results = await execute_tool_calls(tool_calls_to_execute, expanded_tools)
+            by_id = {tc.id: tc for tc in tool_calls_to_execute}
+            tool_parts: list[Part] = []
+            for call_id, result in results:
+                call = by_id.get(call_id)
+                if call is None:
+                    tool_parts.append(ToolResult(tool_call_id=call_id, result=result))
+                    continue
+                tool_parts.append(
+                    ToolResult(
+                        tool_call_id=call_id,
+                        result=result,
+                        built_in=call.built_in,
+                        built_in_type=call.built_in_type,
+                    )
+                )
+            conversation = conversation.with_message(Message("tool", tool_parts))
 
         if response is None:
             raise RuntimeError("model did not return a response")
@@ -987,11 +1124,19 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
 
         Returns a task_id that can be used with wait_for_agent_loop().
         """
+        if self.use_responses_api:
+            raise NotImplementedError(
+                "start_agent_loop_nowait is not available when use_responses_api=True. "
+                "Use start_nowait() instead."
+            )
         if not isinstance(conversation, Conversation):
             conversation = prompts_to_conversations([conversation])[0]
             assert isinstance(conversation, Conversation)
@@ -1007,6 +1152,9 @@ class _LLMClient(BaseModel):
                 skills=skills,
                 max_rounds=max_rounds,
                 on_round_complete=on_round_complete,
+                output_schema=output_schema,
+                cache=cache,
+                service_tier=service_tier,
             )
         )
         self._tasks[task_id] = task
@@ -1042,6 +1190,9 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> tuple[Conversation, APIResponse]:
         """Run a simple agent loop until no more tool calls are returned.
 
@@ -1059,12 +1210,20 @@ class _LLMClient(BaseModel):
                 Receives (conversation, response, round_number). Called after the
                 assistant message is added but before tool execution.
         """
+        if self.use_responses_api:
+            raise NotImplementedError(
+                "run_agent_loop is not available when use_responses_api=True. "
+                "Use start()/process_prompts_async() instead."
+            )
         task_id = self.start_agent_loop_nowait(
             conversation,
             tools=tools,
             skills=skills,
             max_rounds=max_rounds,
             on_round_complete=on_round_complete,
+            output_schema=output_schema,
+            cache=cache,
+            service_tier=service_tier,
         )
         return await self.wait_for_agent_loop(task_id)
 
@@ -1077,8 +1236,16 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> tuple[Conversation, APIResponse]:
         """Synchronous wrapper for :meth:`run_agent_loop`."""
+        if self.use_responses_api:
+            raise NotImplementedError(
+                "run_agent_loop_sync is not available when use_responses_api=True. "
+                "Use process_prompts_sync()/start() instead."
+            )
 
         return asyncio.run(
             self.run_agent_loop(
@@ -1088,6 +1255,9 @@ class _LLMClient(BaseModel):
                 max_rounds=max_rounds,
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
+                output_schema=output_schema,
+                cache=cache,
+                service_tier=service_tier,
             )
         )
 
@@ -1101,6 +1271,9 @@ class _LLMClient(BaseModel):
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Process multiple agent loops concurrently.
 
@@ -1125,6 +1298,11 @@ class _LLMClient(BaseModel):
             List of (Conversation, APIResponse) tuples in the same order as
             the input prompts.
         """
+        if self.use_responses_api:
+            raise NotImplementedError(
+                "process_agent_loops_async is not available when use_responses_api=True. "
+                "Use process_prompts_async() instead."
+            )
         # Convert prompts to Conversations
         conversations = prompts_to_conversations(list(prompts))
 
@@ -1152,6 +1330,9 @@ class _LLMClient(BaseModel):
                     skills=skills,
                     max_rounds=max_rounds,
                     on_round_complete=on_round_complete,
+                    output_schema=output_schema,
+                    cache=cache,
+                    service_tier=service_tier,
                 )
                 return idx, result.conversation, result.final_response
 
@@ -1177,8 +1358,16 @@ class _LLMClient(BaseModel):
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
+        output_schema: type[BaseModel] | dict | None = None,
+        cache: CachePattern | None = None,
+        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Synchronous wrapper for :meth:`process_agent_loops_async`."""
+        if self.use_responses_api:
+            raise NotImplementedError(
+                "process_agent_loops_sync is not available when use_responses_api=True. "
+                "Use process_prompts_sync() instead."
+            )
         return asyncio.run(
             self.process_agent_loops_async(
                 prompts,
@@ -1188,6 +1377,9 @@ class _LLMClient(BaseModel):
                 max_concurrent_agents=max_concurrent_agents,
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
+                output_schema=output_schema,
+                cache=cache,
+                service_tier=service_tier,
             )
         )
 

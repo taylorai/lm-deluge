@@ -57,12 +57,21 @@ class ToolCall:
         }
 
     def oa_resp(self) -> dict:  # OpenAI Responses
-        return {
+        arguments_json = None
+        item_id = None
+        if isinstance(self.extra_body, dict):
+            arguments_json = self.extra_body.get("arguments_json")
+            item_id = self.extra_body.get("item_id")
+
+        result: dict = {
             "type": "function_call",
-            "id": self.id,
+            "call_id": self.id,
             "name": self.name,
-            "arguments": self.arguments,
+            "arguments": arguments_json or json.dumps(self.arguments),
         }
+        if item_id:
+            result["id"] = item_id
+        return result
 
     def anthropic(self) -> dict:  # Anthropic Messages
         return {
@@ -173,15 +182,13 @@ class ToolResult:
         # print("typeof self.result:", type(self.result))
         # if normal (not built-in just return the regular output
         if not self.built_in:
-            result = (
-                json.dumps(self.result)
-                if isinstance(self.result, list)
-                else self.result
+            output = (
+                self.result if isinstance(self.result, str) else json.dumps(self.result)
             )
             return {
-                "type": "function_result",
+                "type": "function_call_output",
                 "call_id": self.tool_call_id,
-                "result": result,
+                "output": output,
             }
 
         # if it's a built-in, OpenAI expects special type for each

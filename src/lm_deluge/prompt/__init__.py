@@ -1,6 +1,6 @@
 from typing import TypeAlias, Sequence
 from .conversation import Conversation, CachePattern
-from .message import Message
+from .message import Message, Part
 from .text import Text
 from .thinking import Thinking
 from .signatures import ThoughtSignature
@@ -31,6 +31,7 @@ def prompts_to_conversations(prompts: Sequence[Prompt]) -> Sequence[Conversation
 __all__ = [
     "Conversation",
     "Message",
+    "Part",
     "Prompt",
     "prompts_to_conversations",
     "ToolCall",
