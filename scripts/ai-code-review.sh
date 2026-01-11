@@ -5,7 +5,7 @@
 
 # Load SLACK_WEBHOOK from .env if it exists (exports for codex agent)
 if [ -f .env ]; then
-    SLACK_WEBHOOK=$(grep -E '^SLACK_WEBHOOK=' .env | cut -d'=' -f2-)
+    SLACK_WEBHOOK=$(grep -E '^SLACK_WEBHOOK=' .env | cut -d'=' -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
     export SLACK_WEBHOOK
 fi
 

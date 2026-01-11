@@ -12,6 +12,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# code reviews
+ai-reviews
+
 # mac
 .DS_Store
 **/.DS_Store
