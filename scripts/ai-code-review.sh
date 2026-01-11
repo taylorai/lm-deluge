@@ -3,6 +3,13 @@
 # AI Code Review - runs after each commit
 # Output stored in ai-reviews/ folder (committed to VCS)
 
+# Load .env if it exists (exports SLACK_WEBHOOK for codex agent)
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
 # Bail early if SLACK_WEBHOOK is not set (prevents running on random checkouts)
 if [ -z "$SLACK_WEBHOOK" ]; then
     echo "Skipping AI code review: SLACK_WEBHOOK not set"
