@@ -50,3 +50,13 @@ repos:
         language: script
         entry: scripts/banned-weird-spaces.sh
         files: \.(py|js|ts|tsx|jsx|json|yaml|yml|txt|css|scss|sass|less|html|xml|svg|sql|sh|bash|zsh|fish|conf|config|ini|toml|lock|gitignore|gitattributes|dockerignore|editorconfig|env|example|sample)$
+
+  # AI code review (runs after commit)
+  - repo: local
+    hooks:
+      - id: ai-code-review
+        name: AI code review (background)
+        language: script
+        entry: scripts/ai-code-review.sh
+        stages: [post-commit]
+        always_run: true
