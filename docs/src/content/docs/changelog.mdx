@@ -5,9 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.99 · 2026-01-10
+
+Bugfixes for OpenAI responses API + client-side tools.
+
 ## 0.0.98 · 2026-01-10
 
-- OpenAI Responses API now supports client-side tool execution: when you pass `Tool` objects (or local MCP servers with `force_local_mcp=True`) to `start()`, the client automatically runs an internal tool loop—calling your tools, collecting results, and continuing until the model finishes. This brings Responses API parity with the existing chat completions agent loop.
+- OpenAI Responses API now supports client-side tool execution: when you pass `Tool` objects (or local MCP servers with `force_local_mcp=True`) to start, start_nowait, process_prompts_async, etc. the client automatically runs an internal tool loop—calling your tools, collecting results, and continuing until the model finishes. Although this basically means we're running an agent loop (which there are already methods for), this brings it into parity with how the Responses API works when you **don't** provide tools that run client-side (you get back a completed response, with all the tool calls and reasoning that led to it). We decided that should match whether or not you have client-side tools, so JUST for the Responses API, we auto-run tools.
 - Responses API response parsing now preserves raw item payloads (`raw_item`) in `ToolCall.extra_body` for function calls, MCP calls, web search, and other built-in tools, making it easier to reconstruct the exact request format when needed.
 - `Thinking` parts from Responses API now include `summary` and `raw_payload` fields for richer introspection.
 - Agent loops (`run_agent_loop`) now raise `NotImplementedError` when `use_responses_api=True` to prevent confusion—use `start()` instead, which handles the tool loop automatically.

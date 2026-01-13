@@ -5,6 +5,7 @@ Usage:
     deluge list [--provider PROVIDER] [--name NAME] [--auto] [--json] ...
     deluge run MODEL [--input INPUT | --file FILE] [--max-tokens N] [--temperature T] ...
     deluge agent MODEL [--mcp-config FILE] [--prefab TOOLS] [--input INPUT] ...
+    deluge skill install [DIR]
 
 Examples:
     deluge list
@@ -16,6 +17,8 @@ Examples:
     deluge run claude-4-sonnet --file prompt.txt --max-tokens 4096
     deluge agent claude-3.5-haiku --mcp-config mcp.json -i "Search for AI news"
     deluge agent claude-4-sonnet --prefab todo,memory -i "Create a task list"
+    deluge skill install                          # Install to ~/.claude/skills/lm-deluge
+    deluge skill install ~/.codex/skills          # Install to custom directory
 """
 
 from __future__ import annotations
@@ -23,7 +26,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shutil
 import sys
+from pathlib import Path
 from typing import Any
 
 from .models import find_models, APIModel
@@ -451,6 +456,46 @@ def cmd_agent(args: argparse.Namespace) -> int:
     return asyncio.run(run_agent())
 
 
+def cmd_skill_install(args: argparse.Namespace) -> int:
+    """Install the lm-deluge skill to a directory."""
+    # Find the skill source directory (relative to this module)
+    import lm_deluge
+
+    if lm_deluge.__file__ is None:
+        print("Error: Could not locate lm_deluge package", file=sys.stderr)
+        return 1
+
+    package_dir = Path(lm_deluge.__file__).parent.parent.parent
+    skill_src = package_dir / "skill"
+
+    if not skill_src.exists():
+        print(f"Error: Skill source not found at {skill_src}", file=sys.stderr)
+        return 1
+
+    skill_md = skill_src / "SKILL.md"
+    if not skill_md.exists():
+        print(f"Error: SKILL.md not found at {skill_md}", file=sys.stderr)
+        return 1
+
+    # Determine destination
+    if args.dir:
+        dest_base = Path(args.dir).expanduser()
+    else:
+        dest_base = Path.home() / ".claude" / "skills"
+
+    dest_dir = dest_base / "lm-deluge"
+
+    # Create destination directory
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy SKILL.md
+    dest_file = dest_dir / "SKILL.md"
+    shutil.copy2(skill_md, dest_file)
+
+    print(f"Installed lm-deluge skill to {dest_dir}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="deluge",
@@ -666,10 +711,39 @@ def main():
     )
     agent_parser.set_defaults(func=cmd_agent)
 
+    # ---- skill command ----
+    skill_parser = subparsers.add_parser(
+        "skill",
+        help="Manage lm-deluge skill",
+        description="Install or manage the lm-deluge skill for AI assistants",
+    )
+    skill_subparsers = skill_parser.add_subparsers(
+        dest="skill_command", help="Skill commands"
+    )
+
+    # skill install
+    skill_install_parser = skill_subparsers.add_parser(
+        "install",
+        help="Install lm-deluge skill",
+        description="Install the lm-deluge skill to a directory",
+    )
+    skill_install_parser.add_argument(
+        "dir",
+        nargs="?",
+        type=str,
+        help="Target directory (default: ~/.claude/skills)",
+    )
+    skill_install_parser.set_defaults(func=cmd_skill_install)
+
     args = parser.parse_args()
 
     if not args.command:
         parser.print_help()
+        return 0
+
+    # Handle skill subcommand without subcommand
+    if args.command == "skill" and not getattr(args, "skill_command", None):
+        skill_parser.print_help()
         return 0
 
     return args.func(args)
