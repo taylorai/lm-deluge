@@ -59,6 +59,20 @@ def get_current_commit() -> str | None:
         return None
 
 
+def get_commit_author() -> str | None:
+    """Get the author name of the current commit."""
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%an"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
 def send_message(blocks: list[dict], fallback_text: str):
     url = os.getenv("SLACK_WEBHOOK")
     if not url:
@@ -117,9 +131,15 @@ def main():
         if args.body:
             blocks.append(section(args.body))
 
-    # Add commit hash as subtle context at the bottom
+    # Add commit info as subtle context at the bottom
+    context_parts = []
     if commit:
-        blocks.append(context([f"commit `{commit}`"]))
+        context_parts.append(f"commit `{commit}`")
+    author = get_commit_author()
+    if author:
+        context_parts.append(f"by {author}")
+    if context_parts:
+        blocks.append(context([" ".join(context_parts)]))
 
     # Build fallback text for notifications
     fallback_parts = [REPO_NAME]
