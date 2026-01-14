@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -458,23 +457,17 @@ def cmd_agent(args: argparse.Namespace) -> int:
 
 def cmd_skill_install(args: argparse.Namespace) -> int:
     """Install the lm-deluge skill to a directory."""
-    # Find the skill source directory (relative to this module)
-    import lm_deluge
+    import importlib.resources
 
-    if lm_deluge.__file__ is None:
-        print("Error: Could not locate lm_deluge package", file=sys.stderr)
-        return 1
-
-    package_dir = Path(lm_deluge.__file__).parent.parent.parent
-    skill_src = package_dir / "skill"
-
-    if not skill_src.exists():
-        print(f"Error: Skill source not found at {skill_src}", file=sys.stderr)
-        return 1
-
-    skill_md = skill_src / "SKILL.md"
-    if not skill_md.exists():
-        print(f"Error: SKILL.md not found at {skill_md}", file=sys.stderr)
+    # Read SKILL.md from package data
+    try:
+        skill_content = (
+            importlib.resources.files("lm_deluge.skill")
+            .joinpath("SKILL.md")
+            .read_text()
+        )
+    except (FileNotFoundError, TypeError) as e:
+        print(f"Error: Could not read SKILL.md from package: {e}", file=sys.stderr)
         return 1
 
     # Determine destination
@@ -488,9 +481,9 @@ def cmd_skill_install(args: argparse.Namespace) -> int:
     # Create destination directory
     dest_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy SKILL.md
+    # Write SKILL.md
     dest_file = dest_dir / "SKILL.md"
-    shutil.copy2(skill_md, dest_file)
+    dest_file.write_text(skill_content)
 
     print(f"Installed lm-deluge skill to {dest_dir}")
     return 0

@@ -40,3 +40,6 @@ server = ["fastapi>=0.100.0", "uvicorn>=0.20.0"]
 [project.scripts]
 deluge = "lm_deluge.cli:main"
 deluge-server = "lm_deluge.server.__main__:main"
+
+[tool.setuptools.package-data]
+lm_deluge = ["skill/*.md"]
