@@ -1,11 +1,15 @@
 Review the last commit. Be concise. Format final message as markdown.
 
-When you finish, send a Slack notification using:
-  .venv/bin/python scripts/slack-notify.py "🚨 Code Review (<commit_hash>): <brief summary of issues>"
-  
-...if any issues are found. Only describe High and Medium severity issues in detail.
+When you finish, send a Slack notification. If any High or Medium severity issues are found:
 
-If no High or Medium severity issues found, instead send:
-  .venv/bin/python scripts/slack-notify.py "✅ Code Review (<commit_hash>): No major problems found. <describe low severity issues if any>. Check logs for details."
+```bash
+.venv/bin/python scripts/slack-notify.py --title "Code Review" --status fail --body "<brief summary of issues>"
+```
 
-Send exactly 1 Slack message. Always include the commit hash in your Slack message.
+If no High or Medium severity issues found:
+
+```bash
+.venv/bin/python scripts/slack-notify.py --title "Code Review" --status pass --body "No major issues. <low severity notes if any>"
+```
+
+Send exactly 1 Slack message. The commit hash and repo name are added automatically.

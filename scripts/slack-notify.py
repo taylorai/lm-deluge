@@ -4,48 +4,135 @@
 Usage:
     python scripts/slack-notify.py "Your message here"
     python scripts/slack-notify.py --title "Review Complete" --body "Found 2 issues"
+    python scripts/slack-notify.py --title "Code Review" --body "No issues" --status pass
+    python scripts/slack-notify.py --title "Code Review" --body "Found problems" --status fail
 """
 
 import argparse
 import os
+import subprocess
 
 import dotenv
 import requests
 
 dotenv.load_dotenv()
 
+REPO_NAME = "lm-deluge"
 
-def send_message(text: str):
+# Status emoji mapping
+STATUS_EMOJI = {
+    "pass": "✅",
+    "fail": "🚨",
+}
+
+
+# Block Kit helper functions
+def header(text: str) -> dict:
+    """Create a header block."""
+    return {"type": "header", "text": {"type": "plain_text", "text": text}}
+
+
+def section(text: str) -> dict:
+    """Create a section block with markdown text."""
+    return {"type": "section", "text": {"type": "mrkdwn", "text": text}}
+
+
+def context(texts: list[str]) -> dict:
+    """Create a context block with small text elements."""
+    return {
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": t} for t in texts],
+    }
+
+
+def get_current_commit() -> str | None:
+    """Get the current git commit hash (short form)."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def send_message(blocks: list[dict], fallback_text: str):
     url = os.getenv("SLACK_WEBHOOK")
     if not url:
         raise RuntimeError("SLACK_WEBHOOK environment variable is not set")
-    requests.post(url, json={"text": text})
-    # print("Message sent to Slack.")
-    return
+    payload = {
+        "blocks": blocks,
+        "text": fallback_text,
+    }
+    requests.post(url, json=payload)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Send a Slack notification")
     parser.add_argument("message", nargs="?", help="Message to send")
-    parser.add_argument("--title", help="Message title (bold)")
+    parser.add_argument("--title", help="Message title (shown as header)")
     parser.add_argument("--body", help="Message body")
+    parser.add_argument(
+        "--commit", help="Commit hash to include (auto-detected if not provided)"
+    )
+    parser.add_argument(
+        "--status",
+        choices=["pass", "fail"],
+        help="Status indicator: 'pass' adds ✅, 'fail' adds 🚨 to the header",
+    )
     args = parser.parse_args()
 
-    # Build message
-    if args.message:
-        message = args.message
-    elif args.title or args.body:
-        parts = []
-        if args.title:
-            parts.append(f"*{args.title}*")
-        if args.body:
-            parts.append(args.body)
-        message = "\n".join(parts)
-    else:
+    if not args.message and not args.title and not args.body:
         parser.error("Provide either a message or --title/--body")
 
-    # Send via Modal
-    send_message(message)
+    # Get commit hash
+    commit = args.commit or get_current_commit()
+
+    # Get status emoji if provided
+    status_emoji = STATUS_EMOJI.get(args.status, "") if args.status else ""
+
+    # Build blocks for rich formatting
+    blocks: list[dict] = []
+
+    if args.message:
+        # Simple message mode: use header with repo name, section for content
+        header_text = f"{status_emoji} {REPO_NAME}" if status_emoji else REPO_NAME
+        blocks.append(header(header_text))
+        blocks.append(section(args.message))
+    else:
+        # Structured mode with title/body
+        if args.title:
+            header_text = f"{REPO_NAME}: {args.title}"
+        else:
+            header_text = REPO_NAME
+
+        if status_emoji:
+            header_text = f"{status_emoji} {header_text}"
+
+        blocks.append(header(header_text))
+
+        if args.body:
+            blocks.append(section(args.body))
+
+    # Add commit hash as subtle context at the bottom
+    if commit:
+        blocks.append(context([f"commit `{commit}`"]))
+
+    # Build fallback text for notifications
+    fallback_parts = [REPO_NAME]
+    if args.title:
+        fallback_parts.append(args.title)
+    elif args.message:
+        fallback_parts.append(
+            args.message[:50] + "..." if len(args.message) > 50 else args.message
+        )
+    fallback_text = " - ".join(fallback_parts)
+
+    # Send via webhook
+    send_message(blocks, fallback_text)
     print("✓ Slack notification sent")
 
 
