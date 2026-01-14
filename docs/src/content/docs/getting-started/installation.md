@@ -83,6 +83,20 @@ print(responses[0].completion)
 
 If you see a response from the model, you're all set!
 
+## Skill for AI Coding Assistants
+
+If you use AI coding assistants like Claude Code or Codex, you can install the lm-deluge skill to give them instant familiarity with the library:
+
+```bash
+# Install to default location (~/.claude/skills)
+deluge skill install
+
+# Or specify a custom directory
+deluge skill install ~/.codex/skills
+```
+
+This installs a `SKILL.md` file that teaches your coding assistant how to use lm-deluge correctly—including the right imports, common patterns, and API gotchas—so it can help you write code that works on the first try.
+
 ## Next Steps
 
 Head over to the [Quick Start](/getting-started/quickstart/) guide to learn how to use LM Deluge effectively.
