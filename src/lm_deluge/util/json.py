@@ -180,6 +180,5 @@ def try_load_json(
     """
     try:
         return load_json(json_string, allow_json5, allow_partial, allow_healing)
-    except Exception as e:
-        print(f"Failed to load json: {e}. Returning None.")
+    except Exception:
         return None

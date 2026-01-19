@@ -37,6 +37,7 @@ export default defineConfig({
           label: "Tooling & MCP",
           items: [
             { label: "Tool Use", slug: "features/tools" },
+            { label: "Building Agents", slug: "guides/agents" },
             { label: "Anthropic Skills", slug: "features/skills" },
             { label: "Structured Outputs", slug: "features/structured-outputs" },
             { label: "MCP Integration", slug: "features/mcp" },
@@ -57,6 +58,16 @@ export default defineConfig({
         {
           label: "Server",
           items: [{ label: "Proxy Server", slug: "server/proxy" }],
+        },
+        {
+          label: "Examples",
+          items: [
+            { label: "Overview", slug: "examples/index" },
+            { label: "Chat Loops", slug: "examples/chat-loops" },
+            { label: "Streaming", slug: "examples/streaming" },
+            { label: "Batch Processing", slug: "examples/batch-processing" },
+            { label: "Computer Use", slug: "examples/computer-use" },
+          ],
         },
         { label: "API Reference", link: "/reference/api/" },
         { label: "Changelog", link: "/changelog/" },
