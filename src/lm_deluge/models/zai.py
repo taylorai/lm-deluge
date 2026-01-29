@@ -1,4 +1,16 @@
 ZAI_MODELS = {
+    "glm-4.7-flash": {
+        "id": "glm-4.7-flash",
+        "name": "glm-4.7-flash",
+        "api_base": "https://api.z.ai/api/anthropic/v1",
+        "api_key_env_var": "ZAI_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        "input_cost": 0.6,
+        "cached_input_cost": 0.6,
+        "cache_write_cost": 0.6,
+        "output_cost": 2.20,
+    },
     "glm-4.7": {
         "id": "glm-4.7",
         "name": "glm-4.7",
