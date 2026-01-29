@@ -17,9 +17,10 @@ from typing import (
     get_type_hints,
 )
 
-from fastmcp import Client  # pip install fastmcp >= 2.0
-from mcp.types import Tool as MCPTool
 from pydantic import BaseModel, Field, TypeAdapter, field_validator
+
+from lm_deluge.mcp import MCPClient, MCPTool
+from lm_deluge.mcp.types import ImageContent, TextContent
 
 from lm_deluge.prompt import Image
 from lm_deluge.prompt import Text, ToolResultPart
@@ -392,26 +393,20 @@ def _python_type_to_json_schema(python_type: Any) -> dict[str, Any]:
         return {"type": "string"}
 
 
-async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
+async def _load_all_mcp_tools(client: MCPClient) -> list["Tool"]:
     metas: list[MCPTool] = await client.list_tools()
 
     def make_runner(name: str):
         async def _async_call(**kw):
             async with client:
-                # maybe should be call_tool_mcp if don't want to raise error
                 raw_result = await client.call_tool(name, kw)
 
-                # for now just concatenate them all into a result string
+                # Convert content blocks to our internal types
                 results = []
-                if not isinstance(raw_result, list):  # newer versions of fastmcp
-                    content_blocks = raw_result.content
-                else:
-                    content_blocks = raw_result
-                for block in content_blocks:
-                    block = cast(Any, block)  # MCP content block type
-                    if block.type == "text":
+                for block in raw_result.content:
+                    if isinstance(block, TextContent):
                         results.append(Text(block.text))
-                    elif block.type == "image":
+                    elif isinstance(block, ImageContent):
                         data_url = f"data:{block.mimeType};base64,{block.data}"
                         results.append(Image(data=data_url))
 
@@ -422,17 +417,18 @@ async def _load_all_mcp_tools(client: Client) -> list["Tool"]:
     tools: list[Tool] = []
     for m in metas:
         # Extract definitions from the schema (could be $defs or definitions)
-        definitions = m.inputSchema.get("$defs") or m.inputSchema.get("definitions")
+        input_schema = m.get("inputSchema", {})
+        definitions = input_schema.get("$defs") or input_schema.get("definitions")
 
         tools.append(
             Tool(
-                name=m.name,
-                description=m.description,
-                parameters=m.inputSchema.get("properties", {}),
-                required=m.inputSchema.get("required", []),
-                additionalProperties=m.inputSchema.get("additionalProperties"),
+                name=m["name"],
+                description=m.get("description"),
+                parameters=input_schema.get("properties", {}),
+                required=input_schema.get("required", []),
+                additionalProperties=input_schema.get("additionalProperties"),
                 definitions=definitions,
-                run=make_runner(m.name),
+                run=make_runner(m["name"]),
             )
         )
     return tools
@@ -556,7 +552,7 @@ class Tool(BaseModel):
             raise ValueError("No run function provided")
 
         if self._is_async():
-            coro: Coroutine = self.run(**kwargs)  # type: ignore[arg-type]
+            coro: Coroutine = self.run(**kwargs)
             try:
                 loop = asyncio.get_running_loop()
                 assert loop
@@ -597,7 +593,7 @@ class Tool(BaseModel):
             raise ValueError("No run function provided")
 
         if self._is_async():
-            result = await self.run(**kwargs)  # type: ignore[func-returns-value]
+            result = await self.run(**kwargs)
         else:
             loop = asyncio.get_running_loop()
             assert self.run is not None, "can't run None"
@@ -757,17 +753,20 @@ class Tool(BaseModel):
     ) -> list["Tool"]:
         """
         config: full Claude-Desktop-style dict *or* just its "mcpServers" block
-        Returns {server_key: [Tool, …], …}
+        Returns list of Tool objects from all servers in the config.
         """
         # allow caller to pass either the whole desktop file or just the sub-dict
         servers_block = config.get("mcpServers", config)
 
-        # FastMCP understands the whole config dict directly
-        client = Client({"mcpServers": servers_block}, timeout=timeout)
-        async with client:
-            all_tools = await _load_all_mcp_tools(client)
+        all_tools: list[Tool] = []
+        for server_name, server_spec in servers_block.items():
+            client = MCPClient(
+                {"mcpServers": {server_name: server_spec}}, timeout=timeout
+            )
+            async with client:
+                tools = await _load_all_mcp_tools(client)
+                all_tools.extend(tools)
 
-        # bucket by prefix that FastMCP added (serverkey_toolname)
         return all_tools
 
     @classmethod
@@ -782,19 +781,19 @@ class Tool(BaseModel):
         """
         Thin wrapper for one server.  Example uses:
 
-            Tool.from_mcp(url="https://weather.example.com/mcp")
-            Tool.from_mcp(command="python", args=["./assistant.py"], tool_name="answer_question")
+            Tool.from_mcp("weather", url="https://weather.example.com/mcp")
+            Tool.from_mcp("assistant", command="python", args=["./assistant.py"], tool_name="answer_question")
         """
         # ensure at least one of command or url is defined
         if not (server_spec.get("url") or server_spec.get("command")):
-            raise ValueError("most provide url or command")
+            raise ValueError("must provide url or command")
         # build a one-server desktop-style dict
         cfg = {server_name: server_spec}
         tools = await cls.from_mcp_config(cfg, timeout=timeout)
         if tool_name is None:
             return tools
         for t in tools:
-            if t.name.endswith(f"{tool_name}"):  # prefixed by FastMCP
+            if t.name == tool_name or t.name.endswith(f"_{tool_name}"):
                 return t
         raise ValueError(f"Tool '{tool_name}' not found on that server")
 

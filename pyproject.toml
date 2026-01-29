@@ -26,7 +26,6 @@ dependencies = [
     "lxml",
     "pdf2image",
     "pillow",
-    "fastmcp>=2.4",
     "rich"
 ]
 
@@ -36,6 +35,7 @@ docker = ["docker>=7.0.0"]
 full_text_search = ["tantivy>=0.21.0", "lenlp>=0.1.0"]
 sandbox = ["modal>=0.64.0", "daytona-sdk>=0.1.4", "docker>=7.0.0"]
 server = ["fastapi>=0.100.0", "uvicorn>=0.20.0"]
+dev = ["ty", "pre-commit"]
 
 [project.scripts]
 deluge = "lm_deluge.cli:main"

@@ -2,9 +2,9 @@ import asyncio
 import os
 
 import dotenv
-from fastmcp import Client
 
 from lm_deluge import LLMClient
+from lm_deluge.mcp import MCPClient
 from lm_deluge.tool import Tool
 
 dotenv.load_dotenv()
@@ -18,7 +18,7 @@ if not ZAPIER_MCP_SECRET:
     raise ValueError("need ZAPIER_MCP_SECRET to test mcps")
 
 
-async def test_local_fastmcp_client():
+async def test_local_mcp_client():
     # test with the filesystem MCP server
     config = {
         "mcpServers": {
@@ -32,12 +32,10 @@ async def test_local_fastmcp_client():
             }
         }
     }
-    async with Client(config, timeout=45) as client:
+    async with MCPClient(config, timeout=45) as client:
         tools = await client.list_tools()
     assert len(tools) > 0, "no tools found"
-    print(
-        "✅ Successfully instantiated FastMCP client connected to stdio filesystem MCP."
-    )
+    print("✅ Successfully instantiated MCPClient connected to stdio filesystem MCP.")
 
 
 async def use_local_tool_with_llm():
@@ -72,8 +70,8 @@ async def use_local_tool_with_llm():
     print("✅ Confirmed model response successfully called tool.")
 
 
-async def test_zapier_fastmcp_client():
-    # make sure we can instantiate a basic fastmcp client before doing anything fancy
+async def test_zapier_mcp_client():
+    # make sure we can instantiate a basic MCP client before doing anything fancy
     config = {
         "mcpServers": {
             "zapier": {
@@ -81,10 +79,10 @@ async def test_zapier_fastmcp_client():
             }
         }
     }
-    async with Client(config, timeout=20) as client:
+    async with MCPClient(config, timeout=20) as client:
         tools = await client.list_tools()
     assert len(tools) > 0, "no tools found"
-    print("✅ Successfully instantiated FastMCP client connected to Zapier.")
+    print("✅ Successfully instantiated MCPClient connected to Zapier.")
 
 
 async def run_zapier_tool():
@@ -137,18 +135,18 @@ async def use_zapier_tool_with_llm():
     print("✅ Confirmed model response successfully called tool.")
 
 
-async def test_exa_fastmcp_client():
-    # make sure we can instantiate a basic fastmcp client before doing anything fancy
+async def test_exa_mcp_client():
+    # make sure we can instantiate a basic MCP client before doing anything fancy
     config = {
         "mcpServers": {
             "exa": {"url": f"https://mcp.exa.ai/mcp?exaApiKey={EXA_API_KEY}"}
         }
     }
-    async with Client(config, timeout=20) as client:
+    async with MCPClient(config, timeout=20) as client:
         tools = await client.list_tools()
     assert len(tools) > 0, "no tools found"
     # print(tools)
-    print("✅ Successfully instantiated FastMCP client connected to Exa.")
+    print("✅ Successfully instantiated MCPClient connected to Exa.")
 
 
 async def use_exa_tool_with_llm():
@@ -209,12 +207,12 @@ async def test_multi_server_config():
 
 
 async def main():
-    await test_local_fastmcp_client()
+    await test_local_mcp_client()
     await use_local_tool_with_llm()
-    await test_zapier_fastmcp_client()
+    await test_zapier_mcp_client()
     await run_zapier_tool()  # WARNING: FLAKY if bad internet
     await use_zapier_tool_with_llm()
-    await test_exa_fastmcp_client()
+    await test_exa_mcp_client()
     await use_exa_tool_with_llm()
     await test_multi_server_config()
 
