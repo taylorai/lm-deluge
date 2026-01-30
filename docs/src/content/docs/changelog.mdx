@@ -5,6 +5,24 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.102 · 2026-01-29
+
+- Added ZAI (Zhipu AI) models: `glm-4.7`, `glm-4.7-flash`, `glm-4.6`, `glm-4.5`, and `glm-4.5-air` via the ZAI API with Anthropic-compatible spec.
+- Replaced `fastmcp` and `mcp` dependencies with a minimal built-in MCP client implementation (`lm_deluge.mcp`), reducing the dependency footprint while supporting HTTP and stdio transports for tool listing and calling.
+- Cleaned up JSON parsing: removed debug print statements from `try_load_json()`.
+- Moved examples into proper documentation pages under `/docs/examples/` covering batch processing, chat loops, computer use, and streaming.
+
+## 0.0.101 · 2026-01-14
+
+- Added Claude Code skill (`lm_deluge.skill.SKILL.md`) with embedded usage documentation for Claude Code IDE integrations.
+- Improved aiohttp client connector error messages with clearer diagnostics when connection fails.
+- Updated Slack notification formatting for better readability.
+
+## 0.0.100 · 2026-01-10
+
+- Fixed OpenAI Responses API handling of reasoning models with tools: reasoning content (summary blocks) now correctly serializes as `reasoning` type items with proper `summary` field structure, fixing issues where tool calls would fail on models like `o4-mini`.
+- Added test coverage for Responses API reasoning + tool interactions in `tests/core/test_openai_responses_reasoning_tools.py`.
+
 ## 0.0.99 · 2026-01-10
 
 Bugfixes for OpenAI responses API + client-side tools.

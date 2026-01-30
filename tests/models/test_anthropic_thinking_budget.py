@@ -49,7 +49,7 @@ def test_claude_45_opus_includes_effort_beta():
 
     request_json, headers = _build_anthropic_request(model, context)
 
-    assert request_json.get("effort") == "medium"
+    assert request_json.get("output_config", {}).get("effort") == "medium"
     assert "anthropic-beta" in headers
     assert "effort-2025-11-24" in headers["anthropic-beta"]
     assert request_json["thinking"] == {"type": "disabled"}
