@@ -62,7 +62,7 @@ export default defineConfig({
         {
           label: "Examples",
           items: [
-            { label: "Overview", slug: "examples/index" },
+            { label: "Overview", slug: "examples" },
             { label: "Chat Loops", slug: "examples/chat-loops" },
             { label: "Streaming", slug: "examples/streaming" },
             { label: "Batch Processing", slug: "examples/batch-processing" },
