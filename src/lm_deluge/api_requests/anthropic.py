@@ -3,16 +3,16 @@ import os
 
 from aiohttp import ClientResponse
 
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.prompt import (
     ContainerFile,
     Message,
     Text,
-    ThoughtSignature,
     Thinking,
+    ThoughtSignature,
     ToolCall,
     ToolResult,
 )
-from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tool import MCPServer, Skill, Tool
 from lm_deluge.usage import Usage
 from lm_deluge.util.schema import (
@@ -399,7 +399,9 @@ class AnthropicRequest(APIRequestBase):
             error_message = text
 
         # handle special kinds of errors. TODO: make sure these are correct for anthropic
-        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 413]
+        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 404, 413]
+        # Auth errors (401, 403) and model not found (404) are unrecoverable - blocklist this model
+        give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:
             if (
                 "rate limit" in error_message.lower()
@@ -427,4 +429,5 @@ class AnthropicRequest(APIRequestBase):
             container_id=container_id,
             raw_response=data,
             retry_with_different_model=retry_with_different_model,
+            give_up_if_no_other_models=give_up_if_no_other_models,
         )

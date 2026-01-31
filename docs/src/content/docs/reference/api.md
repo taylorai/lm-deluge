@@ -57,13 +57,13 @@ Key parameters:
 | --- | --- |
 | `process_prompts_sync(...)` | Convenience wrapper that runs `process_prompts_async` inside `asyncio.run()`. |
 | `process_prompts_async(...)` | Schedule a batch of prompts, respecting rate limits and retries. |
-| `start(prompt, **kwargs)` | Equivalent to `start_nowait()` + `wait_for()`. |
-| `start_nowait(prompt, *, tools=None, cache=None, service_tier=None)` | Queue a single prompt and return a task ID immediately. |
+| `start(prompt, *, prefer_model=None, **kwargs)` | Equivalent to `start_nowait()` + `wait_for()`. Use `prefer_model` to select a specific model or `"last"` to use `conv.model_used`. |
+| `start_nowait(prompt, *, tools=None, cache=None, service_tier=None, prefer_model=None)` | Queue a single prompt and return a task ID immediately. |
 | `wait_for(task_id)` / `wait_for_all(task_ids=None)` | Await one or many tasks. |
 | `as_completed(task_ids=None)` | Async generator yielding `(task_id, APIResponse)` pairs as soon as tasks finish. |
 | `stream(prompt, *, tools=None)` | Streams chunks to stdout and resolves to the final `APIResponse` (see `stream_chat` for a generator). |
-| `run_agent_loop(conversation, *, tools=None, max_rounds=5)` | Executes tool calls automatically until the model stops asking for tools. Equivalent to `start_agent_loop_nowait()` + `wait_for_agent_loop()`. |
-| `start_agent_loop_nowait(conversation, *, tools=None, max_rounds=5)` | Start an agent loop without waiting. Returns a task ID that can be used with `wait_for_agent_loop()`. |
+| `run_agent_loop(conversation, *, tools=None, max_rounds=5, prefer_model=None)` | Executes tool calls automatically until the model stops asking for tools. The same model is used across all rounds. Use `prefer_model="last"` for multi-turn stickiness. |
+| `start_agent_loop_nowait(conversation, *, tools=None, max_rounds=5, prefer_model=None)` | Start an agent loop without waiting. Returns a task ID that can be used with `wait_for_agent_loop()`. |
 | `wait_for_agent_loop(task_id)` | Wait for an agent loop task to complete. Returns `(Conversation, APIResponse)`. |
 | `run_agent_loop_sync(...)` | Synchronous wrapper for the agent loop. |
 | `submit_batch_job(prompts, *, tools=None, cache=None, batch_size=50_000)` | Submit prompts through OpenAI or Anthropic batch APIs. |
@@ -103,11 +103,14 @@ SamplingParams(
 `Conversation` is a dataclass that holds a list of `Message` objects and exposes helpers for building prompts:
 
 - `Conversation().system(text)` and `Conversation().user(text, image=None, file=None)` create new conversations with a single message.
-- `.add(message)` / `.with_message(message)` append new messages.
+- `.add(message)` / `.with_message(message, model_used=None)` append new messages.
+- `.with_response(response)` adds the assistant's response and sets `model_used` for stickiness (recommended for multi-turn chats).
 - `.with_tool_result(tool_call_id, result)` appends tool outputs, handling parallel calls automatically.
 - `.to_openai()`, `.to_openai_responses()`, `.to_anthropic(cache_pattern=None)` emit provider-specific payloads.
 - `.from_openai_chat(messages)` / `.from_anthropic(...)` convert provider transcripts back into LM Deluge objects.
+- `.to_log()` / `.from_log(payload)` serialize/deserialize the conversation (preserves `model_used`).
 - `.count_tokens(max_new_tokens=0, img_tokens=85)` estimates the number of tokens for scheduling.
+- `.model_used: str | None` tracks which model was used for the last API call (used by `prefer_model="last"`).
 
 `Message` instances contain rich content blocks:
 

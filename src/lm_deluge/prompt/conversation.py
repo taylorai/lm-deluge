@@ -1,10 +1,13 @@
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 import base64
 import tiktoken
 import xxhash
+
+if TYPE_CHECKING:
+    from lm_deluge.api_requests.response import APIResponse
 
 from .file import File
 from .image import Image
@@ -38,6 +41,7 @@ Part = Text | Image | File | ToolCall | ToolResult | Thinking
 @dataclass(slots=True)
 class Conversation:
     messages: list[Message] = field(default_factory=list)
+    model_used: str | None = None  # tracks which model was used for the last API call
 
     # ── convenience shorthands ------------------------------------------------
     def system(self, text: str) -> "Conversation":
@@ -585,13 +589,34 @@ class Conversation:
                 return cls.from_openai_chat(messages), "openai"
 
     # fluent additions
-    def with_message(self, msg: Message) -> "Conversation":
+    def with_message(
+        self, msg: Message, *, model_used: str | None = None
+    ) -> "Conversation":
         self.messages.append(msg)
+        if model_used is not None:
+            self.model_used = model_used
         return self
 
     # another way of doing the same thing
     def add(self, msg: Message) -> "Conversation":
         self.messages.append(msg)
+        return self
+
+    def with_response(self, response: "APIResponse") -> "Conversation":
+        """Add the assistant's response message and track the model used.
+
+        This is the recommended way to add an API response to a conversation
+        when using prefer_model="last" for model stickiness.
+
+        Args:
+            response: The APIResponse from client.start()
+
+        Returns:
+            Self for chaining.
+        """
+        if response.content is not None:
+            self.messages.append(response.content)
+        self.model_used = response.model_internal
         return self
 
     def with_tool_result(
@@ -1017,7 +1042,10 @@ class Conversation:
                     content_blocks.append(thinking_block)
             serialized.append({"role": msg.role, "content": content_blocks})
 
-        return {"messages": serialized}
+        result: dict[str, Any] = {"messages": serialized}
+        if self.model_used is not None:
+            result["model_used"] = self.model_used
+        return result
 
     def print(self, max_text_length: int = 500, indent: int = 2) -> None:
         """Pretty-print the conversation to stdout.
@@ -1199,4 +1227,4 @@ class Conversation:
 
             msgs.append(Message(role, parts))
 
-        return cls(msgs)
+        return cls(msgs, model_used=payload.get("model_used"))

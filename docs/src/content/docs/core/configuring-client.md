@@ -41,7 +41,7 @@ client = LLMClient.from_dict(config)
 
 ## Using Multiple Models
 
-Pass a list of model IDs to spray traffic. Provide `model_weights` when you need deterministic sampling ratios. The weights are normalized automatically; set `"uniform"` (default) for equal traffic.
+Pass a list of model IDs to spread traffic or provide fallback options. Provide `model_weights` when you need deterministic sampling ratios. The weights are normalized automatically; set `"uniform"` (default) for equal traffic.
 
 ```python
 multi_client = LLMClient(
@@ -55,7 +55,24 @@ multi_client = LLMClient(
 )
 ```
 
-`LLMClient.with_model()` and `.with_models()` provide a fluent API when you need to swap the list at runtime, and `_select_model()` ensures retries can hop to a different model whenever `APIResponse.retry_with_different_model` is set.
+### Model Selection and Fallback
+
+By default, requests are routed randomly based on weights. Use `prefer_model` to control selection:
+
+```python
+# Prefer a specific model, fall back to others if it fails
+response = await client.start(conv, prefer_model="claude-4.5-haiku")
+
+# In multi-turn chats, stick to the same model across turns
+response = await client.start(conv, prefer_model="last")
+conv = conv.with_response(response)  # Records model_used for next turn
+```
+
+When a model fails with an unrecoverable error (401, 403, 404), it's automatically blocklisted for the client's lifetime, preventing repeated failures.
+
+See [Model Fallbacks & Stickiness](/core/model-fallbacks/) for detailed patterns including multi-turn chat, load balancing, and primary+fallback configurations.
+
+`LLMClient.with_model()` and `.with_models()` provide a fluent API when you need to swap the list at runtime.
 
 ## Sampling Parameters
 

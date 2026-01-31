@@ -46,7 +46,10 @@ export default defineConfig({
         },
         {
           label: "Caching & Reliability",
-          items: [{ label: "Local & Provider Caching", slug: "core/caching" }],
+          items: [
+            { label: "Model Fallbacks & Stickiness", slug: "core/model-fallbacks" },
+            { label: "Local & Provider Caching", slug: "core/caching" },
+          ],
         },
         {
           label: "Models",

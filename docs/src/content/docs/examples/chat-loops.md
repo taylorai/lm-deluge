@@ -211,11 +211,64 @@ if __name__ == "__main__":
     sync_chat_loop()
 ```
 
+## Multi-Model Chat with Fallback
+
+For production chat applications, configure multiple models with automatic failover and model stickiness:
+
+```python
+import asyncio
+from lm_deluge import LLMClient, Conversation
+
+async def resilient_chat():
+    # Multiple models for redundancy
+    client = LLMClient(
+        ["claude-4-sonnet", "gpt-4.1"],
+        model_weights=[0.7, 0.3],
+        max_new_tokens=1024,
+    )
+
+    conv = Conversation().system("You are a helpful assistant.")
+    print("Chat started! Type 'quit' to exit.\n")
+
+    while True:
+        user_input = input("You: ").strip()
+        if user_input.lower() == "quit":
+            break
+        if not user_input:
+            continue
+
+        conv = conv.user(user_input)
+
+        # prefer_model="last" maintains the same model across turns
+        # Falls back to other models if the preferred one fails
+        response = await client.start(conv, prefer_model="last")
+
+        if response and response.completion:
+            print(f"Assistant ({response.model_internal}): {response.completion}\n")
+            # with_response() adds the message AND records model_used
+            conv = conv.with_response(response)
+        else:
+            print(f"Error: {response.error_message}\n")
+            conv.messages.pop()
+
+if __name__ == "__main__":
+    asyncio.run(resilient_chat())
+```
+
+The `prefer_model="last"` parameter ensures:
+1. The first turn picks a model based on weights
+2. Subsequent turns stick to the same model (for cache efficiency and consistency)
+3. If that model fails, it automatically falls back to another
+
+See [Model Fallbacks & Stickiness](/core/model-fallbacks/) for more patterns.
+
 ## Key Points
 
 - **State Management**: The `Conversation` object holds the full history automatically
-- **Adding Messages**: Use `conversation.add(Message.user(text))` and `conversation.add(Message.ai(text))`
+- **Adding Messages**: Use `conversation.add(Message.user(text))` or `conv.user(text)`
+- **Recording Responses**: Use `conv.with_response(response)` to add the response and track the model used
 - **System Messages**: Set up behavior with `.system(text)` at the start
+- **Model Stickiness**: Use `prefer_model="last"` to maintain the same model across turns
 - **Error Handling**: Remove failed user messages to keep history clean
 - **Token Limits**: Very long conversations may hit context limits; consider summarization strategies
 
@@ -235,4 +288,7 @@ client = LLMClient("gemini-2.0-flash")
 
 # Open source via inference providers
 client = LLMClient("llama-3.3-70b")
+
+# Multiple models with fallback
+client = LLMClient(["claude-4-sonnet", "gpt-4.1"], model_weights=[0.7, 0.3])
 ```

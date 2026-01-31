@@ -37,9 +37,9 @@ from lm_deluge.prompt import (
 from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
 
 from ..api_requests.base import APIResponse
+from ..api_requests.context import RequestContext
 from ..config import SamplingParams
 from ..models import APIModel, register_model, registry
-from ..api_requests.context import RequestContext
 from ..tracker import StatusTracker
 
 
@@ -116,6 +116,7 @@ class _LLMClient(BaseModel):
     )
     _tracker: StatusTracker | None = PrivateAttr(default=None)
     _capacity_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
+    _blocklisted_models: set[str] = PrivateAttr(default_factory=set)
 
     # usage
     def print_usage(self):
@@ -494,18 +495,40 @@ class _LLMClient(BaseModel):
         return cls.from_dict(config_dict)
 
     def _select_model(self):
+        """Select a model using weighted random selection, excluding blocklisted models."""
         assert isinstance(self.model_weights, list)
-        model_idx = random.choices(range(len(self.models)), weights=self.model_weights)[
-            0
+
+        # Filter out blocklisted models
+        available_indices = [
+            i for i, m in enumerate(self.models) if m not in self._blocklisted_models
         ]
-        return self.models[model_idx], self.sampling_params[model_idx]
+        if not available_indices:
+            raise RuntimeError(
+                "All models have been blocklisted due to errors. "
+                f"Blocklisted: {self._blocklisted_models}"
+            )
+
+        weights = [self.model_weights[i] for i in available_indices]
+        chosen_idx = random.choices(available_indices, weights=weights)[0]
+        return self.models[chosen_idx], self.sampling_params[chosen_idx]
 
     def _select_different_model(self, current_model: str):
-        """Select a model different from the provided one."""
-        other_models = [m for m in self.models if m != current_model]
+        """Select a model different from the provided one, excluding blocklisted models."""
+        other_models = [
+            m
+            for m in self.models
+            if m != current_model and m not in self._blocklisted_models
+        ]
         if not other_models:
-            # No other models available, return current
-            return current_model, self.sampling_params[self.models.index(current_model)]
+            # No other models available, return current if not blocklisted
+            if current_model not in self._blocklisted_models:
+                return current_model, self.sampling_params[
+                    self.models.index(current_model)
+                ]
+            raise RuntimeError(
+                "All models have been blocklisted due to errors. "
+                f"Blocklisted: {self._blocklisted_models}"
+            )
 
         # Get weights for other models
         assert isinstance(self.model_weights, list)
@@ -516,6 +539,38 @@ class _LLMClient(BaseModel):
         chosen_model = other_models[model_idx]
         chosen_sp = self.sampling_params[self.models.index(chosen_model)]
         return chosen_model, chosen_sp
+
+    def _resolve_model(
+        self, prefer_model: str | None, prompt: Prompt
+    ) -> tuple[str, SamplingParams]:
+        """Resolve which model to use based on prefer_model parameter.
+
+        Args:
+            prefer_model: Model name to prefer, or "last" to use prompt.model_used
+            prompt: The prompt (Conversation) being sent
+
+        Returns:
+            Tuple of (model_name, sampling_params)
+        """
+        # Handle "last" sentinel - use conversation's model_used
+        if (
+            prefer_model == "last"
+            and isinstance(prompt, Conversation)
+            and prompt.model_used
+        ):
+            prefer_model = prompt.model_used
+
+        # If we have a preferred model that's valid and not blocklisted, use it
+        if (
+            prefer_model
+            and prefer_model != "last"
+            and prefer_model in self.models
+            and prefer_model not in self._blocklisted_models
+        ):
+            return prefer_model, self.sampling_params[self.models.index(prefer_model)]
+
+        # Fall back to weighted random selection (excluding blocklisted)
+        return self._select_model()
 
     async def _wait_for_capacity(
         self, num_tokens: int, tracker: StatusTracker, *, retry: bool = False
@@ -579,32 +634,59 @@ class _LLMClient(BaseModel):
             return _maybe_postprocess(response)
 
         # Handle error response - add to retry queue if available
+        # First, check if this model should be blocklisted (unrecoverable error)
+        if response.give_up_if_no_other_models:
+            self._blocklisted_models.add(context.model_name)
+
         if retry_queue and context.attempts_left > 1:
             # Decide whether to retry with a different model
             if response.retry_with_different_model and len(self.models) > 1:
                 # Switch to different model for retry
-                new_model, new_sp = self._select_different_model(context.model_name)
-                retry_context = context.copy(
-                    model_name=new_model,
-                    sampling_params=new_sp,
-                    attempts_left=context.attempts_left - 1,
-                )
+                try:
+                    new_model, new_sp = self._select_different_model(context.model_name)
+                    retry_context = context.copy(
+                        model_name=new_model,
+                        sampling_params=new_sp,
+                        attempts_left=context.attempts_left - 1,
+                    )
+                except RuntimeError:
+                    # All models blocklisted, can't retry
+                    retry_context = None
             else:
-                # Retry with same model
-                retry_context = context.copy(attempts_left=context.attempts_left - 1)
+                # Retry with same model (if not blocklisted)
+                if context.model_name in self._blocklisted_models:
+                    # Current model is blocklisted, try a different one
+                    try:
+                        new_model, new_sp = self._select_different_model(
+                            context.model_name
+                        )
+                        retry_context = context.copy(
+                            model_name=new_model,
+                            sampling_params=new_sp,
+                            attempts_left=context.attempts_left - 1,
+                        )
+                    except RuntimeError:
+                        retry_context = None
+                else:
+                    retry_context = context.copy(
+                        attempts_left=context.attempts_left - 1
+                    )
 
-            # Print error message for debugging
-            error_msg = (
-                f"😔 Error task {context.task_id}. Model: {response.model_internal}"
-            )
-            if response.status_code:
-                error_msg += f" Code: {response.status_code},"
-            error_msg += f" Message: {response.error_message}. Retrying..."
-            print(error_msg)
+            # If we have a valid retry context, queue it
+            if retry_context is not None:
+                # Print error message for debugging
+                error_msg = (
+                    f"😔 Error task {context.task_id}. Model: {response.model_internal}"
+                )
+                if response.status_code:
+                    error_msg += f" Code: {response.status_code},"
+                error_msg += f" Message: {response.error_message}. Retrying..."
+                print(error_msg)
 
-            # Add to retry queue for later processing
-            await retry_queue.put(retry_context)
-            return _maybe_postprocess(response)  # Return the error response for now
+                # Add to retry queue for later processing
+                await retry_queue.put(retry_context)
+                return _maybe_postprocess(response)  # Return the error response for now
+            # else: fall through to final failure handling
 
         # No retries left or no retry queue - final failure
         context.status_tracker.task_failed(context.task_id)
@@ -856,12 +938,13 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> int:
         tracker = self._get_tracker()
         task_id = self._next_task_id
         self._next_task_id += 1
-        model, sampling_params = self._select_model()
         prompt = prompts_to_conversations([prompt])[0]
+        model, sampling_params = self._resolve_model(prefer_model, prompt)
         assert isinstance(prompt, Conversation)
         context = RequestContext(
             task_id=task_id,
@@ -900,6 +983,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> APIResponse:
         return await self._start_once(
             prompt,
@@ -909,6 +993,7 @@ class _LLMClient(BaseModel):
             output_schema=output_schema,
             cache=cache,
             service_tier=service_tier,
+            prefer_model=prefer_model,
         )
 
     async def _start_once(
@@ -921,6 +1006,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> APIResponse:
         task_id = self.start_nowait(
             prompt,
@@ -930,6 +1016,7 @@ class _LLMClient(BaseModel):
             output_schema=output_schema,
             cache=cache,
             service_tier=service_tier,
+            prefer_model=prefer_model,
         )
         return await self.wait_for(task_id)
 
@@ -1040,6 +1127,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
         if self.use_responses_api:
@@ -1062,6 +1150,8 @@ class _LLMClient(BaseModel):
         response: APIResponse | None = None
         # Track container ID for reuse across rounds (Anthropic skills)
         container_id: str | None = None
+        # Track model used for stickiness across rounds
+        model_for_round: str | None = prefer_model
 
         for round_num in range(max_rounds):
             response = await self._start_once(
@@ -1072,7 +1162,11 @@ class _LLMClient(BaseModel):
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
+                prefer_model=model_for_round,
             )
+            # After first round, stick to the model that was used
+            if response and response.model_internal:
+                model_for_round = response.model_internal
 
             # Capture container_id from response for reuse in next round
             if response and response.container_id:
@@ -1127,6 +1221,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
 
@@ -1155,6 +1250,7 @@ class _LLMClient(BaseModel):
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
+                prefer_model=prefer_model,
             )
         )
         self._tasks[task_id] = task
@@ -1193,6 +1289,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> tuple[Conversation, APIResponse]:
         """Run a simple agent loop until no more tool calls are returned.
 
@@ -1209,6 +1306,7 @@ class _LLMClient(BaseModel):
             on_round_complete: Optional async callback called after each round.
                 Receives (conversation, response, round_number). Called after the
                 assistant message is added but before tool execution.
+            prefer_model: Model to prefer. Use "last" to use conversation.model_used.
         """
         if self.use_responses_api:
             raise NotImplementedError(
@@ -1224,6 +1322,7 @@ class _LLMClient(BaseModel):
             output_schema=output_schema,
             cache=cache,
             service_tier=service_tier,
+            prefer_model=prefer_model,
         )
         return await self.wait_for_agent_loop(task_id)
 
@@ -1239,6 +1338,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        prefer_model: str | None = None,
     ) -> tuple[Conversation, APIResponse]:
         """Synchronous wrapper for :meth:`run_agent_loop`."""
         if self.use_responses_api:
@@ -1258,6 +1358,7 @@ class _LLMClient(BaseModel):
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
+                prefer_model=prefer_model,
             )
         )
 

@@ -11,8 +11,8 @@ except ImportError:
         "aws4auth is required for bedrock support. Install with: pip install requests-aws4auth"
     )
 
-from lm_deluge.prompt import Message, Text, ToolCall
 from lm_deluge.api_requests.context import RequestContext
+from lm_deluge.prompt import Message, Text, ToolCall
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
@@ -276,7 +276,9 @@ class BedrockNovaRequest(APIRequestBase):
             error_message = text
 
         # Handle special kinds of errors
-        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 413]
+        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 404, 413]
+        # Auth errors (401, 403) and model not found (404) are unrecoverable - blocklist this model
+        give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:
             if (
                 "rate limit" in error_message.lower()
@@ -304,4 +306,5 @@ class BedrockNovaRequest(APIRequestBase):
             raw_response=data,
             finish_reason=finish_reason,
             retry_with_different_model=retry_with_different_model,
+            give_up_if_no_other_models=give_up_if_no_other_models,
         )
