@@ -108,7 +108,13 @@ def main():
     )
     args = parser.parse_args()
 
-    # Resolve body from various sources
+    # Resolve body from various sources (only one allowed)
+    body_sources = sum([bool(args.body), bool(args.body_file), args.body_stdin])
+    if body_sources > 1:
+        parser.error(
+            "Only one of --body, --body-file, or --body-stdin can be specified"
+        )
+
     body = args.body
     if args.body_stdin:
         body = sys.stdin.read().strip()
