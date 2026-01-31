@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Send a Slack message via Modal.
+"""Send a Slack message via webhook.
 
 Usage:
     python scripts/slack-notify.py "Your message here"
     python scripts/slack-notify.py --title "Review Complete" --body "Found 2 issues"
     python scripts/slack-notify.py --title "Code Review" --body "No issues" --status pass
     python scripts/slack-notify.py --title "Code Review" --body "Found problems" --status fail
+    python scripts/slack-notify.py --title "Review" --body-file /tmp/message.txt
+    echo "Message body" | python scripts/slack-notify.py --title "Review" --body-stdin
 """
 
 import argparse
 import os
 import subprocess
+import sys
 
 import dotenv
 import requests
@@ -81,7 +84,9 @@ def send_message(blocks: list[dict], fallback_text: str):
         "blocks": blocks,
         "text": fallback_text,
     }
-    requests.post(url, json=payload)
+    resp = requests.post(url, json=payload)
+    if resp.status_code != 200:
+        raise RuntimeError(f"Slack webhook failed: {resp.status_code} {resp.text}")
 
 
 def main():
@@ -89,6 +94,10 @@ def main():
     parser.add_argument("message", nargs="?", help="Message to send")
     parser.add_argument("--title", help="Message title (shown as header)")
     parser.add_argument("--body", help="Message body")
+    parser.add_argument("--body-file", help="Read message body from file")
+    parser.add_argument(
+        "--body-stdin", action="store_true", help="Read message body from stdin"
+    )
     parser.add_argument(
         "--commit", help="Commit hash to include (auto-detected if not provided)"
     )
@@ -99,8 +108,18 @@ def main():
     )
     args = parser.parse_args()
 
-    if not args.message and not args.title and not args.body:
-        parser.error("Provide either a message or --title/--body")
+    # Resolve body from various sources
+    body = args.body
+    if args.body_stdin:
+        body = sys.stdin.read().strip()
+    elif args.body_file:
+        with open(args.body_file) as f:
+            body = f.read().strip()
+
+    if not args.message and not args.title and not body:
+        parser.error(
+            "Provide either a message or --title/--body/--body-file/--body-stdin"
+        )
 
     # Get commit hash
     commit = args.commit or get_current_commit()
@@ -128,8 +147,8 @@ def main():
 
         blocks.append(header(header_text))
 
-        if args.body:
-            blocks.append(section(args.body))
+        if body:
+            blocks.append(section(body))
 
     # Add commit info as subtle context at the bottom
     context_parts = []
