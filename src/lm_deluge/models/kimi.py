@@ -1,4 +1,15 @@
 KIMI_MODELS = {
+    "kimi-k2.5": {
+        "id": "kimi-k2.5",
+        "name": "kimi-k2.5",
+        "api_base": "https://api.moonshot.ai/anthropic/v1",
+        "api_key_env_var": "MOONSHOT_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        "input_cost": 0.6,
+        "cached_input_cost": 0.10,
+        "output_cost": 3.0,
+    },
     "kimi-k2": {
         "id": "kimi-k2",
         "name": "kimi-k2-0905-preview",
@@ -6,6 +17,9 @@ KIMI_MODELS = {
         "api_key_env_var": "MOONSHOT_API_KEY",
         "supports_json": True,
         "api_spec": "anthropic",
+        "input_cost": 0.6,
+        "cached_input_cost": 0.15,
+        "output_cost": 2.5,
     },
     "kimi-k2-turbo": {
         "id": "kimi-k2-turbo",
@@ -14,6 +28,9 @@ KIMI_MODELS = {
         "api_key_env_var": "MOONSHOT_API_KEY",
         "supports_json": True,
         "api_spec": "anthropic",
+        "input_cost": 1.15,
+        "cached_input_cost": 0.15,
+        "output_cost": 8.0,
     },
     "kimi-k2-thinking": {
         "id": "kimi-k2-thinking",
@@ -23,6 +40,9 @@ KIMI_MODELS = {
         "supports_json": True,
         "api_spec": "anthropic",
         "reasoning_model": True,
+        "input_cost": 0.6,
+        "cached_input_cost": 0.15,
+        "output_cost": 2.5,
     },
     "kimi-k2-thinking-turbo": {
         "id": "kimi-k2-thinking-turbo",
@@ -32,5 +52,8 @@ KIMI_MODELS = {
         "supports_json": True,
         "api_spec": "anthropic",
         "reasoning_model": True,
+        "input_cost": 1.15,
+        "cached_input_cost": 0.15,
+        "output_cost": 8.0,
     },
 }
