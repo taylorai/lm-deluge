@@ -349,7 +349,6 @@ class GeminiRequest(APIRequestBase):
             ):
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
-            retry_with_different_model = True
 
         return APIResponse(
             id=self.context.task_id,

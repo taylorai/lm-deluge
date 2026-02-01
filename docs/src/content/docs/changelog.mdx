@@ -5,6 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.103 · 2026-01-31
+
+- **Model fallbacks, blocklisting, and stickiness**: Multi-model clients now support intelligent fallback behavior. Configure `prefer_model="claude-4-sonnet"` to always try your preferred model first with automatic failover, or use `prefer_model="last"` for multi-turn conversations to stick to whichever model was used previously (survives serialization via `conv.model_used`). Models that fail with unrecoverable errors (401, 403, 404) get automatically blocklisted for the client's lifetime, while rate limits and server errors trigger retries. Agent loops automatically maintain stickiness across tool-calling rounds.
+- Added new models: `kimi-k2.5` (Moonshot), `glm-4.7-flash-openrouter`, `trinity-large-openrouter`, and `kimi-k2.5-openrouter` via OpenRouter.
+- Added pricing metadata to existing Kimi models (`kimi-k2`, `kimi-k2-turbo`, `kimi-k2-thinking`, `kimi-k2-thinking-turbo`).
+- New documentation page: [Model Fallbacks & Stickiness](/core/model-fallbacks/) covering the three key patterns (primary + fallback, load balancing, multi-turn stickiness).
+
 ## 0.0.102 · 2026-01-29
 
 - Added ZAI (Zhipu AI) models: `glm-4.7`, `glm-4.7-flash`, `glm-4.6`, `glm-4.5`, and `glm-4.5-air` via the ZAI API with Anthropic-compatible spec.

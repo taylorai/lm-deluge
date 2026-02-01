@@ -665,6 +665,9 @@ class OpenAIResponsesRequest(APIRequestBase):
             error_message = text
 
         # Handle special kinds of errors
+        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 404, 413]
+        # Auth errors (401, 403) and model not found (404) are unrecoverable - blocklist this model
+        give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
                 error_message += " (Rate limit error, triggering cooldown.)"
@@ -686,6 +689,8 @@ class OpenAIResponsesRequest(APIRequestBase):
             sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
+            retry_with_different_model=retry_with_different_model,
+            give_up_if_no_other_models=give_up_if_no_other_models,
         )
 
 

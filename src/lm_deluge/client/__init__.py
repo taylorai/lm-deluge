@@ -177,7 +177,10 @@ class _LLMClient(BaseModel):
                 and len(unique_efforts) != 0
                 and None not in per_model_efforts
             ):
-                self.reasoning_effort = next(iter(unique_efforts))  # type: ignore
+                self.reasoning_effort = cast(
+                    Literal["low", "medium", "high", "xhigh", "minimal", "none"],
+                    next(iter(unique_efforts)),
+                )
         self.model_names = normalized
         self._align_sampling_params(per_model_efforts)
         self._reset_model_weights()
@@ -793,7 +796,7 @@ class _LLMClient(BaseModel):
                 results[idx] = APIResponse(
                     id=idx,
                     model_internal=self.model_names[0],
-                    prompt=prompts[idx],  # type: ignore
+                    prompt=prompts[idx],
                     sampling_params=self.sampling_params[0]
                     if self.sampling_params
                     else SamplingParams(),
@@ -1156,7 +1159,7 @@ class _LLMClient(BaseModel):
         for round_num in range(max_rounds):
             response = await self._start_once(
                 conversation,
-                tools=tools,  # type: ignore
+                tools=tools,
                 skills=skills,
                 container_id=container_id,
                 output_schema=output_schema,
@@ -1175,7 +1178,9 @@ class _LLMClient(BaseModel):
             if response is None or response.content is None:
                 break
 
-            conversation = conversation.with_message(response.content)
+            conversation = conversation.with_message(
+                response.content, model_used=response.model_internal
+            )
 
             # Call the callback after adding the assistant message
             if on_round_complete is not None:
@@ -1350,7 +1355,7 @@ class _LLMClient(BaseModel):
         return asyncio.run(
             self.run_agent_loop(
                 conversation,
-                tools=tools,  # type: ignore
+                tools=tools,
                 skills=skills,
                 max_rounds=max_rounds,
                 show_progress=show_progress,
