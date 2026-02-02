@@ -1032,7 +1032,7 @@ class S3WorkspaceBackend:
     def client(self) -> Any:
         """Lazy initialization of S3 client."""
         if self._client is None:
-            import boto3
+            import boto3  # type: ignore
 
             self._client = boto3.client("s3")
         return self._client

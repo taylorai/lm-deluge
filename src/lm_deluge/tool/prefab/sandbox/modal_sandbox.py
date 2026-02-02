@@ -6,8 +6,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-import modal
-
 from lm_deluge.tool import Tool
 
 
@@ -32,6 +30,8 @@ class ModalSandbox:
         encrypted_ports: list[int] | None = None,
         stateful: bool = False,
     ):
+        import modal  # type: ignore
+
         app_name = app_name or secrets.token_urlsafe(32)
         app = modal.App.lookup(app_name, create_if_missing=True)
         self.app = app

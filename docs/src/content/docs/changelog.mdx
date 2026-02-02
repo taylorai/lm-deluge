@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.104 · 2026-02-02
+
+- **Lazy imports for prefab tools**: The `lm_deluge.tool.prefab` module now uses lazy imports, so importing one tool (e.g., `ModalSandbox`) no longer requires dependencies for unrelated tools (e.g., `lenlp`/`tantivy` for `FullTextSearchManager`). Each tool's dependencies are only loaded when that specific tool is used.
+
 ## 0.0.103 · 2026-01-31
 
 - **Model fallbacks, blocklisting, and stickiness**: Multi-model clients now support intelligent fallback behavior. Configure `prefer_model="claude-4-sonnet"` to always try your preferred model first with automatic failover, or use `prefer_model="last"` for multi-turn conversations to stick to whichever model was used previously (survives serialization via `conv.model_used`). Models that fail with unrecoverable errors (401, 403, 404) get automatically blocklisted for the client's lifetime, while rate limits and server errors trigger retries. Agent loops automatically maintain stickiness across tool-calling rounds.
