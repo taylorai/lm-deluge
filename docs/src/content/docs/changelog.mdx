@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.105 · 2026-02-02
+
+- **New `get_curl_tool()` prefab**: A lightweight curl tool for making HTTP requests without needing a full sandbox. Validates commands to prevent shell injection, whitelists safe flags, and blocks requests to localhost/private IPs. Pair it with `FilesystemManager` for agents that need to fetch data and read/write files. See [Tool Use](/features/tools/#curl-tool) for usage.
+- **Verbose mode for agent loops**: Pass `verbose=True` to `run_agent_loop()`, `run_agent_loop_sync()`, `start_agent_loop_nowait()`, or the batch variants to print each tool call and result as the agent runs. Long arguments and outputs are automatically truncated for readability.
+
 ## 0.0.104 · 2026-02-02
 
 - **Lazy imports for prefab tools**: The `lm_deluge.tool.prefab` module now uses lazy imports, so importing one tool (e.g., `ModalSandbox`) no longer requires dependencies for unrelated tools (e.g., `lenlp`/`tantivy` for `FullTextSearchManager`). Each tool's dependencies are only loaded when that specific tool is used.

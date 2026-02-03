@@ -105,6 +105,15 @@ The agent loop will:
 3. Add the tool results to the conversation
 4. Repeat until the model returns a final response (up to `max_rounds`, default 5)
 
+Pass `verbose=True` to print each tool call and result as the agent runs:
+
+```python
+conv, resp = await client.run_agent_loop(conv, tools=tools, verbose=True)
+# [Round 1] Tool calls: get_weather(city='London')
+#   → get_weather: The weather in London is cloudy and 55°F
+# [Round 2] Assistant: The weather in London is cloudy and 55°F.
+```
+
 ### Parallel Agent Loops
 
 For running multiple agent loops concurrently, use the `start_agent_loop_nowait()` and `wait_for_agent_loop()` APIs:
@@ -359,6 +368,44 @@ Tips:
 - Pass `exclude={"apply_patch"}` (or any subset) to `manager.get_tools()` to disable risky commands for a session.
 - Call `manager.dump("/tmp/export")` to copy the virtual workspace to disk for debugging or regression snapshots.
 - Swap in a custom `WorkspaceBackend` implementation if you want to proxy file operations into an existing sandbox instead of the default in-memory store.
+
+## Curl Tool
+
+`get_curl_tool()` provides a lightweight way for agents to make HTTP requests without needing a full sandbox. It validates commands to prevent shell injection, whitelists common curl flags, and blocks requests to localhost/private IPs for basic SSRF protection.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.tool.prefab import get_curl_tool, FilesystemManager, InMemoryWorkspaceBackend
+
+async def main():
+    # Combine curl with an in-memory filesystem
+    backend = InMemoryWorkspaceBackend(files={
+        "config.json": '{"api_version": "v1"}'
+    })
+    fs = FilesystemManager(backend=backend)
+    tools = [get_curl_tool()] + fs.get_tools()
+
+    client = LLMClient("gpt-4.1-mini")
+    conv = Conversation().user(
+        "Fetch https://httpbin.org/uuid and save the UUID to a file called result.txt"
+    )
+
+    conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=5)
+    print(resp.completion)
+    print("Saved:", backend.read_file("result.txt"))
+
+asyncio.run(main())
+```
+
+The curl tool supports common flags like `-s`, `-G`, `-H`, `-d`, `--data-urlencode`, `-X`, `-L`, `--max-time`, etc. Forbidden operations include file uploads (`-T`), proxy settings (`-x`), and config files (`-K`).
+
+Tips:
+
+- Use this instead of a full sandbox when you only need HTTP requests and file operations.
+- The default timeout is 60 seconds (max 300). Pass `timeout=120` in the tool call for longer requests.
+- Shell metacharacters (`;`, `|`, `&`, backticks) are rejected to prevent command injection.
+- Requests to `localhost`, `127.0.0.1`, and private IP ranges (`10.x`, `192.168.x`, `172.16-31.x`) are blocked.
 
 ## Remote Sandboxes (Modal + Daytona)
 

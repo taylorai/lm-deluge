@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 # For type checkers, import everything so autocompletion works
 if TYPE_CHECKING:
     from .batch_tool import BatchTool
+    from .curl import get_curl_tool
     from .docs import DocsManager
     from .email import EmailManager
     from .filesystem import (
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 __all__ = [
     "BatchTool",
     "DaytonaSandbox",
+    "get_curl_tool",
     "DockerSandbox",
     "DocsManager",
     "EmailManager",
@@ -63,6 +65,8 @@ __all__ = [
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # batch_tool
     "BatchTool": (".batch_tool", "BatchTool"),
+    # curl
+    "get_curl_tool": (".curl", "get_curl_tool"),
     # docs
     "DocsManager": (".docs", "DocsManager"),
     # email

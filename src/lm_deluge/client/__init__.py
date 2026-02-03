@@ -55,6 +55,31 @@ class AgentLoopResponse:
 AgentLoopCallback = Callable[[Conversation, APIResponse, int], Awaitable[None]]
 
 
+def _truncate(s: str, max_len: int = 200) -> str:
+    """Truncate a string for verbose output."""
+    if len(s) <= max_len:
+        return s
+    return s[: max_len - 3] + "..."
+
+
+def _format_tool_call(tc) -> str:
+    """Format a tool call for verbose output."""
+    args_str = ", ".join(
+        f"{k}={_truncate(repr(v), 80)}" for k, v in tc.arguments.items()
+    )
+    return f"{tc.name}({args_str})"
+
+
+def _format_tool_result(result: str | dict | list) -> str:
+    """Format a tool result for verbose output."""
+    if isinstance(result, str):
+        return _truncate(result, 300)
+    else:
+        import json
+
+        return _truncate(json.dumps(result), 300)
+
+
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
 class _LLMClient(BaseModel):
     """
@@ -1131,6 +1156,7 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        verbose: bool = False,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
         if self.use_responses_api:
@@ -1188,7 +1214,19 @@ class _LLMClient(BaseModel):
 
             tool_calls_to_execute = response.content.tool_calls_to_execute
             if not tool_calls_to_execute:
+                # Print final text response if verbose
+                if verbose and response.completion:
+                    print(
+                        f"[Round {round_num + 1}] Assistant: {_truncate(response.completion, 500)}"
+                    )
                 break
+
+            # Print tool calls if verbose
+            if verbose:
+                calls_str = ", ".join(
+                    _format_tool_call(tc) for tc in tool_calls_to_execute
+                )
+                print(f"[Round {round_num + 1}] Tool calls: {calls_str}")
 
             results = await execute_tool_calls(tool_calls_to_execute, expanded_tools)
             by_id = {tc.id: tc for tc in tool_calls_to_execute}
@@ -1206,6 +1244,14 @@ class _LLMClient(BaseModel):
                         built_in_type=call.built_in_type,
                     )
                 )
+
+            # Print tool results if verbose
+            if verbose:
+                for call_id, result in results:
+                    call = by_id.get(call_id)
+                    name = call.name if call else "unknown"
+                    print(f"  → {name}: {_format_tool_result(result)}")
+
             conversation = conversation.with_message(Message("tool", tool_parts))
 
         if response is None:
@@ -1227,6 +1273,7 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        verbose: bool = False,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
 
@@ -1256,6 +1303,7 @@ class _LLMClient(BaseModel):
                 cache=cache,
                 service_tier=service_tier,
                 prefer_model=prefer_model,
+                verbose=verbose,
             )
         )
         self._tasks[task_id] = task
@@ -1295,6 +1343,7 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        verbose: bool = False,
     ) -> tuple[Conversation, APIResponse]:
         """Run a simple agent loop until no more tool calls are returned.
 
@@ -1312,6 +1361,7 @@ class _LLMClient(BaseModel):
                 Receives (conversation, response, round_number). Called after the
                 assistant message is added but before tool execution.
             prefer_model: Model to prefer. Use "last" to use conversation.model_used.
+            verbose: If True, print each tool call and result to stdout.
         """
         if self.use_responses_api:
             raise NotImplementedError(
@@ -1328,6 +1378,7 @@ class _LLMClient(BaseModel):
             cache=cache,
             service_tier=service_tier,
             prefer_model=prefer_model,
+            verbose=verbose,
         )
         return await self.wait_for_agent_loop(task_id)
 
@@ -1344,6 +1395,7 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        verbose: bool = False,
     ) -> tuple[Conversation, APIResponse]:
         """Synchronous wrapper for :meth:`run_agent_loop`."""
         if self.use_responses_api:
@@ -1364,6 +1416,7 @@ class _LLMClient(BaseModel):
                 cache=cache,
                 service_tier=service_tier,
                 prefer_model=prefer_model,
+                verbose=verbose,
             )
         )
 
@@ -1380,6 +1433,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        verbose: bool = False,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Process multiple agent loops concurrently.
 
@@ -1399,6 +1453,7 @@ class _LLMClient(BaseModel):
             show_progress: Whether to show progress bar for LLM requests.
             on_round_complete: Optional async callback called after each round
                 of each agent loop.
+            verbose: If True, print each tool call and result to stdout.
 
         Returns:
             List of (Conversation, APIResponse) tuples in the same order as
@@ -1439,6 +1494,7 @@ class _LLMClient(BaseModel):
                     output_schema=output_schema,
                     cache=cache,
                     service_tier=service_tier,
+                    verbose=verbose,
                 )
                 return idx, result.conversation, result.final_response
 
@@ -1467,6 +1523,7 @@ class _LLMClient(BaseModel):
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        verbose: bool = False,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Synchronous wrapper for :meth:`process_agent_loops_async`."""
         if self.use_responses_api:
@@ -1486,6 +1543,7 @@ class _LLMClient(BaseModel):
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
+                verbose=verbose,
             )
         )
 
