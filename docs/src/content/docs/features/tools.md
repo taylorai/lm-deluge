@@ -398,13 +398,13 @@ async def main():
 asyncio.run(main())
 ```
 
-The curl tool supports common flags like `-s`, `-G`, `-H`, `-d`, `--data-urlencode`, `-X`, `-L`, `--max-time`, etc. Forbidden operations include file uploads (`-T`), proxy settings (`-x`), and config files (`-K`).
+The curl tool supports common flags like `-s`, `-G`, `-H`, `-d`, `--data-urlencode`, `-X`, `-L`, `--max-time`, etc. You can pipe output to `jq` for JSON filtering (e.g., `curl -s https://api.example.com | jq '.data[0]'`). Forbidden operations include file uploads (`-T`), proxy settings (`-x`), and config files (`-K`).
 
 Tips:
 
 - Use this instead of a full sandbox when you only need HTTP requests and file operations.
 - The default timeout is 60 seconds (max 300). Pass `timeout=120` in the tool call for longer requests.
-- Shell metacharacters (`;`, `|`, `&`, backticks) are rejected to prevent command injection.
+- Piping to `jq` is allowed for JSON filtering; other shell pipes are blocked.
 - Requests to `localhost`, `127.0.0.1`, and private IP ranges (`10.x`, `192.168.x`, `172.16-31.x`) are blocked.
 
 ## Remote Sandboxes (Modal + Daytona)

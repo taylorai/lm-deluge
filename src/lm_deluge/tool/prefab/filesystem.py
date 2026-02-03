@@ -582,7 +582,8 @@ class FilesystemManager:
         Create a FilesystemManager pre-populated with files from a zip archive.
 
         Args:
-            source: Path to the zip file, or a BytesIO containing zip data.
+            source: Path to the zip file, a BytesIO containing zip data, or a URL
+                to fetch the zip from (http:// or https://).
             max_files: Maximum number of files to load (default 100).
             tool_name: Name for the filesystem tool.
 
@@ -593,6 +594,15 @@ class FilesystemManager:
             ValueError: If more than max_files files are found.
             zipfile.BadZipFile: If the source is not a valid zip file.
         """
+        # If source is a URL, fetch it first
+        if isinstance(source, str) and (
+            source.startswith("http://") or source.startswith("https://")
+        ):
+            import urllib.request
+
+            with urllib.request.urlopen(source) as response:
+                source = io.BytesIO(response.read())
+
         files: dict[str, str] = {}
         file_count = 0
 

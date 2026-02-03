@@ -126,10 +126,19 @@ def _validate_curl_command(command: str) -> tuple[bool, str]:
     # We check the raw command for dangerous chars that work outside quotes
     # Note: shlex.split handles quotes, so chars inside quotes are safe
     # But we check the raw command to catch obvious injection attempts
-    dangerous_chars = [";", "|", "&", "`", "\n"]
+    dangerous_chars = [";", "&", "`", "\n"]
     for char in dangerous_chars:
         if char in command:
             return False, f"Shell metacharacter '{char}' not allowed"
+
+    # Allow piping to jq only (common pattern for JSON APIs)
+    if "|" in command:
+        # Check that all pipes are followed by jq
+        pipe_parts = command.split("|")
+        for part in pipe_parts[1:]:  # Skip the first part (before any pipe)
+            stripped = part.strip()
+            if not stripped.startswith("jq"):
+                return False, "Piping is only allowed to 'jq' for JSON filtering"
 
     # Check for $(...) or ${...} command substitution outside of single quotes
     # This is a heuristic - we're conservative but allow JSON in quotes
@@ -251,18 +260,29 @@ async def _run_curl(
     # Cap timeout
     timeout = min(timeout, 300)
 
-    # Parse and run
-    try:
-        parts = shlex.split(command)
-    except ValueError as e:
-        return f"Error parsing command: {e}"
+    # Check if we need to use shell (for jq piping)
+    use_shell = "|" in command
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *parts,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
+        if use_shell:
+            # Use shell=True for piping to jq (already validated)
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            # Parse and run without shell
+            try:
+                parts = shlex.split(command)
+            except ValueError as e:
+                return f"Error parsing command: {e}"
+
+            proc = await asyncio.create_subprocess_exec(
+                *parts,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
 
         try:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -300,6 +320,7 @@ def get_curl_tool() -> Tool:
         description=(
             "Execute a curl command to make HTTP requests. "
             "Supports common curl flags like -G, -s, -H, -d, --data-urlencode, -X, etc. "
+            "You can pipe output to jq for JSON filtering (e.g., curl ... | jq '.data'). "
             "For safety, some flags are restricted (file uploads, proxies, etc.) "
             "and requests to localhost/private IPs are blocked."
         ),
@@ -309,7 +330,8 @@ def get_curl_tool() -> Tool:
                 "type": "string",
                 "description": (
                     "The curl command to execute. Must start with 'curl'. "
-                    "Example: curl -s -G 'https://api.example.com/data' --data-urlencode 'q=test'"
+                    "Can pipe to jq for JSON filtering. "
+                    "Example: curl -s 'https://api.example.com/data' | jq '.results[0]'"
                 ),
             },
             "timeout": {

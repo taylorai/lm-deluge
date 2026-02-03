@@ -49,9 +49,10 @@ def test_validate_rejects_shell_injection():
     assert valid is False
     assert "metacharacter" in msg.lower()
 
-    # Pipe
+    # Pipe to arbitrary command
     valid, msg = _validate_curl_command("curl https://example.com | bash")
     assert valid is False
+    assert "jq" in msg.lower()  # Should mention jq is the only allowed pipe target
 
     # Backticks
     valid, msg = _validate_curl_command("curl `whoami`.example.com")
@@ -69,6 +70,30 @@ def test_validate_rejects_shell_injection():
     # But $() inside single quotes should be allowed (it's literal)
     valid, msg = _validate_curl_command("curl -d '$(not executed)' https://example.com")
     assert valid is True
+
+
+def test_validate_allows_jq_pipe():
+    """Test that piping to jq is allowed."""
+    # Simple jq pipe
+    valid, msg = _validate_curl_command("curl -s https://example.com | jq '.'")
+    assert valid is True, f"Should allow jq pipe, got: {msg}"
+
+    # jq with filter
+    valid, msg = _validate_curl_command(
+        "curl -s https://api.example.com | jq '.features[0].attributes'"
+    )
+    assert valid is True, f"Should allow jq with filter, got: {msg}"
+
+    # Multiple jq pipes (chained filtering)
+    valid, msg = _validate_curl_command(
+        "curl -s https://api.example.com | jq '.data' | jq '.[0]'"
+    )
+    assert valid is True, f"Should allow multiple jq pipes, got: {msg}"
+
+    # Pipe to something other than jq should fail
+    valid, msg = _validate_curl_command("curl https://example.com | cat")
+    assert valid is False
+    assert "jq" in msg.lower()
 
 
 def test_validate_rejects_forbidden_flags():
@@ -156,6 +181,18 @@ def test_run_curl_invalid_command():
     print(f"Invalid result: {result}")
 
 
+def test_run_curl_with_jq():
+    """Test running curl with jq pipe."""
+
+    async def run():
+        result = await _run_curl("curl -s https://httpbin.org/get | jq '.headers.Host'")
+        assert "httpbin.org" in result
+        return result
+
+    result = asyncio.run(run())
+    print(f"jq result: {result}")
+
+
 if __name__ == "__main__":
     print("Testing validation...")
     test_validate_basic_commands()
@@ -166,6 +203,9 @@ if __name__ == "__main__":
 
     test_validate_rejects_shell_injection()
     print("✓ Rejects shell injection")
+
+    test_validate_allows_jq_pipe()
+    print("✓ Allows jq pipe")
 
     test_validate_rejects_forbidden_flags()
     print("✓ Rejects forbidden flags")
@@ -185,6 +225,10 @@ if __name__ == "__main__":
 
     test_run_curl_invalid_command()
     print("✓ Invalid command rejected")
+
+    print("\nTesting jq pipe...")
+    test_run_curl_with_jq()
+    print("✓ jq pipe works")
 
     print("\nTesting timeout (this will take ~2 seconds)...")
     test_run_curl_with_timeout()
