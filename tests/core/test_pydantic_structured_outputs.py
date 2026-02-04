@@ -144,23 +144,24 @@ def test_openai_responses_with_pydantic_model():
 
 
 def test_anthropic_with_pydantic_model():
-    """Test Anthropic API with a Pydantic model."""
+    """Test Anthropic API with a Pydantic model (GA format)."""
     model = APIModel.from_registry("claude-4.5-sonnet")
     context = _make_context(SimpleResponse)
 
     request_json, headers = _build_anthropic_request(model, context)
 
-    # Verify the request structure
-    assert "output_format" in request_json
-    assert request_json["output_format"]["type"] == "json_schema"
-    assert "schema" in request_json["output_format"]
+    # Verify the request structure (GA format: output_config.format)
+    assert "output_config" in request_json
+    assert "format" in request_json["output_config"]
+    assert request_json["output_config"]["format"]["type"] == "json_schema"
+    assert "schema" in request_json["output_config"]["format"]
 
-    # Verify beta header
-    assert "anthropic-beta" in headers
-    assert "structured-outputs-2025-11-13" in headers["anthropic-beta"]
+    # GA does not require structured-outputs beta header
+    if "anthropic-beta" in headers:
+        assert "structured-outputs" not in headers["anthropic-beta"]
 
     # Verify the schema
-    schema = request_json["output_format"]["schema"]
+    schema = request_json["output_config"]["format"]["schema"]
     assert schema["type"] == "object"
     assert schema["additionalProperties"] is False
 
@@ -197,7 +198,7 @@ def test_anthropic_moves_constraints_to_description():
 
     request_json, _ = _build_anthropic_request(model, context)
 
-    schema = request_json["output_format"]["schema"]
+    schema = request_json["output_config"]["format"]["schema"]
 
     age_prop = schema["properties"]["age"]
     assert "minimum" not in age_prop
@@ -234,7 +235,7 @@ def test_anthropic_array_constraints_moved_to_description():
 
     request_json, _ = _build_anthropic_request(model, context)
 
-    schema = request_json["output_format"]["schema"]
+    schema = request_json["output_config"]["format"]["schema"]
     tags_prop = schema["properties"]["tags"]
 
     assert "minItems" not in tags_prop
@@ -385,7 +386,7 @@ def test_dict_schema_still_works():
 
 
 def test_anthropic_dict_schema():
-    """Test Anthropic with dict schema."""
+    """Test Anthropic with dict schema (GA format)."""
     model = APIModel.from_registry("claude-4.5-sonnet")
 
     schema_dict = {
@@ -400,11 +401,12 @@ def test_anthropic_dict_schema():
 
     request_json, headers = _build_anthropic_request(model, context)
 
-    # Verify the request structure
-    assert "output_format" in request_json
-    assert request_json["output_format"]["type"] == "json_schema"
+    # Verify the request structure (GA format: output_config.format)
+    assert "output_config" in request_json
+    assert "format" in request_json["output_config"]
+    assert request_json["output_config"]["format"]["type"] == "json_schema"
 
-    schema = request_json["output_format"]["schema"]
+    schema = request_json["output_config"]["format"]["schema"]
     assert schema["type"] == "object"
     assert schema["additionalProperties"] is False
 

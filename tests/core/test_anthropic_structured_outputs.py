@@ -100,7 +100,7 @@ def test_anthropic_strict_mode_compatibility_fallback():
 
 
 def test_anthropic_output_format_in_request():
-    """Test that output_schema is correctly formatted in the Anthropic request."""
+    """Test that output_schema is correctly formatted in the Anthropic request (GA format)."""
 
     model = APIModel.from_registry("claude-4.5-sonnet")
 
@@ -127,20 +127,21 @@ def test_anthropic_output_format_in_request():
 
     request_json, headers = _build_anthropic_request(model, context)
 
-    # Verify output_format is in request
-    assert "output_format" in request_json
-    assert request_json["output_format"]["type"] == "json_schema"
-    assert request_json["output_format"]["schema"] == output_schema
+    # Verify output_config.format is in request (GA format)
+    assert "output_config" in request_json
+    assert "format" in request_json["output_config"]
+    assert request_json["output_config"]["format"]["type"] == "json_schema"
+    assert request_json["output_config"]["format"]["schema"] == output_schema
 
-    # Verify beta header is added
-    assert "anthropic-beta" in headers
-    assert "structured-outputs-2025-11-13" in headers["anthropic-beta"]
+    # GA structured outputs do not require a beta header
+    if "anthropic-beta" in headers:
+        assert "structured-outputs" not in headers["anthropic-beta"]
 
-    print("✅ Anthropic output_format in request test passed!")
+    print("✅ Anthropic output_config.format in request test passed!")
 
 
-def test_anthropic_strict_tools_beta_header():
-    """Test that strict_tools adds the beta header."""
+def test_anthropic_strict_tools_ga():
+    """Test that strict_tools works without beta header (GA)."""
 
     model = APIModel.from_registry("claude-4.5-sonnet")
 
@@ -164,19 +165,19 @@ def test_anthropic_strict_tools_beta_header():
 
     request_json, headers = _build_anthropic_request(model, context)
 
-    # Verify beta header is added for strict tools
-    assert "anthropic-beta" in headers
-    assert "structured-outputs-2025-11-13" in headers["anthropic-beta"]
+    # GA strict tools do not require a beta header
+    if "anthropic-beta" in headers:
+        assert "structured-outputs" not in headers["anthropic-beta"]
 
     # Verify tool has strict flag
     assert "tools" in request_json
     assert request_json["tools"][0]["strict"] is True
 
-    print("✅ Anthropic strict tools beta header test passed!")
+    print("✅ Anthropic strict tools GA test passed!")
 
 
 def test_anthropic_strict_tools_disabled():
-    """Test that strict_tools=False doesn't add strict flag or beta header."""
+    """Test that strict_tools=False doesn't add strict flag."""
 
     model = APIModel.from_registry("claude-4.5-sonnet")
 
@@ -204,16 +205,11 @@ def test_anthropic_strict_tools_disabled():
     assert "tools" in request_json
     assert "strict" not in request_json["tools"][0]
 
-    # Beta header should not be added for just non-strict tools
-    # (it's only added when structured outputs are used)
-    if "anthropic-beta" in headers:
-        assert "structured-outputs-2025-11-13" not in headers["anthropic-beta"]
-
     print("✅ Anthropic strict tools disabled test passed!")
 
 
 def test_anthropic_combined_output_schema_and_strict_tools():
-    """Test using both output_schema and strict tools together."""
+    """Test using both output_schema and strict tools together (GA)."""
 
     model = APIModel.from_registry("claude-4.5-sonnet")
 
@@ -245,14 +241,15 @@ def test_anthropic_combined_output_schema_and_strict_tools():
 
     request_json, headers = _build_anthropic_request(model, context)
 
-    # Both features should be present
-    assert "output_format" in request_json
+    # Both features should be present (GA format)
+    assert "output_config" in request_json
+    assert "format" in request_json["output_config"]
     assert "tools" in request_json
     assert request_json["tools"][0]["strict"] is True
 
-    # Beta header should be added once (not duplicated)
-    assert "anthropic-beta" in headers
-    assert headers["anthropic-beta"].count("structured-outputs-2025-11-13") == 1
+    # GA does not require structured-outputs beta header
+    if "anthropic-beta" in headers:
+        assert "structured-outputs" not in headers["anthropic-beta"]
 
     print("✅ Anthropic combined output_schema and strict tools test passed!")
 
@@ -326,7 +323,7 @@ if __name__ == "__main__":
     print()
     test_anthropic_output_format_in_request()
     print()
-    test_anthropic_strict_tools_beta_header()
+    test_anthropic_strict_tools_ga()
     print()
     test_anthropic_strict_tools_disabled()
     print()

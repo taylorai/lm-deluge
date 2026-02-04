@@ -15,7 +15,7 @@ ANTHROPIC_MODELS = {
         "name": "claude-opus-4-5-20251101",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
+        "supports_json": True,  # GA structured outputs
         "api_spec": "anthropic",
         "input_cost": 5.0,
         "cached_input_cost": 0.50,
@@ -28,7 +28,7 @@ ANTHROPIC_MODELS = {
         "name": "claude-haiku-4-5-20251001",
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
-        "supports_json": False,
+        "supports_json": True,  # GA structured outputs
         "api_spec": "anthropic",
         "input_cost": 1.0,
         "cached_input_cost": 0.10,

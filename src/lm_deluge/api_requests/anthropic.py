@@ -128,7 +128,7 @@ def _build_anthropic_request(
         request_json.pop("top_p")
 
     # print(request_json)
-    # Handle structured outputs (output_format)
+    # Handle structured outputs (output_config.format) - GA version
     if context.output_schema:
         if model.supports_json:
             base_schema = prepare_output_schema(context.output_schema)
@@ -136,8 +136,10 @@ def _build_anthropic_request(
             # Apply Anthropic-specific transformations (move unsupported constraints to description)
             transformed_schema = transform_schema_for_anthropic(base_schema)
 
-            _add_beta(base_headers, "structured-outputs-2025-11-13")
-            request_json["output_format"] = {
+            # GA structured outputs use output_config.format (no beta header needed)
+            if "output_config" not in request_json:
+                request_json["output_config"] = {}
+            request_json["output_config"]["format"] = {  # type: ignore[index]
                 "type": "json_schema",
                 "schema": transformed_schema,
             }
@@ -152,9 +154,7 @@ def _build_anthropic_request(
             "Use output_schema parameter for structured JSON outputs."
         )
 
-    # Add beta header for strict tools when enabled
-    if tools and sampling_params.strict_tools and model.supports_json:
-        _add_beta(base_headers, "structured-outputs-2025-11-13")
+    # Note: Strict tools are now GA, no beta header needed
 
     if tools:
         mcp_servers = []

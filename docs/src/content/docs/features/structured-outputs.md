@@ -106,7 +106,7 @@ result = client.process_prompts_sync(
 
 ## Under the Hood
 
-- **Anthropic** (`claude-4.5`, `claude-4.1`, etc.) adds the `structured-outputs-2025-11-13` beta header plus `output_format=json_schema`. Models that cannot comply print a warning and fall back to free-form text.
+- **Anthropic** (`claude-4.5`, `claude-4.1`, etc.) uses the GA `output_config.format` with `json_schema` type. Models that cannot comply print a warning and fall back to free-form text.
 - **OpenAI Chat Completions** use the `response_format=json_schema` payload with `strict=True`. The Responses API mirrors this via `text.format`.
 - **Bedrock** Anthropic/OpenAI adapters forward prompts and tools but skip structured outputs entirely for now because AWS hasn’t released the feature—the schema is dropped so requests keep working, just without validation.
 

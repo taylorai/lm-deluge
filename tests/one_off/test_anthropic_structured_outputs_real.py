@@ -101,7 +101,7 @@ async def test_anthropic_strict_tools_real():
         required=["location"],
     )
 
-    prompt = "What's the weather like in San Francisco?"
+    prompt = "What's the weather like in San Francisco? Use the get_weather tool to find out."
 
     responses = await client.process_prompts_async(
         [prompt], tools=[weather_tool], return_completions_only=False
