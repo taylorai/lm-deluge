@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.107 · 2026-02-04
+
+- **Anthropic structured outputs are GA**: Structured outputs now use `output_config.format` (no beta header), and Claude 4.5 models are marked JSON-capable.
+- **FilesystemManager zip URLs**: `FilesystemManager.from_zip()` now accepts `http(s)` URLs to preload a workspace from a remote zip file.
+- **Curl tool jq piping**: `get_curl_tool()` now allows piping output to `jq` for JSON filtering while continuing to block other shell pipes.
+
 ## 0.0.105 · 2026-02-02
 
 - **New `get_curl_tool()` prefab**: A lightweight curl tool for making HTTP requests without needing a full sandbox. Validates commands to prevent shell injection, whitelists safe flags, and blocks requests to localhost/private IPs. Pair it with `FilesystemManager` for agents that need to fetch data and read/write files. See [Tool Use](/features/tools/#curl-tool) for usage.
