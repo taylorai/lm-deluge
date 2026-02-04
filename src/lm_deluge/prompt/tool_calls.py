@@ -179,12 +179,17 @@ class ToolResult:
             raise ValueError("result type not supported")
 
     def oa_resp(self) -> dict:  # OpenAI Responses
-        # print("typeof self.result:", type(self.result))
-        # if normal (not built-in just return the regular output
+        # if normal (not built-in) just return the regular output
         if not self.built_in:
-            output = (
-                self.result if isinstance(self.result, str) else json.dumps(self.result)
-            )
+            if isinstance(self.result, str):
+                output: str | list[dict] = self.result
+            elif isinstance(self.result, list):
+                # OpenAI Responses API now supports array of content blocks
+                # Each block can be text or image - use same format as regular inputs
+                output = [block.oa_resp() for block in self.result]
+            else:
+                # dict case
+                output = json.dumps(self.result)
             return {
                 "type": "function_call_output",
                 "call_id": self.tool_call_id,

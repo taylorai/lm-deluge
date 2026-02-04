@@ -199,9 +199,11 @@ class Image:
         }
 
     def oa_resp(self) -> dict:
-        # if max(self.size) > 1_568:
-        #     self.resize_longer_side(1_568)
-        return {"type": "input_image", "image_url": self._base64()}
+        return {
+            "type": "input_image",
+            "image_url": self._base64(),
+            "detail": self.detail,
+        }
 
     def anthropic(self) -> dict:
         # n_pixels = self.num_pixels

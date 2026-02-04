@@ -665,7 +665,7 @@ class Conversation:
 
                 # if tool response included images, add those to next user message
                 user_msg = Message("user", [])
-                for i, tool_result in enumerate(m.tool_results):
+                for tool_result in m.tool_results:
                     images = tool_result.get_images()
                     if len(images) > 0:
                         user_msg.with_text(
@@ -673,6 +673,10 @@ class Conversation:
                         )
                         for img in images:
                             user_msg.with_image(img)
+
+                # Add the user message with images if any were collected
+                if user_msg.parts:
+                    result.append(user_msg.oa_chat())
 
             else:
                 result.append(m.oa_chat())

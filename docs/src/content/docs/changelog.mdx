@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.108 · 2026-02-04
+
+- **OpenAI Responses API now supports images in tool results**: Tool results containing `[Text(...), Image(...)]` lists are now properly serialized as arrays with `input_text` and `input_image` types, allowing models to see images returned by tools natively.
+- **Fixed OpenAI Chat Completions image extraction**: Tool results with images now correctly append a user message containing the extracted images (was creating the message but not adding it to the request).
+- **Image detail field**: `Image.oa_resp()` now includes the `detail` field for controlling image processing fidelity.
+
 ## 0.0.107 · 2026-02-04
 
 - **Anthropic structured outputs are GA**: Structured outputs now use `output_config.format` (no beta header), and Claude 4.5 models are marked JSON-capable.
