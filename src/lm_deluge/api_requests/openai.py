@@ -525,6 +525,10 @@ class OpenAIResponsesRequest(APIRequestBase):
                                 elif item.get("type") == "reasoning":
                                     # Always create Thinking with raw_payload to preserve
                                     # the item for round-tripping back to the API
+                                    if not item.get("id"):
+                                        print(
+                                            "Warning: OpenAI reasoning item missing id; round-tripping may break."
+                                        )
                                     summary_list = item.get("summary", [])
                                     summary_text = ""
                                     if (
@@ -538,6 +542,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                                         Thinking(
                                             content=summary_text or "[reasoning]",
                                             raw_payload=item,
+                                            id=item.get("id"),
                                             summary=summary_text or None,
                                         )
                                     )

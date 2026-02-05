@@ -691,6 +691,7 @@ class Conversation:
                 continue
             if m.role == "assistant":
                 pending_message_content: list[dict] = []
+                has_tool_calls = any(isinstance(p, ToolCall) for p in m.parts)
 
                 def flush_assistant_message() -> None:
                     nonlocal pending_message_content
@@ -729,10 +730,12 @@ class Conversation:
 
                     if isinstance(p, Thinking):
                         flush_assistant_message()
+                        if not has_tool_calls:
+                            continue
                         if p.raw_payload:
-                            input_items.append(dict(p.raw_payload))
-                        else:
-                            input_items.append(p.oa_resp())
+                            raw_id = p.raw_payload.get("id")
+                            if isinstance(raw_id, str) and raw_id.startswith("rs_"):
+                                input_items.append(dict(p.raw_payload))
                         continue
 
                 flush_assistant_message()
@@ -1221,6 +1224,7 @@ class Conversation:
                     parts.append(
                         Thinking(
                             content=p["content"],
+                            id=p.get("id"),
                             thought_signature=deserialize_signature(
                                 p.get("thought_signature")
                             ),

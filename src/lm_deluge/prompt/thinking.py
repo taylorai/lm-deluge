@@ -16,6 +16,8 @@ class Thinking:
     type: str = field(init=False, default="thinking")
     # for openai - to keep conversation chain
     raw_payload: dict | None = None
+    # openai responses reasoning item id (rs_*)
+    id: str | None = None
     # for gemini 3 - thought signatures to maintain reasoning context
     thought_signature: ThoughtSignatureLike | None = None
     summary: str | None = None  # to differentiate summary text from actual content
@@ -41,7 +43,7 @@ class Thinking:
         # The summary field is REQUIRED by OpenAI's Responses API for reasoning items
         return {
             "type": "reasoning",
-            "id": f"reasoning_{id(self)}",  # Generate an ID if needed
+            "id": self.id or f"reasoning_{id(self)}",  # Generate an ID if needed
             "summary": [{"type": "summary_text", "text": self.summary or self.content}],
         }
 

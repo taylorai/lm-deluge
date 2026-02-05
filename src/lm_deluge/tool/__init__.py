@@ -750,24 +750,68 @@ class Tool(BaseModel):
         config: dict[str, Any],
         *,
         timeout: float | None = None,
+        retries: int = 3,
     ) -> list["Tool"]:
         """
         config: full Claude-Desktop-style dict *or* just its "mcpServers" block
         Returns list of Tool objects from all servers in the config.
+
+        retries: number of times to retry on connection errors (default 3)
         """
         # allow caller to pass either the whole desktop file or just the sub-dict
         servers_block = config.get("mcpServers", config)
 
         all_tools: list[Tool] = []
         for server_name, server_spec in servers_block.items():
-            client = MCPClient(
-                {"mcpServers": {server_name: server_spec}}, timeout=timeout
+            tools = await cls._load_mcp_server_with_retry(
+                server_name, server_spec, timeout=timeout, retries=retries
             )
-            async with client:
-                tools = await _load_all_mcp_tools(client)
-                all_tools.extend(tools)
+            all_tools.extend(tools)
 
         return all_tools
+
+    @classmethod
+    async def _load_mcp_server_with_retry(
+        cls,
+        server_name: str,
+        server_spec: dict[str, Any],
+        *,
+        timeout: float | None = None,
+        retries: int = 3,
+    ) -> list["Tool"]:
+        """Load tools from a single MCP server with retry logic."""
+        last_error: Exception | None = None
+
+        for attempt in range(retries):
+            try:
+                client = MCPClient(
+                    {"mcpServers": {server_name: server_spec}}, timeout=timeout
+                )
+                async with client:
+                    return await _load_all_mcp_tools(client)
+            except (ConnectionResetError, OSError) as e:
+                last_error = e
+                if attempt < retries - 1:
+                    # Wait before retrying (exponential backoff: 0.5s, 1s, 2s, ...)
+                    await asyncio.sleep(0.5 * (2**attempt))
+                continue
+            except Exception as e:
+                # For aiohttp errors and similar, check if it's a connection issue
+                err_name = type(e).__name__
+                if "ClientOSError" in err_name or "Connection" in str(e):
+                    last_error = e
+                    if attempt < retries - 1:
+                        await asyncio.sleep(0.5 * (2**attempt))
+                    continue
+                # For other errors, don't retry
+                raise
+
+        # All retries exhausted
+        print(
+            f"[lm-deluge] Failed to connect to MCP server '{server_name}' "
+            f"after {retries} attempts: {last_error}"
+        )
+        return []
 
     @classmethod
     async def from_mcp(
@@ -776,6 +820,7 @@ class Tool(BaseModel):
         *,
         tool_name: str | None = None,
         timeout: float | None = None,
+        retries: int = 3,
         **server_spec,  # url="…"  OR  command="…" args=[…]
     ) -> Any:  # Tool | list[Tool]
         """
@@ -783,13 +828,15 @@ class Tool(BaseModel):
 
             Tool.from_mcp("weather", url="https://weather.example.com/mcp")
             Tool.from_mcp("assistant", command="python", args=["./assistant.py"], tool_name="answer_question")
+
+        retries: number of times to retry on connection errors (default 3)
         """
         # ensure at least one of command or url is defined
         if not (server_spec.get("url") or server_spec.get("command")):
             raise ValueError("must provide url or command")
         # build a one-server desktop-style dict
         cfg = {server_name: server_spec}
-        tools = await cls.from_mcp_config(cfg, timeout=timeout)
+        tools = await cls.from_mcp_config(cfg, timeout=timeout, retries=retries)
         if tool_name is None:
             return tools
         for t in tools:

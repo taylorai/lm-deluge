@@ -8,9 +8,9 @@ from abc import ABC, abstractmethod
 import aiohttp
 from aiohttp import ClientResponse
 
+from ..api_requests.context import RequestContext
 from ..errors import raise_if_modal_exception
 from ..models.openai import OPENAI_MODELS
-from ..api_requests.context import RequestContext
 from .response import APIResponse
 
 
@@ -145,6 +145,13 @@ class APIRequestBase(ABC):
                     headers=self.request_header,
                     json=self.request_json,
                 ) as http_response:
+                    # Log error response body for debugging 400 errors
+                    if http_response.status >= 400:
+                        error_text = await http_response.text()
+                        print(
+                            f"\n{'=' * 60}\nHTTP {http_response.status} ERROR\n{'=' * 60}"
+                        )
+                        print(f"Response body:\n{error_text}\n{'=' * 60}\n")
                     # make sure we created the Response object
                     http_response.raise_for_status()
                     data = await http_response.json()
@@ -179,9 +186,9 @@ class APIRequestBase(ABC):
                         data = await http_response.json()
 
                         if data["status"] != last_status:
-                            print(
-                                f"Background req {response_id} status updated to: {data['status']}"
-                            )
+                            # print(
+                            #     f"Background req {response_id} status updated to: {data['status']}"
+                            # )
                             last_status = data["status"]
                         if last_status not in ["queued", "in_progress"]:
                             return await self.handle_response(http_response)

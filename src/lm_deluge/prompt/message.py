@@ -152,6 +152,8 @@ class Message:
                 )
             elif isinstance(p, Thinking):
                 thinking_block: dict = {"type": "thinking", "content": p.content}
+                if p.id is not None:
+                    thinking_block["id"] = p.id
                 signature = serialize_signature(p.thought_signature)
                 if signature is not None:
                     thinking_block["thought_signature"] = signature
@@ -222,6 +224,7 @@ class Message:
                 parts.append(
                     Thinking(
                         content=p["content"],
+                        id=p.get("id"),
                         thought_signature=deserialize_signature(
                             p.get("thought_signature")
                         ),
