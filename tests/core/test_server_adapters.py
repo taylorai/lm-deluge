@@ -14,6 +14,8 @@ from lm_deluge.prompt import (
 )
 from lm_deluge.server.adapters import (
     anthropic_request_to_conversation,
+    anthropic_request_to_output_schema,
+    anthropic_request_to_sampling_params,
     anthropic_tools_to_lm_deluge,
     api_response_to_anthropic,
     openai_tools_to_lm_deluge,
@@ -148,6 +150,56 @@ def test_anthropic_request_preserves_thinking_signature_for_tools():
     assert tool_part.thought_signature.provider == "anthropic"
 
 
+def test_anthropic_request_to_sampling_params_parses_effort_and_adaptive():
+    req = AnthropicMessagesRequest(
+        model="claude-opus-4-6",
+        max_tokens=64,
+        output_config={"effort": "max"},
+        thinking={"type": "adaptive"},
+        messages=[AnthropicMessage(role="user", content="Hello")],
+    )
+
+    params = anthropic_request_to_sampling_params(req)
+    assert params.global_effort == "max"
+    assert params.reasoning_effort == "high"
+
+
+def test_anthropic_request_to_output_schema_prefers_output_config_format():
+    schema = {
+        "type": "object",
+        "properties": {"answer": {"type": "string"}},
+        "required": ["answer"],
+        "additionalProperties": False,
+    }
+    req = AnthropicMessagesRequest(
+        model="claude-opus-4-6",
+        max_tokens=64,
+        output_config={"format": {"type": "json_schema", "schema": schema}},
+        messages=[AnthropicMessage(role="user", content="Hello")],
+    )
+
+    extracted = anthropic_request_to_output_schema(req)
+    assert extracted == schema
+
+
+def test_anthropic_request_to_output_schema_supports_deprecated_output_format():
+    schema = {
+        "type": "object",
+        "properties": {"answer": {"type": "string"}},
+        "required": ["answer"],
+        "additionalProperties": False,
+    }
+    req = AnthropicMessagesRequest(
+        model="claude-opus-4-6",
+        max_tokens=64,
+        output_format={"type": "json_schema", "schema": schema},
+        messages=[AnthropicMessage(role="user", content="Hello")],
+    )
+
+    extracted = anthropic_request_to_output_schema(req)
+    assert extracted == schema
+
+
 def test_api_response_to_anthropic_maps_stop_reason_and_thinking():
     response = APIResponse(
         id=1,
@@ -270,6 +322,9 @@ if __name__ == "__main__":
     test_openai_tools_to_lm_deluge_handles_missing_parameters()
     test_anthropic_tools_to_lm_deluge_handles_missing_schema()
     test_anthropic_request_to_conversation_rich_content()
+    test_anthropic_request_to_sampling_params_parses_effort_and_adaptive()
+    test_anthropic_request_to_output_schema_prefers_output_config_format()
+    test_anthropic_request_to_output_schema_supports_deprecated_output_format()
     test_api_response_to_anthropic_maps_stop_reason_and_thinking()
     test_api_response_to_anthropic_prefers_raw_stop_reason()
     print("All tests passed!")

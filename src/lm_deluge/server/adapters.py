@@ -217,16 +217,42 @@ def anthropic_request_to_sampling_params(
         params["temperature"] = req.temperature
     if req.top_p is not None:
         params["top_p"] = req.top_p
+    if isinstance(req.output_config, dict):
+        effort = req.output_config.get("effort")
+        if isinstance(effort, str):
+            params["global_effort"] = effort
     if isinstance(req.thinking, dict):
         thinking_type = req.thinking.get("type")
         if thinking_type == "enabled":
             budget_tokens = req.thinking.get("budget_tokens")
             if isinstance(budget_tokens, int):
                 params["thinking_budget"] = budget_tokens
+        elif thinking_type == "adaptive":
+            # Preserve adaptive intent; Anthropic builder will map model-specifically.
+            params["reasoning_effort"] = "high"
         elif thinking_type == "disabled":
             params["thinking_budget"] = 0
 
     return SamplingParams(**params)
+
+
+def anthropic_request_to_output_schema(
+    req: AnthropicMessagesRequest,
+) -> dict[str, Any] | None:
+    """Extract structured-output schema from Anthropic request payload."""
+    if isinstance(req.output_config, dict):
+        output_format = req.output_config.get("format")
+        if isinstance(output_format, dict):
+            schema = output_format.get("schema")
+            if output_format.get("type") == "json_schema" and isinstance(schema, dict):
+                return schema
+
+    if isinstance(req.output_format, dict):
+        schema = req.output_format.get("schema")
+        if req.output_format.get("type") == "json_schema" and isinstance(schema, dict):
+            return schema
+
+    return None
 
 
 def anthropic_tools_to_lm_deluge(tools: list[Any]) -> list[Tool]:

@@ -81,7 +81,7 @@ See [Model Fallbacks & Stickiness](/core/model-fallbacks/) for detailed patterns
 - `temperature`, `top_p`, and `max_new_tokens` feed directly into the request bodies.
 - `json_mode=True` places OpenAI and Gemini into JSON-object responses if the model supports it.
 - `reasoning_effort` lets you request `"low"`, `"medium"`, `"high"`, `"minimal"`, or `"none"` on reasoning models (`o4-mini`, `gpt-5`, `claude-4.5`, etc.).
-- `global_effort` targets Anthropic `claude-4.5-opus` and passes through the provider’s new `effort` knob.
+- `global_effort` targets Anthropic Opus (`claude-4.5-opus`, `claude-4.6-opus`) and passes through the provider `output_config.effort` knob.
 - `thinking_budget` pins a token allowance for reasoning models; if both `thinking_budget` and `reasoning_effort` are supplied, the explicit budget wins (with a warning).
 - `logprobs` + `top_logprobs` enable token-level probabilities across all models that support it; the client validates that every model in the pool allows logprobs and adjusts each `SamplingParams` instance for you.
 - `strict_tools` keeps OpenAI/Anthropic tool definitions in strict mode (removing defaults) unless you explicitly disable it.

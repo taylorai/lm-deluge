@@ -33,6 +33,26 @@ def _add_beta(headers: dict, beta: str):
         headers["anthropic-beta"] = beta
 
 
+def _is_claude_opus_46(model: APIModel) -> bool:
+    return model.id == "claude-4.6-opus" or model.name.startswith("claude-opus-4-6")
+
+
+def _supports_ga_effort(model: APIModel) -> bool:
+    return model.id in {"claude-4.5-opus", "claude-4.6-opus"}
+
+
+def _anthropic_effort(effort: str | None) -> str | None:
+    if effort is None:
+        return None
+    if effort == "xhigh":
+        return "max"
+    if effort == "minimal":
+        return "low"
+    if effort in {"low", "medium", "high", "max"}:
+        return effort
+    return None
+
+
 def _build_anthropic_request(
     model: APIModel,
     context: RequestContext,
@@ -66,9 +86,20 @@ def _build_anthropic_request(
         "max_tokens": sampling_params.max_new_tokens,
     }
 
-    if model.id == "claude-4.5-opus" and sampling_params.global_effort:
-        request_json["output_config"] = {"effort": sampling_params.global_effort}
-        _add_beta(base_headers, "effort-2025-11-24")
+    # Claude Opus 4.6 does not support assistant prefill (last assistant turn).
+    if (
+        _is_claude_opus_46(model)
+        and messages
+        and messages[-1].get("role") == "assistant"
+    ):
+        raise ValueError(
+            "Claude Opus 4.6 does not support assistant prefill. "
+            "End the prompt with a user/tool message instead."
+        )
+
+    effort = _anthropic_effort(sampling_params.global_effort)
+    if _supports_ga_effort(model) and effort is not None:
+        request_json["output_config"] = {"effort": effort}
 
     # handle thinking
     if model.reasoning_model:
@@ -78,8 +109,29 @@ def _build_anthropic_request(
         ):
             maybe_warn("WARN_THINKING_BUDGET_AND_REASONING_EFFORT")
 
-        if sampling_params.thinking_budget is not None:
+        # Claude Opus 4.6 supports adaptive thinking mode.
+        if _is_claude_opus_46(model) and sampling_params.thinking_budget is None:
+            if sampling_params.reasoning_effort == "none":
+                request_json["thinking"] = {"type": "disabled"}
+            else:
+                request_json["thinking"] = {"type": "adaptive"}
+        elif sampling_params.thinking_budget is not None:
             budget = sampling_params.thinking_budget
+            if budget > 0:
+                request_json["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": budget,
+                }
+                if "top_p" in request_json:
+                    request_json["top_p"] = max(request_json["top_p"], 0.95)
+                request_json["temperature"] = 1.0
+                max_tokens = request_json["max_tokens"]
+                assert isinstance(max_tokens, int)
+                request_json["max_tokens"] = max_tokens + budget
+            else:
+                request_json["thinking"] = {"type": "disabled"}
+                if "kimi" in model.id and "thinking" in model.id:
+                    maybe_warn("WARN_KIMI_THINKING_NO_REASONING")
         elif sampling_params.reasoning_effort is not None:
             effort = sampling_params.reasoning_effort
             if effort == "xhigh":
@@ -94,20 +146,21 @@ def _build_anthropic_request(
                 "high": 16384,
             }.get(effort)
             assert isinstance(budget, int)
-        else:
-            budget = 0
-
-        if budget > 0:
-            request_json["thinking"] = {
-                "type": "enabled",
-                "budget_tokens": budget,
-            }
-            if "top_p" in request_json:
-                request_json["top_p"] = max(request_json["top_p"], 0.95)
-            request_json["temperature"] = 1.0
-            max_tokens = request_json["max_tokens"]
-            assert isinstance(max_tokens, int)
-            request_json["max_tokens"] = max_tokens + budget
+            if budget > 0:
+                request_json["thinking"] = {
+                    "type": "enabled",
+                    "budget_tokens": budget,
+                }
+                if "top_p" in request_json:
+                    request_json["top_p"] = max(request_json["top_p"], 0.95)
+                request_json["temperature"] = 1.0
+                max_tokens = request_json["max_tokens"]
+                assert isinstance(max_tokens, int)
+                request_json["max_tokens"] = max_tokens + budget
+            else:
+                request_json["thinking"] = {"type": "disabled"}
+                if "kimi" in model.id and "thinking" in model.id:
+                    maybe_warn("WARN_KIMI_THINKING_NO_REASONING")
         else:
             request_json["thinking"] = {"type": "disabled"}
             if "kimi" in model.id and "thinking" in model.id:
@@ -124,7 +177,7 @@ def _build_anthropic_request(
     # handle temp + top_p for opus 4.1/sonnet 4.5.
     # TODO: make clearer / more user-friendly so there can be NotGiven
     # and user can control which one they want to use
-    if "4-1" in model.name or "4-5" in model.name:
+    if "4-1" in model.name or "4-5" in model.name or "4-6" in model.name:
         request_json.pop("top_p")
 
     # print(request_json)
@@ -238,6 +291,29 @@ def _build_anthropic_request(
             request_json["tools"].append(
                 {"type": "code_execution_20250825", "name": "code_execution"}
             )
+
+    # Provider-specific passthrough params (e.g., inference_geo).
+    if context.extra_body:
+        passthrough = dict(context.extra_body)
+
+        deprecated_output_format = passthrough.pop("output_format", None)
+        if isinstance(deprecated_output_format, dict):
+            if "output_config" not in request_json:
+                request_json["output_config"] = {}
+            request_json["output_config"]["format"] = deprecated_output_format  # type: ignore[index]
+
+        output_config = passthrough.pop("output_config", None)
+        if isinstance(output_config, dict):
+            if "output_config" not in request_json:
+                request_json["output_config"] = {}
+            request_output_config = request_json["output_config"]
+            if isinstance(request_output_config, dict):
+                request_output_config.update(output_config)
+
+        for key, value in passthrough.items():
+            if key in {"model", "messages"}:
+                continue
+            request_json[key] = value
 
     # print("request json:", request_json)
     return request_json, base_headers

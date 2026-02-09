@@ -41,6 +41,14 @@ def test_keyword_arguments():
     print("✓ Keyword arguments work")
 
 
+def test_extra_body_keyword_argument():
+    """Test LLMClient accepts extra_body passthrough params."""
+    client = LLMClient("claude-4.6-opus", extra_body={"inference_geo": "us"})
+    assert isinstance(client, _LLMClient)
+    assert client.extra_body == {"inference_geo": "us"}
+    print("✓ extra_body keyword works")
+
+
 def test_default_model():
     """Test LLMClient with default model."""
     client = LLMClient()
@@ -97,6 +105,7 @@ if __name__ == "__main__":
     test_positional_string_model()
     test_positional_list_models()
     test_keyword_arguments()
+    test_extra_body_keyword_argument()
     test_default_model()
     test_pydantic_features()
     test_builder_methods()

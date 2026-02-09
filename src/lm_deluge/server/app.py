@@ -21,6 +21,7 @@ from lm_deluge.tracker import StatusTracker
 
 from .adapters import (
     anthropic_request_to_conversation,
+    anthropic_request_to_output_schema,
     anthropic_request_to_sampling_params,
     anthropic_tools_to_lm_deluge,
     api_response_to_anthropic,
@@ -316,6 +317,7 @@ def create_app(policy: ProxyModelPolicy | None = None) -> FastAPI:
             # Convert request to lm-deluge types
             conversation = anthropic_request_to_conversation(req)
             sampling_params = anthropic_request_to_sampling_params(req)
+            output_schema = anthropic_request_to_output_schema(req)
 
             # Convert tools if provided
             tools = None
@@ -339,6 +341,9 @@ def create_app(policy: ProxyModelPolicy | None = None) -> FastAPI:
             beta_header = request.headers.get("anthropic-beta")
             if beta_header:
                 extra_headers = {"anthropic-beta": beta_header}
+            extra_body = None
+            if req.inference_geo is not None:
+                extra_body = {"inference_geo": req.inference_geo}
 
             context = RequestContext(
                 task_id=0,
@@ -346,10 +351,12 @@ def create_app(policy: ProxyModelPolicy | None = None) -> FastAPI:
                 prompt=conversation,
                 sampling_params=sampling_params,
                 tools=tools,
+                output_schema=output_schema,
                 cache=cache,
                 status_tracker=tracker,
                 request_timeout=int(os.getenv("DELUGE_PROXY_TIMEOUT", "120")),
                 extra_headers=extra_headers,
+                extra_body=extra_body,
             )
 
             # Create and execute request

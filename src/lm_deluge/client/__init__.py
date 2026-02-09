@@ -109,7 +109,7 @@ class _LLMClient(BaseModel):
     request_timeout: int = 30
     cache: Any = None
     extra_headers: dict[str, str] | None = None
-    extra_body: dict[str, str] | None = None
+    extra_body: dict[str, Any] | None = None
     use_responses_api: bool = False
     background: bool = False
     # sampling params - if provided, and sampling_params is not,
@@ -121,7 +121,7 @@ class _LLMClient(BaseModel):
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None
-    global_effort: Literal["low", "medium", "high"] | None = None
+    global_effort: Literal["low", "medium", "high", "max"] | None = None
     thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
@@ -603,6 +603,13 @@ class _LLMClient(BaseModel):
     async def _wait_for_capacity(
         self, num_tokens: int, tracker: StatusTracker, *, retry: bool = False
     ):
+        if num_tokens > tracker.max_tokens_per_minute:
+            raise ValueError(
+                f"Request requires ~{num_tokens:,} tokens (prompt + max_new_tokens) "
+                f"but max_tokens_per_minute is set to {tracker.max_tokens_per_minute:,}. "
+                f"This request can never be fulfilled. Either increase max_tokens_per_minute "
+                f"(via LLMClient(..., max_tokens_per_minute=...)) or reduce the prompt size / max_new_tokens."
+            )
         while True:
             # Enforce cooldown first, regardless of current capacity.
             cooldown = tracker.seconds_to_pause
@@ -991,6 +998,7 @@ class _LLMClient(BaseModel):
             background=self.background,
             service_tier=service_tier,
             extra_headers=self.extra_headers,
+            extra_body=self.extra_body,
             force_local_mcp=self.force_local_mcp,
         )
         if self._should_auto_tool_loop(tools):
@@ -1611,6 +1619,7 @@ def LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    extra_body: dict[str, Any] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
     temperature: float = 1.0,
@@ -1620,7 +1629,7 @@ def LLMClient(
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None,
-    global_effort: Literal["low", "medium", "high"] | None = None,
+    global_effort: Literal["low", "medium", "high", "max"] | None = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
@@ -1644,6 +1653,7 @@ def LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    extra_body: dict[str, Any] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
     temperature: float = 1.0,
@@ -1653,7 +1663,7 @@ def LLMClient(
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None,
-    global_effort: Literal["low", "medium", "high"] | None = None,
+    global_effort: Literal["low", "medium", "high", "max"] | None = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
@@ -1676,6 +1686,7 @@ def LLMClient(
     request_timeout: int = 30,
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
+    extra_body: dict[str, Any] | None = None,
     use_responses_api: bool = False,
     background: bool = False,
     temperature: float = 1.0,
@@ -1685,7 +1696,7 @@ def LLMClient(
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None,
-    global_effort: Literal["low", "medium", "high"] | None = None,
+    global_effort: Literal["low", "medium", "high", "max"] | None = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
@@ -1720,6 +1731,7 @@ def LLMClient(
         request_timeout=request_timeout,
         cache=cache,
         extra_headers=extra_headers,
+        extra_body=extra_body,
         use_responses_api=use_responses_api,
         background=background,
         temperature=temperature,

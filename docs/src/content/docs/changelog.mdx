@@ -5,6 +5,19 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.111 · 2026-02-08
+
+- **Immediate error on impossible token budget**: Requests whose estimated token count (prompt + `max_new_tokens`) exceeds `max_tokens_per_minute` now raise a `ValueError` immediately instead of hanging forever waiting for capacity that can never be granted.
+
+## 0.0.110 · 2026-02-07
+
+- Added full Claude Opus 4.6 request support in the Anthropic builder: adaptive thinking (`thinking: {type: "adaptive"}`), 128k-style large-output compatibility plumbing, `inference_geo` passthrough, and Opus 4.6 assistant-prefill rejection behavior.
+- Migrated Opus effort handling to GA shape for both `claude-4.5-opus` and `claude-4.6-opus` via `output_config.effort` (including support for `global_effort="max"`), removing reliance on the old effort beta header path.
+- Added compatibility passthrough for deprecated Anthropic `output_format` by mapping it to `output_config.format`, while preserving native `output_config.format` structured outputs.
+- Expanded proxy/server Anthropic compatibility models + adapters to parse/forward `output_config`, deprecated `output_format`, and `inference_geo`.
+- Added/updated regression coverage in `tests/models/test_anthropic_thinking_budget.py`, `tests/core/test_server_adapters.py`, and `tests/core/test_new_llmclient_api.py`.
+- Added live network validation in `tests/one_off/test_anthropic_opus_46_features_live.py` (loads `.env` via `dotenv.load_dotenv()`), covering Opus 4.5/4.6 effort, adaptive thinking, `inference_geo`, deprecated `output_format`, and prefill rejection.
+
 ## 0.0.108 · 2026-02-04
 
 - **OpenAI Responses API now supports images in tool results**: Tool results containing `[Text(...), Image(...)]` lists are now properly serialized as arrays with `input_text` and `input_image` types, allowing models to see images returned by tools natively.

@@ -103,6 +103,13 @@ class AnthropicMessagesRequest(BaseModel):
     metadata: dict[str, Any] | None = None
     stop_sequences: list[str] | None = None
 
+    # Structured outputs / effort controls
+    output_config: dict[str, Any] | None = None
+    output_format: dict[str, Any] | None = None  # deprecated
+
+    # Data residency
+    inference_geo: Literal["global", "us"] | None = None
+
 
 # ============================================================================
 # Response Models
