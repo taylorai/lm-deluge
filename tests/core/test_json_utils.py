@@ -82,21 +82,25 @@ def test_escape_interior_quotes():
     # Unescaped quotes inside a string value
     broken = '{"key": "He said "hello" to her"}'
     result = load_json(broken)
+    assert isinstance(result, dict)
     assert result["key"] == 'He said "hello" to her'
 
     # Multiple pairs of unescaped interior quotes
     broken2 = '{"key": "Use "foo" and "bar" here"}'
     result2 = load_json(broken2)
+    assert isinstance(result2, dict)
     assert result2["key"] == 'Use "foo" and "bar" here'
 
     # Already-escaped quotes should not be double-escaped
     valid = '{"key": "He said \\"hello\\" to her"}'
     result3 = load_json(valid)
+    assert isinstance(result3, dict)
     assert result3["key"] == 'He said "hello" to her'
 
     # Interior quotes combined with missing closing bracket
     broken_combo = '{"key": "He said "hi" to her"}'
     result4 = load_json(broken_combo)
+    assert isinstance(result4, dict)
     assert result4["key"] == 'He said "hi" to her'
 
     # The real-world case: legal document with ("attorney-in-fact")
@@ -107,6 +111,7 @@ def test_escape_interior_quotes():
    }
 ]"""
     result5 = load_json(broken_real)
+    assert isinstance(result5, list) and isinstance(result5[0], dict)
     assert result5[0]["thinking"] == 'The agent ("attorney-in-fact") is authorized.'
     assert result5[0]["type"] == "note"
 
