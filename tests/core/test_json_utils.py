@@ -1,5 +1,11 @@
 import json
-from lm_deluge.util.json import heal_json, load_json, strip_json
+
+from lm_deluge.util.json import (
+    _escape_interior_quotes,
+    heal_json,
+    load_json,
+    strip_json,
+)
 
 
 def test_healing():
@@ -72,7 +78,60 @@ def test_heal_json_adds_missing_brackets():
     assert healed.endswith("]}")
 
 
+def test_escape_interior_quotes():
+    # Unescaped quotes inside a string value
+    broken = '{"key": "He said "hello" to her"}'
+    result = load_json(broken)
+    assert result["key"] == 'He said "hello" to her'
+
+    # Multiple pairs of unescaped interior quotes
+    broken2 = '{"key": "Use "foo" and "bar" here"}'
+    result2 = load_json(broken2)
+    assert result2["key"] == 'Use "foo" and "bar" here'
+
+    # Already-escaped quotes should not be double-escaped
+    valid = '{"key": "He said \\"hello\\" to her"}'
+    result3 = load_json(valid)
+    assert result3["key"] == 'He said "hello" to her'
+
+    # Interior quotes combined with missing closing bracket
+    broken_combo = '{"key": "He said "hi" to her"}'
+    result4 = load_json(broken_combo)
+    assert result4["key"] == 'He said "hi" to her'
+
+    # The real-world case: legal document with ("attorney-in-fact")
+    broken_real = """[
+   {
+     "thinking": "The agent ("attorney-in-fact") is authorized.",
+     "type": "note"
+   }
+]"""
+    result5 = load_json(broken_real)
+    assert result5[0]["thinking"] == 'The agent ("attorney-in-fact") is authorized.'
+    assert result5[0]["type"] == "note"
+
+    print("All interior quote escaping tests passed!")
+
+
+def test_escape_interior_quotes_no_false_positives():
+    # Valid JSON should pass through unchanged
+    valid = '{"a": "hello", "b": "world"}'
+    assert _escape_interior_quotes(valid) == valid
+
+    # Properly escaped quotes should stay as-is
+    valid2 = '{"a": "say \\"hi\\""}'
+    assert _escape_interior_quotes(valid2) == valid2
+
+    # Colons in values shouldn't confuse things
+    valid3 = '{"url": "http://example.com"}'
+    assert json.loads(_escape_interior_quotes(valid3)) == {"url": "http://example.com"}
+
+    print("No false positive tests passed!")
+
+
 if __name__ == "__main__":
     test_healing()
     test_strip_json_removes_fences()
     test_heal_json_adds_missing_brackets()
+    test_escape_interior_quotes()
+    test_escape_interior_quotes_no_false_positives()

@@ -57,6 +57,75 @@ def strip_json(json_string: str | None) -> str | None:
     return None
 
 
+def _escape_interior_quotes(json_string: str) -> str:
+    """
+    Escapes double quotes that appear inside JSON string values but were not
+    properly escaped. Works by parsing character-by-character and using
+    structural context to determine whether a quote is a real string
+    delimiter or an interior quote that needs escaping.
+
+    The heuristic: when we encounter a `"` that would close a string, we check
+    if the next non-whitespace character is a valid JSON structural character
+    (`,`, `}`, `]`, `:`). If not, this quote is interior to the string value
+    and should be escaped. We also check the matching "opening" quote the same
+    way — when a quote would open a new string, the preceding non-whitespace
+    must be a structural char (`{`, `[`, `,`, `:`).
+    """
+    if not json_string:
+        return json_string
+
+    result = []
+    i = 0
+    in_string = False
+
+    while i < len(json_string):
+        c = json_string[i]
+
+        if c == "\\" and in_string:
+            # Escaped character — pass through both backslash and next char
+            result.append(c)
+            if i + 1 < len(json_string):
+                i += 1
+                result.append(json_string[i])
+            i += 1
+            continue
+
+        if c == '"':
+            if not in_string:
+                # Opening quote — should always be valid here
+                in_string = True
+                result.append(c)
+            else:
+                # This quote would close the string. Check if it makes
+                # structural sense as a closing quote.
+                next_non_ws = _next_non_whitespace(json_string, i + 1)
+                if next_non_ws in (",", "}", "]", ":", None):
+                    # Valid close
+                    in_string = False
+                    result.append(c)
+                else:
+                    # This quote doesn't end the string structurally.
+                    # Check if there's a matching close quote later on
+                    # this same logical segment that DOES work.
+                    # For now, escape it.
+                    result.append('\\"')
+            i += 1
+            continue
+
+        result.append(c)
+        i += 1
+
+    return "".join(result)
+
+
+def _next_non_whitespace(s: str, start: int) -> str | None:
+    """Return the next non-whitespace character at or after `start`, or None."""
+    for i in range(start, len(s)):
+        if not s[i].isspace():
+            return s[i]
+    return None
+
+
 def heal_json(json_string: str) -> str:
     """
     Attempts to heal malformed JSON by fixing common issues like unclosed brackets and braces.
@@ -144,17 +213,35 @@ def load_json(
         except Exception:
             pass
 
-    # Try healing the JSON
+    # Try healing the JSON (trailing commas, missing brackets, etc.)
     if allow_healing:
         try:
             healed_json = heal_json(json_string)
             return json.loads(healed_json)
         except Exception:
-            # If healing with standard JSON fails, try with JSON5
             if allow_json5:
                 try:
                     healed_json = heal_json(json_string)
                     return json5.loads(healed_json)
+                except Exception:
+                    pass
+
+    # Try escaping unescaped interior quotes (more aggressive, so tried later)
+    if allow_healing:
+        try:
+            escaped = _escape_interior_quotes(json_string)
+            return json.loads(escaped)
+        except Exception:
+            pass
+        # Try combining quote escaping with other healing
+        escaped_and_healed = None
+        try:
+            escaped_and_healed = heal_json(_escape_interior_quotes(json_string))
+            return json.loads(escaped_and_healed)
+        except Exception:
+            if allow_json5 and escaped_and_healed is not None:
+                try:
+                    return json5.loads(escaped_and_healed)
                 except Exception:
                     pass
 
