@@ -44,6 +44,36 @@ def test_anthropic_tool_strict_mode():
     print("✅ Anthropic strict tool mode test passed!")
 
 
+def test_anthropic_tool_schema_strips_numeric_constraints():
+    """Test that Anthropic tool schemas strip unsupported numeric constraints."""
+
+    tool = Tool(
+        name="filesystem_read",
+        description="Read lines from a file",
+        parameters={
+            "path": {"type": "string", "description": "File path"},
+            "start_line": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "1-indexed starting line",
+            },
+            "end_line": {"type": "integer", "minimum": 1},
+        },
+        required=["path"],
+    )
+
+    schema = tool.for_anthropic(strict=True)["input_schema"]
+    start_line_schema = schema["properties"]["start_line"]
+    end_line_schema = schema["properties"]["end_line"]
+
+    assert "minimum" not in start_line_schema
+    assert "minimum" not in end_line_schema
+    assert "minimum: 1" in start_line_schema.get("description", "")
+    assert "minimum: 1" in end_line_schema.get("description", "")
+
+    print("✅ Anthropic tool schema numeric constraint stripping test passed!")
+
+
 def test_anthropic_tool_non_strict_mode():
     """Test that Anthropic tools work correctly with strict=False."""
 
@@ -97,6 +127,75 @@ def test_anthropic_strict_mode_compatibility_fallback():
     assert "strict" not in result
 
     print("✅ Anthropic strict mode compatibility fallback test passed!")
+
+
+def test_anthropic_request_transforms_raw_dict_tool_schemas():
+    """Test that Anthropic request building transforms dict tool schemas."""
+
+    model = APIModel.from_registry("claude-4.5-sonnet")
+    prompt = Conversation()
+    prompt.add(Message.user("Use filesystem tools"))
+
+    raw_tool = {
+        "name": "filesystem_read",
+        "description": "Read lines from a file",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string"},
+                "start_line": {"type": "integer", "minimum": 1},
+            },
+            "required": ["path"],
+        },
+    }
+    custom_tool = {
+        "type": "custom",
+        "name": "filesystem_custom",
+        "description": "Custom filesystem tool",
+        "custom": {
+            "name": "filesystem_read_custom",
+            "description": "Read lines with bounds",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "max_results": {"type": "integer", "minimum": 1},
+                },
+                "required": ["path"],
+            },
+        },
+    }
+
+    context = RequestContext(
+        task_id=1,
+        model_name="claude-4.5-sonnet",
+        prompt=prompt,
+        sampling_params=SamplingParams(strict_tools=True),
+        tools=[raw_tool, custom_tool],
+    )
+
+    request_json, _headers = _build_anthropic_request(model, context)
+
+    transformed_raw = request_json["tools"][0]["input_schema"]["properties"][
+        "start_line"
+    ]
+    transformed_custom = request_json["tools"][1]["custom"]["input_schema"][
+        "properties"
+    ]["max_results"]
+
+    assert "minimum" not in transformed_raw
+    assert "minimum: 1" in transformed_raw.get("description", "")
+    assert "minimum" not in transformed_custom
+    assert "minimum: 1" in transformed_custom.get("description", "")
+
+    # Ensure caller-provided tool dicts are not mutated
+    assert raw_tool["input_schema"]["properties"]["start_line"]["minimum"] == 1
+    assert (
+        custom_tool["custom"]["input_schema"]["properties"]["max_results"]["minimum"]
+        == 1
+    )
+
+    print("✅ Anthropic raw dict tool schema transformation test passed!")
 
 
 def test_anthropic_output_format_in_request():
@@ -317,9 +416,13 @@ def test_anthropic_tool_with_defs_strict_mode():
 if __name__ == "__main__":
     test_anthropic_tool_strict_mode()
     print()
+    test_anthropic_tool_schema_strips_numeric_constraints()
+    print()
     test_anthropic_tool_non_strict_mode()
     print()
     test_anthropic_strict_mode_compatibility_fallback()
+    print()
+    test_anthropic_request_transforms_raw_dict_tool_schemas()
     print()
     test_anthropic_output_format_in_request()
     print()

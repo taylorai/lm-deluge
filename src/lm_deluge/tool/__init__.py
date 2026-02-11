@@ -25,6 +25,7 @@ from lm_deluge.mcp.types import ImageContent, TextContent
 from lm_deluge.prompt import Image
 from lm_deluge.prompt import Text, ToolResultPart
 from lm_deluge.prompt.tool_calls import ToolCall
+from lm_deluge.util.schema import transform_schema_for_anthropic
 
 
 @lru_cache(maxsize=1000)
@@ -1058,6 +1059,7 @@ class Tool(BaseModel):
             schema["required"] = list(
                 (self.parameters or {}).keys()
             )  # All parameters required in strict mode
+            schema = transform_schema_for_anthropic(schema)
 
             return {
                 "name": self.name,
@@ -1067,10 +1069,11 @@ class Tool(BaseModel):
             }
         else:
             # For non-strict mode, use the original required list
+            schema = transform_schema_for_anthropic(self._json_schema())
             return {
                 "name": self.name,
                 "description": self.description,
-                "input_schema": self._json_schema(),
+                "input_schema": schema,
             }
 
     def for_google(self) -> dict[str, Any]:

@@ -53,6 +53,27 @@ def _anthropic_effort(effort: str | None) -> str | None:
     return None
 
 
+def _transform_tool_schema_for_anthropic(tool: dict) -> dict:
+    """Strip Anthropic-unsupported schema constraints from tool payloads."""
+    transformed_tool = dict(tool)
+
+    input_schema = transformed_tool.get("input_schema")
+    if isinstance(input_schema, dict):
+        transformed_tool["input_schema"] = transform_schema_for_anthropic(input_schema)
+
+    custom_tool = transformed_tool.get("custom")
+    if isinstance(custom_tool, dict):
+        transformed_custom_tool = dict(custom_tool)
+        custom_input_schema = transformed_custom_tool.get("input_schema")
+        if isinstance(custom_input_schema, dict):
+            transformed_custom_tool["input_schema"] = transform_schema_for_anthropic(
+                custom_input_schema
+            )
+        transformed_tool["custom"] = transformed_custom_tool
+
+    return transformed_tool
+
+
 def _build_anthropic_request(
     model: APIModel,
     context: RequestContext,
@@ -221,22 +242,25 @@ def _build_anthropic_request(
                 _add_beta(base_headers, "mcp-client-2025-04-04")
                 mcp_servers.append(tool)
             elif isinstance(tool, dict):
-                tool_definitions.append(tool)
+                tool_definition = _transform_tool_schema_for_anthropic(tool)
+                tool_definitions.append(tool_definition)
+
                 # add betas if needed
-                if tool["type"] in [
+                tool_type = tool_definition.get("type")
+                if tool_type in [
                     "computer_20241022",
                     "text_editor_20241022",
                     "bash_20241022",
                 ]:
                     _add_beta(base_headers, "computer-use-2024-10-22")
-                elif tool["type"] == "computer_20251124":
+                elif tool_type == "computer_20251124":
                     # Claude Opus 4.5 - newest computer use with zoom support
                     _add_beta(base_headers, "computer-use-2025-11-24")
-                elif tool["type"] == "computer_20250124":
+                elif tool_type == "computer_20250124":
                     _add_beta(base_headers, "computer-use-2025-01-24")
-                elif tool["type"] == "code_execution_20250522":
+                elif tool_type == "code_execution_20250522":
                     _add_beta(base_headers, "code-execution-2025-05-22")
-                elif tool["type"] in ["memory_20250818", "clear_tool_uses_20250919"]:
+                elif tool_type in ["memory_20250818", "clear_tool_uses_20250919"]:
                     _add_beta(base_headers, "context-management-2025-06-27")
 
             elif isinstance(tool, MCPServer):
