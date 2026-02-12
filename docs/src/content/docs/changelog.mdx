@@ -5,6 +5,15 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.114 · 2026-02-12
+
+- **Dropped `tiktoken` dependency**: Removed `tiktoken` from project dependencies (`pyproject.toml` and `requirements.txt`) and switched `Conversation.count_tokens()` to a lightweight heuristic (`len(text) // 4`) for text token estimation.
+- **Fixed OpenAI Responses usage parsing**: `Usage.from_openai_usage()` now supports both OpenAI shapes: Chat Completions (`prompt_tokens` / `completion_tokens`, `prompt_tokens_details`) and Responses API (`input_tokens` / `output_tokens`, `input_tokens_details`), including cache-read token extraction in both cases.
+- **Added coverage for usage/cost correctness**:
+  - Extended `tests/core/test_incomplete_response.py` to assert usage mapping for Responses payloads and added a direct compatibility test for both OpenAI usage formats.
+  - Added a new live test `tests/models/test_gpt_5_2_responses_cost_live.py` that uses `dotenv`, calls `gpt-5.2` with `use_responses_api=True`, and verifies non-zero usage/cost plus exact usage-to-cost reconciliation against model pricing.
+- **Test cleanup**: Minor formatting/type-hint cleanup in `tests/models/test_xhigh_reasoning.py` to keep lint/type checks clean.
+
 ## 0.0.113 · 2026-02-11
 
 - **Anthropic tool schemas strip unsupported constraints**: Tool schemas sent to Anthropic now automatically remove numeric constraints (`minimum`, `maximum`, etc.) that the API rejects, folding them into the property's `description` so the model still sees the intent. This applies to `Tool.for_anthropic()` (both strict and non-strict modes) and to raw dict tool definitions passed through `tools=`, including nested `custom` tool schemas. Caller-provided dicts are never mutated.

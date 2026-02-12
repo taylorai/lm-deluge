@@ -54,20 +54,34 @@ class Usage:
     def from_openai_usage(cls, usage_data: dict) -> "Usage":
         """Create Usage from OpenAI API response usage data.
 
-        OpenAI supports prompt caching - cached tokens appear in prompt_tokens_details.cached_tokens.
-        Caching is automatic for prompts over 1024 tokens.
+        Supports both OpenAI response formats:
+        - Chat Completions API: prompt_tokens/completion_tokens and prompt_tokens_details
+        - Responses API: input_tokens/output_tokens and input_tokens_details
         """
-        prompt_tokens_details = usage_data.get("prompt_tokens_details", {})
-        cached_tokens = (
-            prompt_tokens_details.get("cached_tokens", 0)
-            if prompt_tokens_details
-            else 0
-        )
+
+        # Responses API uses input/output tokens, while Chat Completions uses
+        # prompt/completion tokens. Prefer responses fields if present.
+        input_tokens = usage_data.get("input_tokens")
+        if input_tokens is None:
+            input_tokens = usage_data.get("prompt_tokens", 0)
+
+        output_tokens = usage_data.get("output_tokens")
+        if output_tokens is None:
+            output_tokens = usage_data.get("completion_tokens", 0)
+
+        # Cached prompt tokens can appear in either details object depending on endpoint.
+        input_tokens_details = usage_data.get("input_tokens_details")
+        if input_tokens_details is None:
+            input_tokens_details = usage_data.get("prompt_tokens_details", {})
+
+        cached_tokens = 0
+        if isinstance(input_tokens_details, dict):
+            cached_tokens = input_tokens_details.get("cached_tokens") or 0
 
         return cls(
-            input_tokens=usage_data.get("prompt_tokens", 0),
-            output_tokens=usage_data.get("completion_tokens", 0),
-            cache_read_tokens=cached_tokens if cached_tokens > 0 else 0,
+            input_tokens=input_tokens or 0,
+            output_tokens=output_tokens or 0,
+            cache_read_tokens=cached_tokens,
             cache_write_tokens=0,  # OpenAI doesn't charge separately for cache writes
         )
 

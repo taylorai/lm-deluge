@@ -164,7 +164,9 @@ async def test_standard_effort_still_works():
 
     for effort in ["low", "medium", "high"]:
         client = lm_deluge.LLMClient(
-            "gpt-5.2", reasoning_effort=effort, use_responses_api=True
+            "gpt-5.2",
+            reasoning_effort=effort,  # type: ignore
+            use_responses_api=True,
         )
 
         res = await client.process_prompts_async(

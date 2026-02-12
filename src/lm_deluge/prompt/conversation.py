@@ -1,9 +1,9 @@
+import base64
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
-import base64
-import tiktoken
+
 import xxhash
 
 if TYPE_CHECKING:
@@ -11,16 +11,16 @@ if TYPE_CHECKING:
 
 from .file import File
 from .image import Image
-from .thinking import Thinking
-from .tool_calls import ToolCall, ToolResult, ToolResultPart
-from .text import Text
+from .message import Message
 from .signatures import (
     ThoughtSignature,
-    serialize_signature,
     deserialize_signature,
     normalize_signature,
+    serialize_signature,
 )
-from .message import Message
+from .text import Text
+from .thinking import Thinking
+from .tool_calls import ToolCall, ToolResult, ToolResultPart
 
 CachePattern = Literal[
     "tools_only",
@@ -930,14 +930,12 @@ class Conversation:
             content[-1]["cachePoint"] = {"type": "default"}
 
     # ── misc helpers ----------------------------------------------------------
-    _tok = tiktoken.encoding_for_model("gpt-4")
-
     def count_tokens(self, max_new_tokens: int = 0, img_tokens: int = 85) -> int:
         n = max_new_tokens
         for m in self.messages:
             for p in m.parts:
                 if isinstance(p, Text):
-                    n += len(self._tok.encode(p.text))
+                    n += len(p.text) // 4
                 else:  # Image – crude flat cost per image
                     n += img_tokens
 
