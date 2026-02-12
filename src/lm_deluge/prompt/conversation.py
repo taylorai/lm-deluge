@@ -87,20 +87,36 @@ class Conversation:
 
         def _to_image_from_url(block: dict) -> Image:
             payload = block.get("image_url") or block.get("input_image") or {}
-            url = payload.get("url") or payload.get("file_id")
-            detail = payload.get("detail", "auto")
-            media_type = payload.get("media_type")
+            if isinstance(payload, str):
+                url = payload
+                detail = block.get("detail", "auto")
+                media_type = block.get("media_type")
+            elif isinstance(payload, dict):
+                url = payload.get("url") or payload.get("file_id")
+                detail = payload.get("detail", "auto")
+                media_type = payload.get("media_type")
+            else:
+                raise ValueError("image content has invalid payload")
             if url is None:
                 raise ValueError("image content missing url")
             return Image(data=url, media_type=media_type, detail=detail)
 
         def _to_file(block: dict) -> File:
             payload = block.get("file") or block.get("input_file") or {}
-            file_id = payload.get("file_id") or block.get("file_id")
-            filename = payload.get("filename")
-            file_data = payload.get("file_data")
+            if isinstance(payload, dict):
+                file_id = payload.get("file_id") or block.get("file_id")
+                filename = payload.get("filename")
+                file_data = payload.get("file_data")
+                file_url = payload.get("file_url")
+            else:
+                file_id = block.get("file_id")
+                filename = None
+                file_data = None
+                file_url = None
             if file_id is not None:
                 return File(data=b"", filename=filename, file_id=file_id)
+            if file_url is not None:
+                return File(data=file_url, filename=filename)
             if file_data is not None:
                 return File(data=file_data, filename=filename)
             raise ValueError("file content missing file data or id")
@@ -335,6 +351,16 @@ class Conversation:
                 data = source.get("data", "")
                 return File(
                     data=f"data:{media_type};base64,{data}",
+                    media_type=media_type,
+                    filename=block.get("name"),
+                )
+            if source_type == "url":
+                media_type = source.get("media_type")
+                url = source.get("url")
+                if url is None:
+                    raise ValueError("Anthropic file source missing url")
+                return File(
+                    data=url,
                     media_type=media_type,
                     filename=block.get("name"),
                 )

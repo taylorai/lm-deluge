@@ -71,7 +71,7 @@ class Image:
             return self.data
         elif isinstance(self.data, io.BytesIO):
             return self.data.getvalue()
-        elif isinstance(self.data, str) and self.data.startswith("http"):
+        elif self._is_url():
             res = requests.get(self.data)
             res.raise_for_status()
             return res.content
@@ -95,6 +95,11 @@ class Image:
             raise ValueError(
                 f"unreadable image format. type: {type(self.data)}. content: {content}"
             )
+
+    def _is_url(self) -> bool:
+        return isinstance(self.data, str) and self.data.startswith(
+            ("http://", "https://")
+        )
 
     def _mime(self) -> str:
         if self.media_type:
@@ -190,18 +195,20 @@ class Image:
     def oa_chat(self) -> dict:
         # if max(self.size) > 1_568:
         #     self.resize_longer_side(1_568)
+        url = self.data if self._is_url() else self._base64()
         return {
             "type": "image_url",
             "image_url": {
-                "url": self._base64(),
+                "url": url,
                 "detail": self.detail,
             },
         }
 
     def oa_resp(self) -> dict:
+        url = self.data if self._is_url() else self._base64()
         return {
             "type": "input_image",
-            "image_url": self._base64(),
+            "image_url": url,
             "detail": self.detail,
         }
 
@@ -214,6 +221,14 @@ class Image:
         #         int(self.size[1] * resize_factor),
         #     )
         #     self.resize(new_size)
+        if self._is_url():
+            return {
+                "type": "image",
+                "source": {
+                    "type": "url",
+                    "url": self.data,
+                },
+            }
         b64 = base64.b64encode(self._bytes()).decode()
         return {
             "type": "image",
@@ -231,6 +246,13 @@ class Image:
         }
 
     def gemini(self) -> dict:
+        if self._is_url():
+            return {
+                "fileData": {
+                    "mimeType": self._mime(),
+                    "fileUri": self.data,
+                }
+            }
         return {
             "inlineData": {
                 "mimeType": self._mime(),

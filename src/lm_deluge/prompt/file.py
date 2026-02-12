@@ -37,7 +37,7 @@ class File:
             return self.data
         elif isinstance(self.data, io.BytesIO):
             return self.data.getvalue()
-        elif isinstance(self.data, str) and self.data.startswith("http"):
+        elif self._is_url():
             res = requests.get(self.data)
             res.raise_for_status()
             return res.content
@@ -54,6 +54,11 @@ class File:
             if isinstance(self.data, str) and len(self.data) < 1_000:
                 err += f". self.data: {len(self.data)}"
             raise ValueError(err)
+
+    def _is_url(self) -> bool:
+        return isinstance(self.data, str) and self.data.startswith(
+            ("http://", "https://")
+        )
 
     def _mime(self) -> str:
         if self.media_type:
@@ -454,6 +459,11 @@ class File:
                 "type": "input_file",
                 "file_id": self.file_id,
             }
+        elif self._is_url():
+            return {
+                "type": "input_file",
+                "file_url": self.data,
+            }
         else:
             return {
                 "type": "input_file",
@@ -476,6 +486,14 @@ class File:
                 "source": {
                     "type": "file",
                     "file_id": self.file_id,
+                },
+            }
+        elif self._is_url():
+            return {
+                "type": "document",
+                "source": {
+                    "type": "url",
+                    "url": self.data,
                 },
             }
         else:
@@ -511,6 +529,13 @@ class File:
                 "fileData": {
                     "mimeType": self._mime(),
                     "fileUri": self.file_id,
+                }
+            }
+        elif self._is_url():
+            return {
+                "fileData": {
+                    "mimeType": self._mime(),
+                    "fileUri": self.data,
                 }
             }
         else:
