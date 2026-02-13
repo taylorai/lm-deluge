@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.115 · 2026-02-12
+
+- **File and image URL passthrough**: `File` and `Image` objects now accept HTTP(S) URLs as `data` and pass them directly to providers that support it (OpenAI Responses API, Anthropic, Google Gemini), avoiding unnecessary download and base64-encoding. Providers that don't support URL passthrough (OpenAI Chat Completions for files, Mistral, Nova) automatically fall back to downloading and base64-encoding.
+- **Fixed OpenAI Responses `input_file` deserialization**: `Conversation.from_openai_chat()` now correctly parses `input_file` blocks where `file_url`, `file_data`, and `filename` are at the top level of the block (as emitted by the Responses API), not nested inside a sub-dict.
+
 ## 0.0.114 · 2026-02-12
 
 - **Dropped `tiktoken` dependency**: Removed `tiktoken` from project dependencies (`pyproject.toml` and `requirements.txt`) and switched `Conversation.count_tokens()` to a lightweight heuristic (`len(text) // 4`) for text token estimation.

@@ -105,9 +105,9 @@ class Conversation:
             payload = block.get("file") or block.get("input_file") or {}
             if isinstance(payload, dict):
                 file_id = payload.get("file_id") or block.get("file_id")
-                filename = payload.get("filename")
-                file_data = payload.get("file_data")
-                file_url = payload.get("file_url")
+                filename = payload.get("filename") or block.get("filename")
+                file_data = payload.get("file_data") or block.get("file_data")
+                file_url = payload.get("file_url") or block.get("file_url")
             else:
                 file_id = block.get("file_id")
                 filename = None

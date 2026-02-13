@@ -137,13 +137,54 @@ def test_conversation_from_openai_chat_accepts_string_image_url():
     messages = [
         {
             "role": "user",
-            "content": [{"type": "image_url", "image_url": "https://example.com/i.jpg"}],
+            "content": [
+                {"type": "image_url", "image_url": "https://example.com/i.jpg"}
+            ],
         }
     ]
     convo = Conversation.from_openai_chat(messages)
     image = convo.messages[0].parts[0]
     assert isinstance(image, Image)
     assert image.data == "https://example.com/i.jpg"
+
+
+def test_conversation_from_openai_chat_input_file_top_level_file_url():
+    """OpenAI Responses API emits input_file blocks with file_url at the top level,
+    not nested inside a sub-dict. Ensure from_openai_chat handles this correctly."""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "input_file", "file_url": "https://example.com/doc.pdf"}
+            ],
+        }
+    ]
+    convo = Conversation.from_openai_chat(messages)
+    file = convo.messages[0].parts[0]
+    assert isinstance(file, File)
+    assert file.data == "https://example.com/doc.pdf"
+
+
+def test_conversation_from_openai_chat_input_file_top_level_file_data():
+    """Ensure from_openai_chat handles input_file blocks with top-level
+    file_data and filename (no nested dict)."""
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "input_file",
+                    "filename": "test.pdf",
+                    "file_data": "data:application/pdf;base64,JVBER",
+                }
+            ],
+        }
+    ]
+    convo = Conversation.from_openai_chat(messages)
+    file = convo.messages[0].parts[0]
+    assert isinstance(file, File)
+    assert file.data == "data:application/pdf;base64,JVBER"
+    assert file.filename == "test.pdf"
 
 
 if __name__ == "__main__":
@@ -159,3 +200,5 @@ if __name__ == "__main__":
     test_image_url_still_base64_for_mistral_and_nova()
     test_conversation_from_anthropic_supports_url_sources()
     test_conversation_from_openai_chat_accepts_string_image_url()
+    test_conversation_from_openai_chat_input_file_top_level_file_url()
+    test_conversation_from_openai_chat_input_file_top_level_file_data()
