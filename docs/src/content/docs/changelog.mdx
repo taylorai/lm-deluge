@@ -5,6 +5,15 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.116 · 2026-02-17
+
+- **Claude Sonnet 4.6 support**: Added `claude-4.6-sonnet` (`claude-sonnet-4-6`) with $3/$15 pricing, GA structured outputs, image input, and reasoning support. Also added Bedrock entries for both 4.6 models (`claude-4.6-opus-bedrock`, `claude-4.6-sonnet-bedrock`).
+- **Adaptive thinking default for all 4.6 models**: Both Opus 4.6 and Sonnet 4.6 now default to `thinking: {type: "adaptive"}` when no explicit `thinking_budget` is set. Explicit `budget_tokens` still works but emits a deprecation warning.
+- **GA effort parameter for Sonnet 4.6**: `global_effort` and `reasoning_effort` now map to `output_config.effort` for Sonnet 4.6 (previously only Opus 4.5/4.6). The `-low`, `-medium`, `-high` model name suffixes work as expected (e.g. `claude-4.6-sonnet-medium`).
+- **Prefill blocking for Sonnet 4.6**: Assistant message prefill is now rejected for all 4.6 models (was previously Opus-only), matching the upstream API behavior.
+- **Model aliases**: Models can now define an `aliases` list so common alternative names resolve to the same model. For example, `claude-sonnet-4-6` (the API name) now resolves to `claude-4.6-sonnet`, and `claude-haiku-4.5` resolves to `claude-4.5-haiku`. Aliases work with reasoning suffixes too (e.g. `claude-sonnet-4-6-high`). All Anthropic models with differing API names have aliases configured.
+- **Duplicate model registration warning**: `register_model()` now prints a warning when a model id or alias collides with an existing registry entry, catching configuration bugs at import time.
+
 ## 0.0.115 · 2026-02-12
 
 - **File and image URL passthrough**: `File` and `Image` objects now accept HTTP(S) URLs as `data` and pass them directly to providers that support it (OpenAI Responses API, Anthropic, Google Gemini), avoiding unnecessary download and base64-encoding. Providers that don't support URL passthrough (OpenAI Chat Completions for files, Mistral, Nova) automatically fall back to downloading and base64-encoding.

@@ -106,10 +106,17 @@ def register_model(
     reasoning_model: bool = False,
     supports_xhigh: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
+    aliases: list[str] | None = None,
     # tokens_per_minute: int | None = None,
     # requests_per_minute: int | None = None,
 ) -> APIModel:
-    """Register a model configuration and return the created APIModel."""
+    """Register a model configuration and return the created APIModel.
+
+    If ``aliases`` is provided, each alias is also inserted into the
+    registry pointing to the **same** APIModel instance so that e.g.
+    ``APIModel.from_registry("claude-sonnet-4-6")`` resolves to the
+    canonical ``"claude-4.6-sonnet"`` entry.
+    """
     model = APIModel(
         id=id,
         name=name,
@@ -131,7 +138,23 @@ def register_model(
         # tokens_per_minute=tokens_per_minute,
         # requests_per_minute=requests_per_minute,
     )
+    if model.id in registry:
+        existing = registry[model.id]
+        print(
+            f"WARNING: model id '{model.id}' already registered"
+            f" (existing name='{existing.name}', new name='{model.name}')"
+        )
     registry[model.id] = model
+    for alias in aliases or []:
+        if alias in registry:
+            existing = registry[alias]
+            # Only warn if the alias collides with a *different* model
+            if existing.id != model.id:
+                print(
+                    f"WARNING: alias '{alias}' for '{model.id}' collides"
+                    f" with existing model '{existing.id}'"
+                )
+        registry[alias] = model
     return model
 
 
@@ -207,7 +230,8 @@ def find_models(
     Returns:
         List of APIModel objects matching all criteria
     """
-    results = list(registry.values())
+    # Deduplicate: aliases create multiple registry entries for the same model.
+    results = list({m.id: m for m in registry.values()}.values())
 
     if provider is not None:
         results = [m for m in results if m.provider == provider]

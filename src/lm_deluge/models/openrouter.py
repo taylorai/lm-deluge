@@ -203,7 +203,7 @@ OPENROUTER_MODELS = {
         "output_cost": 0.18,
     },
     "gpt-oss-20b-free-openrouter": {
-        "id": "gpt-oss-20b-openrouter",
+        "id": "gpt-oss-20b-free-openrouter",
         "name": "openai/gpt-oss-20b:free",
         "api_base": "https://openrouter.ai/api/v1",
         "api_key_env_var": "OPENROUTER_API_KEY",

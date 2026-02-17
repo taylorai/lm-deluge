@@ -13,6 +13,7 @@ ANTHROPIC_MODELS = {
     "claude-4.6-opus": {
         "id": "claude-4.6-opus",
         "name": "claude-opus-4-6",
+        "aliases": ["claude-opus-4-6", "claude-opus-4.6"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": True,  # GA structured outputs
@@ -23,9 +24,25 @@ ANTHROPIC_MODELS = {
         "output_cost": 25.0,
         "reasoning_model": True,
     },
+    "claude-4.6-sonnet": {
+        "id": "claude-4.6-sonnet",
+        "name": "claude-sonnet-4-6",
+        "aliases": ["claude-sonnet-4-6", "claude-sonnet-4.6"],
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": True,  # GA structured outputs
+        "api_spec": "anthropic",
+        "input_cost": 3.0,
+        "cached_input_cost": 0.30,
+        "cache_write_cost": 3.75,
+        "output_cost": 15.0,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     "claude-4.5-opus": {
         "id": "claude-4.5-opus",
         "name": "claude-opus-4-5-20251101",
+        "aliases": ["claude-opus-4-5", "claude-opus-4.5"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": True,  # GA structured outputs
@@ -39,6 +56,7 @@ ANTHROPIC_MODELS = {
     "claude-4.5-haiku": {
         "id": "claude-4.5-haiku",
         "name": "claude-haiku-4-5-20251001",
+        "aliases": ["claude-haiku-4-5", "claude-haiku-4.5"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": True,  # GA structured outputs
@@ -52,6 +70,7 @@ ANTHROPIC_MODELS = {
     "claude-4.5-sonnet": {
         "id": "claude-4.5-sonnet",
         "name": "claude-sonnet-4-5-20250929",
+        "aliases": ["claude-sonnet-4-5", "claude-sonnet-4.5"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": True,
@@ -66,6 +85,7 @@ ANTHROPIC_MODELS = {
     "claude-4.1-opus": {
         "id": "claude-4.1-opus",
         "name": "claude-opus-4-1-20250805",
+        "aliases": ["claude-opus-4-1", "claude-opus-4.1"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": True,
@@ -80,6 +100,7 @@ ANTHROPIC_MODELS = {
     "claude-4-opus": {
         "id": "claude-4-opus",
         "name": "claude-opus-4-20250514",
+        "aliases": ["claude-opus-4"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
@@ -94,6 +115,7 @@ ANTHROPIC_MODELS = {
     "claude-4-sonnet": {
         "id": "claude-4-sonnet",
         "name": "claude-sonnet-4-20250514",
+        "aliases": ["claude-sonnet-4"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
@@ -107,6 +129,7 @@ ANTHROPIC_MODELS = {
     "claude-3.7-sonnet": {
         "id": "claude-3.7-sonnet",
         "name": "claude-3-7-sonnet-20250219",
+        "aliases": ["claude-sonnet-3.7", "claude-sonnet-3-7"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,
@@ -156,6 +179,7 @@ ANTHROPIC_MODELS = {
     "claude-3.5-haiku": {
         "id": "claude-3.5-haiku",
         "name": "claude-3-5-haiku-20241022",
+        "aliases": ["claude-haiku-3.5", "claude-haiku-3-5"],
         "api_base": "https://api.anthropic.com/v1",
         "api_key_env_var": "ANTHROPIC_API_KEY",
         "supports_json": False,

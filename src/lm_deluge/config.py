@@ -18,7 +18,7 @@ class SamplingParams(BaseModel):
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 2_048
-    global_effort: GlobalEffort = "high"  # for Anthropic Opus global effort
+    global_effort: GlobalEffort = "high"  # for Anthropic 4.5+ Opus / 4.6+ Sonnet effort
     reasoning_effort: ReasoningEffort | None = None
     thinking_budget: int | None = None
     logprobs: bool = False

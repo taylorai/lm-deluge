@@ -4,9 +4,11 @@ from lm_deluge.models import find_models, registry
 
 
 def test_find_all_models():
-    """No filters returns all models."""
+    """No filters returns all unique models (aliases deduplicated)."""
     all_models = find_models()
-    assert len(all_models) == len(registry)
+    # Registry may be larger due to aliases; find_models deduplicates by id.
+    unique_ids = {m.id for m in registry.values()}
+    assert len(all_models) == len(unique_ids)
 
 
 def test_find_by_provider():

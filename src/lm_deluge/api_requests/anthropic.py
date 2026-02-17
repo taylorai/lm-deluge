@@ -33,12 +33,12 @@ def _add_beta(headers: dict, beta: str):
         headers["anthropic-beta"] = beta
 
 
-def _is_claude_opus_46(model: APIModel) -> bool:
-    return model.id == "claude-4.6-opus" or model.name.startswith("claude-opus-4-6")
+def _is_claude_46(model: APIModel) -> bool:
+    return model.id in {"claude-4.6-opus", "claude-4.6-sonnet"} or "4-6" in model.name
 
 
 def _supports_ga_effort(model: APIModel) -> bool:
-    return model.id in {"claude-4.5-opus", "claude-4.6-opus"}
+    return model.id in {"claude-4.5-opus", "claude-4.6-opus", "claude-4.6-sonnet"}
 
 
 def _anthropic_effort(effort: str | None) -> str | None:
@@ -107,14 +107,10 @@ def _build_anthropic_request(
         "max_tokens": sampling_params.max_new_tokens,
     }
 
-    # Claude Opus 4.6 does not support assistant prefill (last assistant turn).
-    if (
-        _is_claude_opus_46(model)
-        and messages
-        and messages[-1].get("role") == "assistant"
-    ):
+    # Claude 4.6 models do not support assistant prefill (last assistant turn).
+    if _is_claude_46(model) and messages and messages[-1].get("role") == "assistant":
         raise ValueError(
-            "Claude Opus 4.6 does not support assistant prefill. "
+            "Claude 4.6 models do not support assistant prefill. "
             "End the prompt with a user/tool message instead."
         )
 
@@ -130,13 +126,24 @@ def _build_anthropic_request(
         ):
             maybe_warn("WARN_THINKING_BUDGET_AND_REASONING_EFFORT")
 
-        # Claude Opus 4.6 supports adaptive thinking mode.
-        if _is_claude_opus_46(model) and sampling_params.thinking_budget is None:
+        # Claude 4.6 models support adaptive thinking mode.
+        if _is_claude_46(model) and sampling_params.thinking_budget is None:
             if sampling_params.reasoning_effort == "none":
                 request_json["thinking"] = {"type": "disabled"}
             else:
                 request_json["thinking"] = {"type": "adaptive"}
+                # Map reasoning_effort to output_config.effort for 4.6
+                if sampling_params.reasoning_effort is not None:
+                    mapped = _anthropic_effort(sampling_params.reasoning_effort)
+                    if mapped is not None:
+                        if "output_config" not in request_json:
+                            request_json["output_config"] = {}
+                        output_config = request_json["output_config"]
+                        assert isinstance(output_config, dict)
+                        output_config["effort"] = mapped
         elif sampling_params.thinking_budget is not None:
+            if _is_claude_46(model):
+                maybe_warn("WARN_CLAUDE_46_BUDGET_TOKENS_DEPRECATED")
             budget = sampling_params.thinking_budget
             if budget > 0:
                 request_json["thinking"] = {
