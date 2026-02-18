@@ -9,9 +9,10 @@ from lm_deluge.warnings import maybe_warn
 try:
     from requests_aws4auth import AWS4Auth
 except ImportError:
-    raise ImportError(
+    print(
         "aws4auth is required for bedrock support. Install with: pip install requests-aws4auth"
     )
+    AWS4Auth = None  # type: ignore
 
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.prompt import (
@@ -77,7 +78,7 @@ async def _build_anthropic_bedrock_request(
     url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{model.name}/invoke"
 
     # Prepare headers
-    auth = AWS4Auth(
+    auth = AWS4Auth(  # type: ignore
         access_key,
         secret_key,
         region,
@@ -167,7 +168,7 @@ async def _build_openai_bedrock_request(
     url = f"https://bedrock-runtime.{region}.amazonaws.com/openai/v1/chat/completions"
 
     # Prepare headers
-    auth = AWS4Auth(
+    auth = AWS4Auth(  # type: ignore
         access_key,
         secret_key,
         region,

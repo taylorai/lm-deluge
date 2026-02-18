@@ -1,11 +1,16 @@
-- use uv for installing and managing packages. "pip [command]" will fail.
-- absent intervention, you often make up FAKE methods when working on this library and writing tests. there is NO EXCUSE for doing this. you can read the entire library, and you have access to the documentation site in docs.
-- if there's a .venv (there usually is) always use the python in there (.venv/bin/python) so you get all the installed dependencies needed for it to work, unless you're using python just to do bash-like things that don't require deps.
-- whenever you would try to run a test with python -c "[something]" consider instead adding a test to the tests folder so that we can always have that test and catch any regressions. if it's a test we would want to continue running in the future, put it in tests/core. if it's very niche and testing a one-off thing, or if it relies on some transitory thing like an external local server, put it in tests/one_off.
-- don't use == True and == False as these always lead to ruff errors
-- we currently run tests in this repo by just doing python tests/path_to_test.py, not pytest
-- DON'T do inline imports. imports should be at the top of the file ALWAYS unless there's a REALLY good reason (something might not be installed).
-- when using `dotenv.load_dotenv()`, put it AFTER all imports (not inline with imports) to avoid lint errors. The correct pattern is:
+# lm-deluge
+
+## Development Environment
+
+- Use **uv** for package management. `pip` will fail.
+- Use `.venv/bin/python` for running code (has all deps installed), unless no deps are needed.
+- Use `uvx ruff check` for linting, not `.venv/bin/ruff`.
+
+## Code Style
+
+- **No inline imports.** All imports at the top of the file, unless guarding an optional dependency.
+- **No `== True` / `== False`** — causes ruff errors.
+- `dotenv.load_dotenv()` goes AFTER all imports (not inline with them):
   ```python
   import asyncio
 
@@ -15,14 +20,24 @@
 
   dotenv.load_dotenv()  # MUST be after ALL imports
   ```
-- use `uvx ruff check` to check for linting errors, not `.venv/bin/ruff`.
+
+## Testing
+
+- Run tests with `python tests/path_to_test.py`, not pytest.
+- Instead of `python -c "..."`, add a proper test file:
+  - `tests/core/` for general regression tests.
+  - `tests/one_off/` for niche or transient tests (e.g. requiring a local server).
+
+## Common Mistakes
+
+- **Do NOT fabricate methods.** Read the actual library code before writing tests or examples. There is no excuse for inventing APIs that don't exist.
 
 ## Basic Library Usage
 
 ### Model Names
 Use short names like `claude-3.5-haiku`, `claude-4-sonnet`, `gpt-4.1-mini`. See `src/lm_deluge/models/` for all available models.
 
-### Simple Request (no tools)
+### Simple Request
 ```python
 from lm_deluge import LLMClient, Conversation
 
@@ -31,7 +46,7 @@ response = await llm.start(Conversation().user("Hello!"))
 print(response.completion)  # NOT .text
 ```
 
-### With Tools (agent loop)
+### Agent Loop (with tools)
 ```python
 from lm_deluge import LLMClient, Conversation, Tool
 
@@ -48,12 +63,12 @@ print(response.completion)
 ```
 
 ### APIResponse Properties
-- `response.completion` - the text response (NOT `.text`)
-- `response.content` - the full Message object
-- `response.is_error` - whether the request failed
-- `response.error_message` - error details if failed
-- `response.usage` - token usage info
-- `response.cost` - calculated cost
+- `response.completion` — text response (NOT `.text`)
+- `response.content` — full Message object
+- `response.is_error` — whether the request failed
+- `response.error_message` — error details if failed
+- `response.usage` — token usage info
+- `response.cost` — calculated cost
 
 ### Creating Tools
 ```python
@@ -72,6 +87,9 @@ tool = Tool(
     },
     required=["arg1"],
 )
+
+# or create from function
+tool = Tool.from_function(my_func)
 ```
 
 ### Sandboxes

@@ -16,6 +16,7 @@ dependencies = [
     "pyjson5",
     "PyYAML",
     "aiohttp",
+    "requests",
     "xxhash",
     "tqdm",
     "pydantic",

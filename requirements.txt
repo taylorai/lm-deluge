@@ -1,11 +1,11 @@
 python-dotenv
 pyjson5
 PyYAML
-pandas
+requests
 aiohttp
 xxhash
 tqdm
-google-auth
-requests-aws4auth
-pydantic>=2
-markdownify_rs
+pydantic
+markdownify-rs==0.1.1
+pillow
+rich
