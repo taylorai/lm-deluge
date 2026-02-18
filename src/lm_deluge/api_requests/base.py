@@ -193,6 +193,21 @@ class APIRequestBase(ABC):
                         if last_status not in ["queued", "in_progress"]:
                             return await self.handle_response(http_response)
 
+            except (aiohttp.ClientConnectorDNSError, aiohttp.ClientConnectorError) as e:
+                if response_id:
+                    await cancel_response(f"errored: {type(e).__name__}")
+                return APIResponse(
+                    id=self.context.task_id,
+                    model_internal=self.context.model_name,
+                    prompt=self.context.prompt,
+                    sampling_params=self.context.sampling_params,
+                    status_code=None,
+                    is_error=True,
+                    error_message=f"Connection error: {e}",
+                    content=None,
+                    usage=None,
+                )
+
             except Exception as e:
                 if response_id:
                     await cancel_response(f"errored: {type(e).__name__}")
@@ -279,7 +294,7 @@ class APIRequestBase(ABC):
                 usage=None,
             )
 
-        except aiohttp.ClientConnectorError as e:
+        except (aiohttp.ClientConnectorDNSError, aiohttp.ClientConnectorError) as e:
             return APIResponse(
                 id=self.context.task_id,
                 model_internal=self.context.model_name,
