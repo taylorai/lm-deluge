@@ -7,9 +7,7 @@ from aiohttp import ClientResponse
 try:
     from requests_aws4auth import AWS4Auth
 except ImportError:
-    raise ImportError(
-        "aws4auth is required for bedrock support. Install with: pip install requests-aws4auth"
-    )
+    AWS4Auth = None  # type: ignore
 
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.prompt import Message, Text, ToolCall
@@ -65,6 +63,7 @@ async def _build_nova_request(
     url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{model.name}/invoke"
 
     # Prepare headers
+    assert AWS4Auth is not None
     auth = AWS4Auth(
         access_key,
         secret_key,
@@ -130,6 +129,11 @@ class BedrockNovaRequest(APIRequestBase):
         self.region = None
 
     async def build_request(self):
+        if AWS4Auth is None:
+            raise ImportError(
+                "requests-aws4auth is required for Bedrock support. "
+                "Install with: uv pip install requests-aws4auth"
+            )
         (
             self.request_json,
             base_headers,
