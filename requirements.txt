@@ -1,5 +1,5 @@
 python-dotenv
-json5
+pyjson5
 PyYAML
 pandas
 aiohttp
@@ -8,5 +8,4 @@ tqdm
 google-auth
 requests-aws4auth
 pydantic>=2
-bs4
-lxml
+markdownify_rs

@@ -261,10 +261,10 @@ def cmd_agent(args: argparse.Namespace) -> int:
         # Load MCP tools from config
         if args.mcp_config:
             try:
-                import json5
+                import pyjson5
 
                 with open(args.mcp_config, "r") as f:
-                    mcp_config = json5.load(f)
+                    mcp_config = pyjson5.loads(f.read())
                 # URL-based servers -> MCPServer objects (provider-native)
                 mcp_servers = MCPServer.from_mcp_config(mcp_config)
                 tools.extend(mcp_servers)

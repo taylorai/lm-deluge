@@ -7,6 +7,7 @@ import re
 from typing import Literal
 
 from aiohttp import ClientSession, ClientTimeout
+from markdownify_rs import markdownify as md
 
 from .. import Tool
 
@@ -17,13 +18,6 @@ def _ensure_markdown(text: str) -> str:
     if not text:
         return text
     if _HTML_TAG_RE.search(text):
-        try:
-            from markdownify import markdownify as md
-        except ImportError:
-            raise ImportError(
-                "markdownify is required to convert Tavily HTML to markdown. "
-                "Install it with: pip install markdownify"
-            )
         return md(text, strip=["img", "a"])
     return text
 
@@ -324,14 +318,6 @@ class BraveWebSearchManager(AbstractWebSearchManager):
     async def _fetch(self, url: str) -> str:
         """Fetch the contents of a URL directly via HTTP and convert to markdown."""
         try:
-            try:
-                from markdownify import markdownify as md
-            except ImportError:
-                raise ImportError(
-                    "markdownify is required for BraveWebSearchManager. "
-                    "Install it with: pip install markdownify"
-                )
-
             headers = {
                 "User-Agent": (
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -846,14 +832,6 @@ async def _fetch_aiohttp(
 ) -> str:
     """Fetch URL contents directly via HTTP with markdownify."""
     try:
-        try:
-            from markdownify import markdownify as md
-        except ImportError:
-            raise ImportError(
-                "markdownify is required for aiohttp fetch backend. "
-                "Install it with: pip install markdownify"
-            )
-
         headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "

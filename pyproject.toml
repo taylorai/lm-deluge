@@ -13,23 +13,21 @@ license = { text = "" }
 classifiers = []
 dependencies = [
     "python-dotenv",
-    "json5",
+    "pyjson5",
     "PyYAML",
     "aiohttp",
     "xxhash",
     "tqdm",
-    "google-auth",
-    "requests-aws4auth",
     "pydantic",
-    "bs4",
-    "lxml",
-    "pdf2image",
+    "markdownify-rs==0.1.1",
     "pillow",
     "rich"
 ]
 
 [project.optional-dependencies]
-aws = ["boto3>=1.28.0"]
+pdf = ["pdf2image"]
+aws = ["boto3>=1.28.0", "requests-aws4auth"]
+google = ["google-auth"]
 docker = ["docker>=7.0.0"]
 full_text_search = ["tantivy>=0.21.0", "lenlp>=0.1.0"]
 sandbox = ["modal>=0.64.0", "daytona-sdk>=0.1.4", "docker>=7.0.0"]

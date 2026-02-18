@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 import os
 
-import json5
+import pyjson5
 
 from .app import create_app
 from .model_policy import build_policy
@@ -102,7 +102,7 @@ def main():
         policy_overrides["default_model"] = args.default_model
     if args.routes:
         try:
-            policy_overrides["routes"] = json5.loads(args.routes)
+            policy_overrides["routes"] = pyjson5.loads(args.routes)
         except Exception as exc:
             print(f"Error parsing --routes JSON5: {exc}")
             raise SystemExit(2)

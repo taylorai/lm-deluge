@@ -1,7 +1,7 @@
 import json
 import re
 
-import json5
+import pyjson5
 
 
 def extract_quoted_expressions(json_string: str):
@@ -209,7 +209,7 @@ def load_json(
     # Try JSON5 parsing
     if allow_json5:
         try:
-            return json5.loads(json_string)
+            return pyjson5.loads(json_string)
         except Exception:
             pass
 
@@ -222,7 +222,7 @@ def load_json(
             if allow_json5:
                 try:
                     healed_json = heal_json(json_string)
-                    return json5.loads(healed_json)
+                    return pyjson5.loads(healed_json)
                 except Exception:
                     pass
 
@@ -241,7 +241,7 @@ def load_json(
         except Exception:
             if allow_json5 and escaped_and_healed is not None:
                 try:
-                    return json5.loads(escaped_and_healed)
+                    return pyjson5.loads(escaped_and_healed)
                 except Exception:
                     pass
 
