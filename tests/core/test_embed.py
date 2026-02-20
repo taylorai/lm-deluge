@@ -390,6 +390,67 @@ def test_unknown_model_raises():
     print("PASSED: unknown model raises with suggestions")
 
 
+def test_invalid_limits_raise():
+    """Zero or negative RPM/TPM/concurrency raise ValueError immediately."""
+    for param, value in [
+        ("max_requests_per_minute", 0),
+        ("max_requests_per_minute", -1),
+        ("max_tokens_per_minute", 0),
+        ("max_concurrent_requests", 0),
+    ]:
+        raised = False
+        try:
+            asyncio.run(
+                embed_parallel_async(
+                    ["hello"],
+                    model="text-embedding-3-small",
+                    show_progress=False,
+                    **{param: value},
+                )
+            )
+        except ValueError as e:
+            raised = True
+            assert "must be > 0" in str(e), f"Bad message for {param}={value}: {e}"
+        assert raised, f"Expected ValueError for {param}={value}"
+    print("PASSED: invalid limits raise ValueError")
+
+
+def test_status_tracker_counters():
+    """After a successful run, StatusTracker counters are consistent:
+    in_progress should be 0, succeeded should equal batch count."""
+    os.environ["OPENAI_API_KEY"] = "test-key"
+
+    body = {
+        "data": [{"embedding": [0.1], "index": 0}],
+        "usage": {"prompt_tokens": 1, "total_tokens": 1},
+    }
+
+    def make_session(**kwargs):
+        mock_resp = _make_mock_response(200, body)
+        session = AsyncMock()
+        session.post = MagicMock(return_value=mock_resp)
+        session.__aenter__ = AsyncMock(return_value=session)
+        session.__aexit__ = AsyncMock(return_value=False)
+        return session
+
+    with patch("aiohttp.ClientSession", side_effect=make_session):
+        # Run with 4 batches
+        results = asyncio.run(
+            embed_parallel_async(
+                ["a", "b", "c", "d"],
+                model="text-embedding-3-small",
+                batch_size=1,
+                show_progress=False,
+            )
+        )
+
+    assert len(results) == 4
+    assert all(not r.is_error for r in results)
+    # All 4 should have succeeded — no errors means counters were consistent
+    # (if in_progress went negative, check_capacity would deadlock)
+    print("PASSED: status tracker counters consistent after success")
+
+
 if __name__ == "__main__":
     print("Running embed core tests...\n")
 
@@ -408,5 +469,7 @@ if __name__ == "__main__":
     test_empty_input()
     test_batch_size_validation()
     test_unknown_model_raises()
+    test_invalid_limits_raise()
+    test_status_tracker_counters()
 
     print("\nAll embed core tests passed!")

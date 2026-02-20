@@ -144,6 +144,7 @@ async def _wait_for_capacity(
     capacity_lock: asyncio.Lock,
     num_tokens: int,
     max_requests_per_minute: int,
+    retry: bool = False,
 ):
     """Wait until the StatusTracker has enough RPM/TPM/concurrency capacity."""
     while True:
@@ -152,7 +153,7 @@ async def _wait_for_capacity(
             await asyncio.sleep(cooldown)
             continue
         async with capacity_lock:
-            if status_tracker.check_capacity(num_tokens):
+            if status_tracker.check_capacity(num_tokens, retry=retry):
                 return
         await asyncio.sleep(max(60.0 / max_requests_per_minute, 0.01))
 
@@ -174,15 +175,23 @@ async def _embed_batch(
     """Embed a single batch with retries, rate limiting, and concurrency control."""
     url, headers, payload = _build_request(model, texts, provider, extra_params.copy())
     # Rough token estimate for capacity gating (actual count comes from response)
-    estimated_tokens = sum(len(t) // 4 for t in texts)
+    estimated_tokens = max(sum(len(t) // 4 for t in texts), 1)
 
     for attempt in range(max_attempts):
         retry = attempt > 0
         await _wait_for_capacity(
-            status_tracker, capacity_lock, estimated_tokens, max_requests_per_minute
+            status_tracker,
+            capacity_lock,
+            estimated_tokens,
+            max_requests_per_minute,
+            retry=retry,
         )
-        # If this is a retry, re-increment in_progress since check_capacity
-        # skips that for retries
+        # check_capacity with retry=False (first attempt) already incremented
+        # num_tasks_started and num_tasks_in_progress.
+        # check_capacity with retry=True (subsequent attempts) does NOT
+        # increment them — it only deducts rate-limit capacity. So we need
+        # to re-increment num_tasks_in_progress for retries since we
+        # decremented it when the previous attempt failed.
         if retry:
             status_tracker.num_tasks_in_progress += 1
 
@@ -194,6 +203,7 @@ async def _embed_batch(
                         result = await response.json()
                         embeddings, tokens = _parse_response(provider, result)
                         await cost_tracker.record(tokens)
+                        # task_succeeded decrements in_progress and increments succeeded
                         status_tracker.task_succeeded(batch_id)
                         if pbar:
                             pbar.update(1)
@@ -208,12 +218,15 @@ async def _embed_batch(
                             tokens_used=tokens,
                         )
                     elif response.status == 429:
+                        error_msg = await response.text()
                         status_tracker.rate_limit_exceeded()
+                        # Free the concurrency slot while we wait to retry
                         status_tracker.num_tasks_in_progress -= 1
                         if attempt < max_attempts - 1:
                             continue
-                        error_msg = await response.text()
-                        status_tracker.task_failed(batch_id)
+                        # Final attempt — record as failed
+                        # (don't call task_failed; slot already freed)
+                        status_tracker.num_tasks_failed += 1
                         return EmbeddingResponse(
                             id=batch_id,
                             status_code=429,
@@ -224,11 +237,13 @@ async def _embed_batch(
                         )
                     else:
                         error_msg = await response.text()
+                        # Free the concurrency slot while we wait to retry
                         status_tracker.num_tasks_in_progress -= 1
                         if attempt < max_attempts - 1:
                             await asyncio.sleep(min(2**attempt, 16))
                             continue
-                        status_tracker.task_failed(batch_id)
+                        # Final attempt — record as failed
+                        status_tracker.num_tasks_failed += 1
                         return EmbeddingResponse(
                             id=batch_id,
                             status_code=response.status,
@@ -242,7 +257,7 @@ async def _embed_batch(
             if attempt < max_attempts - 1:
                 await asyncio.sleep(min(2**attempt, 16))
                 continue
-            status_tracker.task_failed(batch_id)
+            status_tracker.num_tasks_failed += 1
             return EmbeddingResponse(
                 id=batch_id,
                 status_code=None,
@@ -256,7 +271,7 @@ async def _embed_batch(
             if attempt < max_attempts - 1:
                 await asyncio.sleep(min(2**attempt, 16))
                 continue
-            status_tracker.task_failed(batch_id)
+            status_tracker.num_tasks_failed += 1
             return EmbeddingResponse(
                 id=batch_id,
                 status_code=None,
@@ -267,7 +282,7 @@ async def _embed_batch(
             )
 
     # unreachable, but just in case
-    status_tracker.task_failed(batch_id)
+    status_tracker.num_tasks_failed += 1
     return EmbeddingResponse(
         id=batch_id,
         status_code=None,
@@ -310,6 +325,12 @@ async def embed_parallel_async(
     """
     if batch_size > MAX_BATCH_SIZE:
         raise ValueError(f"batch_size must be <= {MAX_BATCH_SIZE}")
+    if max_requests_per_minute <= 0:
+        raise ValueError("max_requests_per_minute must be > 0")
+    if max_tokens_per_minute <= 0:
+        raise ValueError("max_tokens_per_minute must be > 0")
+    if max_concurrent_requests <= 0:
+        raise ValueError("max_concurrent_requests must be > 0")
     if not texts:
         return []
 
