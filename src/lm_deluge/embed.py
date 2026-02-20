@@ -8,6 +8,8 @@ from typing import Any
 import aiohttp
 from tqdm.auto import tqdm
 
+from .tracker import StatusTracker
+
 REGISTRY: dict[str, dict[str, Any]] = {
     # OpenAI
     "text-embedding-3-small": {
@@ -61,25 +63,18 @@ class EmbeddingResponse:
 
 
 @dataclass
-class _EmbedTracker:
-    """Lightweight cost/token tracker for embedding runs."""
+class _CostTracker:
+    """Tracks cost alongside the StatusTracker."""
 
     cost_per_million: float
     total_tokens: int = 0
     total_cost: float = 0.0
-    num_succeeded: int = 0
-    num_failed: int = 0
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def record(self, tokens: int):
         async with self._lock:
             self.total_tokens += tokens
             self.total_cost += tokens * self.cost_per_million / 1_000_000
-            self.num_succeeded += 1
-
-    async def record_failure(self):
-        async with self._lock:
-            self.num_failed += 1
 
     def summary(self) -> str:
         parts = []
@@ -87,8 +82,6 @@ class _EmbedTracker:
             parts.append(f"${self.total_cost:.6f}")
         if self.total_tokens > 0:
             parts.append(f"{self.total_tokens:,} tok")
-        if self.num_failed > 0:
-            parts.append(f"{self.num_failed} failed")
         return " | ".join(parts)
 
 
@@ -146,64 +139,110 @@ def _parse_response(provider: str, result: dict) -> tuple[list[list[float]], int
     return embeddings, tokens
 
 
+async def _wait_for_capacity(
+    status_tracker: StatusTracker,
+    capacity_lock: asyncio.Lock,
+    num_tokens: int,
+    max_requests_per_minute: int,
+):
+    """Wait until the StatusTracker has enough RPM/TPM/concurrency capacity."""
+    while True:
+        cooldown = status_tracker.seconds_to_pause
+        if cooldown > 0:
+            await asyncio.sleep(cooldown)
+            continue
+        async with capacity_lock:
+            if status_tracker.check_capacity(num_tokens):
+                return
+        await asyncio.sleep(max(60.0 / max_requests_per_minute, 0.01))
+
+
 async def _embed_batch(
     batch_id: int,
     texts: list[str],
     model: str,
     provider: str,
     extra_params: dict[str, Any],
-    semaphore: asyncio.Semaphore,
+    status_tracker: StatusTracker,
+    capacity_lock: asyncio.Lock,
+    max_requests_per_minute: int,
     max_attempts: int,
     request_timeout: int,
-    tracker: _EmbedTracker,
+    cost_tracker: _CostTracker,
     pbar: tqdm | None,
 ) -> EmbeddingResponse:
-    """Embed a single batch with retries and concurrency control."""
+    """Embed a single batch with retries, rate limiting, and concurrency control."""
     url, headers, payload = _build_request(model, texts, provider, extra_params.copy())
+    # Rough token estimate for capacity gating (actual count comes from response)
+    estimated_tokens = sum(len(t) // 4 for t in texts)
 
     for attempt in range(max_attempts):
+        retry = attempt > 0
+        await _wait_for_capacity(
+            status_tracker, capacity_lock, estimated_tokens, max_requests_per_minute
+        )
+        # If this is a retry, re-increment in_progress since check_capacity
+        # skips that for retries
+        if retry:
+            status_tracker.num_tasks_in_progress += 1
+
         try:
-            async with semaphore:
-                timeout = aiohttp.ClientTimeout(total=request_timeout)
-                async with aiohttp.ClientSession(timeout=timeout) as session:
-                    async with session.post(
-                        url, json=payload, headers=headers
-                    ) as response:
-                        if response.status == 200:
-                            result = await response.json()
-                            embeddings, tokens = _parse_response(provider, result)
-                            await tracker.record(tokens)
-                            if pbar:
-                                pbar.update(1)
-                                pbar.set_postfix_str(tracker.summary())
-                            return EmbeddingResponse(
-                                id=batch_id,
-                                status_code=200,
-                                is_error=False,
-                                error_message=None,
-                                texts=texts,
-                                embeddings=embeddings,
-                                tokens_used=tokens,
-                            )
-                        else:
-                            error_msg = await response.text()
-                            if attempt < max_attempts - 1:
-                                await asyncio.sleep(min(2**attempt, 16))
-                                continue
-                            await tracker.record_failure()
-                            return EmbeddingResponse(
-                                id=batch_id,
-                                status_code=response.status,
-                                is_error=True,
-                                error_message=error_msg,
-                                texts=texts,
-                                embeddings=[],
-                            )
+            timeout = aiohttp.ClientTimeout(total=request_timeout)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(url, json=payload, headers=headers) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        embeddings, tokens = _parse_response(provider, result)
+                        await cost_tracker.record(tokens)
+                        status_tracker.task_succeeded(batch_id)
+                        if pbar:
+                            pbar.update(1)
+                            pbar.set_postfix_str(cost_tracker.summary())
+                        return EmbeddingResponse(
+                            id=batch_id,
+                            status_code=200,
+                            is_error=False,
+                            error_message=None,
+                            texts=texts,
+                            embeddings=embeddings,
+                            tokens_used=tokens,
+                        )
+                    elif response.status == 429:
+                        status_tracker.rate_limit_exceeded()
+                        status_tracker.num_tasks_in_progress -= 1
+                        if attempt < max_attempts - 1:
+                            continue
+                        error_msg = await response.text()
+                        status_tracker.task_failed(batch_id)
+                        return EmbeddingResponse(
+                            id=batch_id,
+                            status_code=429,
+                            is_error=True,
+                            error_message=error_msg,
+                            texts=texts,
+                            embeddings=[],
+                        )
+                    else:
+                        error_msg = await response.text()
+                        status_tracker.num_tasks_in_progress -= 1
+                        if attempt < max_attempts - 1:
+                            await asyncio.sleep(min(2**attempt, 16))
+                            continue
+                        status_tracker.task_failed(batch_id)
+                        return EmbeddingResponse(
+                            id=batch_id,
+                            status_code=response.status,
+                            is_error=True,
+                            error_message=error_msg,
+                            texts=texts,
+                            embeddings=[],
+                        )
         except asyncio.TimeoutError:
+            status_tracker.num_tasks_in_progress -= 1
             if attempt < max_attempts - 1:
                 await asyncio.sleep(min(2**attempt, 16))
                 continue
-            await tracker.record_failure()
+            status_tracker.task_failed(batch_id)
             return EmbeddingResponse(
                 id=batch_id,
                 status_code=None,
@@ -213,10 +252,11 @@ async def _embed_batch(
                 embeddings=[],
             )
         except Exception as e:
+            status_tracker.num_tasks_in_progress -= 1
             if attempt < max_attempts - 1:
                 await asyncio.sleep(min(2**attempt, 16))
                 continue
-            await tracker.record_failure()
+            status_tracker.task_failed(batch_id)
             return EmbeddingResponse(
                 id=batch_id,
                 status_code=None,
@@ -227,7 +267,7 @@ async def _embed_batch(
             )
 
     # unreachable, but just in case
-    await tracker.record_failure()
+    status_tracker.task_failed(batch_id)
     return EmbeddingResponse(
         id=batch_id,
         status_code=None,
@@ -242,6 +282,8 @@ async def embed_parallel_async(
     texts: list[str],
     model: str = "text-embedding-3-small",
     max_attempts: int = 5,
+    max_requests_per_minute: int = 3_000,
+    max_tokens_per_minute: int = 1_000_000,
     max_concurrent_requests: int = 64,
     request_timeout: int = 30,
     batch_size: int = 64,
@@ -254,6 +296,8 @@ async def embed_parallel_async(
         texts: List of strings to embed.
         model: Embedding model name (see REGISTRY for options).
         max_attempts: Max retries per batch on failure.
+        max_requests_per_minute: RPM limit for throttling.
+        max_tokens_per_minute: TPM limit for throttling.
         max_concurrent_requests: Max simultaneous API requests.
         request_timeout: Timeout per request in seconds.
         batch_size: Number of texts per API call (max 96).
@@ -271,13 +315,20 @@ async def embed_parallel_async(
 
     provider = _get_provider(model)
     cost_per_million = REGISTRY[model]["cost_per_million"]
-    tracker = _EmbedTracker(cost_per_million=cost_per_million)
+    cost_tracker = _CostTracker(cost_per_million=cost_per_million)
+
+    status_tracker = StatusTracker(
+        max_requests_per_minute=max_requests_per_minute,
+        max_tokens_per_minute=max_tokens_per_minute,
+        max_concurrent_requests=max_concurrent_requests,
+        use_progress_bar=False,  # we manage our own tqdm
+    )
+    capacity_lock = asyncio.Lock()
 
     batches = [texts[i : i + batch_size] for i in range(0, len(texts), batch_size)]
     pbar = (
         tqdm(total=len(batches), desc=f"Embedding [{model}]") if show_progress else None
     )
-    semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     tasks = [
         _embed_batch(
@@ -286,10 +337,12 @@ async def embed_parallel_async(
             model=model,
             provider=provider,
             extra_params=kwargs,
-            semaphore=semaphore,
+            status_tracker=status_tracker,
+            capacity_lock=capacity_lock,
+            max_requests_per_minute=max_requests_per_minute,
             max_attempts=max_attempts,
             request_timeout=request_timeout,
-            tracker=tracker,
+            cost_tracker=cost_tracker,
             pbar=pbar,
         )
         for i, batch in enumerate(batches)
@@ -305,12 +358,14 @@ async def embed_parallel_async(
 
     # Final summary
     parts = [f"Embedded {len(texts)} texts in {len(batches)} batches"]
-    if tracker.total_tokens > 0:
-        parts.append(f"{tracker.total_tokens:,} tokens")
-    if tracker.total_cost > 0:
-        parts.append(f"${tracker.total_cost:.6f}")
-    if tracker.num_failed > 0:
-        parts.append(f"{tracker.num_failed} failed")
+    if cost_tracker.total_tokens > 0:
+        parts.append(f"{cost_tracker.total_tokens:,} tokens")
+    if cost_tracker.total_cost > 0:
+        parts.append(f"${cost_tracker.total_cost:.6f}")
+    if status_tracker.num_tasks_failed > 0:
+        parts.append(f"{status_tracker.num_tasks_failed} failed")
+    if status_tracker.num_rate_limit_errors > 0:
+        parts.append(f"{status_tracker.num_rate_limit_errors} rate limited")
     print("  " + " | ".join(parts))
 
     return list(results)

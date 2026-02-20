@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.119 · 2026-02-19
+
+- **Embedding rate limiting**: `embed_parallel_async` now accepts `max_requests_per_minute` and `max_tokens_per_minute` parameters, using the same `StatusTracker` capacity system as `LLMClient`. Rate-limit (429) responses trigger automatic cooldown. Previously these were accepted as `**kwargs` and leaked into the API payload, causing request failures.
+- **Deterministic test suite**: Added `tests/core/test_embed.py` with 15 tests covering request building, response parsing, payload isolation (control kwargs never leak to the API), rate-limit param acceptance, and edge cases — no live API calls required.
+
 ## 0.0.118 · 2026-02-19
 
 - **Embeddings rewrite**: Completely rewrote `lm_deluge.embed` — the old implementation was broken (crashed immediately due to a serialization bug). The new module uses `asyncio.gather` + `Semaphore` for clean parallel batching with per-request sessions, exponential backoff retries, and live cost/token tracking in the progress bar.
