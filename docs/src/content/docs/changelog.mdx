@@ -5,6 +5,15 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.118 · 2026-02-19
+
+- **Embeddings rewrite**: Completely rewrote `lm_deluge.embed` — the old implementation was broken (crashed immediately due to a serialization bug). The new module uses `asyncio.gather` + `Semaphore` for clean parallel batching with per-request sessions, exponential backoff retries, and live cost/token tracking in the progress bar.
+- **Cohere v2 API**: Switched Cohere embeddings from the deprecated v1 to the v2 endpoint (`/v2/embed`).
+- **New model: `embed-v4.0`**: Added Cohere's latest embedding model with configurable output dimensions (256, 512, 1024, 1536) and 128k context window.
+- **Cost tracking**: Embeddings now track tokens and cost live in the tqdm progress bar and print a summary on completion. Each `EmbeddingResponse` includes a `tokens_used` field. Updated pricing for all models.
+- **`embed_sync` helper**: New synchronous convenience wrapper that returns a flat list of embedding vectors.
+- **New docs page**: Added [Embeddings](/features/embeddings/) documentation with model table, examples, and configuration reference.
+
 ## 0.0.116 · 2026-02-17
 
 - **Claude Sonnet 4.6 support**: Added `claude-4.6-sonnet` (`claude-sonnet-4-6`) with $3/$15 pricing, GA structured outputs, image input, and reasoning support. Also added Bedrock entries for both 4.6 models (`claude-4.6-opus-bedrock`, `claude-4.6-sonnet-bedrock`).

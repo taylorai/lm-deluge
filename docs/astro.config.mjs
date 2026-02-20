@@ -44,6 +44,7 @@ export default defineConfig({
             { label: "Advanced Workflows", slug: "guides/advanced-usage" },
           ],
         },
+        { label: "Embeddings", slug: "features/embeddings" },
         {
           label: "Caching & Reliability",
           items: [

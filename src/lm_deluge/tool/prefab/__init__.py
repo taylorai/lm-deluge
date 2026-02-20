@@ -22,8 +22,8 @@ if TYPE_CHECKING:
         WorkspaceBackend,
     )
     from .full_text_search import FullTextSearchManager
+    from .hue import PhilipsHueManager
     from .otc import ToolComposer
-    from .philips_hue import PhilipsHueManager
     from .random import RandomTools
     from .rlm import RLMManager, RLMPipeline, RLMResult
     from .sandbox import DaytonaSandbox, DockerSandbox, FargateSandbox, ModalSandbox
@@ -81,7 +81,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # otc
     "ToolComposer": (".otc", "ToolComposer"),
     # philips_hue
-    "PhilipsHueManager": (".philips_hue", "PhilipsHueManager"),
+    "PhilipsHueManager": (".hue", "PhilipsHueManager"),
     # random
     "RandomTools": (".random", "RandomTools"),
     # rlm
