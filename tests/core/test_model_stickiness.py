@@ -15,37 +15,37 @@ from lm_deluge.prompt import Conversation
 def test_prefer_model_explicit():
     """Test that prefer_model selects the specified model."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
     # Test explicit model selection
-    model, sp = client._resolve_model("claude-3.5-haiku", Conversation())
-    assert model == "claude-3.5-haiku", f"Expected claude-3.5-haiku, got {model}"
+    model, sp = client._resolve_model("claude-4.5-haiku", Conversation())
+    assert model == "claude-4.5-haiku", f"Expected claude-4.5-haiku, got {model}"
     print("✓ Explicit prefer_model selects correct model")
 
 
 def test_prefer_model_last_sentinel():
     """Test that prefer_model='last' uses conversation.model_used."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
     # Create a conversation with model_used set
     conv = Conversation().user("Hello")
-    conv.model_used = "claude-3.5-haiku"
+    conv.model_used = "claude-4.5-haiku"
 
     # Test "last" sentinel
     model, sp = client._resolve_model("last", conv)
-    assert model == "claude-3.5-haiku", f"Expected claude-3.5-haiku, got {model}"
+    assert model == "claude-4.5-haiku", f"Expected claude-4.5-haiku, got {model}"
     print("✓ prefer_model='last' uses conversation.model_used")
 
 
 def test_prefer_model_last_fallback():
     """Test that prefer_model='last' falls back to random when no model_used."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
@@ -54,27 +54,27 @@ def test_prefer_model_last_fallback():
 
     # Test "last" sentinel with no model_used
     model, sp = client._resolve_model("last", conv)
-    assert model in ["gpt-4.1-mini", "claude-3.5-haiku"], f"Unexpected model: {model}"
+    assert model in ["gpt-4.1-mini", "claude-4.5-haiku"], f"Unexpected model: {model}"
     print("✓ prefer_model='last' falls back to random when no model_used")
 
 
 def test_prefer_model_invalid():
     """Test that invalid prefer_model falls back to random selection."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
     # Test invalid model name
     model, sp = client._resolve_model("nonexistent-model", Conversation())
-    assert model in ["gpt-4.1-mini", "claude-3.5-haiku"], f"Unexpected model: {model}"
+    assert model in ["gpt-4.1-mini", "claude-4.5-haiku"], f"Unexpected model: {model}"
     print("✓ Invalid prefer_model falls back to random selection")
 
 
 def test_blocklisted_model_skipped():
     """Test that blocklisted models are skipped in selection."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
@@ -84,7 +84,7 @@ def test_blocklisted_model_skipped():
     # Selection should only return the non-blocklisted model
     for _ in range(10):  # Run multiple times to ensure consistency
         model, sp = client._select_model()
-        assert model == "claude-3.5-haiku", f"Expected claude-3.5-haiku, got {model}"
+        assert model == "claude-4.5-haiku", f"Expected claude-4.5-haiku, got {model}"
 
     print("✓ Blocklisted models are skipped in _select_model()")
 
@@ -92,7 +92,7 @@ def test_blocklisted_model_skipped():
 def test_blocklisted_model_skipped_in_prefer():
     """Test that prefer_model is ignored if model is blocklisted."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
@@ -101,14 +101,14 @@ def test_blocklisted_model_skipped_in_prefer():
 
     # prefer_model should fall back to non-blocklisted model
     model, sp = client._resolve_model("gpt-4.1-mini", Conversation())
-    assert model == "claude-3.5-haiku", f"Expected claude-3.5-haiku, got {model}"
+    assert model == "claude-4.5-haiku", f"Expected claude-4.5-haiku, got {model}"
     print("✓ Blocklisted prefer_model falls back to available model")
 
 
 def test_select_different_model_excludes_blocklisted():
     """Test that _select_different_model excludes blocklisted models."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku", "gemini-2.5-flash"],
+        ["gpt-4.1-mini", "claude-4.5-haiku", "gemini-2.5-flash"],
         model_weights=[0.33, 0.33, 0.34],
     )
 
@@ -118,7 +118,7 @@ def test_select_different_model_excludes_blocklisted():
     # Select different from gpt should only return claude
     for _ in range(10):
         model, sp = client._select_different_model("gpt-4.1-mini")
-        assert model == "claude-3.5-haiku", f"Expected claude-3.5-haiku, got {model}"
+        assert model == "claude-4.5-haiku", f"Expected claude-4.5-haiku, got {model}"
 
     print("✓ _select_different_model excludes blocklisted models")
 
@@ -126,13 +126,13 @@ def test_select_different_model_excludes_blocklisted():
 def test_all_models_blocklisted_raises():
     """Test that RuntimeError is raised when all models are blocklisted."""
     client = LLMClient(
-        ["gpt-4.1-mini", "claude-3.5-haiku"],
+        ["gpt-4.1-mini", "claude-4.5-haiku"],
         model_weights=[0.5, 0.5],
     )
 
     # Blocklist all models
     client._blocklisted_models.add("gpt-4.1-mini")
-    client._blocklisted_models.add("claude-3.5-haiku")
+    client._blocklisted_models.add("claude-4.5-haiku")
 
     # Selection should raise RuntimeError
     try:
@@ -154,7 +154,7 @@ def test_conversation_with_response():
     # Create a mock response
     response = APIResponse(
         id=1,
-        model_internal="claude-3.5-haiku",
+        model_internal="claude-4.5-haiku",
         prompt=conv,
         sampling_params=SamplingParams(),
         status_code=200,
@@ -166,7 +166,7 @@ def test_conversation_with_response():
     # Use with_response
     conv = conv.with_response(response)
 
-    assert conv.model_used == "claude-3.5-haiku"
+    assert conv.model_used == "claude-4.5-haiku"
     assert len(conv.messages) == 2
     assert conv.messages[-1].role == "assistant"
     print("✓ with_response sets message and model_used")
@@ -175,14 +175,14 @@ def test_conversation_with_response():
 def test_conversation_to_log_preserves_model_used():
     """Test that to_log/from_log preserve model_used."""
     conv = Conversation().user("Hello").ai("Hi!")
-    conv.model_used = "claude-3.5-haiku"
+    conv.model_used = "claude-4.5-haiku"
 
     # Serialize and deserialize
     log = conv.to_log()
-    assert log.get("model_used") == "claude-3.5-haiku"
+    assert log.get("model_used") == "claude-4.5-haiku"
 
     restored = Conversation.from_log(log)
-    assert restored.model_used == "claude-3.5-haiku"
+    assert restored.model_used == "claude-4.5-haiku"
     print("✓ to_log/from_log preserves model_used")
 
 

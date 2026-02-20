@@ -40,7 +40,7 @@ async def main():
 
         # Create LLM client
         llm = LLMClient(
-            model_names="claude-3.5-haiku",
+            model_names="claude-4.5-haiku",
             max_new_tokens=1024,
         )
 

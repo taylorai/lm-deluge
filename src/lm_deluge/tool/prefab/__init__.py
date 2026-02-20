@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from .rlm import RLMManager, RLMPipeline, RLMResult
     from .sandbox import DaytonaSandbox, DockerSandbox, FargateSandbox, ModalSandbox
     from .sheets import SheetsManager
+    from .sqlite import SqliteManager, SqliteParams
     from .subagents import SubAgentManager
     from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
     from .tool_search import ToolSearchTool
@@ -51,6 +52,8 @@ __all__ = [
     "RLMPipeline",
     "RLMResult",
     "SheetsManager",
+    "SqliteManager",
+    "SqliteParams",
     "SubAgentManager",
     "TodoItem",
     "TodoManager",
@@ -95,6 +98,9 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "ModalSandbox": (".sandbox", "ModalSandbox"),
     # sheets
     "SheetsManager": (".sheets", "SheetsManager"),
+    # sqlite
+    "SqliteManager": (".sqlite", "SqliteManager"),
+    "SqliteParams": (".sqlite", "SqliteParams"),
     # subagents
     "SubAgentManager": (".subagents", "SubAgentManager"),
     # todos

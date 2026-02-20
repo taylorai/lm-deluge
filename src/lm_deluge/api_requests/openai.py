@@ -183,7 +183,7 @@ class OpenAIRequest(APIRequestBase):
         if self.context.skills:
             raise NotImplementedError(
                 "Skills are only supported by Anthropic. "
-                "Use an Anthropic model (e.g., claude-3.5-haiku) to use skills."
+                "Use an Anthropic model (e.g., claude-4.5-haiku) to use skills."
             )
         self.model = APIModel.from_registry(self.context.model_name)
 

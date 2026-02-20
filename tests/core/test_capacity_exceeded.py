@@ -3,8 +3,8 @@
 """Test that requests exceeding max_tokens_per_minute raise immediately instead of hanging."""
 
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
@@ -15,7 +15,7 @@ def test_request_exceeding_token_budget_raises():
     """A request whose token count exceeds max_tokens_per_minute should raise ValueError immediately."""
     # Create a client with a very small token budget
     client = LLMClient(
-        "claude-3.5-haiku",
+        "claude-4.5-haiku",
         max_new_tokens=5000,
         max_tokens_per_minute=100,  # impossibly small
     )
@@ -39,7 +39,7 @@ def test_request_within_budget_does_not_raise():
     """A request within the token budget should not raise the new ValueError.
     (It will fail for other reasons since we have no real API key, but that's fine.)"""
     client = LLMClient(
-        "claude-3.5-haiku",
+        "claude-4.5-haiku",
         max_new_tokens=100,
         max_tokens_per_minute=1_000_000,
     )

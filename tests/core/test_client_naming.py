@@ -2,8 +2,8 @@
 
 """Test the LLMClient naming functionality."""
 
-import sys
 import os
+import sys
 
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -20,7 +20,7 @@ def test_auto_name_single_model():
 
 def test_auto_name_multiple_models():
     """Test that a client with multiple models gets named 'LLMClient'."""
-    client = LLMClient(["gpt-4o-mini", "claude-3.5-haiku"])
+    client = LLMClient(["gpt-4o-mini", "claude-4.5-haiku"])
     assert client.name == "LLMClient"
     print("✓ Multiple models auto-naming works")
 
@@ -34,7 +34,7 @@ def test_custom_name():
 
 def test_custom_name_multiple_models():
     """Test that a custom name works with multiple models."""
-    client = LLMClient(["gpt-4o-mini", "claude-3.5-haiku"], name="MultiModelClient")
+    client = LLMClient(["gpt-4o-mini", "claude-4.5-haiku"], name="MultiModelClient")
     assert client.name == "MultiModelClient"
     print("✓ Custom name with multiple models works")
 
@@ -54,11 +54,11 @@ def test_name_passed_to_tracker():
 
 def test_auto_name_passed_to_tracker():
     """Test that auto-generated name is passed to tracker."""
-    client = LLMClient("claude-3.5-haiku")
+    client = LLMClient("claude-4.5-haiku")
     client.open(total=1, show_progress=False)
 
     assert client._tracker is not None
-    assert client._tracker.client_name == "claude-3.5-haiku"
+    assert client._tracker.client_name == "claude-4.5-haiku"
 
     client.close()
     print("✓ Auto-generated name is passed to StatusTracker")
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     print()
     print("  # Multiple models get generic name")
     print(
-        "  client2 = LLMClient(['gpt-4o-mini', 'claude-3.5-haiku'])  # name='LLMClient'"
+        "  client2 = LLMClient(['gpt-4o-mini', 'claude-4.5-haiku'])  # name='LLMClient'"
     )
     print()
     print("  # Custom name")

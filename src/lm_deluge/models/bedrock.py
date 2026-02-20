@@ -18,17 +18,6 @@ BEDROCK_MODELS = {
         "output_cost": 1.25,
         "supports_images": True,
     },
-    "claude-3.5-haiku-bedrock": {
-        "id": "claude-3.5-haiku-bedrock",
-        "name": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-        "regions": ["us-east-1", "us-west-2", "ap-southeast-2", "eu-west-3"],
-        "api_base": "",
-        "api_key_env_var": "",
-        "api_spec": "bedrock",
-        "input_cost": 0.25,
-        "output_cost": 1.25,
-        "supports_images": True,
-    },
     "claude-3.5-sonnet-bedrock": {
         "id": "claude-3.5-sonnet-bedrock",
         "name": "us.anthropic.claude-3-5-sonnet-20240620-v1:0",

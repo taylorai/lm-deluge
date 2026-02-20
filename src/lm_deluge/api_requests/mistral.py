@@ -5,9 +5,9 @@ from aiohttp import ClientResponse
 
 from lm_deluge.warnings import maybe_warn
 
+from ..api_requests.context import RequestContext
 from ..models import APIModel
 from ..prompt import Message
-from ..api_requests.context import RequestContext
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse
 
@@ -28,7 +28,7 @@ class MistralRequest(APIRequestBase):
         if self.context.skills:
             raise NotImplementedError(
                 "Skills are only supported by Anthropic. "
-                "Use an Anthropic model (e.g., claude-3.5-haiku) to use skills."
+                "Use an Anthropic model (e.g., claude-4.5-haiku) to use skills."
             )
 
         self.model = APIModel.from_registry(self.context.model_name)

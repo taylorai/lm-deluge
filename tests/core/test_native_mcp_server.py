@@ -3,10 +3,10 @@
 import asyncio
 import os
 
+import dotenv
+
 from lm_deluge import LLMClient
 from lm_deluge.tool import MCPServer
-
-import dotenv
 
 dotenv.load_dotenv()
 
@@ -20,7 +20,7 @@ async def test_native_mcp_anthropic():
     # Test with a regular GPT model using responses API
     try:
         # Use a model with responses API enabled
-        client = LLMClient("claude-3.5-haiku", request_timeout=75)
+        client = LLMClient("claude-4.5-haiku", request_timeout=75)
         results = await client.process_prompts_async(
             prompts=[
                 "What tools do you have access to? Use one and show me what happens."

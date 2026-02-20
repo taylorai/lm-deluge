@@ -23,7 +23,7 @@ import asyncio
 from lm_deluge import LLMClient, Conversation
 
 async def main():
-    client = LLMClient("claude-3.5-haiku", max_new_tokens=1024)
+    client = LLMClient("claude-4.5-haiku", max_new_tokens=1024)
     response = await client.start(Conversation().user("Hello!"))
     print(response.completion)
 

@@ -35,13 +35,13 @@
 ## Basic Library Usage
 
 ### Model Names
-Use short names like `claude-3.5-haiku`, `claude-4-sonnet`, `gpt-4.1-mini`. See `src/lm_deluge/models/` for all available models.
+Use short names like `claude-4.5-haiku`, `claude-4-sonnet`, `gpt-4.1-mini`. See `src/lm_deluge/models/` for all available models.
 
 ### Simple Request
 ```python
 from lm_deluge import LLMClient, Conversation
 
-llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=1024)
+llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=1024)
 response = await llm.start(Conversation().user("Hello!"))
 print(response.completion)  # NOT .text
 ```
@@ -51,7 +51,7 @@ print(response.completion)  # NOT .text
 from lm_deluge import LLMClient, Conversation, Tool
 
 # Tools are passed to run_agent_loop, NOT to the constructor
-llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=1024)
+llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=1024)
 
 conv = Conversation().user("Do something with tools")
 final_conv, response = await llm.run_agent_loop(

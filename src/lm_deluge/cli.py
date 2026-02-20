@@ -12,10 +12,10 @@ Examples:
     deluge list --auto                            # Only models with API keys set
     deluge list --provider anthropic --reasoning
     deluge list --name claude --json
-    deluge run claude-3.5-haiku -i "What is 2+2?"
+    deluge run claude-4.5-haiku -i "What is 2+2?"
     echo "Hello" | deluge run gpt-4.1-mini
     deluge run claude-4-sonnet --file prompt.txt --max-tokens 4096
-    deluge agent claude-3.5-haiku --mcp-config mcp.json -i "Search for AI news"
+    deluge agent claude-4.5-haiku --mcp-config mcp.json -i "Search for AI news"
     deluge agent claude-4-sonnet --prefab todo,memory -i "Create a task list"
     deluge skill install                          # Install to ~/.claude/skills/lm-deluge
     deluge skill install ~/.codex/skills          # Install to custom directory
@@ -30,8 +30,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .models import find_models, APIModel
 from .client import LLMClient
+from .models import APIModel, find_models
 from .prompt import Conversation
 
 
@@ -204,10 +204,10 @@ def _print_json(obj: dict[str, Any]) -> None:
 
 def cmd_agent(args: argparse.Namespace) -> int:
     """Run an agent loop with tools and output JSON blocks for each content piece."""
-    from .tool import Tool, MCPServer
     from .prompt.text import Text
-    from .prompt.tool_calls import ToolCall
     from .prompt.thinking import Thinking
+    from .prompt.tool_calls import ToolCall
+    from .tool import MCPServer, Tool
 
     # Determine input text
     if args.input:
@@ -585,7 +585,7 @@ def main():
     run_parser.add_argument(
         "model",
         type=str,
-        help="Model ID to use (e.g., claude-3.5-haiku, gpt-4.1-mini)",
+        help="Model ID to use (e.g., claude-4.5-haiku, gpt-4.1-mini)",
     )
     input_group = run_parser.add_mutually_exclusive_group()
     input_group.add_argument(
@@ -647,7 +647,7 @@ def main():
     agent_parser.add_argument(
         "model",
         type=str,
-        help="Model ID to use (e.g., claude-3.5-haiku, gpt-4.1-mini)",
+        help="Model ID to use (e.g., claude-4.5-haiku, gpt-4.1-mini)",
     )
     agent_input_group = agent_parser.add_mutually_exclusive_group()
     agent_input_group.add_argument(

@@ -8,8 +8,9 @@ Run with: python tests/test_batch_real.py
 import asyncio
 import os
 
-from lm_deluge.client import LLMClient
 import dotenv
+
+from lm_deluge.client import LLMClient
 
 dotenv.load_dotenv()
 
@@ -56,7 +57,7 @@ async def test_anthropic_batch():
 
     print("🚀 Testing Anthropic batch processing...")
 
-    client = LLMClient("claude-3.5-haiku", max_new_tokens=50, temperature=0.5)
+    client = LLMClient("claude-4.5-haiku", max_new_tokens=50, temperature=0.5)
 
     test_prompts = ["What is 2+2?", "Name a primary color", "Say hello in French"]
 

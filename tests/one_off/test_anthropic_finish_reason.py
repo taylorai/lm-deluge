@@ -3,13 +3,14 @@
 import asyncio
 
 import dotenv
-from lm_deluge import LLMClient, Conversation
+
+from lm_deluge import Conversation, LLMClient
 
 dotenv.load_dotenv()
 
 
 async def main():
-    llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=100)
+    llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=100)
     response = await llm.start(Conversation().user("Say hello in one word."))
 
     print(f"Completion: {response.completion}")

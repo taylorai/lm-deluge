@@ -173,7 +173,7 @@ Route aliases let you expose friendly names that map to one or more backend mode
 
 ```bash
 python -m lm_deluge.server --routes '{
-  "fast": {"models": ["gpt-4o-mini", "claude-3.5-haiku"], "strategy": "round_robin"},
+  "fast": {"models": ["gpt-4o-mini", "claude-4.5-haiku"], "strategy": "round_robin"},
   "smart": {"models": ["claude-3.5-sonnet", "gpt-4o"], "strategy": "random"},
   "best": {"models": ["claude-3.5-sonnet"], "strategy": "round_robin"}
 }'
@@ -208,7 +208,7 @@ model_policy:
   mode: allow_user_pick
   allowed_models:
     - claude-3.5-sonnet
-    - claude-3.5-haiku
+    - claude-4.5-haiku
     - gpt-4o
     - gpt-4o-mini
   expose_aliases: true
@@ -216,7 +216,7 @@ model_policy:
     fast:
       models:
         - gpt-4o-mini
-        - claude-3.5-haiku
+        - claude-4.5-haiku
       strategy: round_robin
     smart:
       models:

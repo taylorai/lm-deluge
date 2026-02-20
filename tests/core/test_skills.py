@@ -47,7 +47,7 @@ def test_skill_in_anthropic_request():
     """Test that skills are correctly added to Anthropic requests."""
 
     # Create a mock model
-    model = APIModel.from_registry("claude-3.5-haiku")
+    model = APIModel.from_registry("claude-4.5-haiku")
 
     # Create a skill
     skill = Skill(type="anthropic", skill_id="xlsx", version="latest")
@@ -55,7 +55,7 @@ def test_skill_in_anthropic_request():
     # Create context with skills
     context = RequestContext(
         task_id=1,
-        model_name="claude-3.5-haiku",
+        model_name="claude-4.5-haiku",
         prompt=Conversation().user("Create an Excel spreadsheet"),
         sampling_params=SamplingParams(max_new_tokens=1024),
         skills=[skill],
@@ -91,7 +91,7 @@ def test_skill_in_anthropic_request():
 def test_multiple_skills():
     """Test multiple skills in a single request."""
 
-    model = APIModel.from_registry("claude-3.5-haiku")
+    model = APIModel.from_registry("claude-4.5-haiku")
 
     skills = [
         Skill(type="anthropic", skill_id="xlsx", version="latest"),
@@ -103,7 +103,7 @@ def test_multiple_skills():
 
     context = RequestContext(
         task_id=1,
-        model_name="claude-3.5-haiku",
+        model_name="claude-4.5-haiku",
         prompt=Conversation().user("Create a spreadsheet and presentation"),
         sampling_params=SamplingParams(max_new_tokens=1024),
         skills=skills,
@@ -125,7 +125,7 @@ def test_multiple_skills():
 def test_skills_with_existing_code_execution_tool():
     """Test that code_execution tool is not duplicated if already present."""
 
-    model = APIModel.from_registry("claude-3.5-haiku")
+    model = APIModel.from_registry("claude-4.5-haiku")
 
     skill = Skill(type="anthropic", skill_id="xlsx", version="latest")
 
@@ -134,7 +134,7 @@ def test_skills_with_existing_code_execution_tool():
 
     context = RequestContext(
         task_id=1,
-        model_name="claude-3.5-haiku",
+        model_name="claude-4.5-haiku",
         prompt=Conversation().user("Create a spreadsheet"),
         sampling_params=SamplingParams(max_new_tokens=1024),
         tools=tools,
@@ -199,7 +199,7 @@ def test_skills_not_supported_by_gemini():
 def test_skills_dict_format():
     """Test that skills can be passed as raw dicts."""
 
-    model = APIModel.from_registry("claude-3.5-haiku")
+    model = APIModel.from_registry("claude-4.5-haiku")
 
     # Pass skills as dicts (not Skill objects)
     skills = [
@@ -208,7 +208,7 @@ def test_skills_dict_format():
 
     context = RequestContext(
         task_id=1,
-        model_name="claude-3.5-haiku",
+        model_name="claude-4.5-haiku",
         prompt=Conversation().user("Create a document"),
         sampling_params=SamplingParams(max_new_tokens=1024),
         skills=skills,
@@ -223,14 +223,14 @@ def test_skills_dict_format():
 def test_container_id_in_request():
     """Test that container_id is included in the request when provided."""
 
-    model = APIModel.from_registry("claude-3.5-haiku")
+    model = APIModel.from_registry("claude-4.5-haiku")
 
     skill = Skill(type="anthropic", skill_id="xlsx", version="latest")
 
     # Create context with container_id
     context = RequestContext(
         task_id=1,
-        model_name="claude-3.5-haiku",
+        model_name="claude-4.5-haiku",
         prompt=Conversation().user("Continue working on the spreadsheet"),
         sampling_params=SamplingParams(max_new_tokens=1024),
         skills=[skill],

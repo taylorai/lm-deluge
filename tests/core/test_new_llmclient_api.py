@@ -2,8 +2,8 @@
 
 """Test the new LLMClient factory function API."""
 
-import sys
 import os
+import sys
 
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -21,7 +21,7 @@ def test_positional_string_model():
 
 def test_positional_list_models():
     """Test LLMClient with positional list of models."""
-    models = ["gpt-4o-mini", "claude-3.5-haiku"]
+    models = ["gpt-4o-mini", "claude-4.5-haiku"]
     client = LLMClient(models)
     assert isinstance(client, _LLMClient)
     assert client.model_names == models
@@ -82,8 +82,8 @@ def test_pydantic_features():
 def test_builder_methods():
     """Test that builder methods still work."""
     client = LLMClient("gpt-4o-mini")
-    client.with_model("claude-3.5-haiku")
-    assert client.model_names == ["claude-3.5-haiku"]
+    client.with_model("claude-4.5-haiku")
+    assert client.model_names == ["claude-4.5-haiku"]
     print("✓ Builder methods work")
 
 
@@ -117,7 +117,7 @@ if __name__ == "__main__":
     print("Usage examples:")
     print("  client1 = LLMClient('gpt-4o-mini')")
     print("  client2 = LLMClient('gpt-4o-mini', temperature=0.5)")
-    print("  client3 = LLMClient(['gpt-4o-mini', 'claude-3.5-haiku'], max_attempts=3)")
+    print("  client3 = LLMClient(['gpt-4o-mini', 'claude-4.5-haiku'], max_attempts=3)")
     print()
     print("Benefits:")
     print("  ✓ Clean API with positional model argument")

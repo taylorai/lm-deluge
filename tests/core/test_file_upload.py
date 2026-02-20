@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from lm_deluge import LLMClient
-from lm_deluge.prompt import Conversation, Message, File
+from lm_deluge.prompt import Conversation, File, Message
 
 # Load environment variables from .env file
 load_dotenv()
@@ -347,7 +347,7 @@ async def test_anthropic_llm_call_with_uploaded_file():
         conv = Conversation([msg])
 
         # Make the LLM call
-        client = LLMClient("claude-3.5-haiku")
+        client = LLMClient("claude-4.5-haiku")
         results = await client.process_prompts_async(prompts=[conv])
 
         if not results or len(results) == 0:

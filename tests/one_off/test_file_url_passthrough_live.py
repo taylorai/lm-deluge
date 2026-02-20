@@ -51,7 +51,7 @@ async def test_anthropic_file_url():
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("  SKIPPING: No ANTHROPIC_API_KEY")
         return
-    llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=256)
+    llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=256)
     conv = Conversation().user(FILE_PROMPT, file=File(data=PDF_URL))
     resp = await llm.start(conv)
     assert not resp.is_error, f"Failed: {resp.error_message}"
@@ -63,7 +63,7 @@ async def test_anthropic_image_url():
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("  SKIPPING: No ANTHROPIC_API_KEY")
         return
-    llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=256)
+    llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=256)
     conv = Conversation().user(IMAGE_PROMPT, image=Image(data=IMAGE_URL))
     resp = await llm.start(conv)
     assert not resp.is_error, f"Failed: {resp.error_message}"

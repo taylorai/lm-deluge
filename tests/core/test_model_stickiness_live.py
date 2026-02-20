@@ -21,7 +21,7 @@ async def test_multi_turn_stickiness():
     print("\n=== Test: Multi-turn stickiness ===")
 
     client = LLMClient(
-        ["claude-3.5-haiku", "gpt-4.1-mini"],
+        ["claude-4.5-haiku", "gpt-4.1-mini"],
         model_weights=[0.5, 0.5],
         max_new_tokens=100,
     )
@@ -68,7 +68,7 @@ async def test_explicit_prefer_model():
     print("\n=== Test: Explicit prefer_model ===")
 
     client = LLMClient(
-        ["claude-3.5-haiku", "gpt-4.1-mini"],
+        ["claude-4.5-haiku", "gpt-4.1-mini"],
         model_weights=[0.5, 0.5],
         max_new_tokens=50,
     )
@@ -76,12 +76,12 @@ async def test_explicit_prefer_model():
     conv = Conversation().user("Say 'test' and nothing else.")
 
     # Force claude
-    response = await client.start(conv, prefer_model="claude-3.5-haiku")
+    response = await client.start(conv, prefer_model="claude-4.5-haiku")
     assert (
-        response.model_internal == "claude-3.5-haiku"
+        response.model_internal == "claude-4.5-haiku"
     ), f"Got {response.model_internal}"
     assert not response.is_error, f"Failed: {response.error_message}"
-    print(f"✓ Forced claude-3.5-haiku, got: {response.model_internal}")
+    print(f"✓ Forced claude-4.5-haiku, got: {response.model_internal}")
 
     # Force gpt
     response = await client.start(conv, prefer_model="gpt-4.1-mini")
@@ -147,7 +147,7 @@ async def test_agent_loop_stickiness():
     )
 
     client = LLMClient(
-        ["claude-3.5-haiku", "gpt-4.1-mini"],
+        ["claude-4.5-haiku", "gpt-4.1-mini"],
         model_weights=[0.5, 0.5],
         max_new_tokens=200,
     )
@@ -187,7 +187,7 @@ async def test_conversation_serialization_with_model():
     """Test that model_used survives serialization (simulating DB storage)."""
     print("\n=== Test: Conversation serialization with model_used ===")
 
-    client = LLMClient("claude-3.5-haiku", max_new_tokens=50)
+    client = LLMClient("claude-4.5-haiku", max_new_tokens=50)
 
     # First turn
     conv = Conversation().user("Say 'one'")

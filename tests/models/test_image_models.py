@@ -9,7 +9,7 @@ models_to_test = [
     # anthropic
     "claude-3-opus",
     "claude-3.7-sonnet",
-    "claude-3.5-haiku",
+    "claude-4.5-haiku",
     # openai
     "gpt-4o",
     "gpt-4o-mini",

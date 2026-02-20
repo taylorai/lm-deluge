@@ -16,14 +16,14 @@ from lm_deluge import LLMClient, Conversation, Tool, APIResponse
 
 ### Simple Request
 ```python
-llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=1024)
+llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=1024)
 response = await llm.start(Conversation().user("Hello!"))
 print(response.completion)  # Text output - NOT .text
 ```
 
 ### Agent Loop (with tools)
 ```python
-llm = LLMClient(model_names="claude-3.5-haiku", max_new_tokens=1024)
+llm = LLMClient(model_names="claude-4.5-haiku", max_new_tokens=1024)
 conv = Conversation().user("Search for X and summarize")
 final_conv, response = await llm.run_agent_loop(conv, tools=my_tools, max_rounds=5)
 ```
@@ -34,7 +34,7 @@ Use short names. Full list in `src/lm_deluge/models/`.
 
 | Short Name | Provider |
 |------------|----------|
-| `claude-4.5-opus`, `claude-4.5-sonnet`, `claude-3.5-haiku` | Anthropic |
+| `claude-4.5-opus`, `claude-4.5-sonnet`, `claude-4.5-haiku` | Anthropic |
 | `gpt-4.1-mini`, `gpt-4-turbo`, `o1`, `o3-mini` | OpenAI |
 | `gemini-2.0-flash`, `gemini-1.5-pro` | Google |
 

@@ -62,7 +62,7 @@ from lm_deluge import LLMClient
 
 async def process_batches():
     client = LLMClient(
-        model_names=["claude-3.5-haiku"],
+        model_names=["claude-4.5-haiku"],
         max_requests_per_minute=10000,
         max_tokens_per_minute=1000000,
         max_concurrent_requests=100,
@@ -308,7 +308,7 @@ Batch batch_def456 - processing - 2m 15s - 2000/5000 done
 ## Best Practices
 
 1. **Batch similar requests**: Group prompts that generate similar-length responses
-2. **Use appropriate models**: Smaller models (gpt-4o-mini, claude-3.5-haiku) are ideal for batch processing
+2. **Use appropriate models**: Smaller models (gpt-4o-mini, claude-4.5-haiku) are ideal for batch processing
 3. **Leverage caching**: For Anthropic, use cache patterns on repeated content
 4. **Monitor token usage**: Check results to optimize future batches
 5. **Set appropriate poll intervals**: 30-60 seconds is usually good

@@ -43,7 +43,7 @@ Use this to spread traffic across multiple models (for cost optimization, rate l
 
 ```python
 client = LLMClient(
-    ["gpt-4.1-mini", "claude-3.5-haiku", "gemini-2.5-flash"],
+    ["gpt-4.1-mini", "claude-4.5-haiku", "gemini-2.5-flash"],
     model_weights=[0.6, 0.2, 0.2],  # 60% OpenAI, 20% Claude, 20% Gemini
     max_new_tokens=512,
 )
