@@ -21,7 +21,6 @@ def test_anthropic_aliases_resolve():
         ("claude-4-opus", "claude-opus-4"),
         ("claude-4-sonnet", "claude-sonnet-4"),
         ("claude-3.7-sonnet", "claude-sonnet-3.7"),
-        ("claude-4.5-haiku", "claude-haiku-3.5"),
     ]
     for canonical, alias in pairs:
         m1 = APIModel.from_registry(canonical)
