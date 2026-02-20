@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.120 · 2026-02-20
+
+- **New `SqliteManager` prefab tool**: Schema-first SQLite tool for agents — supports `list_tables`, `describe_table`, and `query` commands with progressive disclosure. Build a DB from a list-of-dicts via `SqliteManager.from_dicts()` (auto-infers column types including JSON columns) or point at an existing `.db` file. Supports read-only mode, parameterized queries, multiple output formats (JSON, YAML, CSV, TSV), row-count truncation, and sample rows. See [Tool Use](/features/tools/) for usage.
+- **Retired `claude-3.5-haiku`**: Removed `claude-3.5-haiku` (`claude-3-5-haiku-20241022`) from the model registry — the model has been retired by Anthropic. Use `claude-4.5-haiku` instead. Remaining references to `3.5-haiku` in examples and tests have been updated to `4.5-haiku`.
+
 ## 0.0.119 · 2026-02-19
 
 - **Embedding rate limiting**: `embed_parallel_async` now accepts `max_requests_per_minute` and `max_tokens_per_minute` parameters, using the same `StatusTracker` capacity system as `LLMClient`. Rate-limit (429) responses trigger automatic cooldown. Previously these were accepted as `**kwargs` and leaked into the API payload, causing request failures.
