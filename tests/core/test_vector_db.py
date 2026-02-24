@@ -350,6 +350,17 @@ def test_delete_duplicate_ids_correct_count():
     assert db.count() == 1
 
 
+def test_insert_defensively_copies_vectors():
+    """Mutating a vector after insert should not affect stored data."""
+    db = InProcessVectorDB(dimension=2)
+    vec = [3.0, 4.0]
+    db.insert([VectorDBRecord(id="a", text="t", vector=vec)])
+    vec[0] = 999.0  # mutate the original
+    rec = db.get(["a"])[0]
+    assert rec is not None
+    assert rec.vector == [3.0, 4.0]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for test in tests:

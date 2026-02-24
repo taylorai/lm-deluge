@@ -170,7 +170,7 @@ class InProcessVectorDB(VectorDBBackend):
             new_ids.append(rid)
             new_texts.append(rec.text)
             new_meta.append(rec.metadata)
-            raw_vectors.append(vec)
+            raw_vectors.append(list(vec))
 
         new_matrix = self._normalise(np.array(raw_vectors, dtype=np.float32))  # type: ignore
 
