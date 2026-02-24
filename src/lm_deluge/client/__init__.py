@@ -614,7 +614,11 @@ class _LLMClient(BaseModel):
             # Enforce cooldown first, regardless of current capacity.
             cooldown = tracker.seconds_to_pause
             if cooldown > 0:
-                print(f"Pausing for {cooldown} seconds to cool down.")
+                # Only print once per cooldown event across all waiting tasks.
+                cid = tracker._cooldown_print_id
+                if cid != tracker._cooldown_last_printed_id:
+                    tracker._cooldown_last_printed_id = cid
+                    print(f"Rate limited — pausing for {cooldown:.0f}s")
                 await asyncio.sleep(cooldown)
                 continue
 

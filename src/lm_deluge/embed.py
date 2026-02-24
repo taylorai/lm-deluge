@@ -8,6 +8,7 @@ from typing import Any
 import aiohttp
 from tqdm.auto import tqdm
 
+from .api_requests.base import parse_retry_after
 from .tracker import StatusTracker
 
 REGISTRY: dict[str, dict[str, Any]] = {
@@ -219,7 +220,8 @@ async def _embed_batch(
                         )
                     elif response.status == 429:
                         error_msg = await response.text()
-                        status_tracker.rate_limit_exceeded()
+                        retry_after = parse_retry_after(response)
+                        status_tracker.rate_limit_exceeded(retry_after)
                         # Free the concurrency slot while we wait to retry
                         status_tracker.num_tasks_in_progress -= 1
                         if attempt < max_attempts - 1:

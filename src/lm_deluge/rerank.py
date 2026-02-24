@@ -200,7 +200,6 @@ async def rerank_parallel_async(
     """Processes rerank requests in parallel, throttling to stay under rate limits."""
     ids = range(len(queries))
     # constants
-    seconds_to_pause_after_rate_limit_error = 5
     seconds_to_sleep_each_loop = 0.003  # so concurrent tasks can run
 
     # initialize trackers
@@ -297,14 +296,10 @@ async def rerank_parallel_async(
         await asyncio.sleep(seconds_to_sleep_each_loop)
 
         # if a rate limit error was hit recently, pause to cool down
-        remaining_seconds_to_pause = max(
-            0,
-            seconds_to_pause_after_rate_limit_error
-            - status_tracker.time_since_rate_limit_error,
-        )
+        remaining_seconds_to_pause = status_tracker.seconds_to_pause
         if remaining_seconds_to_pause > 0:
+            print(f"Rate limited — pausing for {remaining_seconds_to_pause:.0f}s")
             await asyncio.sleep(remaining_seconds_to_pause)
-            print(f"Pausing {remaining_seconds_to_pause}s to cool down.")
 
     # after finishing, log final status
     status_tracker.log_final_status()

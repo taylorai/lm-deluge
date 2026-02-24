@@ -4,6 +4,7 @@ import os
 import time
 import traceback
 from abc import ABC, abstractmethod
+from email.utils import parsedate_to_datetime
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -11,7 +12,44 @@ from aiohttp import ClientResponse
 from ..api_requests.context import RequestContext
 from ..errors import raise_if_modal_exception
 from ..models.openai import OPENAI_MODELS
+from ..tracker import MAX_COOLDOWN_SECONDS
 from .response import APIResponse
+
+
+def parse_retry_after(http_response: ClientResponse) -> float | None:
+    """Extract retry-after seconds from HTTP response headers.
+
+    Checks retry-after-ms first (used by OpenAI/Anthropic for higher precision),
+    then falls back to the standard retry-after header (seconds or HTTP date).
+    Returns None if neither header is present. Caps at MAX_COOLDOWN_SECONDS.
+    """
+    # Check retry-after-ms first (milliseconds, used by OpenAI and Anthropic)
+    retry_after_ms = http_response.headers.get("retry-after-ms")
+    if retry_after_ms is not None:
+        try:
+            seconds = float(retry_after_ms) / 1000.0
+            return min(max(seconds, 0), MAX_COOLDOWN_SECONDS)
+        except (ValueError, TypeError):
+            pass
+
+    # Check standard retry-after header (seconds or HTTP date)
+    retry_after = http_response.headers.get("retry-after")
+    if retry_after is not None:
+        # Try parsing as numeric seconds first
+        try:
+            seconds = float(retry_after)
+            return min(max(seconds, 0), MAX_COOLDOWN_SECONDS)
+        except (ValueError, TypeError):
+            pass
+        # Try parsing as HTTP date (e.g. "Fri, 31 Dec 1999 23:59:59 GMT")
+        try:
+            dt = parsedate_to_datetime(retry_after)
+            seconds = (dt - dt.now(dt.tzinfo)).total_seconds()
+            return min(max(seconds, 0), MAX_COOLDOWN_SECONDS)
+        except Exception:
+            pass
+
+    return None
 
 
 class APIRequestBase(ABC):

@@ -19,7 +19,7 @@ from ..config import SamplingParams
 from ..models import APIModel
 from ..prompt import CachePattern, Conversation, Message, Text, Thinking, ToolCall
 from ..usage import Usage
-from .base import APIRequestBase, APIResponse
+from .base import APIRequestBase, APIResponse, parse_retry_after
 
 
 def _message_contents_to_string(messages: list[dict]):
@@ -290,8 +290,9 @@ class OpenAIRequest(APIRequestBase):
         give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
+                retry_after = parse_retry_after(http_response)
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.context.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded(retry_after)
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
@@ -675,8 +676,9 @@ class OpenAIResponsesRequest(APIRequestBase):
         give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:
             if "rate limit" in error_message.lower() or status_code == 429:
+                retry_after = parse_retry_after(http_response)
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.context.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded(retry_after)
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0

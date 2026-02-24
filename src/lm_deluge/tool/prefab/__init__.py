@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from .subagents import SubAgentManager
     from .todos import TodoItem, TodoManager, TodoPriority, TodoStatus
     from .tool_search import ToolSearchTool
+    from .vector_db import InProcessVectorDB, VectorDBBackend, VectorDBManager
 
 __all__ = [
     "BatchTool",
@@ -61,6 +62,9 @@ __all__ = [
     "TodoStatus",
     "ToolComposer",
     "ToolSearchTool",
+    "VectorDBBackend",
+    "VectorDBManager",
+    "InProcessVectorDB",
     "WorkspaceBackend",
 ]
 
@@ -110,6 +114,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "TodoStatus": (".todos", "TodoStatus"),
     # tool_search
     "ToolSearchTool": (".tool_search", "ToolSearchTool"),
+    # vector_db
+    "InProcessVectorDB": (".vector_db", "InProcessVectorDB"),
+    "VectorDBBackend": (".vector_db", "VectorDBBackend"),
+    "VectorDBManager": (".vector_db", "VectorDBManager"),
 }
 
 

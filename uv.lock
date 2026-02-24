@@ -1122,7 +1122,7 @@ wheels = [
 
 [[package]]
 name = "lm-deluge"
-version = "0.0.120"
+version = "0.0.121"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -1169,6 +1169,10 @@ server = [
     { name = "fastapi" },
     { name = "uvicorn" },
 ]
+vector-db = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "numpy", version = "2.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1180,8 +1184,9 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.100.0" },
     { name = "google-auth", marker = "extra == 'google'" },
     { name = "lenlp", marker = "extra == 'full-text-search'", specifier = ">=0.1.0" },
-    { name = "markdownify-rs", specifier = "==0.1.1" },
+    { name = "markdownify-rs", specifier = ">=0.1.1" },
     { name = "modal", marker = "extra == 'sandbox'", specifier = ">=0.64.0" },
+    { name = "numpy", marker = "extra == 'vector-db'", specifier = ">=1.24.0" },
     { name = "pdf2image", marker = "extra == 'pdf'" },
     { name = "pillow" },
     { name = "pre-commit", marker = "extra == 'dev'" },
@@ -1198,7 +1203,7 @@ requires-dist = [
     { name = "uvicorn", marker = "extra == 'server'", specifier = ">=0.20.0" },
     { name = "xxhash" },
 ]
-provides-extras = ["pdf", "aws", "google", "docker", "full-text-search", "sandbox", "server", "dev"]
+provides-extras = ["pdf", "aws", "google", "docker", "full-text-search", "vector-db", "sandbox", "server", "dev"]
 
 [[package]]
 name = "markdown-it-py"

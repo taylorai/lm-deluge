@@ -15,7 +15,7 @@ from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
 from ..models import APIModel
-from .base import APIRequestBase, APIResponse
+from .base import APIRequestBase, APIResponse, parse_retry_after
 
 
 def _convert_tool_to_nova(tool: Tool) -> dict:
@@ -289,8 +289,9 @@ class BedrockNovaRequest(APIRequestBase):
                 or "throttling" in error_message.lower()
                 or status_code == 429
             ):
+                retry_after = parse_retry_after(http_response)
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.context.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded(retry_after)
             if "context length" in error_message or "too long" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0

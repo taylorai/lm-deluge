@@ -15,7 +15,11 @@ from rich.progress import (
 )
 from tqdm.auto import tqdm
 
-SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR = 5
+DEFAULT_COOLDOWN_SECONDS = 10
+MAX_COOLDOWN_SECONDS = 120
+
+# Keep old name as alias for any external code that imports it
+SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR = DEFAULT_COOLDOWN_SECONDS
 
 
 @dataclass
@@ -29,7 +33,9 @@ class StatusTracker:
     num_tasks_succeeded: int = 0
     num_tasks_failed: int = 0
     num_rate_limit_errors: int = 0
-    time_of_last_rate_limit_error: int | float = 0
+    _cooldown_until: float = 0.0
+    _cooldown_print_id: int = 0
+    _cooldown_last_printed_id: int = -1
     total_requests: int = 0
     retry_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
 
@@ -69,14 +75,15 @@ class StatusTracker:
 
     @property
     def time_since_rate_limit_error(self):
-        return time.time() - self.time_of_last_rate_limit_error
+        """Backward compat: approximate time since last rate limit error."""
+        remaining = self._cooldown_until - time.time()
+        if remaining <= 0:
+            return DEFAULT_COOLDOWN_SECONDS + 1  # long enough to mean "not active"
+        return DEFAULT_COOLDOWN_SECONDS - remaining
 
     @property
     def seconds_to_pause(self):
-        return max(
-            0,
-            SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR - self.time_since_rate_limit_error,
-        )
+        return max(0.0, self._cooldown_until - time.time())
 
     def set_limiting_factor(self, factor):
         self.limiting_factor = factor
@@ -125,8 +132,17 @@ class StatusTracker:
         self.num_tasks_started += 1
         self.num_tasks_in_progress += 1
 
-    def rate_limit_exceeded(self):
-        self.time_of_last_rate_limit_error = time.time()
+    def rate_limit_exceeded(self, retry_after: float | None = None):
+        now = time.time()
+        if retry_after is not None:
+            delay = min(retry_after, MAX_COOLDOWN_SECONDS)
+        else:
+            delay = DEFAULT_COOLDOWN_SECONDS
+        target = now + delay
+        # Bump the deadline forward if the new target is later
+        if target > self._cooldown_until:
+            self._cooldown_until = target
+            self._cooldown_print_id += 1
         self.num_rate_limit_errors += 1
 
     def task_succeeded(self, task_id):

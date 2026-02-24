@@ -22,7 +22,7 @@ from lm_deluge.util.schema import (
 from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
-from .base import APIRequestBase, APIResponse
+from .base import APIRequestBase, APIResponse, parse_retry_after
 
 
 def _add_beta(headers: dict, beta: str):
@@ -514,8 +514,9 @@ class AnthropicRequest(APIRequestBase):
                 "rate limit" in error_message.lower()
                 or "overloaded" in error_message.lower()
             ):
+                retry_after = parse_retry_after(http_response)
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.context.status_tracker.rate_limit_exceeded()
+                self.context.status_tracker.rate_limit_exceeded(retry_after)
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
