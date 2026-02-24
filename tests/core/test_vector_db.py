@@ -361,6 +361,18 @@ def test_insert_defensively_copies_vectors():
     assert rec.vector == [3.0, 4.0]
 
 
+def test_get_returns_defensive_copy():
+    """Mutating a vector returned by get() should not affect stored data."""
+    db = InProcessVectorDB(dimension=2)
+    db.insert([VectorDBRecord(id="a", text="t", vector=[3.0, 4.0])])
+    rec = db.get(["a"])[0]
+    assert rec is not None
+    rec.vector[0] = 999.0  # mutate the returned vector
+    rec2 = db.get(["a"])[0]
+    assert rec2 is not None
+    assert rec2.vector == [3.0, 4.0]
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for test in tests:

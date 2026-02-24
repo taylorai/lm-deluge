@@ -235,7 +235,7 @@ class InProcessVectorDB(VectorDBBackend):
                     VectorDBRecord(
                         id=self._ids[idx],
                         text=self._texts[idx],
-                        vector=self._raw_vectors[idx],
+                        vector=list(self._raw_vectors[idx]),
                         metadata=self._metadata[idx],
                     )
                 )
