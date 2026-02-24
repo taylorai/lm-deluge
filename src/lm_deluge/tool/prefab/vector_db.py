@@ -112,6 +112,7 @@ class InProcessVectorDB(VectorDBBackend):
         self._ids: list[str] = []
         self._texts: list[str] = []
         self._metadata: list[dict[str, Any]] = []
+        self._raw_vectors: list[list[float]] = []
         # Normalised vectors stored as rows in a contiguous matrix.
         # None when empty; rebuilt on insert.
         self._matrix: np.ndarray | None = None  # type: ignore
@@ -149,11 +150,13 @@ class InProcessVectorDB(VectorDBBackend):
         new_texts: list[str] = []
         new_meta: list[dict[str, Any]] = []
         raw_vectors: list[list[float]] = []
+        seen_in_batch: set[str] = set()
 
         for rec in records:
             rid = rec.id or str(uuid.uuid4())
-            if rid in self._id_to_idx:
+            if rid in self._id_to_idx or rid in seen_in_batch:
                 raise ValueError(f"Duplicate ID: {rid}")
+            seen_in_batch.add(rid)
 
             vec = rec.vector
             if self._dimension is None:
@@ -175,6 +178,7 @@ class InProcessVectorDB(VectorDBBackend):
         self._ids.extend(new_ids)
         self._texts.extend(new_texts)
         self._metadata.extend(new_meta)
+        self._raw_vectors.extend(raw_vectors)
         for i, rid in enumerate(new_ids):
             self._id_to_idx[rid] = base_idx + i
 
@@ -231,20 +235,18 @@ class InProcessVectorDB(VectorDBBackend):
                     VectorDBRecord(
                         id=self._ids[idx],
                         text=self._texts[idx],
-                        vector=self._matrix[idx].tolist()
-                        if self._matrix is not None
-                        else [],
+                        vector=self._raw_vectors[idx],
                         metadata=self._metadata[idx],
                     )
                 )
         return results
 
     def delete(self, ids: Sequence[str]) -> int:
-        indices_to_remove: list[int] = []
+        indices_to_remove: set[int] = set()
         for rid in ids:
             idx = self._id_to_idx.get(rid)
             if idx is not None:
-                indices_to_remove.append(idx)
+                indices_to_remove.add(idx)
 
         if not indices_to_remove:
             return 0
@@ -258,15 +260,18 @@ class InProcessVectorDB(VectorDBBackend):
         new_ids: list[str] = []
         new_texts: list[str] = []
         new_meta: list[dict[str, Any]] = []
+        new_raw: list[list[float]] = []
         for i, keep in enumerate(keep_mask):
             if keep:
                 new_ids.append(self._ids[i])
                 new_texts.append(self._texts[i])
                 new_meta.append(self._metadata[i])
+                new_raw.append(self._raw_vectors[i])
 
         self._ids = new_ids
         self._texts = new_texts
         self._metadata = new_meta
+        self._raw_vectors = new_raw
         self._id_to_idx = {rid: i for i, rid in enumerate(self._ids)}
 
         if self._matrix is not None:

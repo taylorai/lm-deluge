@@ -309,6 +309,47 @@ def test_manager_error_handling():
     assert result["ok"] is False
 
 
+def test_duplicate_id_within_batch():
+    """Duplicate IDs within the same insert batch should be rejected."""
+    db = InProcessVectorDB(dimension=2)
+    try:
+        db.insert(
+            [
+                VectorDBRecord(id="dup", text="first", vector=[1, 0]),
+                VectorDBRecord(id="dup", text="second", vector=[0, 1]),
+            ]
+        )
+        assert False, "Should have raised ValueError for intra-batch duplicate"
+    except ValueError as e:
+        assert "Duplicate" in str(e)
+    # DB should be unchanged
+    assert db.count() == 0
+
+
+def test_get_returns_original_vectors():
+    """get() should return the original vectors, not normalized ones."""
+    db = InProcessVectorDB(dimension=2)
+    original = [3.0, 4.0]
+    db.insert([VectorDBRecord(id="a", text="t", vector=original)])
+    rec = db.get(["a"])[0]
+    assert rec is not None
+    assert rec.vector == original
+
+
+def test_delete_duplicate_ids_correct_count():
+    """delete() with the same ID repeated should not over-count."""
+    db = InProcessVectorDB(dimension=2)
+    db.insert(
+        [
+            VectorDBRecord(id="a", text="t", vector=[1, 0]),
+            VectorDBRecord(id="b", text="t", vector=[0, 1]),
+        ]
+    )
+    removed = db.delete(["a", "a", "a"])
+    assert removed == 1
+    assert db.count() == 1
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     for test in tests:
