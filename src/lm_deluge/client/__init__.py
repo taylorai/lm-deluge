@@ -1171,6 +1171,12 @@ class _LLMClient(BaseModel):
         verbose: bool = False,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
+        # Default to caching the last 3 user messages so that multi-round
+        # loops on Anthropic (and other providers that support prompt caching)
+        # don't pay full price for repeated prefix tokens.
+        if cache is None:
+            cache = "last_3_user_messages"
+
         if self.use_responses_api:
             raise NotImplementedError(
                 "Agent loops are not available when use_responses_api=True. "
@@ -1195,6 +1201,16 @@ class _LLMClient(BaseModel):
         model_for_round: str | None = prefer_model
 
         for round_num in range(max_rounds):
+            # On the final round, inject a warning so the model knows it must
+            # return a text response and cannot call any more tools.
+            if round_num == max_rounds - 1 and round_num > 0:
+                conversation = conversation.with_message(
+                    Message.user(
+                        "[SYSTEM] This is your FINAL turn. You cannot call any more "
+                        "tools. You MUST provide your final text response now."
+                    )
+                )
+
             response = await self._start_once(
                 conversation,
                 tools=tools,

@@ -5,6 +5,18 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.123 · 2026-02-25
+
+- **Agent loop final-turn warning**: When `run_agent_loop` reaches its last round (`max_rounds`), a user message is now injected telling the model it must return a text response and cannot call any more tools. This prevents agents from wasting the final turn on tool calls that will never be executed, making `SubAgentManager` and agent loops in general more reliable.
+- **Agent loop default prompt caching**: `run_agent_loop` now defaults to `cache="last_3_user_messages"` when no cache pattern is specified. On Anthropic (and other providers that support prompt caching), this avoids paying full price for the growing conversation prefix on every round. On providers that don't support caching the parameter is silently ignored.
+
+## 0.0.122 · 2026-02-24
+
+- **New `VectorDBManager` prefab tool**: In-process vector database for agents, backed by numpy with brute-force cosine similarity search. Exposes `insert`, `search`, `get`, `delete`, `count`, and `list` commands. Supports a pluggable `VectorDBBackend` ABC so you can swap in heavier stores (USearch, turbopuffer, etc.) without changing tool wiring. Ships with `InProcessVectorDB` for small-to-medium collections (~100k vectors). Available via the new `vector_db` optional extra (`pip install lm_deluge[vector_db]`).
+- **Retry-After header support for rate limiting**: All providers (Anthropic, OpenAI, Gemini, Bedrock, Bedrock Nova, Mistral) now parse `retry-after` and `retry-after-ms` response headers on 429s and use the server-suggested cooldown duration instead of a fixed pause. Capped at `MAX_COOLDOWN_SECONDS` for safety.
+- **Improved cooldown logging**: Rate-limit pause messages now print once per cooldown event (not once per waiting task) and show the actual pause duration, reducing log noise during heavy parallel runs.
+- **Relaxed `markdownify-rs` version**: Changed from pinned `==0.1.1` to `>=0.1.1`.
+
 ## 0.0.120 · 2026-02-20
 
 - **New `SqliteManager` prefab tool**: Schema-first SQLite tool for agents — supports `list_tables`, `describe_table`, and `query` commands with progressive disclosure. Build a DB from a list-of-dicts via `SqliteManager.from_dicts()` (auto-infers column types including JSON columns) or point at an existing `.db` file. Supports read-only mode, parameterized queries, multiple output formats (JSON, YAML, CSV, TSV), row-count truncation, and sample rows. See [Tool Use](/features/tools/) for usage.
