@@ -28,6 +28,7 @@ CachePattern = Literal[
     "last_user_message",
     "last_2_user_messages",
     "last_3_user_messages",
+    "automatic",
 ]
 Role = Literal["system", "user", "assistant", "tool"]
 Part = Text | Image | File | ToolCall | ToolResult | Thinking
