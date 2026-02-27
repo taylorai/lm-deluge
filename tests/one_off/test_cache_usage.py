@@ -1,4 +1,4 @@
-"""Quick check that the agent loop default cache pattern produces
+"""Quick check that an explicit agent-loop cache pattern produces
 cached_input_tokens on Anthropic models.
 
 Haiku 4.5 requires 4096 tokens minimum for a cache breakpoint, so we
@@ -55,6 +55,7 @@ async def main():
         conv,
         tools=[hash_tool],
         max_rounds=6,
+        cache="last_3_user_messages",
         on_round_complete=on_round,
     )
     print("Final completion:", resp.completion[:200] if resp.completion else "None")

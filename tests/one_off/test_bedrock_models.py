@@ -1,4 +1,9 @@
-"""Test bedrock model configuration and basic functionality."""
+"""Test bedrock model configuration and basic functionality.
+
+TODO: This file still references deprecated model IDs
+(`claude-3.7-sonnet-bedrock`, `claude-4-opus-bedrock`) and should be
+updated to supported Bedrock registry entries.
+"""
 
 import sys
 import os

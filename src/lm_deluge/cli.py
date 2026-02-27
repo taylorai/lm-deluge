@@ -321,11 +321,28 @@ def cmd_agent(args: argparse.Namespace) -> int:
                             await sandbox.__aenter__()
                             prefab_tools = sandbox.get_tools()
                         elif system == "Linux":
-                            from .tool.prefab.sandbox import PybubbleSandbox
+                            pybubble_error: Exception | None = None
+                            try:
+                                from .tool.prefab.sandbox import PybubbleSandbox
 
-                            sandbox = PybubbleSandbox()
-                            await sandbox.__aenter__()
-                            prefab_tools = sandbox.get_tools()
+                                sandbox = PybubbleSandbox()
+                                await sandbox.__aenter__()
+                                prefab_tools = sandbox.get_tools()
+                            except (ImportError, RuntimeError) as e:
+                                pybubble_error = e
+                                try:
+                                    from .tool.prefab.sandbox import DockerSandbox
+
+                                    sandbox = DockerSandbox()
+                                    await sandbox.__aenter__()
+                                    prefab_tools = sandbox.get_tools()
+                                except Exception as docker_error:
+                                    raise RuntimeError(
+                                        "Linux sandbox prefab requires either a working "
+                                        "Pybubble setup or Docker. "
+                                        f"Pybubble error: {pybubble_error}. "
+                                        f"Docker error: {docker_error}."
+                                    ) from docker_error
                         else:
                             from .tool.prefab.sandbox import DockerSandbox
 

@@ -319,6 +319,8 @@ class BedrockNovaRequest(APIRequestBase):
             ):
                 mark_bedrock_region_unsupported(self.model, self.region)
                 give_up_if_no_other_models = False
+                # TODO: If all regions are now unavailable, prefer model fallback
+                # instead of forcing same-model retries.
                 retry_with_different_model = False
                 error_message += " (Source region unavailable for this profile; retrying another configured Bedrock source region.)"
 

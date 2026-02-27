@@ -103,6 +103,7 @@ class PybubbleSandbox:
                 services (only when network access is enabled).
             fallback_to_host_network: If True, retries with host-network sharing
                 when pybubble network namespace setup fails in restricted runtimes.
+                This fallback only activates when allow_host_loopback=True.
         """
         # Initialize state early so failed constructor paths are safe for __del__.
         self._sandbox_cls: Any | None = None
@@ -240,6 +241,9 @@ class PybubbleSandbox:
     def _should_fallback_to_host_network(self, error: RuntimeError) -> bool:
         """Return True when we should retry using host-network fallback."""
         if not self.fallback_to_host_network:
+            return False
+        # Host-network fallback can expose host loopback. Keep it opt-in.
+        if not self.allow_host_loopback:
             return False
         if not (self.network_access or self.outbound_access):
             return False

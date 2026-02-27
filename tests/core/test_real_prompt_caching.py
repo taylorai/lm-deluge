@@ -332,6 +332,8 @@ async def test_real_caching_bedrock_integration():
     print("🧪 Running real Bedrock Anthropic caching integration test...")
 
     # Create client with Bedrock model
+    # TODO: claude-3.7-sonnet-bedrock is deprecated in the current registry.
+    # Update to a supported Bedrock model ID.
     client = LLMClient("claude-3.7-sonnet-bedrock")
 
     # Create long system message and tools to ensure we hit 1024+ tokens

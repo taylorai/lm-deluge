@@ -364,3 +364,12 @@ BEDROCK_MODELS = {
         "supports_images": True,
     },
 }
+
+# | Model | Source regions in lm-deluge | RPM / source region | TPM / source region | Approx sprayed RPM | Approx sprayed TPM |
+# |---|---:|---:|---:|---:|---:|
+# | claude-4-sonnet-bedrock-global | 5 | 200 | 200,000 | 1,000 | 1,000,000 |
+# | claude-4.5-haiku-bedrock-global | 27 | 1,000 | 5,000,000 | 27,000 | 135,000,000 |
+# | claude-4.5-sonnet-bedrock-global | 27 | 1,000 | 5,000,000 | 27,000 | 135,000,000 |
+# | claude-4.5-opus-bedrock-global | 27 | 500 | 2,000,000 | 13,500 | 54,000,000 |
+# | claude-4.6-opus-bedrock-global | 32 | 500 | 2,000,000 | 16,000 | 64,000,000 |
+# | claude-4.6-sonnet-bedrock-global | 32 | 10,000 | 5,000,000 | 320,000 | 160,000,000 |

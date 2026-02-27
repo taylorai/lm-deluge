@@ -8,12 +8,11 @@ LM Deluge iterates quickly. This page calls out the highlights from the most rec
 ## 0.0.124 · 2026-02-26
 
 - **Automatic prompt caching**: New `cache="automatic"` pattern that sets the top-level `cache_control` flag on Anthropic requests, letting the provider decide what to cache instead of manually specifying cache breakpoints. Supported in `LLMClient`, `run_agent_loop`, and the proxy server (`DELUGE_CACHE_PATTERN=automatic`). Bedrock does not support this mode and will emit a warning and fall back to no caching if `automatic` is requested.
-- **PybubbleSandbox**: New Linux sandbox backed by [pybubble](https://github.com/nichochar/pybubble) (bubblewrap). Provides filesystem and process isolation without Docker — just needs `bwrap` installed. Supports configurable network access (`network_access`, `outbound_access`, `allow_host_loopback`), automatic fallback to host-network sharing in restricted runtimes (e.g. Modal), background process tracking, and the same `bash` / `list_processes` tool interface as other sandboxes. Requires the `pybubble` dependency and Linux. See [Tool Use](/features/tools/) for usage.
+- **PybubbleSandbox**: New Linux sandbox backed by [pybubble](https://github.com/nichochar/pybubble) (bubblewrap). Provides filesystem and process isolation without Docker — just needs `bwrap` installed. Supports configurable network access (`network_access`, `outbound_access`, `allow_host_loopback`), optional fallback to host-network sharing in restricted runtimes (requires `allow_host_loopback=True`), background process tracking, and the same `bash` / `list_processes` tool interface as other sandboxes. Requires the `pybubble` dependency and Linux. See [Tool Use](/features/tools/) for usage.
 
 ## 0.0.123 · 2026-02-25
 
 - **Agent loop final-turn warning**: When `run_agent_loop` reaches its last round (`max_rounds`), a user message is now injected telling the model it must return a text response and cannot call any more tools. This prevents agents from wasting the final turn on tool calls that will never be executed, making `SubAgentManager` and agent loops in general more reliable.
-- **Agent loop default prompt caching**: `run_agent_loop` now defaults to `cache="last_3_user_messages"` when no cache pattern is specified. On Anthropic (and other providers that support prompt caching), this avoids paying full price for the growing conversation prefix on every round. On providers that don't support caching the parameter is silently ignored.
 
 ## 0.0.122 · 2026-02-24
 

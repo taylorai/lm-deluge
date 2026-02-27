@@ -103,7 +103,17 @@ def test_network_namespace_fallback_detection():
                 side_effect=_which_present,
             ):
                 sandbox = PybubbleSandbox(network_access=True)
-                assert sandbox._should_fallback_to_host_network(
+                assert not sandbox._should_fallback_to_host_network(
+                    RuntimeError(
+                        "Network namespace watchdog exited before becoming ready."
+                    )
+                )
+
+                sandbox_with_loopback = PybubbleSandbox(
+                    network_access=True,
+                    allow_host_loopback=True,
+                )
+                assert sandbox_with_loopback._should_fallback_to_host_network(
                     RuntimeError(
                         "Network namespace watchdog exited before becoming ready."
                     )

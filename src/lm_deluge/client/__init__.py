@@ -1171,12 +1171,6 @@ class _LLMClient(BaseModel):
         verbose: bool = False,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
-        # Default to caching the last 3 user messages so that multi-round
-        # loops on Anthropic (and other providers that support prompt caching)
-        # don't pay full price for repeated prefix tokens.
-        if cache is None:
-            cache = "last_3_user_messages"
-
         if self.use_responses_api:
             raise NotImplementedError(
                 "Agent loops are not available when use_responses_api=True. "

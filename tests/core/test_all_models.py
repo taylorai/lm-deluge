@@ -23,6 +23,8 @@ models_to_test = [
     "claude-4-opus",
     # anthropic bedrock
     "claude-4-sonnet-bedrock",
+    # TODO: claude-4-opus-bedrock is deprecated in the current registry.
+    # Update to a supported Bedrock model ID.
     "claude-4-opus-bedrock",
     # openai
     "gpt-5",

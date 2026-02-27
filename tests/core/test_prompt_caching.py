@@ -194,6 +194,8 @@ async def test_bedrock_caching():
         max_concurrent_requests=5,
     )
 
+    # TODO: claude-3.5-sonnet-bedrock is deprecated in the current registry.
+    # Update this coverage to a supported Bedrock model ID.
     # Test system_and_tools caching
     context1 = RequestContext(
         task_id=1,
@@ -338,21 +340,21 @@ async def test_automatic_cache_top_level_flag():
     await request.build_request()
 
     # Top-level cache_control should be present
-    assert "cache_control" in request.request_json, (
-        "Automatic caching should add top-level cache_control"
-    )
-    assert request.request_json["cache_control"] == {"type": "ephemeral"}, (
-        "Top-level cache_control should be {'type': 'ephemeral'}"
-    )
+    assert (
+        "cache_control" in request.request_json
+    ), "Automatic caching should add top-level cache_control"
+    assert request.request_json["cache_control"] == {
+        "type": "ephemeral"
+    }, "Top-level cache_control should be {'type': 'ephemeral'}"
 
     # No block-level cache_control on messages
     for msg in request.request_json["messages"]:
         content = msg["content"]
         if isinstance(content, list):
             for block in content:
-                assert "cache_control" not in block, (
-                    "Automatic caching should not add block-level cache_control"
-                )
+                assert (
+                    "cache_control" not in block
+                ), "Automatic caching should not add block-level cache_control"
 
 
 async def test_automatic_cache_with_tools():
@@ -391,17 +393,17 @@ async def test_automatic_cache_with_tools():
     await request.build_request()
 
     # Top-level cache_control should be present
-    assert "cache_control" in request.request_json, (
-        "Automatic caching should add top-level cache_control"
-    )
+    assert (
+        "cache_control" in request.request_json
+    ), "Automatic caching should add top-level cache_control"
     assert request.request_json["cache_control"] == {"type": "ephemeral"}
 
     # Tools should NOT have block-level cache_control
     tools = request.request_json.get("tools", [])
     for t in tools:
-        assert "cache_control" not in t, (
-            "Automatic caching should not add cache_control to individual tools"
-        )
+        assert (
+            "cache_control" not in t
+        ), "Automatic caching should not add cache_control to individual tools"
 
 
 if __name__ == "__main__":

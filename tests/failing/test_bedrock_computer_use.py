@@ -2,6 +2,11 @@
 
 """
 Test Bedrock Computer Use functionality.
+
+TODO: This file still references deprecated model IDs
+(`claude-3.6-sonnet-bedrock`, `claude-3.7-sonnet-bedrock`,
+`claude-4-opus-bedrock`) and should be updated to supported Bedrock
+registry entries.
 """
 
 import asyncio

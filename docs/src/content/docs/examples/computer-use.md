@@ -53,6 +53,8 @@ asyncio.run(computer_use_example())
 
 ### AWS Bedrock
 
+> TODO: `claude-3.7-sonnet-bedrock` is deprecated in the current registry. Update this example to a supported Bedrock model ID.
+
 ```python
 import asyncio
 import os

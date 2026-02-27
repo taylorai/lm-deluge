@@ -464,7 +464,7 @@ Tips:
 - `PybubbleSandbox` is Linux-only and requires `bwrap` on PATH.
 - `network_access=True` enables sandbox networking; outbound internet (for `curl`, `wget`, etc.) is controlled by `outbound_access` (defaults to `network_access`).
 - For outbound internet access, install `slirp4netns` and keep `outbound_access=True`.
-- In restricted runtimes that block network namespaces, `PybubbleSandbox` falls back to host-network sharing when `fallback_to_host_network=True` (default).
+- In restricted runtimes that block network namespaces, `PybubbleSandbox` can fall back to host-network sharing only when both `fallback_to_host_network=True` and `allow_host_loopback=True`.
 - Root filesystem is read-only by default (no overlay filesystem required).
 
 ## Delegating Work with Subagents

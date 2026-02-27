@@ -3,14 +3,75 @@ Integration tests for the proxy server using FastAPI TestClient.
 """
 
 import os
+from typing import Any
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+
+from lm_deluge.api_requests.anthropic import AnthropicRequest
+from lm_deluge.api_requests.response import APIResponse
+from lm_deluge.prompt import Message
+from lm_deluge.server import create_app
+
+
+def _capture_anthropic_provider_request(cache_pattern: str) -> dict[str, Any]:
+    """Capture provider-bound request JSON for Anthropic endpoint e2e assertions."""
+    captured_request_json: dict[str, Any] = {}
+
+    async def _fake_execute_once(self: AnthropicRequest) -> APIResponse:
+        await self.build_request()
+        assert isinstance(self.request_json, dict)
+        captured_request_json.update(self.request_json)
+        return APIResponse(
+            id=self.context.task_id,
+            model_internal=self.context.model_name,
+            prompt=self.context.prompt,
+            sampling_params=self.context.sampling_params,
+            status_code=200,
+            is_error=False,
+            error_message=None,
+            content=Message.ai("ok"),
+            finish_reason="end_turn",
+        )
+
+    os.environ["DELUGE_CACHE_PATTERN"] = cache_pattern
+    os.environ.pop("DELUGE_PROXY_API_KEY", None)
+
+    try:
+        app = create_app()
+        client = TestClient(app)
+        with patch.object(AnthropicRequest, "execute_once", _fake_execute_once):
+            response = client.post(
+                "/v1/messages",
+                json={
+                    "model": "claude-4-sonnet",
+                    "max_tokens": 128,
+                    "messages": [{"role": "user", "content": "Return a short reply."}],
+                    "tools": [
+                        {
+                            "name": "echo_text",
+                            "description": "Echo user text.",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "text": {"type": "string"},
+                                },
+                                "required": ["text"],
+                            },
+                        }
+                    ],
+                },
+            )
+        assert response.status_code == 200, response.text
+    finally:
+        os.environ.pop("DELUGE_CACHE_PATTERN", None)
+
+    assert captured_request_json, "Expected to capture provider request JSON"
+    return captured_request_json
 
 
 def test_health_endpoint():
     """Test health check endpoint."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     app = create_app()
     client = TestClient(app)
 
@@ -22,10 +83,6 @@ def test_health_endpoint():
 
 def test_models_endpoint():
     """Test /v1/models endpoint."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     app = create_app()
     client = TestClient(app)
 
@@ -53,10 +110,6 @@ def test_models_endpoint():
 
 def test_auth_when_disabled():
     """Test that auth is not required when DELUGE_PROXY_API_KEY is not set."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     # Ensure no API key is set
     os.environ.pop("DELUGE_PROXY_API_KEY", None)
 
@@ -71,10 +124,6 @@ def test_auth_when_disabled():
 
 def test_auth_when_enabled():
     """Test that auth is required when DELUGE_PROXY_API_KEY is set."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     # Set API key
     os.environ["DELUGE_PROXY_API_KEY"] = "test-secret-key"
 
@@ -107,10 +156,6 @@ def test_auth_when_enabled():
 
 def test_anthropic_auth_header():
     """Test Anthropic-style x-api-key header."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     os.environ["DELUGE_PROXY_API_KEY"] = "test-secret-key"
 
     try:
@@ -154,10 +199,6 @@ def test_anthropic_auth_header():
 
 def test_streaming_rejected():
     """Test that streaming requests are rejected."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     os.environ.pop("DELUGE_PROXY_API_KEY", None)
 
     app = create_app()
@@ -193,10 +234,6 @@ def test_streaming_rejected():
 
 def test_invalid_model():
     """Test that invalid model names are rejected."""
-    from fastapi.testclient import TestClient
-
-    from lm_deluge.server import create_app
-
     os.environ.pop("DELUGE_PROXY_API_KEY", None)
 
     app = create_app()
@@ -261,6 +298,28 @@ def test_cache_pattern_env_var():
     os.environ.pop("DELUGE_CACHE_PATTERN", None)
 
 
+def test_anthropic_automatic_cache_control_e2e():
+    """Test DELUGE_CACHE_PATTERN=automatic reaches provider payload e2e."""
+    request_json = _capture_anthropic_provider_request("automatic")
+
+    assert request_json.get("cache_control") == {"type": "ephemeral"}
+    print("Anthropic e2e automatic cache_control: OK")
+
+    tools = request_json.get("tools")
+    assert isinstance(tools, list) and tools, "Expected tools in request JSON"
+    assert (
+        "cache_control" not in tools[-1]
+    ), "automatic cache mode should not add block-level tool cache markers"
+    print("Anthropic e2e automatic tool cache markers: OK")
+
+
+def test_anthropic_none_cache_control_e2e():
+    """Test DELUGE_CACHE_PATTERN=none omits top-level cache_control e2e."""
+    request_json = _capture_anthropic_provider_request("none")
+    assert "cache_control" not in request_json
+    print("Anthropic e2e none cache_control omission: OK")
+
+
 if __name__ == "__main__":
     test_health_endpoint()
     test_models_endpoint()
@@ -270,4 +329,6 @@ if __name__ == "__main__":
     test_streaming_rejected()
     test_invalid_model()
     test_cache_pattern_env_var()
+    test_anthropic_automatic_cache_control_e2e()
+    test_anthropic_none_cache_control_e2e()
     print("\nAll integration tests passed!")
