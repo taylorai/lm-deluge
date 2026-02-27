@@ -240,6 +240,7 @@ def test_cache_pattern_env_var():
         "last_user_message",
         "last_2_user_messages",
         "last_3_user_messages",
+        "automatic",
     ]
     for pattern in valid_patterns:
         os.environ["DELUGE_CACHE_PATTERN"] = pattern

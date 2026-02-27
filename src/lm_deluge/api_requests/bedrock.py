@@ -44,6 +44,14 @@ async def _build_anthropic_bedrock_request(
     cache_pattern = context.cache
     tools = context.tools
     sampling_params = context.sampling_params
+    if cache_pattern == "automatic":
+        maybe_warn(
+            "WARN_CACHING_UNSUPPORTED",
+            cache_param="automatic",
+            model_name=model.name,
+        )
+        cache_pattern = None
+
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
 
     # handle AWS auth

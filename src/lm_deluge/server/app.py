@@ -54,6 +54,7 @@ _VALID_CACHE_PATTERNS = {
     "last_user_message",
     "last_2_user_messages",
     "last_3_user_messages",
+    "automatic",
 }
 
 _TRUTHY_VALUES = {"1", "true", "yes", "on"}
@@ -70,6 +71,7 @@ def get_cache_pattern() -> CachePattern | None:
         - last_user_message → cache last user message
         - last_2_user_messages → cache last 2 user messages
         - last_3_user_messages → cache last 3 user messages
+        - automatic → let the provider decide what to cache
     """
     pattern = os.getenv("DELUGE_CACHE_PATTERN", "").lower().strip()
     if not pattern or pattern == "none":
