@@ -16,6 +16,14 @@ from lm_deluge.usage import Usage
 
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse, parse_retry_after
+from .bedrock_regions import (
+    bedrock_region_count,
+    has_available_bedrock_source_regions,
+    is_probably_region_scoped_bedrock_error,
+    mark_bedrock_region_rate_limited,
+    mark_bedrock_region_unsupported,
+    pick_bedrock_source_region,
+)
 
 
 def _convert_tool_to_nova(tool: Tool) -> dict:
@@ -55,8 +63,8 @@ async def _build_nova_request(
             "AWS credentials not found. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
         )
 
-    # Use us-west-2 for cross-region inference models
-    region = "us-west-2"
+    # Cross-region inference quotas are keyed to the request source region.
+    region = pick_bedrock_source_region(model)
 
     # Construct the endpoint URL
     service = "bedrock"
@@ -284,18 +292,39 @@ class BedrockNovaRequest(APIRequestBase):
         # Auth errors (401, 403) and model not found (404) are unrecoverable - blocklist this model
         give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:
+            retry_with_different_model = True
+            lower_error = error_message.lower()
             if (
-                "rate limit" in error_message.lower()
-                or "throttling" in error_message.lower()
+                "rate limit" in lower_error
+                or "throttling" in lower_error
                 or status_code == 429
             ):
                 retry_after = parse_retry_after(http_response)
                 error_message += " (Rate limit error, triggering cooldown.)"
-                self.context.status_tracker.rate_limit_exceeded(retry_after)
-            if "context length" in error_message or "too long" in error_message:
+                if self.region is not None:
+                    mark_bedrock_region_rate_limited(
+                        self.model, self.region, retry_after
+                    )
+
+                if has_available_bedrock_source_regions(self.model):
+                    retry_with_different_model = False
+                else:
+                    self.context.status_tracker.rate_limit_exceeded(retry_after)
+
+            if (
+                status_code in [400, 403, 404]
+                and self.region is not None
+                and bedrock_region_count(self.model) > 1
+                and is_probably_region_scoped_bedrock_error(error_message)
+            ):
+                mark_bedrock_region_unsupported(self.model, self.region)
+                give_up_if_no_other_models = False
+                retry_with_different_model = False
+                error_message += " (Source region unavailable for this profile; retrying another configured Bedrock source region.)"
+
+            if "context length" in lower_error or "too long" in lower_error:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
-            retry_with_different_model = True
 
         return APIResponse(
             id=self.context.task_id,
