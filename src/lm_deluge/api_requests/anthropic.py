@@ -323,6 +323,10 @@ def _build_anthropic_request(
                 {"type": "code_execution_20250825", "name": "code_execution"}
             )
 
+    # Automatic prompt caching: add top-level cache_control flag
+    if cache_pattern == "automatic":
+        request_json["cache_control"] = {"type": "ephemeral"}
+
     # Provider-specific passthrough params (e.g., inference_geo).
     if context.extra_body:
         passthrough = dict(context.extra_body)

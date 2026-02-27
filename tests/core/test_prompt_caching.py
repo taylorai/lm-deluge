@@ -276,6 +276,134 @@ def test_no_cache_control_without_cache():
                 ), "Should not have cache control without caching"
 
 
+def test_automatic_cache_no_block_level_markers():
+    """Test that automatic caching does not inject block-level cache_control markers."""
+    conv = (
+        Conversation()
+        .system("You are a helpful assistant.")
+        .add(Message.user("Hello, how are you?"))
+        .add(Message.ai("I'm doing well, thank you!"))
+        .add(Message.user("What's the weather like?"))
+    )
+
+    system_msg, messages = conv.to_anthropic(cache_pattern="automatic")
+
+    # System should remain as plain string (no block-level cache_control)
+    assert isinstance(
+        system_msg, str
+    ), "System should remain as string with automatic caching"
+
+    # No messages should have cache_control markers
+    for msg in messages:
+        content = msg["content"]
+        if isinstance(content, list):
+            for block in content:
+                assert (
+                    "cache_control" not in block
+                ), "Automatic caching should not add block-level cache_control"
+
+
+async def test_automatic_cache_top_level_flag():
+    """Test that automatic caching adds top-level cache_control to the request JSON."""
+    from lm_deluge.api_requests.anthropic import AnthropicRequest
+    from lm_deluge.tracker import StatusTracker
+
+    conv = (
+        Conversation()
+        .system("You are a helpful assistant.")
+        .add(Message.user("Hello, how are you?"))
+        .add(Message.ai("I'm doing well, thank you!"))
+        .add(Message.user("What's the weather like?"))
+    )
+
+    status_tracker = StatusTracker(
+        max_requests_per_minute=10,
+        max_tokens_per_minute=10_000,
+        max_concurrent_requests=5,
+    )
+
+    request = AnthropicRequest(
+        RequestContext(
+            task_id=1,
+            model_name="claude-4-sonnet",
+            sampling_params=SamplingParams(),
+            prompt=conv,
+            attempts_left=1,
+            status_tracker=status_tracker,
+            results_arr=[],
+            cache="automatic",
+        )
+    )
+
+    await request.build_request()
+
+    # Top-level cache_control should be present
+    assert "cache_control" in request.request_json, (
+        "Automatic caching should add top-level cache_control"
+    )
+    assert request.request_json["cache_control"] == {"type": "ephemeral"}, (
+        "Top-level cache_control should be {'type': 'ephemeral'}"
+    )
+
+    # No block-level cache_control on messages
+    for msg in request.request_json["messages"]:
+        content = msg["content"]
+        if isinstance(content, list):
+            for block in content:
+                assert "cache_control" not in block, (
+                    "Automatic caching should not add block-level cache_control"
+                )
+
+
+async def test_automatic_cache_with_tools():
+    """Test automatic caching with tools - no block-level markers on tools either."""
+    from lm_deluge.api_requests.anthropic import AnthropicRequest
+    from lm_deluge.tracker import StatusTracker
+
+    conv = Conversation().user("What's the weather?")
+
+    def test_function(arg: str) -> str:
+        """A test function."""
+        return f"Result: {arg}"
+
+    tool = Tool.from_function(test_function)
+
+    status_tracker = StatusTracker(
+        max_requests_per_minute=10,
+        max_tokens_per_minute=10_000,
+        max_concurrent_requests=5,
+    )
+
+    request = AnthropicRequest(
+        RequestContext(
+            task_id=1,
+            model_name="claude-4-sonnet",
+            sampling_params=SamplingParams(),
+            prompt=conv,
+            attempts_left=1,
+            status_tracker=status_tracker,
+            results_arr=[],
+            tools=[tool],
+            cache="automatic",
+        )
+    )
+
+    await request.build_request()
+
+    # Top-level cache_control should be present
+    assert "cache_control" in request.request_json, (
+        "Automatic caching should add top-level cache_control"
+    )
+    assert request.request_json["cache_control"] == {"type": "ephemeral"}
+
+    # Tools should NOT have block-level cache_control
+    tools = request.request_json.get("tools", [])
+    for t in tools:
+        assert "cache_control" not in t, (
+            "Automatic caching should not add cache_control to individual tools"
+        )
+
+
 if __name__ == "__main__":
     test_cache_patterns()
     asyncio.run(test_tools_only_caching())
@@ -284,4 +412,7 @@ if __name__ == "__main__":
     asyncio.run(test_bedrock_caching())
     test_image_locking()
     test_no_cache_control_without_cache()
+    test_automatic_cache_no_block_level_markers()
+    asyncio.run(test_automatic_cache_top_level_flag())
+    asyncio.run(test_automatic_cache_with_tools())
     print("✅ All prompt caching tests passed!")
