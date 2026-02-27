@@ -18,6 +18,7 @@ from .fireworks import FIREWORKS_MODELS
 from .google import GOOGLE_MODELS
 from .grok import XAI_MODELS
 from .groq import GROQ_MODELS
+from .inception import INCEPTION_MODELS
 from .kimi import KIMI_MODELS
 from .meta import META_MODELS
 from .minimax import MINIMAX_MODELS
@@ -179,6 +180,7 @@ _PROVIDER_MODELS = [
     (OPENROUTER_MODELS, "openrouter"),
     (TOGETHER_MODELS, "together"),
     (GROQ_MODELS, "groq"),
+    (INCEPTION_MODELS, "inception"),
     (CEREBRAS_MODELS, "cerebras"),
 ]
 

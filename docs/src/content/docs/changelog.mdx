@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.126 · 2026-02-27
+
+- **Inception (Mercury 2) support**: Added `mercury-2` model from Inception Labs — a fast diffusion-based LLM with 128K context. Uses the OpenAI-compatible endpoint at `api.inceptionlabs.ai`. Supports tool calling, structured outputs, and `reasoning_effort` with Mercury-specific mapping (`"none"` / `"minimal"` → `"instant"` mode for near-zero-latency responses). Requires `INCEPTION_API_KEY` env var.
+
 ## 0.0.125 · 2026-02-27
 
 - **Bedrock Updates**: Anthropic Bedrock provider deprecated older models that aren't supported, added more US regions for US cross-region inference, and added support for Global cross-region inference via '-global' models that work across many regions for Claude 4 onwards. This allows much higher TPM/RPM compared to previous setup (only using us-west). Global is opt-in by choosing '-global'-suffixed models. Make sure to enable all regions in your AWS account to avoid errors with disabled regions.

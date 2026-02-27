@@ -91,10 +91,16 @@ async def _build_oa_chat_request(
             # Disable reasoning for Gemini models when no effort requested
             if "gemini" in model.id:
                 effort = "none"
+            # Mercury models use "instant" for no/minimal reasoning
+            elif "mercury" in model.id:
+                effort = "instant"
             else:
                 effort = "low"
+        # Mercury models use "instant" instead of "minimal"
+        if effort == "minimal" and "mercury" in model.id:
+            effort = "instant"
         # GPT-5.1 models don't support 'minimal', they support 'none' instead
-        if effort == "minimal" and "gpt-5.1" in model.id:
+        elif effort == "minimal" and "gpt-5.1" in model.id:
             maybe_warn("WARN_MINIMAL_TO_NONE", model_name=context.model_name)
             effort = "none"
         elif effort == "minimal" and "gpt-5" not in model.id:
