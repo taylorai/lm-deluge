@@ -313,10 +313,17 @@ def cmd_agent(args: argparse.Namespace) -> int:
                     elif name == "sandbox":
                         import platform
 
-                        if platform.system() == "Darwin":
+                        system = platform.system()
+                        if system == "Darwin":
                             from .tool.prefab.sandbox import SeatbeltSandbox
 
                             sandbox = SeatbeltSandbox()
+                            await sandbox.__aenter__()
+                            prefab_tools = sandbox.get_tools()
+                        elif system == "Linux":
+                            from .tool.prefab.sandbox import PybubbleSandbox
+
+                            sandbox = PybubbleSandbox()
                             await sandbox.__aenter__()
                             prefab_tools = sandbox.get_tools()
                         else:
@@ -336,7 +343,7 @@ def cmd_agent(args: argparse.Namespace) -> int:
                     tools.extend(prefab_tools)
                     for t in prefab_tools:
                         tool_map[t.name] = t
-                except ImportError as e:
+                except (ImportError, RuntimeError) as e:
                     _print_json(
                         {
                             "type": "error",

@@ -439,6 +439,34 @@ Tips:
 - For long-lived servers in Modal, call `bash(..., wait=False)`; there is no timeout in that mode, and `list_processes` lets you check whether background commands are still running.
 - Call `get_url` (Modal) or `get_preview_link` (Daytona) to expose a port if you allow networking; skip these when you keep sandboxes air-gapped.
 
+## Local Linux Sandbox (Pybubble)
+
+`PybubbleSandbox` runs commands in a lightweight Linux sandbox backed by bubblewrap (`bwrap`), without Docker. It exposes the same `bash` + `list_processes` tool pattern as other local sandboxes.
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.tool.prefab.sandbox import PybubbleSandbox
+
+async def main():
+    async with PybubbleSandbox(network_access=False) as sandbox:
+        tools = sandbox.get_tools()
+        client = LLMClient("gpt-4.1-mini")
+        conv = Conversation().user("Use bash to run `echo hello` and report output.")
+        _, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=4)
+        print(resp.completion)
+
+asyncio.run(main())
+```
+
+Tips:
+
+- `PybubbleSandbox` is Linux-only and requires `bwrap` on PATH.
+- `network_access=True` enables sandbox networking; outbound internet (for `curl`, `wget`, etc.) is controlled by `outbound_access` (defaults to `network_access`).
+- For outbound internet access, install `slirp4netns` and keep `outbound_access=True`.
+- In restricted runtimes that block network namespaces, `PybubbleSandbox` falls back to host-network sharing when `fallback_to_host_network=True` (default).
+- Root filesystem is read-only by default (no overlay filesystem required).
+
 ## Delegating Work with Subagents
 
 `SubAgentManager` lets the main model spin up dedicated subagents (often on cheaper models) via three tools: `start_subagent`, `check_subagent`, and `wait_for_subagent`. Each subagent runs its own agent loop and can use its own tool belt.

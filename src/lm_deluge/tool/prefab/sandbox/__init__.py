@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .docker_sandbox import DockerSandbox as DockerSandbox
     from .fargate_sandbox import FargateSandbox as FargateSandbox
     from .modal_sandbox import ModalSandbox as ModalSandbox
+    from .pybubble_sandbox import PybubbleSandbox as PybubbleSandbox
     from .seatbelt_sandbox import SandboxMode as SandboxMode
     from .seatbelt_sandbox import SeatbeltSandbox as SeatbeltSandbox
 
@@ -24,6 +25,10 @@ __all__ = [
     "FargateSandbox",
     "ModalSandbox",
 ]
+
+# PybubbleSandbox is Linux only
+if sys.platform == "linux":
+    __all__.append("PybubbleSandbox")
 
 # SeatbeltSandbox is macOS only
 if sys.platform == "darwin":
@@ -35,6 +40,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DockerSandbox": (".docker_sandbox", "DockerSandbox"),
     "FargateSandbox": (".fargate_sandbox", "FargateSandbox"),
     "ModalSandbox": (".modal_sandbox", "ModalSandbox"),
+    "PybubbleSandbox": (".pybubble_sandbox", "PybubbleSandbox"),
     "SandboxMode": (".seatbelt_sandbox", "SandboxMode"),
     "SeatbeltSandbox": (".seatbelt_sandbox", "SeatbeltSandbox"),
 }
@@ -43,6 +49,12 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
 def __getattr__(name: str):
     """Lazy import handler for sandbox tools."""
     if name in _LAZY_IMPORTS:
+        # PybubbleSandbox only on Linux
+        if name == "PybubbleSandbox" and sys.platform != "linux":
+            raise AttributeError(
+                f"{name} is only available on Linux (current platform: {sys.platform})"
+            )
+
         # SeatbeltSandbox only on macOS
         if name in ("SandboxMode", "SeatbeltSandbox") and sys.platform != "darwin":
             raise AttributeError(

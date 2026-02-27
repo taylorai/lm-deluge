@@ -7,6 +7,7 @@ Import specific tools directly:
     from lm_deluge.tool.prefab.full_text_search import FullTextSearchManager
 """
 
+import sys
 from typing import TYPE_CHECKING
 
 # For type checkers, import everything so autocompletion works
@@ -26,7 +27,13 @@ if TYPE_CHECKING:
     from .otc import ToolComposer
     from .random import RandomTools
     from .rlm import RLMManager, RLMPipeline, RLMResult
-    from .sandbox import DaytonaSandbox, DockerSandbox, FargateSandbox, ModalSandbox
+    from .sandbox import (
+        DaytonaSandbox,
+        DockerSandbox,
+        FargateSandbox,
+        ModalSandbox,
+        PybubbleSandbox,  # noqa: F401
+    )
     from .sheets import SheetsManager
     from .sqlite import SqliteManager, SqliteParams
     from .subagents import SubAgentManager
@@ -68,6 +75,9 @@ __all__ = [
     "WorkspaceBackend",
 ]
 
+if sys.platform == "linux":
+    __all__.append("PybubbleSandbox")
+
 # Mapping of names to their module paths for lazy loading
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # batch_tool
@@ -100,6 +110,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DockerSandbox": (".sandbox", "DockerSandbox"),
     "FargateSandbox": (".sandbox", "FargateSandbox"),
     "ModalSandbox": (".sandbox", "ModalSandbox"),
+    "PybubbleSandbox": (".sandbox", "PybubbleSandbox"),
     # sheets
     "SheetsManager": (".sheets", "SheetsManager"),
     # sqlite

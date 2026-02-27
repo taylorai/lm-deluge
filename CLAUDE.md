@@ -94,11 +94,15 @@ tool = Tool.from_function(my_func)
 
 ### Sandboxes
 ```python
-from lm_deluge.tool.prefab.sandbox import SeatbeltSandbox, DockerSandbox
+from lm_deluge.tool.prefab.sandbox import DockerSandbox, PybubbleSandbox, SeatbeltSandbox
 
 # SeatbeltSandbox (macOS only, lightweight)
 async with SeatbeltSandbox(network_access=False) as sandbox:
     tools = sandbox.get_tools()  # returns [bash_tool, list_processes_tool]
+
+# PybubbleSandbox (Linux only, requires bwrap)
+async with PybubbleSandbox(network_access=False) as sandbox:
+    tools = sandbox.get_tools()
 
 # DockerSandbox (cross-platform)
 async with DockerSandbox() as sandbox:
