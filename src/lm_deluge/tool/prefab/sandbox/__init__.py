@@ -5,6 +5,7 @@ This module uses lazy imports to avoid requiring all dependencies at once.
 Import specific sandbox types as needed:
     from lm_deluge.tool.prefab.sandbox import ModalSandbox
     from lm_deluge.tool.prefab.sandbox import DockerSandbox
+    from lm_deluge.tool.prefab.sandbox import JustBashSandbox
 """
 
 import sys
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from .daytona_sandbox import DaytonaSandbox as DaytonaSandbox
     from .docker_sandbox import DockerSandbox as DockerSandbox
     from .fargate_sandbox import FargateSandbox as FargateSandbox
+    from .just_bash_sandbox import JustBashSandbox as JustBashSandbox
     from .modal_sandbox import ModalSandbox as ModalSandbox
     from .seatbelt_sandbox import SandboxMode as SandboxMode
     from .seatbelt_sandbox import SeatbeltSandbox as SeatbeltSandbox
@@ -22,6 +24,7 @@ __all__ = [
     "DaytonaSandbox",
     "DockerSandbox",
     "FargateSandbox",
+    "JustBashSandbox",
     "ModalSandbox",
 ]
 
@@ -34,6 +37,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DaytonaSandbox": (".daytona_sandbox", "DaytonaSandbox"),
     "DockerSandbox": (".docker_sandbox", "DockerSandbox"),
     "FargateSandbox": (".fargate_sandbox", "FargateSandbox"),
+    "JustBashSandbox": (".just_bash_sandbox", "JustBashSandbox"),
     "ModalSandbox": (".modal_sandbox", "ModalSandbox"),
     "SandboxMode": (".seatbelt_sandbox", "SandboxMode"),
     "SeatbeltSandbox": (".seatbelt_sandbox", "SeatbeltSandbox"),
