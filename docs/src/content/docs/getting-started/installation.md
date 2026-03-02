@@ -15,6 +15,7 @@ Optional extras:
 
 - `pip install plyvel` if you want LevelDB-backed local caching
 - `pip install pdf2image pillow` if you plan to turn PDFs into images via `Image.from_pdf`
+- `npm install -g just-bash` if you want `JustBashSandbox` for cross-platform sandboxed bash tools
 
 ## API Keys
 

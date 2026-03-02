@@ -407,9 +407,40 @@ Tips:
 - Piping to `jq` is allowed for JSON filtering; other shell pipes are blocked.
 - Requests to `localhost`, `127.0.0.1`, and private IP ranges (`10.x`, `192.168.x`, `172.16-31.x`) are blocked.
 
-## Remote Sandboxes (Modal + Daytona)
+## Sandboxes (JustBash, Modal, Daytona)
 
-`ModalSandbox` and `DaytonaSandbox` let agents run commands in managed remote environments instead of the host machine. Both expose a tool belt you can pass directly into an agent loop; Modal provides `bash`/`list_processes`/`get_url`, while Daytona adds file read/write, directory listing, preview links, and working-directory helpers. You can block network access up front when creating a Modal sandbox.
+`JustBashSandbox`, `ModalSandbox`, and `DaytonaSandbox` let agents run shell commands in isolated environments. `JustBashSandbox` is cross-platform and runs locally through [vercel-labs/just-bash](https://github.com/vercel-labs/just-bash), while Modal and Daytona run remotely in managed environments.
+
+Install `just-bash` (optional dependency) before using `JustBashSandbox`:
+
+```bash
+npm install -g just-bash
+# or:
+pnpm add -g just-bash
+```
+
+`JustBashSandbox` exposes `bash` and `list_processes` tools. It scopes filesystem reads to a root directory and uses copy-on-write memory for writes (non-persistent across separate commands).
+
+```python
+import asyncio
+from lm_deluge import Conversation, LLMClient
+from lm_deluge.tool.prefab.sandbox import JustBashSandbox
+
+async def main():
+    async with JustBashSandbox(root_dir=".", working_dir=".") as sandbox:
+        tools = sandbox.get_tools()
+
+        client = LLMClient("gpt-4.1-mini")
+        conv = Conversation().user(
+            "Run `pwd` with the bash tool and report the result."
+        )
+        conv, resp = await client.run_agent_loop(conv, tools=tools, max_rounds=4)
+        print(resp.completion)
+
+asyncio.run(main())
+```
+
+`ModalSandbox` and `DaytonaSandbox` expose richer remote workflows: Modal provides `bash`/`list_processes`/`get_url`, while Daytona adds file read/write, directory listing, preview links, and working-directory helpers. You can block network access up front when creating a Modal sandbox.
 
 ```python
 import asyncio
@@ -434,7 +465,8 @@ asyncio.run(main())
 
 Tips:
 
-- Use `with ModalSandbox(...):` or `async with DaytonaSandbox(...):` to guarantee cleanup; both classes also provide a best-effort destructor.
+- Use context managers (`with` / `async with`) for all sandbox types to guarantee cleanup.
+- `JustBashSandbox` requires the optional `just-bash` CLI, has no network access, and does not persist shell state between commands.
 - `DaytonaSandbox` needs your Daytona API creds and will start a sandbox on first use; reuse a shared instance for multiple tests to avoid churn.
 - For long-lived servers in Modal, call `bash(..., wait=False)`; there is no timeout in that mode, and `list_processes` lets you check whether background commands are still running.
 - Call `get_url` (Modal) or `get_preview_link` (Daytona) to expose a port if you allow networking; skip these when you keep sandboxes air-gapped.

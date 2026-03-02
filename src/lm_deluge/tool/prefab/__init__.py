@@ -26,7 +26,13 @@ if TYPE_CHECKING:
     from .otc import ToolComposer
     from .random import RandomTools
     from .rlm import RLMManager, RLMPipeline, RLMResult
-    from .sandbox import DaytonaSandbox, DockerSandbox, FargateSandbox, ModalSandbox
+    from .sandbox import (
+        DaytonaSandbox,
+        DockerSandbox,
+        FargateSandbox,
+        JustBashSandbox,
+        ModalSandbox,
+    )
     from .sheets import SheetsManager
     from .sqlite import SqliteManager, SqliteParams
     from .subagents import SubAgentManager
@@ -46,6 +52,7 @@ __all__ = [
     "FilesystemParams",
     "FullTextSearchManager",
     "InMemoryWorkspaceBackend",
+    "JustBashSandbox",
     "ModalSandbox",
     "PhilipsHueManager",
     "RandomTools",
@@ -99,6 +106,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DaytonaSandbox": (".sandbox", "DaytonaSandbox"),
     "DockerSandbox": (".sandbox", "DockerSandbox"),
     "FargateSandbox": (".sandbox", "FargateSandbox"),
+    "JustBashSandbox": (".sandbox", "JustBashSandbox"),
     "ModalSandbox": (".sandbox", "ModalSandbox"),
     # sheets
     "SheetsManager": (".sheets", "SheetsManager"),

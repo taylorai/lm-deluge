@@ -165,12 +165,16 @@ response = await llm.start(conv, cache="system_and_tools")
 Isolated code execution environments:
 
 ```python
-from lm_deluge.tool.prefab.sandbox import DockerSandbox, SeatbeltSandbox
+from lm_deluge.tool.prefab.sandbox import DockerSandbox, JustBashSandbox, SeatbeltSandbox
 
 # Docker (cross-platform)
 async with DockerSandbox() as sandbox:
     tools = sandbox.get_tools()
     conv, resp = await llm.run_agent_loop(conv, tools=tools)
+
+# JustBash (cross-platform, optional dependency: npm install -g just-bash)
+async with JustBashSandbox(root_dir=".", working_dir=".") as sandbox:
+    tools = sandbox.get_tools()
 
 # Seatbelt (macOS only, lighter)
 async with SeatbeltSandbox(network_access=False) as sandbox:
