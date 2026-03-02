@@ -31,6 +31,7 @@ if TYPE_CHECKING:
         DaytonaSandbox,
         DockerSandbox,
         FargateSandbox,
+        JustBashSandbox,
         ModalSandbox,
         PybubbleSandbox,  # noqa: F401
     )
@@ -53,6 +54,7 @@ __all__ = [
     "FilesystemParams",
     "FullTextSearchManager",
     "InMemoryWorkspaceBackend",
+    "JustBashSandbox",
     "ModalSandbox",
     "PhilipsHueManager",
     "RandomTools",
@@ -109,6 +111,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DaytonaSandbox": (".sandbox", "DaytonaSandbox"),
     "DockerSandbox": (".sandbox", "DockerSandbox"),
     "FargateSandbox": (".sandbox", "FargateSandbox"),
+    "JustBashSandbox": (".sandbox", "JustBashSandbox"),
     "ModalSandbox": (".sandbox", "ModalSandbox"),
     "PybubbleSandbox": (".sandbox", "PybubbleSandbox"),
     # sheets
