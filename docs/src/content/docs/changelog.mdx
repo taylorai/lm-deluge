@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.128 · 2026-03-03
+
+- **Dynamic-filtering web search tool**: Added `web_search_tool_dynamic()` for Anthropic's new `web_search_20260209` tool, which lets Claude write and execute code to filter search results before they enter the context window. Only supported on Claude Opus 4.6 and Sonnet 4.6 — raises `ValueError` for unsupported models. The API auto-injects the code execution tool, so you don't need to pass it separately. The existing `web_search_tool()` (`web_search_20250305`) remains available for all models.
+- **`user_location` for web search**: Both `web_search_tool()` and `web_search_tool_dynamic()` now accept a `user_location` dict to localize search results by city, region, country, and timezone.
+- **Graceful `ClientOSError` handling**: `aiohttp.ClientOSError` (connection reset, broken pipe, etc.) now returns a structured error `APIResponse` instead of an unhandled exception traceback.
+
 ## 0.0.127 · 2026-03-02
 
 - **Bedrock API key authentication**: Bedrock now supports the new AWS Bedrock API keys alongside the existing SigV4 (access key + secret) auth flow. Set `BEDROCK_API_KEY`, `AWS_BEDROCK_API_KEY`, or `AWS_BEARER_TOKEN_BEDROCK` to use simple Bearer-token auth — no `requests-aws4auth` dependency needed. When both an API key and IAM credentials are present, the API key takes precedence. Auth logic consolidated into a shared `bedrock_auth` module, removing duplication across the Anthropic, OpenAI, and Nova Bedrock request builders.

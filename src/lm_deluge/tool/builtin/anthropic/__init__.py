@@ -267,14 +267,18 @@ def web_search_tool(
     max_uses: int = 5,
     allowed_domains: list[str] | None = None,
     blocked_domains: list[str] | None = None,
+    user_location: dict | None = None,
 ) -> dict:
     """
-    Get the web search tool definition.
+    Get the web search tool definition (web_search_20250305).
 
     Args:
         max_uses: Maximum number of searches per request (default: 5)
         allowed_domains: Only include results from these domains
         blocked_domains: Never include results from these domains
+        user_location: Localize search results, e.g.
+            {"type": "approximate", "city": "San Francisco", "region": "California",
+             "country": "US", "timezone": "America/Los_Angeles"}
 
     Note: You can use either allowed_domains or blocked_domains, but not both.
     """
@@ -287,6 +291,75 @@ def web_search_tool(
         res["allowed_domains"] = allowed_domains
     if blocked_domains:
         res["blocked_domains"] = blocked_domains
+    if user_location:
+        res["user_location"] = user_location
+    return res
+
+
+# Models that support the dynamic-filtering web search tool (web_search_20260209).
+_DYNAMIC_FILTERING_PATTERNS = [
+    "4.6-sonnet",
+    "4.6-opus",
+    "sonnet-4-6",
+    "sonnet-4.6",
+    "opus-4-6",
+    "opus-4.6",
+]
+
+
+def _supports_dynamic_filtering(model: str) -> bool:
+    model_lower = model.lower()
+    return any(p in model_lower for p in _DYNAMIC_FILTERING_PATTERNS)
+
+
+def web_search_tool_dynamic(
+    model: str,
+    max_uses: int = 5,
+    allowed_domains: list[str] | None = None,
+    blocked_domains: list[str] | None = None,
+    user_location: dict | None = None,
+) -> dict:
+    """
+    Get the dynamic-filtering web search tool definition (web_search_20260209).
+
+    This version lets Claude write and execute code to filter search results
+    before they enter the context window, keeping only relevant information.
+    The API auto-injects the code execution tool — do NOT pass it explicitly
+    or the request will fail with a duplicate tool name error.
+
+    Only supported on Claude Opus 4.6 and Sonnet 4.6.
+
+    Args:
+        model: The model name — must be a 4.6-family model.
+        max_uses: Maximum number of searches per request (default: 5)
+        allowed_domains: Only include results from these domains
+        blocked_domains: Never include results from these domains
+        user_location: Localize search results, e.g.
+            {"type": "approximate", "city": "San Francisco", "region": "California",
+             "country": "US", "timezone": "America/Los_Angeles"}
+
+    Raises:
+        ValueError: If the model does not support dynamic filtering.
+
+    Note: You can use either allowed_domains or blocked_domains, but not both.
+    """
+    if not _supports_dynamic_filtering(model):
+        raise ValueError(
+            f"Model '{model}' does not support dynamic-filtering web search "
+            f"(web_search_20260209). Only Claude Opus 4.6 and Sonnet 4.6 are supported."
+        )
+    res: dict = {
+        "type": "web_search_20260209",
+        "name": "web_search",
+    }
+    if max_uses:
+        res["max_uses"] = max_uses
+    if allowed_domains:
+        res["allowed_domains"] = allowed_domains
+    if blocked_domains:
+        res["blocked_domains"] = blocked_domains
+    if user_location:
+        res["user_location"] = user_location
     return res
 
 

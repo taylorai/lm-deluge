@@ -23,6 +23,16 @@ class WebSearchUnavailable(Exception):
     pass
 
 
+def count_web_searches(resp) -> int:
+    """Count how many web_search server_tool_use blocks are in the raw response."""
+    content = _raw_content_blocks(resp)
+    return sum(
+        1
+        for block in content
+        if block.get("type") == "server_tool_use" and block.get("name") == "web_search"
+    )
+
+
 def assert_web_search_called(resp) -> None:
     content = _raw_content_blocks(resp)
     tool_use_blocks = [
@@ -161,6 +171,52 @@ async def test_web_search_with_domain_filter():
     print(f"Response: {resp.completion[:300]}...")
 
 
+async def test_web_search_multi_step():
+    """Test that the model performs multiple web searches to synthesize a comparative answer."""
+    client = LLMClient("claude-4-sonnet")
+
+    conv = Conversation().user(
+        "I need you to compare the GDP of Brazil and Indonesia. "
+        "First search for the current GDP of Brazil, then search for the current GDP of Indonesia, "
+        "and finally give me a comparison of the two with the difference."
+    )
+
+    conv, resp = await client.run_agent_loop(
+        conv,
+        tools=[web_search_tool(max_uses=5)],
+        max_rounds=5,
+    )
+
+    assert resp.completion, "Expected a completion from the model"
+    completion_lower = resp.completion.lower()
+
+    # Should mention both countries
+    assert (
+        "brazil" in completion_lower
+    ), f"Expected mention of Brazil, got: {resp.completion[:300]}"
+    assert (
+        "indonesia" in completion_lower
+    ), f"Expected mention of Indonesia, got: {resp.completion[:300]}"
+
+    # Should have GDP-related content
+    assert any(
+        term in completion_lower for term in ["gdp", "trillion", "billion", "economy"]
+    ), f"Expected GDP-related response, got: {resp.completion[:300]}"
+
+    # Verify web search was used
+    assert_web_search_called(resp)
+
+    # The model should have performed multiple searches (one per country at minimum)
+    n_searches = count_web_searches(resp)
+    assert (
+        n_searches >= 2
+    ), f"Expected at least 2 web searches (one per country), got {n_searches}"
+
+    print("multi-step web search test passed")
+    print(f"Model performed {n_searches} web searches to build comparative answer")
+    print(f"Response: {resp.completion[:400]}...")
+
+
 async def main():
     print("Testing Anthropic built-in web search tool...")
     print("=" * 50)
@@ -183,6 +239,13 @@ async def main():
 
     try:
         await test_web_search_with_domain_filter()
+    except WebSearchUnavailable as e:
+        print(f"⚠️  SKIPPED: {e}")
+        skipped += 1
+    print()
+
+    try:
+        await test_web_search_multi_step()
     except WebSearchUnavailable as e:
         print(f"⚠️  SKIPPED: {e}")
         skipped += 1
