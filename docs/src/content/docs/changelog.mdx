@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.127 · 2026-03-02
+
+- **Bedrock API key authentication**: Bedrock now supports the new AWS Bedrock API keys alongside the existing SigV4 (access key + secret) auth flow. Set `BEDROCK_API_KEY`, `AWS_BEDROCK_API_KEY`, or `AWS_BEARER_TOKEN_BEDROCK` to use simple Bearer-token auth — no `requests-aws4auth` dependency needed. When both an API key and IAM credentials are present, the API key takes precedence. Auth logic consolidated into a shared `bedrock_auth` module, removing duplication across the Anthropic, OpenAI, and Nova Bedrock request builders.
+- **JustBashSandbox**: New cross-platform sandbox powered by [Vercel's just-bash](https://github.com/vercel-labs/just-bash). Provides read-scoped, network-disabled, copy-on-write execution without Docker or platform-specific tooling. Supports configurable `root_dir`, `working_dir`, read-only mode, optional Python via `enable_python`, auto-install of the `just-bash` CLI, background process tracking, and the same `bash` / `list_processes` tool interface as other sandboxes. See [Tool Use](/features/tools/) for usage.
+
 ## 0.0.126 · 2026-02-27
 
 - **Inception (Mercury 2) support**: Added `mercury-2` model from Inception Labs — a fast diffusion-based LLM with 128K context. Uses the OpenAI-compatible endpoint at `api.inceptionlabs.ai`. Supports tool calling, structured outputs, and `reasoning_effort` with Mercury-specific mapping (`"none"` / `"minimal"` → `"instant"` mode for near-zero-latency responses). Requires `INCEPTION_API_KEY` env var.

@@ -8,6 +8,7 @@ from lm_deluge.api_requests.bedrock import (
     _build_anthropic_bedrock_request,
     _build_openai_bedrock_request,
 )
+from lm_deluge.api_requests.bedrock_auth import get_bedrock_auth
 from lm_deluge.api_requests.bedrock_regions import (
     configured_bedrock_regions,
     is_probably_region_scoped_bedrock_error,
@@ -249,6 +250,125 @@ def test_bedrock_invalid_security_token_is_region_scoped():
     assert is_probably_region_scoped_bedrock_error(error)
 
 
+def _clear_bedrock_auth_env():
+    """Remove all Bedrock auth env vars so tests start clean."""
+    for key in [
+        "AWS_BEDROCK_API_KEY",
+        "BEDROCK_API_KEY",
+        "AWS_BEARER_TOKEN_BEDROCK",
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SESSION_TOKEN",
+    ]:
+        os.environ.pop(key, None)
+
+
+def test_bedrock_api_key_auth_returns_bearer_header():
+    """When AWS_BEDROCK_API_KEY is set, get_bedrock_auth returns Bearer header."""
+    _clear_bedrock_auth_env()
+    os.environ["AWS_BEDROCK_API_KEY"] = "br-test-key-123"
+    try:
+        auth, headers = get_bedrock_auth("us-east-1")
+        assert auth is None, "API key auth should not return an AWS4Auth object"
+        assert headers["Authorization"] == "Bearer br-test-key-123"
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_bearer_token_env_alias():
+    """AWS_BEARER_TOKEN_BEDROCK (the AWS docs convention) also works."""
+    _clear_bedrock_auth_env()
+    os.environ["AWS_BEARER_TOKEN_BEDROCK"] = "br-alias-key-456"
+    try:
+        auth, headers = get_bedrock_auth("us-west-2")
+        assert auth is None
+        assert headers["Authorization"] == "Bearer br-alias-key-456"
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_api_key_short_env_var():
+    """BEDROCK_API_KEY (shorter alias) also works."""
+    _clear_bedrock_auth_env()
+    os.environ["BEDROCK_API_KEY"] = "br-short-789"
+    try:
+        auth, headers = get_bedrock_auth("us-east-1")
+        assert auth is None
+        assert headers["Authorization"] == "Bearer br-short-789"
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_api_key_preferred_over_sigv4():
+    """When both API key and IAM creds are set, API key wins."""
+    _clear_bedrock_auth_env()
+    os.environ["AWS_BEDROCK_API_KEY"] = "br-preferred"
+    os.environ["AWS_ACCESS_KEY_ID"] = "AKIA..."
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "secret..."
+    try:
+        auth, headers = get_bedrock_auth("us-east-1")
+        assert auth is None
+        assert "Bearer br-preferred" in headers["Authorization"]
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_sigv4_fallback_when_no_api_key():
+    """Without API key env vars, falls back to SigV4."""
+    _clear_bedrock_auth_env()
+    os.environ["AWS_ACCESS_KEY_ID"] = "test-key"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "test-secret"
+    try:
+        auth, headers = get_bedrock_auth("us-east-1")
+        assert auth is not None, "Should return AWS4Auth object"
+        assert "Authorization" not in headers
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_no_creds_at_all_raises():
+    """No API key and no IAM creds should raise ValueError."""
+    _clear_bedrock_auth_env()
+    try:
+        raised = False
+        try:
+            get_bedrock_auth("us-east-1")
+        except ValueError:
+            raised = True
+        assert raised, "Should raise ValueError when no credentials are set"
+    finally:
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_api_key_builder_sets_auth_none():
+    """Builder functions should return auth=None when using API key."""
+    _clear_bedrock_auth_env()
+    os.environ["AWS_BEDROCK_API_KEY"] = "br-builder-test"
+    reset_bedrock_region_state_for_tests()
+    try:
+        model = APIModel.from_registry("claude-4-sonnet-bedrock")
+        context = RequestContext(
+            task_id=1,
+            model_name=model.id,
+            prompt=_make_prompt(),
+            sampling_params=SamplingParams(),
+        )
+        request_json, headers, auth, url, region = asyncio.run(
+            _build_anthropic_bedrock_request(model, context)
+        )
+        assert auth is None
+        assert headers["Authorization"] == "Bearer br-builder-test"
+        assert "bedrock-runtime" in url
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
 if __name__ == "__main__":
     test_bedrock_anthropic_tools_never_strict()
     test_bedrock_openai_tools_force_non_strict()
@@ -259,4 +379,11 @@ if __name__ == "__main__":
     test_bedrock_region_weights_env_override()
     test_bedrock_claude_45_46_request_omits_top_p()
     test_bedrock_invalid_security_token_is_region_scoped()
+    test_bedrock_api_key_auth_returns_bearer_header()
+    test_bedrock_bearer_token_env_alias()
+    test_bedrock_api_key_short_env_var()
+    test_bedrock_api_key_preferred_over_sigv4()
+    test_bedrock_sigv4_fallback_when_no_api_key()
+    test_bedrock_no_creds_at_all_raises()
+    test_bedrock_api_key_builder_sets_auth_none()
     print("Bedrock request tests passed.")

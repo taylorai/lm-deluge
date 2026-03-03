@@ -30,9 +30,15 @@ class RegionResult:
 
 
 def _has_aws_creds() -> bool:
-    return bool(os.getenv("AWS_ACCESS_KEY_ID")) and bool(
+    has_api_key = bool(
+        os.getenv("AWS_BEDROCK_API_KEY")
+        or os.getenv("BEDROCK_API_KEY")
+        or os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+    )
+    has_sigv4 = bool(os.getenv("AWS_ACCESS_KEY_ID")) and bool(
         os.getenv("AWS_SECRET_ACCESS_KEY")
     )
+    return has_api_key or has_sigv4
 
 
 def _discover_global_bedrock_models() -> list[str]:

@@ -1,13 +1,7 @@
 import asyncio
 import json
-import os
 
 from aiohttp import ClientResponse
-
-try:
-    from requests_aws4auth import AWS4Auth
-except ImportError:
-    AWS4Auth = None  # type: ignore
 
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.prompt import Message, Text, ToolCall
@@ -16,6 +10,7 @@ from lm_deluge.usage import Usage
 
 from ..models import APIModel
 from .base import APIRequestBase, APIResponse, parse_retry_after
+from .bedrock_auth import get_bedrock_auth
 from .bedrock_regions import (
     bedrock_region_count,
     has_available_bedrock_source_regions,
@@ -53,35 +48,18 @@ async def _build_nova_request(
     sampling_params = context.sampling_params
     cache_pattern = context.cache
 
-    # Handle AWS auth
-    access_key = os.getenv("AWS_ACCESS_KEY_ID")
-    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    session_token = os.getenv("AWS_SESSION_TOKEN")
-
-    if not access_key or not secret_key:
-        raise ValueError(
-            "AWS credentials not found. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables."
-        )
-
     # Cross-region inference quotas are keyed to the request source region.
     region = pick_bedrock_source_region(model)
 
     # Construct the endpoint URL
-    service = "bedrock"
     url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{model.name}/invoke"
 
-    # Prepare headers
-    assert AWS4Auth is not None
-    auth = AWS4Auth(
-        access_key,
-        secret_key,
-        region,
-        service,
-        session_token=session_token,
-    )
+    # Authenticate (Bearer token or SigV4)
+    auth, auth_headers = get_bedrock_auth(region)
 
     base_headers = {
         "Content-Type": "application/json",
+        **auth_headers,
     }
 
     # Convert conversation to Nova format with optional caching
@@ -137,11 +115,6 @@ class BedrockNovaRequest(APIRequestBase):
         self.region = None
 
     async def build_request(self):
-        if AWS4Auth is None:
-            raise ImportError(
-                "requests-aws4auth is required for Bedrock support. "
-                "Install with: uv pip install requests-aws4auth"
-            )
         (
             self.request_json,
             base_headers,
@@ -155,7 +128,7 @@ class BedrockNovaRequest(APIRequestBase):
         )
 
     async def execute_once(self) -> APIResponse:
-        """Override execute_once to handle AWS4Auth signing."""
+        """Override execute_once to handle Bedrock auth (API key or SigV4)."""
         await self.build_request()
         import aiohttp
 
@@ -167,30 +140,33 @@ class BedrockNovaRequest(APIRequestBase):
         # Prepare the request data
         payload = json.dumps(self.request_json, separators=(",", ":")).encode("utf-8")
 
-        # Create a fake requests.PreparedRequest object for AWS4Auth to sign
-        import requests
-
         assert self.url is not None, "URL must be set after build_request"
         assert (
             self.request_header is not None
         ), "Headers must be set after build_request"
 
-        fake_request = requests.Request(
-            method="POST",
-            url=self.url,
-            data=payload,
-            headers=self.request_header.copy(),
-        )
+        if self.auth is not None:
+            # SigV4 signing path
+            import requests
 
-        prepared_request = fake_request.prepare()
-        signed_request = self.auth(prepared_request)
-        signed_headers = dict(signed_request.headers)
+            fake_request = requests.Request(
+                method="POST",
+                url=self.url,
+                data=payload,
+                headers=self.request_header.copy(),
+            )
+            prepared_request = fake_request.prepare()
+            signed_request = self.auth(prepared_request)
+            final_headers = dict(signed_request.headers)
+        else:
+            # API key path — headers already contain Authorization: Bearer …
+            final_headers = self.request_header
 
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     url=self.url,
-                    headers=signed_headers,
+                    headers=final_headers,
                     data=payload,
                 ) as http_response:
                     response: APIResponse = await self.handle_response(http_response)

@@ -8,7 +8,7 @@ import time
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from lm_deluge.tool import Tool
 
@@ -131,12 +131,13 @@ class JustBashSandbox:
             return command
         return shlex.split(command)
 
-    def _npx_supports_just_bash(self, npx_path: str) -> bool:
+    def _npx_supports_just_bash(self, npx_path: str, cwd: Path | None = None) -> bool:
         probe = subprocess.run(
             [npx_path, "--no-install", "just-bash", "--version"],
             capture_output=True,
             timeout=10,
             check=False,
+            cwd=str(cwd) if cwd is not None else None,
         )
         return probe.returncode == 0
 
@@ -153,7 +154,7 @@ class JustBashSandbox:
 
         npx_binary = shutil.which("npx")
         if npx_binary:
-            if self._npx_supports_just_bash(npx_binary):
+            if self._npx_supports_just_bash(npx_binary, cwd=self.root_dir):
                 return [npx_binary, "--no-install", "just-bash"]
             if self.auto_install:
                 return [npx_binary, "--yes", "just-bash"]
@@ -164,7 +165,9 @@ class JustBashSandbox:
             "(or add it to your project and use npx)."
         )
         if npx_binary and not self.auto_install:
-            install_hint += " You can also set auto_install=True to use npx auto-install."
+            install_hint += (
+                " You can also set auto_install=True to use npx auto-install."
+            )
         raise ImportError(install_hint)
 
     def _build_exec_args(self, command: str) -> list[str]:
@@ -246,7 +249,7 @@ class JustBashSandbox:
     async def _ensure_initialized(self):
         if self._initialized:
             return
-        self._runner_cmd = self._resolve_runner_command()
+        self._runner_cmd = await asyncio.to_thread(self._resolve_runner_command)
         self._initialized = True
 
     async def __aenter__(self):
@@ -308,12 +311,15 @@ class JustBashSandbox:
             timeout_seconds = min(timeout / 1000, 600)
 
         if run_in_background:
-            proc = await asyncio.to_thread(
-                subprocess.Popen,
-                args,
-                cwd=str(self.root_dir),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+            proc = cast(
+                subprocess.Popen[bytes],
+                await asyncio.to_thread(
+                    subprocess.Popen,
+                    args,
+                    cwd=str(self.root_dir),
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                ),
             )
             proc_name = name or self._generate_process_name()
             self.processes[proc_name] = TrackedProcess(
@@ -328,14 +334,16 @@ class JustBashSandbox:
             )
 
         try:
-            run_func = subprocess.run
-            result = await asyncio.to_thread(
-                run_func,
-                args,
-                cwd=str(self.root_dir),
-                capture_output=True,
-                timeout=timeout_seconds,
-                check=False,
+            result = cast(
+                subprocess.CompletedProcess[bytes],
+                await asyncio.to_thread(
+                    subprocess.run,
+                    args,
+                    cwd=str(self.root_dir),
+                    capture_output=True,
+                    timeout=timeout_seconds,
+                    check=False,
+                ),
             )
         except subprocess.TimeoutExpired:
             timeout_display = int(timeout_seconds) if timeout_seconds is not None else 0
@@ -379,9 +387,7 @@ class JustBashSandbox:
             poll_result = proc.process.poll()
             status = "running" if poll_result is None else f"exit {poll_result}"
             cmd_display = (
-                proc.command[:40] + "..."
-                if len(proc.command) > 40
-                else proc.command
+                proc.command[:40] + "..." if len(proc.command) > 40 else proc.command
             )
             lines.append(f"{proc_name:<8} {status:<19} {cmd_display}")
 
