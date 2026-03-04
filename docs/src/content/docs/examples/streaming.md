@@ -166,7 +166,6 @@ Streaming works with all OpenAI models:
 - `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`
 - `gpt-4-turbo`, `gpt-4`
 - `gpt-3.5-turbo`
-- `o1`, `o1-mini`, `o1-preview` (reasoning models)
 - `o3-mini` (reasoning model)
 
 ## Limitations

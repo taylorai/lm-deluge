@@ -872,8 +872,32 @@ class _LLMClient(BaseModel):
                 )
                 task_ids.append(task_id)
 
-            # Wait for all tasks to complete
-            results = await self.wait_for_all(task_ids)
+            # Gather all tasks, ensuring every task finishes before we
+            # exit the session scope.  return_exceptions=True prevents a
+            # single failure (e.g. _TokenBudgetExceeded) from cancelling
+            # siblings and closing the shared HTTP session prematurely.
+            raw = await asyncio.gather(
+                *(self._tasks[tid] for tid in task_ids),
+                return_exceptions=True,
+            )
+            results: list[APIResponse] = []
+            for idx, item in enumerate(raw):
+                if isinstance(item, BaseException):
+                    results.append(
+                        APIResponse(
+                            id=task_ids[idx],
+                            model_internal=self.model_names[0],
+                            prompt=prompts[idx],
+                            sampling_params=self.sampling_params[0]
+                            if self.sampling_params
+                            else SamplingParams(),
+                            status_code=None,
+                            is_error=True,
+                            error_message=str(item),
+                        )
+                    )
+                else:
+                    results.append(item)
 
         # Close tracker if we opened it
         if not tracker_preopened:
@@ -1610,17 +1634,38 @@ class _LLMClient(BaseModel):
                     )
                     return idx, result.conversation, result.final_response
 
-            # Launch all agent loops concurrently (semaphore limits actual concurrency)
+            # Launch all agent loops concurrently (semaphore limits actual concurrency).
+            # return_exceptions=True ensures one failing loop doesn't cancel
+            # siblings and close the shared HTTP session prematurely.
             tasks = [
                 run_single_loop(idx, conv) for idx, conv in enumerate(conversations)
             ]
-            completed = await asyncio.gather(*tasks)
+            raw = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Close tracker if we opened it
         if not tracker_preopened:
             self.close()
 
-        # Sort by original index and extract results
+        # Sort by original index and extract results, converting exceptions
+        # to error responses so callers always get a uniform list back.
+        completed: list[tuple[int, Conversation, APIResponse]] = []
+        for idx, item in enumerate(raw):
+            if isinstance(item, BaseException):
+                conv = conversations[idx]
+                error_resp = APIResponse(
+                    id=idx,
+                    model_internal=self.model_names[0],
+                    prompt=conv,
+                    sampling_params=self.sampling_params[0]
+                    if self.sampling_params
+                    else SamplingParams(),
+                    status_code=None,
+                    is_error=True,
+                    error_message=str(item),
+                )
+                completed.append((idx, conv, error_resp))
+            else:
+                completed.append(item)
         completed_sorted = sorted(completed, key=lambda x: x[0])
         return [(conv, resp) for _, conv, resp in completed_sorted]
 

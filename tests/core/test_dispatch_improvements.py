@@ -308,6 +308,138 @@ def test_batch_invariant_tracker_open():
     asyncio.run(_test())
 
 
+def test_oversized_request_does_not_kill_siblings():
+    """One oversized request in a batch should not close the session for siblings."""
+
+    async def _test():
+        async def mock_execute_once(self):
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=200,
+                is_error=False,
+                error_message=None,
+                content=None,
+                usage=None,
+            )
+
+        with patch(
+            "lm_deluge.api_requests.openai.OpenAIRequest.execute_once",
+            mock_execute_once,
+        ):
+            small_client = LLMClient(
+                "gpt-4o-mini",
+                max_new_tokens=100,
+                max_tokens_per_minute=10_000,
+                max_concurrent_requests=10,
+            )
+            small_client.max_attempts = 1
+            small_client.open(total=0, show_progress=False)
+
+            # Start 4 normal tasks
+            task_ids = []
+            for i in range(4):
+                tid = small_client.start_nowait(
+                    Conversation().user(f"Hi {i}"),
+                )
+                task_ids.append(tid)
+
+            # Start 1 oversized task (max_new_tokens > TPM budget)
+            # We need to force a high num_tokens. Override sampling_params.
+            from lm_deluge.config import SamplingParams as SP
+
+            oversized_sp = SP(max_new_tokens=50_000)
+            small_client.sampling_params = [oversized_sp]
+            tid = small_client.start_nowait(Conversation().user("big"))
+            task_ids.append(tid)
+
+            # Restore normal params
+            small_client.sampling_params = [SP(max_new_tokens=100)]
+
+            # Gather all — the oversized one should fail, others should succeed
+            raw = await asyncio.gather(
+                *(small_client._tasks[tid] for tid in task_ids),
+                return_exceptions=True,
+            )
+
+        # 4 should have succeeded, 1 should be an exception
+        exceptions = [r for r in raw if isinstance(r, BaseException)]
+        successes = [r for r in raw if isinstance(r, APIResponse) and not r.is_error]
+        assert len(exceptions) == 1, f"Expected 1 exception, got {len(exceptions)}"
+        assert len(successes) == 4, f"Expected 4 successes, got {len(successes)}"
+        assert "can never be fulfilled" in str(exceptions[0])
+        small_client.close()
+        print("PASSED: oversized request does not kill siblings")
+
+    asyncio.run(_test())
+
+
+def test_batch_oversized_returns_error_response():
+    """process_prompts_async should return error APIResponse for oversized requests."""
+
+    async def _test():
+        client = LLMClient(
+            "gpt-4o-mini",
+            max_new_tokens=100,
+            max_tokens_per_minute=10_000,
+        )
+        client.max_attempts = 1
+
+        async def mock_execute_once(self):
+            return APIResponse(
+                id=self.context.task_id,
+                model_internal=self.context.model_name,
+                prompt=self.context.prompt,
+                sampling_params=self.context.sampling_params,
+                status_code=200,
+                is_error=False,
+                error_message=None,
+                content=None,
+                usage=None,
+            )
+
+        with patch(
+            "lm_deluge.api_requests.openai.OpenAIRequest.execute_once",
+            mock_execute_once,
+        ):
+            # Use process_prompts_async — it should catch the exception
+            # and return an error APIResponse, not raise.
+            results = await client.process_prompts_async(
+                [Conversation().user("normal prompt")],
+                show_progress=False,
+            )
+            assert len(results) == 1
+            assert not results[0].is_error
+            print("  normal request OK")
+
+        # Now test with oversized — need a new client with huge max_new_tokens
+        client2 = LLMClient(
+            "gpt-4o-mini",
+            max_new_tokens=50_000,
+            max_tokens_per_minute=10_000,
+        )
+        client2.max_attempts = 1
+
+        with patch(
+            "lm_deluge.api_requests.openai.OpenAIRequest.execute_once",
+            mock_execute_once,
+        ):
+            results = await client2.process_prompts_async(
+                [Conversation().user("oversized prompt")],
+                show_progress=False,
+            )
+            assert len(results) == 1
+            assert results[0].is_error
+            assert "can never be fulfilled" in results[0].error_message
+            print("  oversized request returned error response (not exception)")
+
+        print("PASSED: batch oversized returns error response")
+
+    asyncio.run(_test())
+
+
 if __name__ == "__main__":
     test_compute_wait_no_deficit()
     test_compute_wait_rpm_deficit()
@@ -321,4 +453,6 @@ if __name__ == "__main__":
     test_retry_no_deadlock_single_concurrency()
     test_batch_invariant()
     test_batch_invariant_tracker_open()
+    test_oversized_request_does_not_kill_siblings()
+    test_batch_oversized_returns_error_response()
     print("\nAll dispatch improvement tests passed!")
