@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -15,6 +16,7 @@ from typing import (
     overload,
 )
 
+import aiohttp
 import yaml
 from pydantic import BaseModel, PrivateAttr
 from pydantic.functional_validators import model_validator
@@ -60,6 +62,27 @@ def _truncate(s: str, max_len: int = 200) -> str:
     if len(s) <= max_len:
         return s
     return s[: max_len - 3] + "..."
+
+
+class _TokenBudgetExceeded(ValueError):
+    """Raised when a request can never fit within the TPM budget."""
+
+    pass
+
+
+def _compute_wait(tracker: StatusTracker, num_tokens: int) -> float:
+    """Estimate how long to sleep before RPM/TPM capacity is available."""
+    rpm_deficit = max(0.0, 1.0 - tracker.available_request_capacity)
+    tpm_deficit = max(0.0, num_tokens - tracker.available_token_capacity)
+    rpm_wait = (
+        (rpm_deficit / tracker.max_requests_per_minute) * 60.0
+        if rpm_deficit > 0
+        else 0.0
+    )
+    tpm_wait = (
+        (tpm_deficit / tracker.max_tokens_per_minute) * 60.0 if tpm_deficit > 0 else 0.0
+    )
+    return max(0.001, min(max(rpm_wait, tpm_wait), 5.0))
 
 
 def _format_tool_call(tc) -> str:
@@ -142,6 +165,29 @@ class _LLMClient(BaseModel):
     _tracker: StatusTracker | None = PrivateAttr(default=None)
     _capacity_lock: asyncio.Lock = PrivateAttr(default_factory=asyncio.Lock)
     _blocklisted_models: set[str] = PrivateAttr(default_factory=set)
+
+    @asynccontextmanager
+    async def _scoped_http_session(self):
+        """Create a shared aiohttp session scoped to a batch operation.
+
+        The connector is given headroom above max_concurrent_requests so that
+        aiohttp's internal queue never becomes the hidden bottleneck — requests
+        wait in our capacity-check loop instead, where they're visible in the
+        progress display.
+        """
+        headroom = max(self.max_concurrent_requests // 2, 50)
+        pool_limit = self.max_concurrent_requests + headroom
+        connector = aiohttp.TCPConnector(
+            limit=pool_limit,
+            limit_per_host=pool_limit,
+            keepalive_timeout=30,
+            enable_cleanup_closed=True,
+        )
+        session = aiohttp.ClientSession(connector=connector)
+        try:
+            yield session
+        finally:
+            await session.close()
 
     # usage
     def print_usage(self):
@@ -600,11 +646,10 @@ class _LLMClient(BaseModel):
         # Fall back to weighted random selection (excluding blocklisted)
         return self._select_model()
 
-    async def _wait_for_capacity(
-        self, num_tokens: int, tracker: StatusTracker, *, retry: bool = False
-    ):
+    async def _consume_rate_capacity(self, num_tokens: int, tracker: StatusTracker):
+        """Wait until RPM + TPM buckets can serve this request, then consume."""
         if num_tokens > tracker.max_tokens_per_minute:
-            raise ValueError(
+            raise _TokenBudgetExceeded(
                 f"Request requires ~{num_tokens:,} tokens (prompt + max_new_tokens) "
                 f"but max_tokens_per_minute is set to {tracker.max_tokens_per_minute:,}. "
                 f"This request can never be fulfilled. Either increase max_tokens_per_minute "
@@ -623,11 +668,22 @@ class _LLMClient(BaseModel):
                 continue
 
             async with self._capacity_lock:
-                if tracker.check_capacity(num_tokens, retry=retry):
+                tracker.update_capacity()
+                if (
+                    tracker.available_request_capacity >= 1
+                    and tracker.available_token_capacity >= num_tokens
+                ):
+                    tracker.available_request_capacity -= 1
+                    tracker.available_token_capacity -= num_tokens
                     tracker.set_limiting_factor(None)
                     return
-            # Idle wait before next capacity check. Aim for ~RPM spacing.
-            await asyncio.sleep(max(60.0 / self.max_requests_per_minute, 0.01))
+                # Set limiting factor for progress display
+                if tracker.available_request_capacity < 1:
+                    tracker.set_limiting_factor("Requests")
+                else:
+                    tracker.set_limiting_factor("Tokens")
+                wait = _compute_wait(tracker, num_tokens)
+            await asyncio.sleep(wait)
 
     async def process_single_request(
         self, context: RequestContext, retry_queue: asyncio.Queue | None = None
@@ -799,23 +855,25 @@ class _LLMClient(BaseModel):
         else:
             tracker_preopened = True
 
-        # Start all tasks using start_nowait - tasks will coordinate via shared capacity lock
-        task_ids = []
-        assert isinstance(prompts, Sequence)
-        for prompt in prompts:
-            assert isinstance(prompt, Conversation)
-            task_id = self.start_nowait(
-                prompt,
-                tools=tools,
-                skills=skills,
-                output_schema=output_schema,
-                cache=cache,
-                service_tier=service_tier,
-            )
-            task_ids.append(task_id)
+        async with self._scoped_http_session() as http_session:
+            # Start all tasks using start_nowait - tasks will coordinate via shared capacity lock
+            task_ids = []
+            assert isinstance(prompts, Sequence)
+            for prompt in prompts:
+                assert isinstance(prompt, Conversation)
+                task_id = self.start_nowait(
+                    prompt,
+                    tools=tools,
+                    skills=skills,
+                    output_schema=output_schema,
+                    cache=cache,
+                    service_tier=service_tier,
+                    http_session=http_session,
+                )
+                task_ids.append(task_id)
 
-        # Wait for all tasks to complete
-        results = await self.wait_for_all(task_ids)
+            # Wait for all tasks to complete
+            results = await self.wait_for_all(task_ids)
 
         # Close tracker if we opened it
         if not tracker_preopened:
@@ -899,17 +957,38 @@ class _LLMClient(BaseModel):
 
     async def _run_context_single(self, context: RequestContext) -> APIResponse:
         tracker = self._get_tracker()
-        retry = False
         retry_queue: asyncio.Queue[RequestContext] = asyncio.Queue()
         current = context
+        first_attempt = True
         while True:
-            await self._wait_for_capacity(current.num_tokens, tracker, retry=retry)
-            response = await self.process_single_request(current, retry_queue)
+            # Wait for RPM/TPM capacity *before* acquiring the concurrency
+            # slot so we don't hold a slot while sleeping for rate-limit
+            # refill (fixes head-of-line blocking for mixed-size requests).
+            try:
+                await self._consume_rate_capacity(current.num_tokens, tracker)
+            except _TokenBudgetExceeded:
+                # Request can never fit in the TPM budget.  Only count it
+                # once (on the first attempt) so we don't double-count.
+                if first_attempt:
+                    tracker.num_tasks_started += 1
+                    tracker.num_tasks_in_progress += 1
+                    tracker.task_failed(context.task_id)
+                raise
+
+            await tracker._concurrency_semaphore.acquire()
+            try:
+                if first_attempt:
+                    tracker.num_tasks_started += 1
+                    tracker.num_tasks_in_progress += 1
+                    first_attempt = False
+                response = await self.process_single_request(current, retry_queue)
+            finally:
+                tracker._concurrency_semaphore.release()
+
             if not response.is_error or retry_queue.empty():
                 self._results[context.task_id] = response
                 return response
             current = await retry_queue.get()
-            retry = True
 
     async def _run_context_with_tool_loop(self, context: RequestContext) -> APIResponse:
         expanded_tools = await self._expand_executable_tools(context.tools)
@@ -978,6 +1057,7 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        http_session: aiohttp.ClientSession | None = None,
     ) -> int:
         tracker = self._get_tracker()
         task_id = self._next_task_id
@@ -1004,6 +1084,7 @@ class _LLMClient(BaseModel):
             extra_headers=self.extra_headers,
             extra_body=self.extra_body,
             force_local_mcp=self.force_local_mcp,
+            http_session=http_session,
         )
         if self._should_auto_tool_loop(tools):
             task = asyncio.create_task(self._run_context_with_tool_loop(context))
@@ -1047,6 +1128,7 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        http_session: aiohttp.ClientSession | None = None,
     ) -> APIResponse:
         task_id = self.start_nowait(
             prompt,
@@ -1057,6 +1139,7 @@ class _LLMClient(BaseModel):
             cache=cache,
             service_tier=service_tier,
             prefer_model=prefer_model,
+            http_session=http_session,
         )
         return await self.wait_for(task_id)
 
@@ -1169,6 +1252,7 @@ class _LLMClient(BaseModel):
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
+        http_session: aiohttp.ClientSession | None = None,
     ) -> AgentLoopResponse:
         """Internal method to run agent loop and return wrapped result."""
         if self.use_responses_api:
@@ -1214,6 +1298,7 @@ class _LLMClient(BaseModel):
                 cache=cache,
                 service_tier=service_tier,
                 prefer_model=model_for_round,
+                http_session=http_session,
             )
             # After first round, stick to the model that was used
             if response and response.model_internal:
@@ -1296,6 +1381,7 @@ class _LLMClient(BaseModel):
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
+        http_session: aiohttp.ClientSession | None = None,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
 
@@ -1326,6 +1412,7 @@ class _LLMClient(BaseModel):
                 service_tier=service_tier,
                 prefer_model=prefer_model,
                 verbose=verbose,
+                http_session=http_session,
             )
         )
         self._tasks[task_id] = task
@@ -1499,30 +1586,35 @@ class _LLMClient(BaseModel):
         # Semaphore to limit concurrent agent loops
         agent_semaphore = asyncio.Semaphore(max_concurrent_agents)
 
-        async def run_single_loop(
-            idx: int, conv: Conversation
-        ) -> tuple[int, Conversation, APIResponse]:
-            """Run a single agent loop with semaphore protection."""
-            async with agent_semaphore:
-                task_id = self._next_task_id
-                self._next_task_id += 1
-                result = await self._run_agent_loop_internal(
-                    task_id,
-                    conv,
-                    tools=tools,
-                    skills=skills,
-                    max_rounds=max_rounds,
-                    on_round_complete=on_round_complete,
-                    output_schema=output_schema,
-                    cache=cache,
-                    service_tier=service_tier,
-                    verbose=verbose,
-                )
-                return idx, result.conversation, result.final_response
+        async with self._scoped_http_session() as http_session:
 
-        # Launch all agent loops concurrently (semaphore limits actual concurrency)
-        tasks = [run_single_loop(idx, conv) for idx, conv in enumerate(conversations)]
-        completed = await asyncio.gather(*tasks)
+            async def run_single_loop(
+                idx: int, conv: Conversation
+            ) -> tuple[int, Conversation, APIResponse]:
+                """Run a single agent loop with semaphore protection."""
+                async with agent_semaphore:
+                    task_id = self._next_task_id
+                    self._next_task_id += 1
+                    result = await self._run_agent_loop_internal(
+                        task_id,
+                        conv,
+                        tools=tools,
+                        skills=skills,
+                        max_rounds=max_rounds,
+                        on_round_complete=on_round_complete,
+                        output_schema=output_schema,
+                        cache=cache,
+                        service_tier=service_tier,
+                        verbose=verbose,
+                        http_session=http_session,
+                    )
+                    return idx, result.conversation, result.final_response
+
+            # Launch all agent loops concurrently (semaphore limits actual concurrency)
+            tasks = [
+                run_single_loop(idx, conv) for idx, conv in enumerate(conversations)
+            ]
+            completed = await asyncio.gather(*tasks)
 
         # Close tracker if we opened it
         if not tracker_preopened:

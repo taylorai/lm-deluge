@@ -72,6 +72,7 @@ class StatusTracker:
         self.last_update_time = time.time() - 1
         self.last_pbar_update_time = time.time() - 1
         self.limiting_factor = None
+        self._concurrency_semaphore = asyncio.Semaphore(self.max_concurrent_requests)
 
     @property
     def time_since_rate_limit_error(self):

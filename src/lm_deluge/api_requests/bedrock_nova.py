@@ -132,6 +132,8 @@ class BedrockNovaRequest(APIRequestBase):
         await self.build_request()
         import aiohttp
 
+        from .base import _get_session
+
         assert self.context.status_tracker
 
         self.context.status_tracker.total_requests += 1
@@ -163,11 +165,12 @@ class BedrockNovaRequest(APIRequestBase):
             final_headers = self.request_header
 
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with _get_session(self.context, timeout=timeout) as session:
                 async with session.post(
                     url=self.url,
                     headers=final_headers,
                     data=payload,
+                    timeout=timeout,
                 ) as http_response:
                     response: APIResponse = await self.handle_response(http_response)
             return response

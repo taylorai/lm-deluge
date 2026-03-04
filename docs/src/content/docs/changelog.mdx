@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.129 · 2026-03-03
+
+- **Gemini 3.1 Flash Lite**: Added `gemini-3.1-flash-lite-preview` (native Gemini API) and `gemini-3.1-flash-lite-compat` (OpenAI-compatible endpoint). Google's most cost-efficient multimodal model — $0.25/M input, $1.50/M output. Supports thinking, structured outputs, and function calling (native endpoint only; the OpenAI-compat endpoint doesn't support tool calling for Gemini 3.x due to thought signature requirements).
+
 ## 0.0.128 · 2026-03-03
 
 - **Dynamic-filtering web search tool**: Added `web_search_tool_dynamic()` for Anthropic's new `web_search_20260209` tool, which lets Claude write and execute code to filter search results before they enter the context window. Only supported on Claude Opus 4.6 and Sonnet 4.6 — raises `ValueError` for unsupported models. The API auto-injects the code execution tool, so you don't need to pass it separately. The existing `web_search_tool()` (`web_search_20250305`) remains available for all models.

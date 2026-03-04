@@ -4,6 +4,7 @@ import os
 import time
 import traceback
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 from email.utils import parsedate_to_datetime
 
 import aiohttp
@@ -14,6 +15,27 @@ from ..errors import raise_if_modal_exception
 from ..models.openai import OPENAI_MODELS
 from ..tracker import MAX_COOLDOWN_SECONDS
 from .response import APIResponse
+
+
+@asynccontextmanager
+async def _get_session(
+    context: RequestContext,
+    timeout: aiohttp.ClientTimeout | None = None,
+):
+    """Yield a session to use for a request.
+
+    If the context carries a shared session, yield it directly (caller does NOT
+    own it, so we never close it).  Otherwise create a temporary session with
+    the given timeout and close it on exit.
+    """
+    if context.http_session is not None:
+        yield context.http_session
+    else:
+        session = aiohttp.ClientSession(timeout=timeout)
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 def parse_retry_after(http_response: ClientResponse) -> float | None:
@@ -154,7 +176,7 @@ class APIRequestBase(ABC):
         response_id: str | None = None
         last_status: str | None = None
 
-        async with aiohttp.ClientSession() as session:
+        async with _get_session(self.context) as session:
 
             async def cancel_response(reason: str) -> None:
                 nonlocal response_id
@@ -296,12 +318,13 @@ class APIRequestBase(ABC):
         try:
             self.context.status_tracker.total_requests += 1
             timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with _get_session(self.context, timeout=timeout) as session:
                 assert self.url is not None, "URL is not set"
                 async with session.post(
                     url=self.url,
                     headers=self.request_header,
                     json=self.request_json,
+                    timeout=timeout,
                 ) as http_response:
                     response: APIResponse = await self.handle_response(http_response)
             return response

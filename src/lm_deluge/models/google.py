@@ -78,6 +78,20 @@ GOOGLE_MODELS = {
         "reasoning_model": True,
         "supports_images": True,
     },
+    "gemini-3.1-flash-lite-compat": {
+        "id": "gemini-3.1-flash-lite-compat",
+        "name": "gemini-3.1-flash-lite-preview",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "openai",
+        "input_cost": 0.25,
+        "cached_input_cost": 0.025,
+        "output_cost": 1.5,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     # Native Gemini API versions with file support
     "gemini-2.0-flash": {
         "id": "gemini-2.0-flash",
@@ -175,6 +189,21 @@ GOOGLE_MODELS = {
         "input_cost": 0.5,
         "cached_input_cost": 0.125,  # estimated
         "output_cost": 3.0,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
+    # Gemini 3.1 Flash Lite
+    "gemini-3.1-flash-lite-preview": {
+        "id": "gemini-3.1-flash-lite-preview",
+        "name": "gemini-3.1-flash-lite-preview",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 0.25,
+        "cached_input_cost": 0.025,
+        "output_cost": 1.5,
         "reasoning_model": True,
         "supports_images": True,
     },

@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, Callable, Sequence, TYPE_CHECKING
 
+import aiohttp
+
 from ..config import SamplingParams
 from ..prompt import CachePattern, Conversation
 from ..tracker import StatusTracker
@@ -46,6 +48,9 @@ class RequestContext:
     extra_body: dict[str, Any] | None = None
     force_local_mcp: bool = False
 
+    # Shared HTTP session (owned by the caller, not by this context)
+    http_session: aiohttp.ClientSession | None = None
+
     # Computed properties
     cache_key: str = field(init=False)
 
@@ -82,6 +87,7 @@ class RequestContext:
             "extra_headers": self.extra_headers,
             "extra_body": self.extra_body,
             "force_local_mcp": self.force_local_mcp,
+            "http_session": self.http_session,
         }
 
         # Update with any overrides
