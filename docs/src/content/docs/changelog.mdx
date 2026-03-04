@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.130 · 2026-03-03
+
+- **Session sharing**: Batch requests (`process_batch`, `batch_agent_loop`) now share a single `aiohttp.ClientSession` across all tasks, reducing connection overhead and improving throughput for large batches. The connector pool is sized with headroom above `max_concurrent_requests` so aiohttp never becomes the hidden bottleneck.
+- **Improved rate-limit dispatch**: Replaced `_wait_for_capacity` with `_consume_rate_capacity` — rate-limit waiting now happens *before* acquiring the concurrency semaphore, fixing head-of-line blocking for mixed-size requests. Wait times are computed dynamically from RPM/TPM deficit instead of fixed sleeps. Requests that can never fit the TPM budget raise immediately with a clear error instead of hanging forever.
+- **Graceful exception handling in batches**: `process_batch` and `batch_agent_loop` now use `return_exceptions=True` in `asyncio.gather`, so a single failing task no longer cancels all siblings. Exceptions are converted to error `APIResponse` objects, giving callers a uniform list back.
+
 ## 0.0.129 · 2026-03-03
 
 - **Gemini 3.1 Flash Lite**: Added `gemini-3.1-flash-lite-preview` (native Gemini API) and `gemini-3.1-flash-lite-compat` (OpenAI-compatible endpoint). Google's most cost-efficient multimodal model — $0.25/M input, $1.50/M output. Supports thinking, structured outputs, and function calling (native endpoint only; the OpenAI-compat endpoint doesn't support tool calling for Gemini 3.x due to thought signature requirements).
