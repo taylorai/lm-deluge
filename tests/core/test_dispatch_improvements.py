@@ -2,11 +2,21 @@
 """Tests for the dispatch system improvements: semaphore concurrency, computed wait times."""
 
 import asyncio
+import time
 from unittest.mock import patch
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.api_requests.base import APIResponse
 from lm_deluge.client import _compute_wait
+from rich.console import Console
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+)
+
 from lm_deluge.tracker import StatusTracker
 
 
@@ -72,6 +82,55 @@ def test_compute_wait_takes_max_of_rpm_tpm():
     t.available_token_capacity = 0.0  # TPM wait for 100 tokens = 0.1s
     wait = _compute_wait(t, 100)
     assert abs(wait - 1.0) < 0.01
+
+
+def test_rich_display_refreshes_capacity_while_idle():
+    """Rich display should refresh RPM/TPM even if no waiter is polling capacity."""
+
+    async def _test():
+        tracker = _make_tracker(
+            max_requests_per_minute=60, max_tokens_per_minute=60_000
+        )
+        tracker.progress_bar_total = 1
+        tracker.progress_style = "rich"
+        tracker._rich_console = Console(record=True, highlight=False)
+        tracker._rich_progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            MofNCompleteColumn(),
+        )
+        tracker._rich_task_id = tracker._rich_progress.add_task("test", total=1)
+        tracker._rich_stop_event = asyncio.Event()
+        tracker.available_request_capacity = 0.0
+        tracker.available_token_capacity = 0.0
+        tracker.last_update_time = time.time() - 30
+
+        class _FakeLive:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def update(self, display):
+                tracker._rich_stop_event.set()
+
+        async def _fake_sleep(_: float):
+            return None
+
+        with patch("lm_deluge.tracker.Live", _FakeLive), patch(
+            "lm_deluge.tracker.asyncio.sleep", _fake_sleep
+        ):
+            await tracker._rich_display_updater()
+
+        assert tracker.available_request_capacity > 0
+        assert tracker.available_token_capacity > 0
+
+    asyncio.run(_test())
 
 
 # --- Semaphore concurrency tests ---
@@ -447,6 +506,7 @@ if __name__ == "__main__":
     test_compute_wait_floor()
     test_compute_wait_cap()
     test_compute_wait_takes_max_of_rpm_tpm()
+    test_rich_display_refreshes_capacity_while_idle()
     test_semaphore_created_with_correct_value()
     test_semaphore_limits_concurrency()
     test_no_counter_leak_on_value_error()

@@ -278,6 +278,9 @@ class StatusTracker:
 
         with Live(console=self._rich_console, refresh_per_second=10) as live:
             while not self._rich_stop_event.is_set():
+                # Capacity refills continuously over wall-clock time, even when
+                # no task is actively contending for a rate-limit slot.
+                self.update_capacity()
                 completed = self.num_tasks_succeeded
                 self._rich_progress.update(
                     self._rich_task_id,
@@ -370,6 +373,7 @@ class StatusTracker:
         current_time = time.time()
         if self._pbar and (current_time - self.last_pbar_update_time > 1):
             self.last_pbar_update_time = current_time
+            self.update_capacity()
             self._pbar.set_postfix(
                 {
                     "Token Capacity": f"{self.available_token_capacity / 1_000:.1f}k",
