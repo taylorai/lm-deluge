@@ -50,9 +50,9 @@ class SamplingParams(BaseModel):
                 "verbosity and global_effort must match when both are provided"
             )
 
-        if verbosity_present and not global_effort_present:
+        if verbosity is not None and global_effort is None:
             data["global_effort"] = verbosity
-        elif global_effort_present and not verbosity_present:
+        elif global_effort is not None and verbosity is None:
             data["verbosity"] = global_effort
 
         return data

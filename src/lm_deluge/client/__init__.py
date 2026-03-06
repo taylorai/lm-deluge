@@ -567,33 +567,28 @@ class _LLMClient(BaseModel):
                 self.name = "LLMClient"
 
         # Validate logprobs settings across all sampling params
+        for sp in self.sampling_params:
+            if sp.verbosity is None and sp.global_effort is not None:
+                sp.verbosity = sp.global_effort
+            elif sp.global_effort is None and sp.verbosity is not None:
+                sp.global_effort = sp.verbosity
+
         if self.logprobs or any(sp.logprobs for sp in self.sampling_params):
-            print("Logprobs enabled.")
+            if not all(registry[model].supports_logprobs for model in self.models):
+                raise ValueError(
+                    "logprobs can only be enabled if all models support it."
+                )
             for sp in self.sampling_params:
-                if sp.verbosity is None and sp.global_effort is not None:
-                    sp.verbosity = sp.global_effort
-                elif sp.global_effort is None and sp.verbosity is not None:
-                    sp.global_effort = sp.verbosity
                 sp.logprobs = True
-                # set top_logprobs for each sp if provided and not set
-                if self.top_logprobs and not sp.top_logprobs:
-                    sp.top_logprobs = self.top_logprobs
-        else:
-            for sp in self.sampling_params:
-                if sp.verbosity is None and sp.global_effort is not None:
-                    sp.verbosity = sp.global_effort
-                elif sp.global_effort is None and sp.verbosity is not None:
-                    sp.global_effort = sp.verbosity
                 if sp.top_logprobs and not (0 <= sp.top_logprobs <= 20):
                     raise ValueError("top_logprobs must be 0-20")
                 if sp.top_logprobs and sp.max_new_tokens > 10:
                     print(
                         "WARNING: using top_logprobs can result in very large outputs. consider limiting max_new_tokens."
                     )
-            if not all(registry[model].supports_logprobs for model in self.models):
-                raise ValueError(
-                    "logprobs can only be enabled if all models support it."
-                )
+                # set top_logprobs for each sp if provided and not set
+                if self.top_logprobs and not sp.top_logprobs:
+                    sp.top_logprobs = self.top_logprobs
         return self
 
     @classmethod
