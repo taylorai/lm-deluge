@@ -5,6 +5,14 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.131 · 2026-03-05
+
+- **GPT-5.4 models**: Added `gpt-5.4` ($2.50/$15) and `gpt-5.4-pro` ($30/$180) — OpenAI's latest reasoning models with image support and `xhigh` reasoning effort.
+- **Verbosity parameter**: New `verbosity` param on `LLMClient` and `SamplingParams` as a unified alias for output effort control. Maps to OpenAI's native `verbosity` API field (low/medium/high) on GPT-5+ models, and to Anthropic's `output_config.effort` on Claude 4.5+/4.6 models. Cross-provider values are normalized automatically (e.g. `"max"` → `"high"` for OpenAI with a warning). `verbosity` and `global_effort` stay synced — setting one sets the other, and providing conflicting values raises `ValueError`.
+- **Lazy effort defaults**: `global_effort` no longer defaults to `"high"` in `SamplingParams`. Instead, the Anthropic request builder applies the `"high"` default only for models that support GA effort, avoiding unnecessary params for other providers.
+- **Warning cleanup**: Anthropic's `json_mode`-without-schema warning now fires once via `maybe_warn` instead of printing every time. New warning keys for unsupported verbosity/effort combinations.
+- **Proxy server verbosity**: The OpenAI-compatible proxy server now accepts and forwards the `verbosity` field in chat completion requests.
+
 ## 0.0.130 · 2026-03-03
 
 - **Session sharing**: Batch requests (`process_batch`, `batch_agent_loop`) now share a single `aiohttp.ClientSession` across all tasks, reducing connection overhead and improving throughput for large batches. The connector pool is sized with headroom above `max_concurrent_requests` so aiohttp never becomes the hidden bottleneck.

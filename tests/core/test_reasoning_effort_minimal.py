@@ -43,6 +43,37 @@ def test_client_allows_none_type():
     assert client.reasoning_effort is None
 
 
+def test_sampling_params_aliases_verbosity_to_global_effort():
+    """verbosity should populate global_effort for provider-specific builders."""
+    sp = SamplingParams(verbosity="medium")
+    assert sp.verbosity == "medium"
+    assert sp.global_effort == "medium"
+
+
+def test_sampling_params_aliases_global_effort_to_verbosity():
+    """global_effort should populate verbosity for OpenAI builders."""
+    sp = SamplingParams(global_effort="max")
+    assert sp.global_effort == "max"
+    assert sp.verbosity == "max"
+
+
+def test_client_allows_verbosity_alias():
+    """LLMClient should accept verbosity and propagate it to SamplingParams."""
+    client = LLMClient("gpt-5", verbosity="low")
+    assert client.verbosity == "low"
+    assert all(sp.verbosity == "low" for sp in client.sampling_params)
+    assert all(sp.global_effort == "low" for sp in client.sampling_params)
+
+
+def test_client_rejects_conflicting_output_effort_aliases():
+    """verbosity and global_effort must agree when both are provided."""
+    try:
+        LLMClient("gpt-5", verbosity="low", global_effort="high")
+        assert False, "Expected conflicting aliases to raise ValueError"
+    except ValueError as exc:
+        assert "must match" in str(exc)
+
+
 if __name__ == "__main__":
     test_sampling_params_allows_minimal()
     test_sampling_params_allows_none_string()
@@ -50,4 +81,8 @@ if __name__ == "__main__":
     test_client_allows_none()
     test_client_allows_standard_values()
     test_client_allows_none_type()
+    test_sampling_params_aliases_verbosity_to_global_effort()
+    test_sampling_params_aliases_global_effort_to_verbosity()
+    test_client_allows_verbosity_alias()
+    test_client_rejects_conflicting_output_effort_aliases()
     print("All tests passed!")

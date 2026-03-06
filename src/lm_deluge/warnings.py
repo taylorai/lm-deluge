@@ -4,7 +4,11 @@ import warnings
 
 WARNINGS: dict[str, str] = {
     "WARN_JSON_MODE_UNSUPPORTED": "JSON mode requested for {model_name} but response_format parameter not supported.",
+    "WARN_ANTHROPIC_JSON_MODE_UNSUPPORTED": "Anthropic does not support basic json_mode without a schema. Use output_schema parameter for structured JSON outputs.",
     "WARN_REASONING_UNSUPPORTED": "Ignoring reasoning_effort param for non-reasoning model: {model_name}.",
+    "WARN_GLOBAL_EFFORT_UNSUPPORTED": "Ignoring global_effort/verbosity param for model without output effort support: {model_name}.",
+    "WARN_VERBOSITY_UNSUPPORTED": "Ignoring verbosity/global_effort param for model without verbosity support: {model_name}.",
+    "WARN_VERBOSITY_NORMALIZED": "Verbosity value '{verbosity}' is not supported by {model_name}. Using '{mapped_verbosity}' instead.",
     "WARN_CACHING_UNSUPPORTED": "Cache parameter '{cache_param}' is not supported, ignoring for {model_name}.",
     "WARN_LOGPROBS_UNSUPPORTED": "Ignoring logprobs param for non-logprobs model: {model_name}",
     "WARN_MINIMAL_TO_LOW": "'minimal' reasoning effort only allowed for gpt-5 models. Setting to 'low' for {model_name}.",

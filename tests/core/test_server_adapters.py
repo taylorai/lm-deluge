@@ -18,6 +18,7 @@ from lm_deluge.server.adapters import (
     anthropic_request_to_sampling_params,
     anthropic_tools_to_lm_deluge,
     api_response_to_anthropic,
+    openai_request_to_sampling_params,
     openai_tools_to_lm_deluge,
 )
 from lm_deluge.server.models_anthropic import (
@@ -25,6 +26,7 @@ from lm_deluge.server.models_anthropic import (
     AnthropicMessage,
     AnthropicMessagesRequest,
 )
+from lm_deluge.server.models_openai import OpenAIChatCompletionsRequest, OpenAIMessage
 
 
 def test_openai_tools_to_lm_deluge_handles_missing_parameters():
@@ -162,6 +164,18 @@ def test_anthropic_request_to_sampling_params_parses_effort_and_adaptive():
     params = anthropic_request_to_sampling_params(req)
     assert params.global_effort == "max"
     assert params.reasoning_effort == "high"
+
+
+def test_openai_request_to_sampling_params_parses_verbosity():
+    req = OpenAIChatCompletionsRequest(
+        model="gpt-5",
+        messages=[OpenAIMessage(role="user", content="Hello")],
+        verbosity="medium",
+    )
+
+    params = openai_request_to_sampling_params(req)
+    assert params.verbosity == "medium"
+    assert params.global_effort == "medium"
 
 
 def test_anthropic_request_to_output_schema_prefers_output_config_format():
@@ -323,6 +337,7 @@ if __name__ == "__main__":
     test_anthropic_tools_to_lm_deluge_handles_missing_schema()
     test_anthropic_request_to_conversation_rich_content()
     test_anthropic_request_to_sampling_params_parses_effort_and_adaptive()
+    test_openai_request_to_sampling_params_parses_verbosity()
     test_anthropic_request_to_output_schema_prefers_output_config_format()
     test_anthropic_request_to_output_schema_supports_deprecated_output_format()
     test_api_response_to_anthropic_maps_stop_reason_and_thinking()

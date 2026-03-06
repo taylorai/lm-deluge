@@ -57,6 +57,8 @@ def openai_request_to_sampling_params(
         params["max_new_tokens"] = req.max_tokens
     if req.reasoning_effort is not None:
         params["reasoning_effort"] = req.reasoning_effort
+    if req.verbosity is not None:
+        params["verbosity"] = req.verbosity
     if req.response_format and req.response_format.get("type") == "json_object":
         params["json_mode"] = True
     if req.logprobs:

@@ -40,6 +40,44 @@ def _message_contents_to_string(messages: list[dict]):
     return messages
 
 
+def _normalize_openai_verbosity(
+    model: APIModel,
+    requested: str | None,
+    *,
+    model_name: str,
+) -> str | None:
+    if requested is None:
+        return None
+
+    if not model.supports_verbosity:
+        maybe_warn("WARN_VERBOSITY_UNSUPPORTED", model_name=model_name)
+        return None
+
+    mapped = {
+        "none": "low",
+        "minimal": "low",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "high",
+        "max": "high",
+    }.get(requested)
+
+    if mapped is None:
+        maybe_warn("WARN_VERBOSITY_UNSUPPORTED", model_name=model_name)
+        return None
+
+    if mapped != requested:
+        maybe_warn(
+            "WARN_VERBOSITY_NORMALIZED",
+            verbosity=requested,
+            mapped_verbosity=mapped,
+            model_name=model_name,
+        )
+
+    return mapped
+
+
 async def _build_oa_chat_request(
     model: APIModel,
     context: RequestContext,
@@ -126,6 +164,14 @@ async def _build_oa_chat_request(
         request_json["logprobs"] = True
         if sampling_params.top_logprobs is not None:
             request_json["top_logprobs"] = sampling_params.top_logprobs
+
+    verbosity = _normalize_openai_verbosity(
+        model,
+        sampling_params.verbosity,
+        model_name=context.model_name,
+    )
+    if verbosity is not None:
+        request_json["verbosity"] = verbosity
 
     # Handle structured outputs (output_schema takes precedence over json_mode)
     if context.output_schema:
@@ -395,6 +441,12 @@ async def _build_oa_responses_request(
         if sampling_params.reasoning_effort:
             maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=context.model_name)
 
+    verbosity = _normalize_openai_verbosity(
+        model,
+        sampling_params.verbosity,
+        model_name=context.model_name,
+    )
+
     # Handle structured outputs (output_schema takes precedence over json_mode)
     if context.output_schema:
         if model.supports_json:
@@ -417,6 +469,11 @@ async def _build_oa_responses_request(
             )
     elif sampling_params.json_mode and model.supports_json:
         request_json["text"] = {"format": {"type": "json_object"}}
+
+    if verbosity is not None:
+        text_config = request_json.setdefault("text", {})
+        assert isinstance(text_config, dict)
+        text_config["verbosity"] = verbosity
 
     # Handle tools
     request_tools = []

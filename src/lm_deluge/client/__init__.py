@@ -144,7 +144,12 @@ class _LLMClient(BaseModel):
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None
-    global_effort: Literal["low", "medium", "high", "max"] | None = None
+    global_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None
+    verbosity: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None
     thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
@@ -303,8 +308,9 @@ class _LLMClient(BaseModel):
                         top_p=self.top_p,
                         json_mode=self.json_mode,
                         max_new_tokens=self.max_new_tokens,
+                        global_effort=self.global_effort,
+                        verbosity=self.verbosity,
                         reasoning_effort=self.reasoning_effort,
-                        global_effort=self.global_effort or "high",
                         thinking_budget=self.thinking_budget,
                         logprobs=self.logprobs,
                         top_logprobs=self.top_logprobs,
@@ -426,7 +432,31 @@ class _LLMClient(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def fix_lists(cls, data) -> "_LLMClient":
+    def fix_lists(cls, data):
+        if not isinstance(data, dict):
+            return data
+
+        verbosity_present = "verbosity" in data
+        global_effort_present = "global_effort" in data
+        verbosity = data.get("verbosity")
+        global_effort = data.get("global_effort")
+
+        if (
+            verbosity_present
+            and global_effort_present
+            and verbosity is not None
+            and global_effort is not None
+            and verbosity != global_effort
+        ):
+            raise ValueError(
+                "verbosity and global_effort must match when both are provided"
+            )
+
+        if verbosity_present and not global_effort_present:
+            data["global_effort"] = verbosity
+        elif global_effort_present and not verbosity_present:
+            data["verbosity"] = global_effort
+
         # Process model_names - handle both strings and lists
         model_names = data.get("model_names")
 
@@ -466,8 +496,9 @@ class _LLMClient(BaseModel):
                     top_p=data.get("top_p", 1.0),
                     json_mode=data.get("json_mode", False),
                     max_new_tokens=data.get("max_new_tokens", 512),
+                    global_effort=data.get("global_effort", None),
+                    verbosity=data.get("verbosity", None),
                     reasoning_effort=data.get("reasoning_effort", None),
-                    global_effort=data.get("global_effort") or "high",
                     thinking_budget=data.get("thinking_budget", None),
                     logprobs=data.get("logprobs", False),
                     top_logprobs=data.get("top_logprobs", None),
@@ -493,6 +524,11 @@ class _LLMClient(BaseModel):
 
     @model_validator(mode="after")
     def validate_client(self) -> _LLMClient:
+        if self.verbosity is None and self.global_effort is not None:
+            self.verbosity = self.global_effort
+        elif self.global_effort is None and self.verbosity is not None:
+            self.global_effort = self.verbosity
+
         if isinstance(self.model_names, str):
             self.model_names = [self.model_names]
         if any(m not in registry for m in self.model_names):
@@ -534,10 +570,20 @@ class _LLMClient(BaseModel):
         if self.logprobs or any(sp.logprobs for sp in self.sampling_params):
             print("Logprobs enabled.")
             for sp in self.sampling_params:
+                if sp.verbosity is None and sp.global_effort is not None:
+                    sp.verbosity = sp.global_effort
+                elif sp.global_effort is None and sp.verbosity is not None:
+                    sp.global_effort = sp.verbosity
                 sp.logprobs = True
                 # set top_logprobs for each sp if provided and not set
                 if self.top_logprobs and not sp.top_logprobs:
                     sp.top_logprobs = self.top_logprobs
+        else:
+            for sp in self.sampling_params:
+                if sp.verbosity is None and sp.global_effort is not None:
+                    sp.verbosity = sp.global_effort
+                elif sp.global_effort is None and sp.verbosity is not None:
+                    sp.global_effort = sp.verbosity
                 if sp.top_logprobs and not (0 <= sp.top_logprobs <= 20):
                     raise ValueError("top_logprobs must be 0-20")
                 if sp.top_logprobs and sp.max_new_tokens > 10:
@@ -1780,7 +1826,12 @@ def LLMClient(
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None,
-    global_effort: Literal["low", "medium", "high", "max"] | None = None,
+    global_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None,
+    verbosity: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
@@ -1814,7 +1865,12 @@ def LLMClient(
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None,
-    global_effort: Literal["low", "medium", "high", "max"] | None = None,
+    global_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None,
+    verbosity: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
@@ -1847,7 +1903,12 @@ def LLMClient(
     reasoning_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", None
     ] = None,
-    global_effort: Literal["low", "medium", "high", "max"] | None = None,
+    global_effort: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None,
+    verbosity: Literal[
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
+    ] = None,
     thinking_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
@@ -1891,6 +1952,7 @@ def LLMClient(
         max_new_tokens=max_new_tokens,
         reasoning_effort=reasoning_effort,
         global_effort=global_effort,
+        verbosity=verbosity,
         thinking_budget=thinking_budget,
         logprobs=logprobs,
         top_logprobs=top_logprobs,

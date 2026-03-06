@@ -118,6 +118,12 @@ def test_opus_46_ga_effort_max():
     assert body["output_config"]["effort"] == "max"
 
 
+def test_sonnet_46_verbosity_alias_maps_to_ga_effort():
+    ctx = _ctx("claude-4.6-sonnet", verbosity="medium")
+    body, _ = _build_anthropic_request(SONNET, ctx)
+    assert body["output_config"]["effort"] == "medium"
+
+
 # --- Prefill blocked ---
 
 
@@ -172,6 +178,7 @@ if __name__ == "__main__":
     test_opus_46_reasoning_effort_maps_to_adaptive()
     test_sonnet_46_ga_effort()
     test_opus_46_ga_effort_max()
+    test_sonnet_46_verbosity_alias_maps_to_ga_effort()
     test_sonnet_46_no_prefill()
     test_opus_46_no_prefill()
     test_sonnet_46_top_p_stripped()

@@ -24,6 +24,7 @@ OPENAI_MODELS = {
         "output_cost": 15.0,
         "reasoning_model": True,
         "supports_xhigh": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5.4-pro": {
@@ -39,6 +40,7 @@ OPENAI_MODELS = {
         "output_cost": 180.0,
         "reasoning_model": True,
         "supports_xhigh": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5.2": {
@@ -55,6 +57,7 @@ OPENAI_MODELS = {
         "output_cost": 14.0,
         "reasoning_model": True,
         "supports_xhigh": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5.1-codex-max": {
@@ -70,6 +73,7 @@ OPENAI_MODELS = {
         "output_cost": 10.0,
         "reasoning_model": True,
         "supports_xhigh": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5.1": {
@@ -85,6 +89,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.125,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5.1-codex": {
@@ -100,6 +105,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.125,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5.1-codex-mini": {
@@ -115,6 +121,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 2.0,
         "reasoning_model": True,
+        "supports_verbosity": True,
     },
     "gpt-5-codex": {
         "id": "gpt-5-codex",
@@ -129,6 +136,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.125,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5": {
@@ -144,6 +152,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.125,
         "output_cost": 10.0,
         "reasoning_model": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5-chat": {
@@ -159,6 +168,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.125,
         "output_cost": 10.0,
         "reasoning_model": False,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5-mini": {
@@ -174,6 +184,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 2.0,
         "reasoning_model": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "gpt-5-nano": {
@@ -189,6 +200,7 @@ OPENAI_MODELS = {
         "cached_input_cost": 0.005,
         "output_cost": 0.40,
         "reasoning_model": True,
+        "supports_verbosity": True,
         "supports_images": True,
     },
     "openai-computer-use-preview": {

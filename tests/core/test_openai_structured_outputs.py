@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Tests for OpenAI structured output request builders."""
+"""Tests for OpenAI structured output and verbosity request builders."""
 
 import asyncio
+import os
+import warnings
 
 from lm_deluge.api_requests.openai import (
     _build_oa_chat_request,
@@ -16,6 +18,7 @@ from lm_deluge.tool import Tool
 import dotenv
 
 dotenv.load_dotenv()
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 
 def _make_prompt() -> Conversation:
@@ -165,3 +168,71 @@ def test_openai_responses_tools_non_strict_when_disabled():
     assert "strict" not in tool_def
     assert tool_def["parameters"]["properties"]["retries"]["default"] == 2
     assert tool_def["parameters"]["required"] == ["url"]
+
+
+def test_openai_chat_global_effort_alias_maps_to_verbosity():
+    """OpenAI chat completions should map global_effort to verbosity."""
+    context = RequestContext(
+        task_id=123,
+        model_name="gpt-5",
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(global_effort="medium"),
+    )
+    model = APIModel.from_registry("gpt-5")
+
+    request_json = _run(_build_oa_chat_request(model, context))
+
+    assert request_json["verbosity"] == "medium"
+
+
+def test_openai_responses_verbosity_merges_with_text_format():
+    """Responses API should include verbosity alongside text.format."""
+    sampling = SamplingParams(verbosity="high", json_mode=True)
+    context = RequestContext(
+        task_id=123,
+        model_name="gpt-5",
+        prompt=_make_prompt(),
+        sampling_params=sampling,
+    )
+    model = APIModel.from_registry("gpt-5")
+
+    request_json = _run(_build_oa_responses_request(model, context))
+
+    assert request_json["text"]["verbosity"] == "high"
+    assert request_json["text"]["format"] == {"type": "json_object"}
+
+
+def test_openai_verbosity_warns_and_drops_for_unsupported_model():
+    """Unsupported OpenAI models should warn and omit verbosity."""
+    context = RequestContext(
+        task_id=123,
+        model_name="gpt-4o-mini",
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(verbosity="medium"),
+    )
+    model = APIModel.from_registry("gpt-4o-mini")
+    os.environ.pop("WARN_VERBOSITY_UNSUPPORTED", None)
+
+    with warnings.catch_warnings(record=True) as caught:
+        request_json = _run(_build_oa_chat_request(model, context))
+
+    assert "verbosity" not in request_json
+    assert any("verbosity/global_effort" in str(w.message) for w in caught)
+
+
+def test_openai_max_global_effort_normalizes_to_high_verbosity():
+    """Anthropic-style max effort should down-map to OpenAI high verbosity."""
+    context = RequestContext(
+        task_id=123,
+        model_name="gpt-5",
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(global_effort="max"),
+    )
+    model = APIModel.from_registry("gpt-5")
+    os.environ.pop("WARN_VERBOSITY_NORMALIZED", None)
+
+    with warnings.catch_warnings(record=True) as caught:
+        request_json = _run(_build_oa_chat_request(model, context))
+
+    assert request_json["verbosity"] == "high"
+    assert any("Using 'high'" in str(w.message) for w in caught)

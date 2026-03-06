@@ -47,6 +47,7 @@ class APIModel:
     supports_responses: bool = False
     reasoning_model: bool = False
     supports_xhigh: bool = False
+    supports_verbosity: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
 
     @classmethod
@@ -106,6 +107,7 @@ def register_model(
     supports_responses: bool = False,
     reasoning_model: bool = False,
     supports_xhigh: bool = False,
+    supports_verbosity: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
     aliases: list[str] | None = None,
     # tokens_per_minute: int | None = None,
@@ -135,6 +137,7 @@ def register_model(
         supports_responses=supports_responses,
         reasoning_model=reasoning_model,
         supports_xhigh=supports_xhigh,
+        supports_verbosity=supports_verbosity,
         regions=regions,
         # tokens_per_minute=tokens_per_minute,
         # requests_per_minute=requests_per_minute,

@@ -64,6 +64,9 @@ class OpenAIChatCompletionsRequest(BaseModel):
 
     # Reasoning models
     reasoning_effort: Literal["low", "medium", "high"] | None = None
+    verbosity: (
+        Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"] | None
+    ) = None
 
     # Other options (accepted but may be ignored)
     n: int | None = None

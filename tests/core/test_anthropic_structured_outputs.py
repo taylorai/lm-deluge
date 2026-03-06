@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Test Anthropic structured outputs support including JSON outputs and strict tool use."""
 
+import os
+import warnings
+
 from lm_deluge.tool import Tool
 from lm_deluge.config import SamplingParams
 from lm_deluge.api_requests.context import RequestContext
@@ -413,6 +416,34 @@ def test_anthropic_tool_with_defs_strict_mode():
     print("✅ Anthropic tool with $defs strict mode test passed!")
 
 
+def test_anthropic_json_mode_warning_only_once():
+    """json_mode without schema should warn once via maybe_warn."""
+
+    os.environ.pop("WARN_ANTHROPIC_JSON_MODE_UNSUPPORTED", None)
+    model = APIModel.from_registry("claude-4.5-sonnet")
+    prompt = Conversation()
+    prompt.add(Message.user("Return JSON"))
+    context = RequestContext(
+        task_id=1,
+        model_name="claude-4.5-sonnet",
+        prompt=prompt,
+        sampling_params=SamplingParams(json_mode=True),
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        _build_anthropic_request(model, context)
+        _build_anthropic_request(model, context)
+
+    matches = [
+        w
+        for w in caught
+        if "Anthropic does not support basic json_mode without a schema"
+        in str(w.message)
+    ]
+    assert len(matches) == 1
+
+
 if __name__ == "__main__":
     test_anthropic_tool_strict_mode()
     print()
@@ -433,4 +464,6 @@ if __name__ == "__main__":
     test_anthropic_combined_output_schema_and_strict_tools()
     print()
     test_anthropic_tool_with_defs_strict_mode()
+    print()
+    test_anthropic_json_mode_warning_only_once()
     print("\n🎉 All Anthropic structured outputs tests passed!")

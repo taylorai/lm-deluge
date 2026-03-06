@@ -53,6 +53,10 @@ def _anthropic_effort(effort: str | None) -> str | None:
     return None
 
 
+def _requested_output_effort(sampling_params) -> str | None:
+    return sampling_params.verbosity or sampling_params.global_effort
+
+
 def _transform_tool_schema_for_anthropic(tool: dict) -> dict:
     """Strip Anthropic-unsupported schema constraints from tool payloads."""
     transformed_tool = dict(tool)
@@ -114,9 +118,13 @@ def _build_anthropic_request(
             "End the prompt with a user/tool message instead."
         )
 
-    effort = _anthropic_effort(sampling_params.global_effort)
+    requested_output_effort = _requested_output_effort(sampling_params)
+    default_output_effort = "high" if _supports_ga_effort(model) else None
+    effort = _anthropic_effort(requested_output_effort or default_output_effort)
     if _supports_ga_effort(model) and effort is not None:
         request_json["output_config"] = {"effort": effort}
+    elif requested_output_effort is not None:
+        maybe_warn("WARN_GLOBAL_EFFORT_UNSUPPORTED", model_name=context.model_name)
 
     # handle thinking
     if model.reasoning_model:
@@ -230,10 +238,7 @@ def _build_anthropic_request(
             )
     elif sampling_params.json_mode:
         # Anthropic doesn't support basic json_mode without a schema
-        print(
-            "WARNING: Anthropic does not support basic json_mode without a schema. "
-            "Use output_schema parameter for structured JSON outputs."
-        )
+        maybe_warn("WARN_ANTHROPIC_JSON_MODE_UNSUPPORTED")
 
     # Note: Strict tools are now GA, no beta header needed
 

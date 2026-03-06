@@ -134,6 +134,7 @@ AZURE_MODELS = {
         "cached_input_cost": 0.50,
         "output_cost": 8.00,
         "reasoning_model": True,
+        "supports_verbosity": True,
     },
     "gpt-5-mini-azure": {
         "id": "gpt-5-mini-azure",
@@ -148,6 +149,7 @@ AZURE_MODELS = {
         "cached_input_cost": 0.10,
         "output_cost": 1.60,
         "reasoning_model": True,
+        "supports_verbosity": True,
     },
     "gpt-5-nano-azure": {
         "id": "gpt-5-nano-azure",
@@ -162,6 +164,7 @@ AZURE_MODELS = {
         "cached_input_cost": 0.025,
         "output_cost": 0.40,
         "reasoning_model": True,
+        "supports_verbosity": True,
     },
     "gpt-5.1-azure": {
         "id": "gpt-5.1-azure",
@@ -176,6 +179,7 @@ AZURE_MODELS = {
         "cached_input_cost": 0.50,
         "output_cost": 8.00,
         "reasoning_model": True,
+        "supports_verbosity": True,
     },
     "gpt-5.2-azure": {
         "id": "gpt-5.2-azure",
@@ -191,6 +195,7 @@ AZURE_MODELS = {
         "output_cost": 8.00,
         "reasoning_model": True,
         "supports_xhigh": True,
+        "supports_verbosity": True,
     },
     # Kimi
     "kimi-k2-thinking-azure": {
