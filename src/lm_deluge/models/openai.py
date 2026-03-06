@@ -10,6 +10,37 @@ OPENAI_MODELS = {
     #                ░███
     #                █████
     #               ░░░░░
+    "gpt-5.4": {
+        "id": "gpt-5.4",
+        "name": "gpt-5.4",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 2.50,
+        "cached_input_cost": 0.25,
+        "output_cost": 15.0,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_images": True,
+    },
+    "gpt-5.4-pro": {
+        "id": "gpt-5.4-pro",
+        "name": "gpt-5.4-pro",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 30.0,
+        "output_cost": 180.0,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_images": True,
+    },
     "gpt-5.2": {
         "id": "gpt-5.2",
         "name": "gpt-5.2",
