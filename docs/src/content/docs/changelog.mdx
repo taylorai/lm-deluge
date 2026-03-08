@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.133 · 2026-03-08
+
+- **Audio transcription**: New `lm_deluge.transcribe` module — a lightweight, standalone transcription client (like `embed`). Supports OpenAI (`whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe`), Mistral (`voxtral-mini-latest`), and Fireworks (`whisper-v3`, `whisper-v3-turbo`). Parallel batch transcription with rate limiting, retries, cost tracking, and progress bars. Use `transcribe_async` / `transcribe_sync` with file paths, `Path` objects, or raw bytes.
+- **Auto-splitting for long audio**: When a file exceeds a model's duration or file-size limit, the module automatically splits it into chunks via ffmpeg, transcribes the chunks in parallel, and stitches the results back together — timestamps, segments, and words are all adjusted to reflect the original file's timeline. If ffmpeg isn't installed and the file is within limits, it sends directly; if the file exceeds limits and ffmpeg is missing, a clear error message tells the user what to do.
+- **`TranscriptionResponse`**: Results include `.text`, `.language`, `.duration`, `.segments` (list of `TranscriptionSegment` with start/end/speaker), and `.words`. Duration and language are filled in from ffprobe when the API doesn't return them (e.g. gpt-4o-transcribe models).
+
 ## 0.0.131 · 2026-03-05
 
 - **GPT-5.4 models**: Added `gpt-5.4` ($2.50/$15) and `gpt-5.4-pro` ($30/$180) — OpenAI's latest reasoning models with image support and `xhigh` reasoning effort.
