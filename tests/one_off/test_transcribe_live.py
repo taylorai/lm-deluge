@@ -7,7 +7,11 @@ import asyncio
 
 import dotenv
 
-from lm_deluge.transcribe import transcribe_async, transcribe_sync
+from lm_deluge.transcribe import (
+    TranscriptionResponse,
+    transcribe_async,
+    transcribe_sync,
+)
 
 dotenv.load_dotenv()
 
@@ -17,6 +21,7 @@ AUDIO_FILE = "/Users/benjamin/Downloads/MuseumOfBadArt.ogg"
 def test_sync_whisper():
     print("\n=== whisper-1 (sync, timestamps=True) ===")
     result = transcribe_sync(AUDIO_FILE, model="whisper-1", timestamps=True)
+    assert isinstance(result, TranscriptionResponse), "expected transcriptionresponse"
     assert not result.is_error, f"Error: {result.error_message}"
     print(f"Language: {result.language}")
     print(f"Duration: {result.duration:.1f}s")
