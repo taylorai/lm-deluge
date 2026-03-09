@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import aiohttp
+import filetype
 from tqdm.auto import tqdm
 
 from .api_requests.base import parse_retry_after
@@ -104,6 +105,10 @@ AUDIO_EXTENSIONS: dict[str, str] = {
     ".webm": "audio/webm",
 }
 
+# An audio source can be a file path, raw bytes (defaults to audio/wav),
+# or a (bytes, filename) tuple to preserve the original format.
+AudioSource = str | bytes | Path | tuple[bytes, str]
+
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
@@ -179,13 +184,20 @@ def _guess_mime_type(path: str) -> str:
     return mime or "application/octet-stream"
 
 
-def _read_audio(source: str | bytes | Path) -> tuple[bytes, str, str]:
-    """Read audio from a file path or bytes.
+def _read_audio(source: AudioSource) -> tuple[bytes, str, str]:
+    """Read audio from a file path, raw bytes, or (bytes, filename) tuple.
 
     Returns (audio_bytes, mime_type, filename).
     """
+    if isinstance(source, tuple):
+        audio_bytes, filename = source
+        mime_type = _guess_mime_type(filename)
+        return audio_bytes, mime_type, filename
     if isinstance(source, bytes):
-        return source, "audio/wav", "audio.wav"
+        kind = filetype.guess(source)
+        if kind:
+            return source, kind.mime, f"audio.{kind.extension}"
+        return source, "application/octet-stream", "audio"
     source = str(source)
     path = Path(source)
     if not path.exists():
@@ -759,7 +771,7 @@ async def _transcribe_chunk(
 
 async def _transcribe_file(
     task_id: int,
-    source: str | bytes | Path,
+    source: AudioSource,
     model: str,
     model_info: dict[str, Any],
     language: str | None,
@@ -966,7 +978,7 @@ async def _transcribe_file(
 
 
 async def transcribe_async(
-    audio_files: list[str | bytes | Path] | str | bytes | Path,
+    audio_files: list[AudioSource] | AudioSource,
     model: str = "whisper-1",
     language: str | None = None,
     timestamps: bool = False,
@@ -981,7 +993,8 @@ async def transcribe_async(
 
     Args:
         audio_files: A single audio source or list of sources. Each source can
-            be a file path (str or Path) or raw bytes.
+            be a file path (str or Path), raw bytes (assumed WAV), or a
+            (bytes, filename) tuple to preserve the original format/extension.
         model: Transcription model name (see REGISTRY for options).
         language: ISO-639-1 language code to help the model.
         timestamps: Request segment/word-level timestamps (when supported).
@@ -997,7 +1010,7 @@ async def transcribe_async(
         List of TranscriptionResponse objects, one per audio file, sorted by ID.
     """
     # Normalize single input to list
-    if isinstance(audio_files, (str, bytes, Path)):
+    if isinstance(audio_files, (str, bytes, Path, tuple)):
         audio_files = [audio_files]
 
     if not audio_files:
@@ -1063,7 +1076,7 @@ async def transcribe_async(
 
 
 def transcribe_sync(
-    audio_files: list[str | bytes | Path] | str | bytes | Path,
+    audio_files: list[AudioSource] | AudioSource,
     model: str = "whisper-1",
     **kwargs,
 ) -> TranscriptionResponse | list[TranscriptionResponse]:
@@ -1072,7 +1085,7 @@ def transcribe_sync(
     If a single audio source is passed, returns a single TranscriptionResponse.
     If a list is passed, returns a list of TranscriptionResponse objects.
     """
-    single = isinstance(audio_files, (str, bytes, Path))
+    single = isinstance(audio_files, (str, bytes, Path, tuple))
     results = asyncio.run(transcribe_async(audio_files, model=model, **kwargs))
     if single:
         return results[0]
