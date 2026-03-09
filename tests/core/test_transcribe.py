@@ -25,6 +25,8 @@ def test_registry_has_expected_models():
         "voxtral-mini-latest",
         "whisper-v3",
         "whisper-v3-turbo",
+        "nova-3",
+        "nova-2",
     ]
     for model in expected:
         assert model in REGISTRY, f"Missing model: {model}"
@@ -114,6 +116,88 @@ def test_transcription_response_dataclass():
     assert r.segments[0].start == 0.0
 
 
+def test_parse_deepgram_response():
+    result = {
+        "metadata": {
+            "request_id": "abc123",
+            "duration": 25.93,
+            "channels": 1,
+        },
+        "results": {
+            "channels": [
+                {
+                    "detected_language": "en",
+                    "alternatives": [
+                        {
+                            "transcript": "Yeah as much as it's worth celebrating.",
+                            "confidence": 0.999,
+                            "words": [
+                                {
+                                    "word": "yeah",
+                                    "start": 0.08,
+                                    "end": 0.32,
+                                    "confidence": 0.99,
+                                    "punctuated_word": "Yeah.",
+                                },
+                                {
+                                    "word": "as",
+                                    "start": 0.32,
+                                    "end": 0.8,
+                                    "confidence": 0.99,
+                                    "punctuated_word": "As",
+                                },
+                            ],
+                            "paragraphs": {
+                                "transcript": "Yeah. As much as...",
+                                "paragraphs": [
+                                    {
+                                        "speaker": 0,
+                                        "num_words": 8,
+                                        "start": 0.08,
+                                        "end": 5.0,
+                                        "sentences": [
+                                            {
+                                                "text": "Yeah.",
+                                                "start": 0.08,
+                                                "end": 0.32,
+                                            },
+                                            {
+                                                "text": "As much as it's worth celebrating.",
+                                                "start": 0.32,
+                                                "end": 5.0,
+                                            },
+                                        ],
+                                    }
+                                ],
+                            },
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+    text, lang, dur, segs, words = _parse_response("deepgram", result)
+    assert text == "Yeah as much as it's worth celebrating."
+    assert lang == "en"
+    assert dur == 25.93
+    assert len(words) == 2
+    assert words[0]["word"] == "yeah"
+    assert len(segs) == 2
+    assert segs[0].text == "Yeah."
+    assert segs[0].speaker == "0"
+    assert segs[1].start == 0.32
+
+
+def test_parse_deepgram_empty_response():
+    result = {"metadata": {"duration": 0.0}, "results": {"channels": []}}
+    text, lang, dur, segs, words = _parse_response("deepgram", result)
+    assert text == ""
+    assert lang is None
+    assert dur == 0.0
+    assert segs == []
+    assert words == []
+
+
 if __name__ == "__main__":
     test_registry_has_expected_models()
     test_guess_mime_type()
@@ -122,5 +206,7 @@ if __name__ == "__main__":
     test_read_audio_missing_file()
     test_parse_segments()
     test_parse_response()
+    test_parse_deepgram_response()
+    test_parse_deepgram_empty_response()
     test_transcription_response_dataclass()
     print("All tests passed!")

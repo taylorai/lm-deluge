@@ -4,16 +4,12 @@ Requires API keys set in environment. Uses a real audio file.
 """
 
 import asyncio
-import sys
-from pathlib import Path
 
 import dotenv
 
-dotenv.load_dotenv()
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-
 from lm_deluge.transcribe import transcribe_async, transcribe_sync
+
+dotenv.load_dotenv()
 
 AUDIO_FILE = "/Users/benjamin/Downloads/MuseumOfBadArt.ogg"
 

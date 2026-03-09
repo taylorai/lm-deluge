@@ -1,4 +1,4 @@
-"""Parallel audio transcription API for OpenAI, Mistral, and Fireworks models."""
+"""Parallel audio transcription API for OpenAI, Mistral, Fireworks, and Deepgram."""
 
 import asyncio
 import mimetypes
@@ -71,6 +71,23 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "cost_per_minute": 0.002,
         "max_duration": None,
         "max_file_size": 1024 * 1024 * 1024,
+    },
+    # Deepgram
+    "nova-3": {
+        "provider": "deepgram",
+        "api_base": "https://api.deepgram.com/v1",
+        "api_key_env_var": "DEEPGRAM_API_KEY",
+        "cost_per_minute": 0.0043,
+        "max_duration": None,
+        "max_file_size": 2 * 1024 * 1024 * 1024,  # 2 GB
+    },
+    "nova-2": {
+        "provider": "deepgram",
+        "api_base": "https://api.deepgram.com/v1",
+        "api_key_env_var": "DEEPGRAM_API_KEY",
+        "cost_per_minute": 0.0043,
+        "max_duration": None,
+        "max_file_size": 2 * 1024 * 1024 * 1024,
     },
 }
 
@@ -483,6 +500,9 @@ def _parse_response(
 
     Returns (text, language, duration, segments, words).
     """
+    if provider == "deepgram":
+        return _parse_deepgram_response(result)
+
     text = result.get("text", "")
     language = result.get("language")
     duration = result.get("duration")
@@ -497,6 +517,43 @@ def _parse_response(
     raw_words = result.get("words", [])
     if raw_words:
         words = raw_words
+
+    return text, language, duration, segments, words
+
+
+def _parse_deepgram_response(
+    result: dict,
+) -> tuple[str, str | None, float | None, list[TranscriptionSegment], list[dict]]:
+    """Parse Deepgram's nested response format."""
+    metadata = result.get("metadata", {})
+    duration = metadata.get("duration")
+
+    channels = result.get("results", {}).get("channels", [])
+    if not channels:
+        return "", None, duration, [], []
+
+    alt = channels[0].get("alternatives", [{}])[0]
+    text = alt.get("transcript", "")
+
+    # Deepgram detected language is on the channel or alternative
+    language = channels[0].get("detected_language") or alt.get("detected_language")
+
+    words: list[dict] = alt.get("words", [])
+
+    # Build segments from paragraphs if available
+    segments: list[TranscriptionSegment] = []
+    paragraphs_obj = alt.get("paragraphs", {})
+    raw_paragraphs = paragraphs_obj.get("paragraphs", [])
+    for para in raw_paragraphs:
+        for sentence in para.get("sentences", []):
+            segments.append(
+                TranscriptionSegment(
+                    text=sentence.get("text", ""),
+                    start=sentence.get("start", 0.0),
+                    end=sentence.get("end", 0.0),
+                    speaker=str(para["speaker"]) if "speaker" in para else None,
+                )
+            )
 
     return text, language, duration, segments, words
 
@@ -557,9 +614,29 @@ async def _transcribe_chunk(
             text="",
         )
 
-    url = f"{api_base}/audio/transcriptions"
-    headers = {"Authorization": f"Bearer {api_key}"}
-    build_form = _FORM_BUILDERS[provider]
+    is_deepgram = provider == "deepgram"
+
+    query_params: dict[str, str] = {}
+    if is_deepgram:
+        # Deepgram: raw binary body, query params, Token auth
+        query_params = {"model": model, "smart_format": "true"}
+        if language:
+            query_params["language"] = language
+        if timestamps:
+            query_params["utterances"] = "true"
+            query_params["paragraphs"] = "true"
+        for key, value in extra_params.items():
+            query_params[key] = str(value)
+        url = f"{api_base}/listen"
+        headers = {
+            "Authorization": f"Token {api_key}",
+            "Content-Type": mime_type,
+        }
+    else:
+        url = f"{api_base}/audio/transcriptions"
+        headers = {"Authorization": f"Bearer {api_key}"}
+
+    build_form = _FORM_BUILDERS.get(provider)
 
     for attempt in range(max_attempts):
         retry = attempt > 0
@@ -570,18 +647,27 @@ async def _transcribe_chunk(
             status_tracker.num_tasks_in_progress += 1
 
         try:
-            form = build_form(
-                model,
-                audio_bytes,
-                mime_type,
-                filename,
-                language,
-                timestamps,
-                extra_params.copy(),
-            )
+            if is_deepgram:
+                request_kwargs: dict[str, Any] = {
+                    "data": audio_bytes,
+                    "headers": headers,
+                    "params": query_params,
+                }
+            else:
+                assert build_form is not None
+                form = build_form(
+                    model,
+                    audio_bytes,
+                    mime_type,
+                    filename,
+                    language,
+                    timestamps,
+                    extra_params.copy(),
+                )
+                request_kwargs = {"data": form, "headers": headers}
             timeout = aiohttp.ClientTimeout(total=request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(url, data=form, headers=headers) as response:
+                async with session.post(url, **request_kwargs) as response:
                     if response.status == 200:
                         result = await response.json()
                         text, lang, duration, segments, words = _parse_response(
@@ -767,7 +853,7 @@ async def _transcribe_file(
         if max_duration:
             limit_info.append(f"max {max_duration}s")
         if max_file_size:
-            limit_info.append(f"max {max_file_size // (1024*1024)}MB")
+            limit_info.append(f"max {max_file_size // (1024 * 1024)}MB")
         return TranscriptionResponse(
             id=task_id,
             status_code=None,
