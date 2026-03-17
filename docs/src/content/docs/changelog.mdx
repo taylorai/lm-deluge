@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.136 · 2026-03-17
+
+- **GPT-5.4 mini and nano**: Added `gpt-5.4-mini` and `gpt-5.4-nano` to the OpenAI registry with the same reasoning and capability handling as `gpt-5.4`, plus the new pricing tiers. Added a live one-off smoke test that exercises both models against the OpenAI API and verifies cost accounting.
+
 ## 0.0.135 · 2026-03-09
 
 - **Audio file type inference**: When passing raw `bytes` to `transcribe_async` / `transcribe_sync`, the library now uses `filetype` to detect the actual audio format (mp3, ogg, flac, etc.) instead of blindly assuming WAV. A new `AudioSource` type alias also accepts `(bytes, filename)` tuples so callers can preserve the original format and extension when the bytes come from an in-memory source.
