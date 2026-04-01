@@ -54,8 +54,8 @@ class Conversation:
         self,
         text: str,
         *,
-        image: bytes | str | Path | None = None,
-        file: bytes | str | Path | None = None,
+        image: bytes | str | Path | Image | None = None,
+        file: bytes | str | Path | File | None = None,
     ) -> "Conversation":
         """Add a user message and return self for chaining."""
         msg = Message.user(text)
@@ -70,8 +70,8 @@ class Conversation:
         self,
         text: str,
         *,
-        image: bytes | str | Path | None = None,
-        file: bytes | str | Path | None = None,
+        image: bytes | str | Path | Image | None = None,
+        file: bytes | str | Path | File | None = None,
     ) -> "Conversation":
         """Add an assistant message and return self for chaining."""
         msg = Message.ai(text)
@@ -486,7 +486,7 @@ class Conversation:
             if role not in {"user", "assistant"}:
                 raise ValueError(f"Unsupported Anthropic role: {role}")
 
-            base_role: Role = role  # type: ignore[assignment]
+            base_role: Role = role
             content = message.get("content")
             if isinstance(content, list):
                 buffer_parts: list[Part] = []
