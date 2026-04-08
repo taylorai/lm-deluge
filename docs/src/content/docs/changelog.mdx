@@ -5,6 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.138 · 2026-04-08
+
+- **Cloudflare Workers AI provider**: New provider with 6 models — Kimi K2.5, GLM-4.7-Flash, GPT-OSS-120B, Llama 4 Scout, Gemma 4 26B, and Nemotron 3 120B. Uses Cloudflare's OpenAI-compatible endpoint with a thin custom handler for account ID injection. Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` env vars. Model IDs are suffixed `-cf` (e.g. `kimi-k2.5-cf`, `llama-4-scout-cf`).
+- **Gemini batch processing**: Added `submit_batches_gemini` for Gemini's native batch API with file upload, polling, and result retrieval. Integrates with the existing `submit_batch_job` / `wait_for_batch_job` client methods.
+- **GPT-5.4 mini and nano**: Added `gpt-5.4-mini` ($0.75/$4.50) and `gpt-5.4-nano` ($0.20/$1.25) to the OpenAI registry with xhigh reasoning and verbosity support.
+- **Arcee Trinity models**: Added `trinity-large-thinking` and `trinity-large-preview` reasoning models from Arcee AI.
+
 ## 0.0.136 · 2026-03-17
 
 - **GPT-5.4 mini and nano**: Added `gpt-5.4-mini` and `gpt-5.4-nano` to the OpenAI registry with the same reasoning and capability handling as `gpt-5.4`, plus the new pricing tiers. Added a live one-off smoke test that exercises both models against the OpenAI API and verifies cost accounting.

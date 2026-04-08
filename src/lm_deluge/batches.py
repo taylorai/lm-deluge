@@ -13,6 +13,7 @@ from rich.table import Table
 from rich.text import Text
 
 from lm_deluge.api_requests.anthropic import _build_anthropic_request
+from lm_deluge.api_requests.gemini import _build_gemini_request
 from lm_deluge.api_requests.openai import _build_oa_chat_request
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel, registry
@@ -70,7 +71,9 @@ def _create_batch_status_display(
                 progress_text += f", {errored} errors"
 
     # Choose spinner color based on provider
-    spinner_style = "green" if provider == "openai" else "blue"
+    spinner_style = {"openai": "green", "anthropic": "blue", "gemini": "yellow"}.get(
+        provider, "white"
+    )
     spinner = Spinner("dots", style=spinner_style, text="")
 
     grid = Table.grid()
@@ -403,7 +406,7 @@ async def submit_batches_anthropic(
             print("wrote", len(current_batch), "items")
             batch_tasks.append(
                 asyncio.create_task(
-                    _submit_anthropic_batch(current_batch, request_headers, model)  # type: ignore
+                    _submit_anthropic_batch(current_batch, request_headers, model)
                 )
             )
 
@@ -430,9 +433,342 @@ async def submit_batches_anthropic(
     return batch_ids
 
 
+async def _upload_gemini_file(
+    session: aiohttp.ClientSession,
+    file_path: str,
+    api_key: str,
+    display_name: str,
+) -> str:
+    """Upload a JSONL file to Gemini Files API using resumable upload."""
+    file_size = os.path.getsize(file_path)
+
+    # Step 1: Initiate resumable upload
+    init_url = "https://generativelanguage.googleapis.com/upload/v1beta/files"
+    init_headers = {
+        "x-goog-api-key": api_key,
+        "X-Goog-Upload-Protocol": "resumable",
+        "X-Goog-Upload-Command": "start",
+        "X-Goog-Upload-Header-Content-Length": str(file_size),
+        "X-Goog-Upload-Header-Content-Type": "application/jsonl",
+        "Content-Type": "application/json",
+    }
+    init_body = {"file": {"display_name": display_name}}
+
+    async with session.post(init_url, headers=init_headers, json=init_body) as response:
+        if response.status != 200:
+            text = await response.text()
+            raise ValueError(f"Error initiating Gemini file upload: {text}")
+        upload_url = response.headers.get("X-Goog-Upload-URL")
+        if not upload_url:
+            raise ValueError("No upload URL returned from Gemini file upload init")
+
+    # Step 2: Upload the actual file
+    with open(file_path, "rb") as f:
+        file_data = f.read()
+
+    upload_headers = {
+        "Content-Length": str(file_size),
+        "X-Goog-Upload-Offset": "0",
+        "X-Goog-Upload-Command": "upload, finalize",
+    }
+
+    async with session.post(
+        upload_url, headers=upload_headers, data=file_data
+    ) as response:
+        if response.status != 200:
+            text = await response.text()
+            raise ValueError(f"Error uploading file to Gemini: {text}")
+        result = await response.json()
+        file_name = result["file"]["name"]
+        print(f"Uploaded file to Gemini: {file_name}")
+        return file_name
+
+
+async def _submit_gemini_batch(
+    requests: list[dict],
+    api_key: str,
+    model: str,
+    display_name: str | None = None,
+) -> str:
+    """Submit a batch to Gemini's batchGenerateContent API.
+
+    Uses inline requests if under 20MB, otherwise uploads a JSONL file.
+    """
+    INLINE_LIMIT = 20 * 1024 * 1024  # 20MB
+
+    model_obj = APIModel.from_registry(model)
+    base_url = model_obj.api_base
+    url = f"{base_url}/models/{model_obj.name}:batchGenerateContent"
+
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+
+    # Check total size to decide inline vs file-based
+    inline_payload = {
+        "batch": {
+            "display_name": display_name or "lm-deluge-batch",
+            "input_config": {
+                "requests": {
+                    "requests": requests,
+                }
+            },
+        }
+    }
+    payload_size = len(json.dumps(inline_payload).encode("utf-8"))
+
+    async with aiohttp.ClientSession() as session:
+        if payload_size <= INLINE_LIMIT:
+            # Inline submission
+            async with session.post(url, json=inline_payload, headers=headers) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise ValueError(f"Error creating Gemini batch: {text}")
+                batch_data = await resp.json()
+                batch_name = batch_data["name"]
+                print(f"Gemini batch job started (inline): {batch_name}")
+                return batch_name
+        else:
+            # File-based submission
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".jsonl", delete=False
+            ) as f:
+                for req in requests:
+                    json.dump(
+                        {"key": req["metadata"]["key"], "request": req["request"]}, f
+                    )
+                    f.write("\n")
+                tmp_path = f.name
+
+            try:
+                file_name = await _upload_gemini_file(
+                    session, tmp_path, api_key, display_name or "lm-deluge-batch"
+                )
+            finally:
+                os.remove(tmp_path)
+
+            file_payload = {
+                "batch": {
+                    "display_name": display_name or "lm-deluge-batch",
+                    "input_config": {
+                        "file_name": file_name,
+                    },
+                }
+            }
+
+            async with session.post(url, json=file_payload, headers=headers) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    raise ValueError(f"Error creating Gemini batch: {text}")
+                batch_data = await resp.json()
+                batch_name = batch_data["name"]
+                print(f"Gemini batch job started (file-based): {batch_name}")
+                return batch_name
+
+
+async def submit_batches_gemini(
+    model: str,
+    sampling_params: SamplingParams,
+    prompts: Prompt | Sequence[Prompt],
+    *,
+    batch_size: int = 100_000,
+):
+    """Submit batch jobs to Gemini's batchGenerateContent API."""
+    MAX_BATCH_SIZE_ITEMS = batch_size
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable must be set.")
+
+    if not isinstance(prompts, list):
+        prompts = cast(Sequence[Prompt], [prompts])
+
+    prompts = prompts_to_conversations(cast(Sequence[Prompt], prompts))
+    assert isinstance(prompts, Sequence)
+    if any(p is None for p in prompts):
+        raise ValueError("All prompts must be valid.")
+
+    model_obj = APIModel.from_registry(model)
+
+    batch_tasks = []
+    current_batch: list[dict] = []
+    batch_num = 0
+
+    for idx, prompt in enumerate(prompts):
+        assert isinstance(prompt, Conversation)
+        request_body = await _build_gemini_request(
+            model_obj, prompt, None, sampling_params
+        )
+        request = {
+            "request": request_body,
+            "metadata": {"key": str(idx)},
+        }
+
+        if len(current_batch) >= MAX_BATCH_SIZE_ITEMS:
+            print(f"Submitting batch {batch_num} with {len(current_batch)} items")
+            batch_tasks.append(
+                asyncio.create_task(
+                    _submit_gemini_batch(
+                        current_batch,
+                        api_key,
+                        model,
+                        display_name=f"lm-deluge-batch-{batch_num}",
+                    )
+                )
+            )
+            current_batch = []
+            batch_num += 1
+
+        current_batch.append(request)
+
+    if current_batch:
+        print(f"Submitting batch {batch_num} with {len(current_batch)} items")
+        batch_tasks.append(
+            asyncio.create_task(
+                _submit_gemini_batch(
+                    current_batch,
+                    api_key,
+                    model,
+                    display_name=f"lm-deluge-batch-{batch_num}",
+                )
+            )
+        )
+
+    batch_names = await asyncio.gather(*batch_tasks)
+
+    print(f"Submitted {len(batch_tasks)} Gemini batch jobs.")
+    return list(batch_names)
+
+
+async def _wait_for_gemini_batch_completion_async(
+    batch_name: str, poll_interval: int = 30
+):
+    """Poll Gemini batch until completion and return results."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY environment variable must be set.")
+
+    headers = {
+        "x-goog-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/{batch_name}"
+    console = Console()
+    start_time = time.time()
+
+    stop_display_event = asyncio.Event()
+    current_status: dict[str, Any] = {"status": "BATCH_STATE_PENDING", "counts": None}
+
+    async def display_updater():
+        with Live(console=console, refresh_per_second=10) as live:
+            while not stop_display_event.is_set():
+                elapsed = time.time() - start_time
+                display = _create_batch_status_display(
+                    batch_name,
+                    current_status["status"],
+                    elapsed,
+                    current_status["counts"],
+                    "gemini",
+                )
+                live.update(display)
+                await asyncio.sleep(0.1)
+
+    display_task = asyncio.create_task(display_updater())
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            while True:
+                async with session.get(url, headers=headers) as response:
+                    if response.status != 200:
+                        text = await response.text()
+                        raise ValueError(f"Error checking Gemini batch status: {text}")
+
+                    batch_data = await response.json()
+                    state = batch_data.get(
+                        "state", batch_data.get("metadata", {}).get("state", "UNKNOWN")
+                    )
+                    current_status["status"] = state
+
+                    if state == "BATCH_STATE_SUCCEEDED":
+                        stop_display_event.set()
+                        await display_task
+                        console.print(
+                            f"✅ Batch {batch_name} completed!", style="green bold"
+                        )
+                        return await _retrieve_gemini_batch_results_async(
+                            batch_data, api_key
+                        )
+                    elif state in [
+                        "BATCH_STATE_FAILED",
+                        "BATCH_STATE_CANCELLED",
+                    ]:
+                        stop_display_event.set()
+                        await display_task
+                        raise ValueError(
+                            f"Gemini batch {batch_name} ended with state: {state}"
+                        )
+
+                    await asyncio.sleep(poll_interval)
+    finally:
+        stop_display_event.set()
+        await display_task
+
+
+async def _retrieve_gemini_batch_results_async(
+    batch_data: dict, api_key: str
+) -> list[dict]:
+    """Retrieve results from a completed Gemini batch."""
+    headers = {
+        "x-goog-api-key": api_key,
+    }
+
+    dest = batch_data.get("dest", {})
+
+    # Check for inline responses first
+    inlined = dest.get("inlined_responses") or dest.get("inlinedResponses")
+    if inlined:
+        results = []
+        for item in inlined:
+            results.append(item)
+        return results
+
+    # File-based results
+    file_name = dest.get("file_name") or dest.get("fileName")
+    if not file_name:
+        # Try response.responsesFile
+        resp_section = batch_data.get("response", {})
+        file_name = resp_section.get("responsesFile") or resp_section.get(
+            "responses_file"
+        )
+    if not file_name:
+        raise ValueError(
+            f"Cannot find results location in batch data: {json.dumps(batch_data)}"
+        )
+
+    download_url = f"https://generativelanguage.googleapis.com/download/v1beta/{file_name}:download?alt=media"
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(download_url, headers=headers) as response:
+            if response.status != 200:
+                text = await response.text()
+                raise ValueError(f"Error downloading Gemini batch results: {text}")
+
+            text = await response.text()
+            results = []
+            for line in text.strip().split("\n"):
+                if line:
+                    results.append(json.loads(line))
+
+            # Sort by key to maintain order
+            results.sort(key=lambda x: int(x.get("key", 0)))
+            return results
+
+
 async def wait_for_batch_completion_async(
     batch_ids: list[str],
-    provider: Literal["openai", "anthropic"],
+    provider: Literal["openai", "anthropic", "gemini"],
     poll_interval: int = 30,
 ):
     """Wait for multiple batches to complete and return results asynchronously.
@@ -451,6 +787,8 @@ async def wait_for_batch_completion_async(
             task = _wait_for_openai_batch_completion_async(batch_id, poll_interval)
         elif provider == "anthropic":
             task = _wait_for_anthropic_batch_completion_async(batch_id, poll_interval)
+        elif provider == "gemini":
+            task = _wait_for_gemini_batch_completion_async(batch_id, poll_interval)
         else:
             raise ValueError(f"Unsupported provider: {provider}")
         tasks.append(task)

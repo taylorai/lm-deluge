@@ -9,7 +9,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-03T16:37:58.989049Z"
+exclude-newer = "2026-04-05T18:08:23.588601Z"
 exclude-newer-span = "P3D"
 
 [[package]]
@@ -1136,7 +1136,7 @@ wheels = [
 
 [[package]]
 name = "lm-deluge"
-version = "0.0.137"
+version = "0.0.138"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

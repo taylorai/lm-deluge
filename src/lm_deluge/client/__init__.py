@@ -24,6 +24,7 @@ from pydantic.functional_validators import model_validator
 from lm_deluge.api_requests.openai import stream_chat
 from lm_deluge.batches import (
     submit_batches_anthropic,
+    submit_batches_gemini,
     submit_batches_oa,
     wait_for_batch_completion_async,
 )
@@ -1784,11 +1785,18 @@ class _LLMClient(BaseModel):
                 cache=cache,
                 batch_size=batch_size,
             )
+        elif api_spec == "gemini":
+            return await submit_batches_gemini(
+                model,
+                self.sampling_params[0],
+                prompts,
+                batch_size=batch_size,
+            )
         else:
             raise ValueError(f"Batch processing not supported for API spec: {api_spec}")
 
     async def wait_for_batch_job(
-        self, batch_ids: list[str], provider: Literal["anthropic", "openai"]
+        self, batch_ids: list[str], provider: Literal["anthropic", "openai", "gemini"]
     ):
         return await wait_for_batch_completion_async(
             batch_ids, provider, poll_interval=30

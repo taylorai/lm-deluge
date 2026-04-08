@@ -12,6 +12,7 @@ from .anthropic import ANTHROPIC_MODELS
 from .arcee import ARCEE_MODELS
 from .bedrock import BEDROCK_MODELS
 from .cerebras import CEREBRAS_MODELS
+from .cloudflare import CLOUDFLARE_MODELS
 from .cohere import COHERE_MODELS
 from .deepseek import DEEPSEEK_MODELS
 from .fireworks import FIREWORKS_MODELS
@@ -170,6 +171,7 @@ _PROVIDER_MODELS = [
     (ZAI_MODELS, "zai"),
     (ARCEE_MODELS, "arcee"),
     (BEDROCK_MODELS, "bedrock"),
+    (CLOUDFLARE_MODELS, "cloudflare"),
     (COHERE_MODELS, "cohere"),
     (DEEPSEEK_MODELS, "deepseek"),
     (FIREWORKS_MODELS, "fireworks"),
