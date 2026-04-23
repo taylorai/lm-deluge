@@ -274,7 +274,7 @@ class _LLMClient(BaseModel):
         ] = []
 
         for name in models:
-            base_name = self._preprocess_openrouter_model(name)
+            base_name = self.__class__._preprocess_model_name(name)
             trimmed_name, effort = self.__class__._strip_reasoning_suffix_if_registered(
                 base_name
             )
@@ -445,6 +445,7 @@ class _LLMClient(BaseModel):
                     api_base="https://integrate.api.nvidia.com/v1",
                     api_key_env_var="NVIDIA_API_KEY",
                     api_spec="nvidia",
+                    provider="nvidia",
                     supports_json=False,
                     supports_logprobs=False,
                     supports_responses=False,
@@ -456,6 +457,13 @@ class _LLMClient(BaseModel):
 
             return model_id
         return model_name
+
+    @classmethod
+    def _preprocess_model_name(cls, model_name: str) -> str:
+        """Apply dynamic model registration prefixes in a consistent order."""
+        model_name = cls._preprocess_openrouter_model(model_name)
+        model_name = cls._preprocess_nvidia_model(model_name)
+        return cls._preprocess_tinker_model(model_name)
 
     @model_validator(mode="before")
     @classmethod
@@ -489,12 +497,7 @@ class _LLMClient(BaseModel):
 
         if isinstance(model_names, str):
             # Single model as string
-            # First, handle OpenRouter prefix
-            model_name = cls._preprocess_openrouter_model(model_names)
-            model_name = cls._preprocess_nvidia_model(model_name)
-
-            # next handle tinker prefix
-            model_name = cls._preprocess_tinker_model(model_name)
+            model_name = cls._preprocess_model_name(model_names)
 
             # Then handle reasoning effort suffix (e.g., "gpt-5-high")
             model_name, effort = cls._strip_reasoning_suffix_if_registered(model_name)
@@ -507,10 +510,7 @@ class _LLMClient(BaseModel):
             # List of models - process each one
             processed_models = []
             for model_name in model_names:
-                # Handle OpenRouter prefix for each model
-                processed_model = cls._preprocess_openrouter_model(model_name)
-                processed_model = cls._preprocess_nvidia_model(processed_model)
-                processed_model = cls._preprocess_tinker_model(processed_model)
+                processed_model = cls._preprocess_model_name(model_name)
                 processed_model, _ = cls._strip_reasoning_suffix_if_registered(
                     processed_model
                 )

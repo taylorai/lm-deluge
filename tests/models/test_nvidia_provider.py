@@ -36,6 +36,37 @@ def test_generic_nvidia_prefix_registers_model():
     assert model.api_base == "https://integrate.api.nvidia.com/v1"
     assert model.api_key_env_var == "NVIDIA_API_KEY"
     assert model.api_spec == "nvidia"
+    assert model.provider == "nvidia"
+
+
+def test_with_model_registers_generic_nvidia_prefix():
+    client = LLMClient("gpt-4.1-mini").with_model("nvidia:nvidia/llama-3.3-nemotron")
+
+    expected_id = "nvidia-nvidia-llama-3.3-nemotron"
+    assert expected_id in registry
+    assert client.model_names == [expected_id]
+
+    model = registry[expected_id]
+    assert model.name == "nvidia/llama-3.3-nemotron"
+    assert model.provider == "nvidia"
+    assert expected_id in {m.id for m in find_models(provider="nvidia")}
+
+
+def test_with_models_registers_generic_nvidia_prefixes():
+    client = LLMClient("gpt-4.1-mini").with_models(
+        ["nvidia:moonshotai/kimi-k2", "nvidia:deepseek-ai/deepseek-v3.2"]
+    )
+
+    expected_ids = [
+        "nvidia-moonshotai-kimi-k2",
+        "nvidia-deepseek-ai-deepseek-v3.2",
+    ]
+    assert client.model_names == expected_ids
+    assert all(model_id in registry for model_id in expected_ids)
+
+    nvidia_ids = {m.id for m in find_models(provider="nvidia")}
+    assert all(model_id in nvidia_ids for model_id in expected_ids)
+    assert all(registry[model_id].provider == "nvidia" for model_id in expected_ids)
 
 
 async def test_nvidia_request_uses_max_tokens_and_extra_body():
@@ -65,6 +96,14 @@ async def main():
 
     print("\nRunning test_generic_nvidia_prefix_registers_model...")
     test_generic_nvidia_prefix_registers_model()
+    print("✓ Passed")
+
+    print("\nRunning test_with_model_registers_generic_nvidia_prefix...")
+    test_with_model_registers_generic_nvidia_prefix()
+    print("✓ Passed")
+
+    print("\nRunning test_with_models_registers_generic_nvidia_prefixes...")
+    test_with_models_registers_generic_nvidia_prefixes()
     print("✓ Passed")
 
     print("\nRunning test_nvidia_request_uses_max_tokens_and_extra_body...")
