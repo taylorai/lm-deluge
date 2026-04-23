@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.139 · 2026-04-23
+
+- **NVIDIA provider**: Added a first-class NVIDIA hosted NIM provider using `https://integrate.api.nvidia.com/v1` with `NVIDIA_API_KEY`. Includes curated registry entries for models such as `minimax-m2.7-nvidia`, `deepseek-3.2-nvidia`, `kimi-k2.5-nvidia`, `glm-5.1-nvidia`, `gpt-oss-120b-nvidia`, and `sarvam-m-nvidia`.
+- **Dynamic NVIDIA catalog models**: You can now use arbitrary hosted catalog slugs via the `nvidia:` prefix, for example `nvidia:z-ai/glm-5.1` or `nvidia:openai/gpt-oss-120b`, without waiting for a registry update.
+- **OpenAI-compatible passthrough fix**: `extra_body` is now merged into OpenAI-compatible chat-completions requests, which is required for provider-specific knobs like NVIDIA's `chat_template_kwargs`.
+
 ## 0.0.138 · 2026-04-08
 
 - **Cloudflare Workers AI provider**: New provider with 6 models — Kimi K2.5, GLM-4.7-Flash, GPT-OSS-120B, Llama 4 Scout, Gemma 4 26B, and Nemotron 3 120B. Uses Cloudflare's OpenAI-compatible endpoint with a thin custom handler for account ID injection. Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` env vars. Model IDs are suffixed `-cf` (e.g. `kimi-k2.5-cf`, `llama-4-scout-cf`).
