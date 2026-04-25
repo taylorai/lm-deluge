@@ -31,6 +31,7 @@ print(next(iter(registry.values())))
 | `lm_deluge.models.fireworks` | Fireworks-hosted models | `FIREWORKS_API_KEY` |
 | `lm_deluge.models.together` | Together.ai models | `TOGETHER_API_KEY` |
 | `lm_deluge.models.cerebras` | Cerebras inference | `CEREBRAS_API_KEY` |
+| `lm_deluge.models.nvidia` | NVIDIA hosted NIM catalog | `NVIDIA_API_KEY` |
 | `lm_deluge.models.kimi` | Moonshot/Kimi | `KIMI_API_KEY` |
 | `lm_deluge.models.minimax` | MiniMax | `MINIMAX_API_KEY` |
 

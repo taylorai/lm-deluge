@@ -216,6 +216,13 @@ async def _build_oa_chat_request(
                     ]
                 )
         request_json["tools"] = request_tools
+
+    if context.extra_body:
+        for key, value in context.extra_body.items():
+            if key in {"model", "messages"}:
+                continue
+            request_json[key] = value
+
     return request_json
 
 

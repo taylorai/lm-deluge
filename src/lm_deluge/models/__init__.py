@@ -24,6 +24,7 @@ from .kimi import KIMI_MODELS
 from .meta import META_MODELS
 from .minimax import MINIMAX_MODELS
 from .mistral import MISTRAL_MODELS
+from .nvidia import NVIDIA_MODELS
 from .openai import OPENAI_MODELS
 from .openrouter import OPENROUTER_MODELS
 from .together import TOGETHER_MODELS
@@ -181,6 +182,7 @@ _PROVIDER_MODELS = [
     (META_MODELS, "meta"),
     (MINIMAX_MODELS, "minimax"),
     (MISTRAL_MODELS, "mistral"),
+    (NVIDIA_MODELS, "nvidia"),
     (OPENAI_MODELS, "openai"),
     (OPENROUTER_MODELS, "openrouter"),
     (TOGETHER_MODELS, "together"),
