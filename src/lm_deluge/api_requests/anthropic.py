@@ -37,17 +37,34 @@ def _is_claude_46(model: APIModel) -> bool:
     return model.id in {"claude-4.6-opus", "claude-4.6-sonnet"} or "4-6" in model.name
 
 
+def _is_claude_47(model: APIModel) -> bool:
+    return model.id == "claude-4.7-opus" or "4-7" in model.name
+
+
+def _is_claude_46_or_newer(model: APIModel) -> bool:
+    return _is_claude_46(model) or _is_claude_47(model)
+
+
 def _supports_ga_effort(model: APIModel) -> bool:
-    return model.id in {"claude-4.5-opus", "claude-4.6-opus", "claude-4.6-sonnet"}
+    return model.id in {
+        "claude-4.5-opus",
+        "claude-4.6-opus",
+        "claude-4.6-sonnet",
+        "claude-4.7-opus",
+    }
 
 
-def _anthropic_effort(effort: str | None) -> str | None:
+def _anthropic_effort(effort: str | None, model: APIModel | None = None) -> str | None:
     if effort is None:
         return None
-    if effort == "xhigh":
-        return "max"
     if effort == "minimal":
         return "low"
+    if effort == "xhigh":
+        # xhigh is a real Anthropic effort value on 4.7+; older models
+        # don't accept it, so we map it to "max" there.
+        if model is not None and _is_claude_47(model):
+            return "xhigh"
+        return "max"
     if effort in {"low", "medium", "high", "max"}:
         return effort
     return None
@@ -111,16 +128,22 @@ def _build_anthropic_request(
         "max_tokens": sampling_params.max_new_tokens,
     }
 
-    # Claude 4.6 models do not support assistant prefill (last assistant turn).
-    if _is_claude_46(model) and messages and messages[-1].get("role") == "assistant":
+    # Claude 4.6+ models do not support assistant prefill (last assistant turn).
+    if (
+        _is_claude_46_or_newer(model)
+        and messages
+        and messages[-1].get("role") == "assistant"
+    ):
         raise ValueError(
-            "Claude 4.6 models do not support assistant prefill. "
+            "Claude 4.6+ models do not support assistant prefill. "
             "End the prompt with a user/tool message instead."
         )
 
     requested_output_effort = _requested_output_effort(sampling_params)
     default_output_effort = "high" if _supports_ga_effort(model) else None
-    effort = _anthropic_effort(requested_output_effort or default_output_effort)
+    effort = _anthropic_effort(
+        requested_output_effort or default_output_effort, model=model
+    )
     if _supports_ga_effort(model) and effort is not None:
         request_json["output_config"] = {"effort": effort}
     elif requested_output_effort is not None:
@@ -134,21 +157,57 @@ def _build_anthropic_request(
         ):
             maybe_warn("WARN_THINKING_BUDGET_AND_REASONING_EFFORT")
 
-        # Claude 4.6 models support adaptive thinking mode.
-        if _is_claude_46(model) and sampling_params.thinking_budget is None:
+        # Claude 4.6+ models support adaptive thinking mode.
+        if _is_claude_46_or_newer(model) and sampling_params.thinking_budget is None:
             if sampling_params.reasoning_effort == "none":
-                request_json["thinking"] = {"type": "disabled"}
+                # On 4.7 adaptive is off by default, so just omit the field.
+                # On 4.6 explicit disabled is still accepted.
+                if not _is_claude_47(model):
+                    request_json["thinking"] = {"type": "disabled"}
             else:
-                request_json["thinking"] = {"type": "adaptive"}
-                # Map reasoning_effort to output_config.effort for 4.6
+                thinking_config: dict = {"type": "adaptive"}
+                # Prefer summarized display so callers can observe reasoning.
+                # The default on 4.7 is "omitted"; we opt in explicitly.
+                if _is_claude_47(model):
+                    thinking_config["display"] = "summarized"
+                request_json["thinking"] = thinking_config
+                # Map reasoning_effort to output_config.effort for 4.6/4.7
                 if sampling_params.reasoning_effort is not None:
-                    mapped = _anthropic_effort(sampling_params.reasoning_effort)
+                    mapped = _anthropic_effort(
+                        sampling_params.reasoning_effort, model=model
+                    )
                     if mapped is not None:
                         if "output_config" not in request_json:
                             request_json["output_config"] = {}
                         output_config = request_json["output_config"]
                         assert isinstance(output_config, dict)
                         output_config["effort"] = mapped
+        elif sampling_params.thinking_budget is not None and _is_claude_47(model):
+            # 4.7 rejects budget_tokens with 400. Translate to adaptive + effort.
+            budget = sampling_params.thinking_budget
+            if budget <= 0:
+                translated_effort = "none"
+            elif budget < 2048:
+                translated_effort = "low"
+            elif budget < 8192:
+                translated_effort = "medium"
+            elif budget < 32768:
+                translated_effort = "high"
+            else:
+                translated_effort = "xhigh"
+            maybe_warn("WARN_CLAUDE_47_BUDGET_TOKENS_REMOVED", effort=translated_effort)
+            if translated_effort != "none":
+                request_json["thinking"] = {
+                    "type": "adaptive",
+                    "display": "summarized",
+                }
+                mapped = _anthropic_effort(translated_effort, model=model)
+                if mapped is not None:
+                    if "output_config" not in request_json:
+                        request_json["output_config"] = {}
+                    output_config = request_json["output_config"]
+                    assert isinstance(output_config, dict)
+                    output_config["effort"] = mapped
         elif sampling_params.thinking_budget is not None:
             if _is_claude_46(model):
                 maybe_warn("WARN_CLAUDE_46_BUDGET_TOKENS_DEPRECATED")
@@ -198,12 +257,14 @@ def _build_anthropic_request(
                 if "kimi" in model.id and "thinking" in model.id:
                     maybe_warn("WARN_KIMI_THINKING_NO_REASONING")
         else:
-            request_json["thinking"] = {"type": "disabled"}
+            if not _is_claude_47(model):
+                request_json["thinking"] = {"type": "disabled"}
             if "kimi" in model.id and "thinking" in model.id:
                 maybe_warn("WARN_KIMI_THINKING_NO_REASONING")
 
     else:
-        request_json["thinking"] = {"type": "disabled"}
+        if not _is_claude_47(model):
+            request_json["thinking"] = {"type": "disabled"}
         if sampling_params.reasoning_effort:
             print("ignoring reasoning_effort for non-reasoning model")
 
@@ -215,6 +276,24 @@ def _build_anthropic_request(
     # and user can control which one they want to use
     if "4-1" in model.name or "4-5" in model.name or "4-6" in model.name:
         request_json.pop("top_p")
+
+    # Claude 4.7+ rejects non-default temperature, top_p, top_k with a 400.
+    if _is_claude_47(model):
+        request_json.pop("top_p", None)
+        request_json.pop("temperature", None)
+
+    # task_budget is Opus 4.7+ only (beta).
+    if sampling_params.task_budget is not None:
+        if _is_claude_47(model):
+            _add_beta(base_headers, "task-budgets-2026-03-13")
+            output_config_tb: dict = request_json.get("output_config") or {}  # type: ignore[assignment]
+            output_config_tb["task_budget"] = {
+                "type": "tokens",
+                "total": sampling_params.task_budget,
+            }
+            request_json["output_config"] = output_config_tb
+        else:
+            maybe_warn("WARN_TASK_BUDGET_UNSUPPORTED", model_name=context.model_name)
 
     # print(request_json)
     # Handle structured outputs (output_config.format) - GA version
@@ -417,18 +496,42 @@ class AnthropicRequest(APIRequestBase):
                         thinking_content = item.get("thinking", "")
                         thinking = thinking_content
                         signature = item.get("signature")
-                        parts.append(
-                            Thinking(
-                                thinking_content,
-                                raw_payload=item,
-                                thought_signature=ThoughtSignature(
-                                    signature,
-                                    provider="anthropic",
+                        # On Claude 4.7 with display="summarized", the
+                        # `thinking` field contains a human-readable summary
+                        # that must NOT be echoed back to the model. Stash it
+                        # as `summary` and blank out the round-trip payload's
+                        # thinking text so subsequent requests send only the
+                        # signature (preserving tool-use continuity).
+                        is_summary = _is_claude_47(self.model)
+                        if is_summary:
+                            round_trip_payload = dict(item)
+                            round_trip_payload["thinking"] = ""
+                            parts.append(
+                                Thinking(
+                                    "",
+                                    summary=thinking_content,
+                                    raw_payload=round_trip_payload,
+                                    thought_signature=ThoughtSignature(
+                                        signature,
+                                        provider="anthropic",
+                                    )
+                                    if signature is not None
+                                    else None,
                                 )
-                                if signature is not None
-                                else None,
                             )
-                        )
+                        else:
+                            parts.append(
+                                Thinking(
+                                    thinking_content,
+                                    raw_payload=item,
+                                    thought_signature=ThoughtSignature(
+                                        signature,
+                                        provider="anthropic",
+                                    )
+                                    if signature is not None
+                                    else None,
+                                )
+                            )
                     elif item["type"] == "redacted_thinking":
                         parts.append(
                             Thinking(

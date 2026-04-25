@@ -12,6 +12,7 @@ import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .cloudflare_sandbox import CloudflareSandbox as CloudflareSandbox
     from .daytona_sandbox import DaytonaSandbox as DaytonaSandbox
     from .docker_sandbox import DockerSandbox as DockerSandbox
     from .fargate_sandbox import FargateSandbox as FargateSandbox
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from .seatbelt_sandbox import SeatbeltSandbox as SeatbeltSandbox
 
 __all__ = [
+    "CloudflareSandbox",
     "DaytonaSandbox",
     "DockerSandbox",
     "FargateSandbox",
@@ -39,6 +41,7 @@ if sys.platform == "darwin":
 
 # Mapping of names to their module paths for lazy loading
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
+    "CloudflareSandbox": (".cloudflare_sandbox", "CloudflareSandbox"),
     "DaytonaSandbox": (".daytona_sandbox", "DaytonaSandbox"),
     "DockerSandbox": (".docker_sandbox", "DockerSandbox"),
     "FargateSandbox": (".fargate_sandbox", "FargateSandbox"),

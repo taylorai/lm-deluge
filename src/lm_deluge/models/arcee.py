@@ -14,8 +14,8 @@ ARCEE_MODELS = {
         "reasoning_model": True,
     },
     "trinity-large-preview": {
-        "id": "trinity-mini",
-        "name": "trinity-mini",
+        "id": "trinity-large-preview",
+        "name": "trinity-large-preview",
         "api_base": "https://api.arcee.ai/api/v1",
         "api_key_env_var": "ARCEE_API_KEY",
         "supports_json": True,

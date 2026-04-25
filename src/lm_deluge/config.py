@@ -27,6 +27,9 @@ class SamplingParams(BaseModel):
     strict_tools: bool = True
     # Gemini 3 only - controls multimodal vision processing fidelity
     media_resolution: MediaResolution | None = None
+    # Anthropic Opus 4.7+ only - advisory token budget for the full agentic loop.
+    # Minimum 20_000 per Anthropic's API; we don't enforce that here.
+    task_budget: int | None = None
 
     @model_validator(mode="before")
     @classmethod

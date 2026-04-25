@@ -245,6 +245,45 @@ def test_bedrock_claude_45_46_request_omits_top_p():
     assert "top_p" not in request_json
 
 
+def test_bedrock_claude_47_request_omits_temperature_and_top_p():
+    _ensure_fake_aws_creds()
+    reset_bedrock_region_state_for_tests()
+
+    for model_id in ("claude-4.7-opus-bedrock", "claude-4.7-opus-bedrock-global"):
+        context = RequestContext(
+            task_id=1,
+            model_name=model_id,
+            prompt=_make_prompt(),
+            sampling_params=SamplingParams(top_p=0.75, temperature=0.2),
+        )
+        model = APIModel.from_registry(model_id)
+
+        request_json, _, _, _, _ = asyncio.run(
+            _build_anthropic_bedrock_request(model, context)
+        )
+
+        assert "temperature" not in request_json, model_id
+        assert "top_p" not in request_json, model_id
+
+
+def test_bedrock_claude_47_registered():
+    us_model = APIModel.from_registry("claude-4.7-opus-bedrock")
+    assert us_model.name == "us.anthropic.claude-opus-4-7"
+    assert us_model.regions == ["us-east-1", "us-east-2", "us-west-2"]
+    assert us_model.reasoning_model
+    assert us_model.supports_json
+    assert us_model.supports_images
+
+    global_model = APIModel.from_registry("claude-4.7-opus-bedrock-global")
+    assert global_model.name == "global.anthropic.claude-opus-4-7"
+    # Commercial AWS regions - reuses the curated v46 list as a starting point.
+    assert isinstance(global_model.regions, list)
+    assert len(global_model.regions) > 10
+    assert global_model.reasoning_model
+    assert global_model.supports_json
+    assert global_model.supports_images
+
+
 def test_bedrock_invalid_security_token_is_region_scoped():
     error = '{"message": "The security token included in the request is invalid."}'
     assert is_probably_region_scoped_bedrock_error(error)
@@ -378,6 +417,8 @@ if __name__ == "__main__":
     test_bedrock_global_model_region_lists_exist()
     test_bedrock_region_weights_env_override()
     test_bedrock_claude_45_46_request_omits_top_p()
+    test_bedrock_claude_47_request_omits_temperature_and_top_p()
+    test_bedrock_claude_47_registered()
     test_bedrock_invalid_security_token_is_region_scoped()
     test_bedrock_api_key_auth_returns_bearer_header()
     test_bedrock_bearer_token_env_alias()

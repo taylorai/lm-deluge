@@ -152,6 +152,7 @@ class _LLMClient(BaseModel):
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None
     thinking_budget: int | None = None
+    task_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None
     force_local_mcp: bool = False
@@ -313,6 +314,7 @@ class _LLMClient(BaseModel):
                         verbosity=self.verbosity,
                         reasoning_effort=self.reasoning_effort,
                         thinking_budget=self.thinking_budget,
+                        task_budget=self.task_budget,
                         logprobs=self.logprobs,
                         top_logprobs=self.top_logprobs,
                     )
@@ -501,6 +503,7 @@ class _LLMClient(BaseModel):
                     verbosity=data.get("verbosity", None),
                     reasoning_effort=data.get("reasoning_effort", None),
                     thinking_budget=data.get("thinking_budget", None),
+                    task_budget=data.get("task_budget", None),
                     logprobs=data.get("logprobs", False),
                     top_logprobs=data.get("top_logprobs", None),
                 )
@@ -1836,6 +1839,7 @@ def LLMClient(
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
     thinking_budget: int | None = None,
+    task_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
@@ -1875,6 +1879,7 @@ def LLMClient(
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
     thinking_budget: int | None = None,
+    task_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
@@ -1913,6 +1918,7 @@ def LLMClient(
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
     thinking_budget: int | None = None,
+    task_budget: int | None = None,
     logprobs: bool = False,
     top_logprobs: int | None = None,
     force_local_mcp: bool = False,
@@ -1957,6 +1963,7 @@ def LLMClient(
         global_effort=global_effort,
         verbosity=verbosity,
         thinking_budget=thinking_budget,
+        task_budget=task_budget,
         logprobs=logprobs,
         top_logprobs=top_logprobs,
         force_local_mcp=force_local_mcp,

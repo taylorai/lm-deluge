@@ -201,7 +201,6 @@ async def test_all_bedrock_global_models_live() -> None:
         return
 
     model_ids = _selected_models()
-    model_ids = [x for x in model_ids if "4.6" in x]
     assert model_ids, "No global Bedrock models found in registry"
 
     print(f"Testing global models: {', '.join(model_ids)}")

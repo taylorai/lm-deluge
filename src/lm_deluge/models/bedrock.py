@@ -33,6 +33,48 @@ CLAUDE_4_6_US_SOURCE_REGIONS = [
     "us-west-2",
 ]
 
+# us.anthropic.claude-opus-4-7 source regions per AWS docs.
+CLAUDE_4_7_US_SOURCE_REGIONS = [
+    "us-east-1",
+    "us-east-2",
+    "us-west-2",
+]
+
+# global.anthropic.claude-opus-4-7 commercial source regions, verified live.
+# me-south-1 dropped - currently unreachable (Iran conflict).
+CLAUDE_GLOBAL_SOURCE_REGIONS_V47 = [
+    "af-south-1",
+    "ap-east-2",
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-northeast-3",
+    "ap-south-1",
+    "ap-south-2",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-5",
+    "ap-southeast-7",
+    "ca-central-1",
+    "ca-west-1",
+    "eu-central-1",
+    "eu-central-2",
+    "eu-north-1",
+    "eu-south-1",
+    "eu-south-2",
+    "eu-west-1",
+    "eu-west-2",
+    "eu-west-3",
+    "il-central-1",
+    "mx-central-1",
+    "sa-east-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
+
 # Source regions for global cross-region profiles as documented by AWS Bedrock.
 # Global profile routing and supported regions can evolve over time.
 CLAUDE_GLOBAL_SOURCE_REGIONS_V45 = [
@@ -220,6 +262,19 @@ BEDROCK_MODELS = {
         "reasoning_model": True,
         "supports_images": True,
     },
+    "claude-4.7-opus-bedrock": {
+        "id": "claude-4.7-opus-bedrock",
+        "name": "us.anthropic.claude-opus-4-7",
+        "regions": CLAUDE_4_7_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 5.0,
+        "output_cost": 25.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     "claude-4-sonnet-bedrock-global": {
         "id": "claude-4-sonnet-bedrock-global",
         "name": "global.anthropic.claude-sonnet-4-20250514-v1:0",
@@ -289,6 +344,19 @@ BEDROCK_MODELS = {
         "api_spec": "bedrock",
         "input_cost": 3.0,
         "output_cost": 15.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
+    "claude-4.7-opus-bedrock-global": {
+        "id": "claude-4.7-opus-bedrock-global",
+        "name": "global.anthropic.claude-opus-4-7",
+        "regions": CLAUDE_GLOBAL_SOURCE_REGIONS_V47,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 5.0,
+        "output_cost": 25.0,
         "supports_json": True,
         "reasoning_model": True,
         "supports_images": True,

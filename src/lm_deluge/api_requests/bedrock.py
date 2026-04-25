@@ -43,6 +43,10 @@ def _is_claude_45_46_compat_model(model: APIModel) -> bool:
     return "4-1" in model.name or "4-5" in model.name or "4-6" in model.name
 
 
+def _is_claude_47_bedrock(model: APIModel) -> bool:
+    return "4-7" in model.name
+
+
 async def _build_anthropic_bedrock_request(
     model: APIModel,
     context: RequestContext,
@@ -87,6 +91,11 @@ async def _build_anthropic_bedrock_request(
     # Claude 4.1/4.5/4.6 on Bedrock reject simultaneous temperature + top_p.
     if _is_claude_45_46_compat_model(model):
         request_json.pop("top_p", None)
+
+    # Claude 4.7+ on Bedrock rejects any non-default temperature/top_p.
+    if _is_claude_47_bedrock(model):
+        request_json.pop("top_p", None)
+        request_json.pop("temperature", None)
 
     if system_message is not None:
         request_json["system"] = system_message

@@ -1,9 +1,14 @@
 # data
 *.jsonl
 
+# js stuff for wranger/cf sandbox
+node_modules
+
 # local settings/caches
 .claude
 .ruff_cache
+.sandbox-secret
+.wrangler
 
 gsm8k_gepa/
 

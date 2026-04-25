@@ -1,0 +1,13 @@
+{
+  "name": "lm-deluge-sandbox-worker",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/sandbox": "*",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.76.0"
+  }
+}
