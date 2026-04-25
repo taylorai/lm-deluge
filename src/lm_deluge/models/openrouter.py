@@ -32,6 +32,18 @@ OPENROUTER_MODELS = {
         "cached_input_cost": 0.10,
         "output_cost": 3.0,
     },
+    "kimi-k2.6-openrouter": {
+        "id": "kimi-k2.6-openrouter",
+        "name": "moonshotai/kimi-k2.6",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 0.7448,
+        "cached_input_cost": 0.7448,
+        "cache_write_cost": 0.7448,
+        "output_cost": 4.655,
+    },
     "nemotron-3-nano-30b-a3b-free": {
         "id": "nemotron-3-nano-30b-a3b-free",
         "name": "nvidia/nemotron-3-nano-30b-a3b:free",

@@ -1,4 +1,17 @@
 KIMI_MODELS = {
+    "kimi-k2.6": {
+        "id": "kimi-k2.6",
+        "name": "kimi-k2.6",
+        "api_base": "https://api.moonshot.ai/anthropic/v1",
+        "api_key_env_var": "MOONSHOT_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        "reasoning_model": True,
+        "supports_images": True,
+        "input_cost": 0.95,
+        "cached_input_cost": 0.16,
+        "output_cost": 4.00,
+    },
     "kimi-k2.5": {
         "id": "kimi-k2.5",
         "name": "kimi-k2.5",
