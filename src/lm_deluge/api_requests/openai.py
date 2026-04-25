@@ -570,6 +570,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                     try:
                         # Parse Responses API format
                         parts = []
+                        message_phase: str | None = None
 
                         # Get the output array from the response
                         output = data.get("output", [])
@@ -580,6 +581,8 @@ class OpenAIResponsesRequest(APIRequestBase):
                             # Process each output item
                             for item in output:
                                 if item.get("type") == "message":
+                                    if "phase" in item:
+                                        message_phase = item["phase"]
                                     message_content = item.get("content", [])
                                     for content_item in message_content:
                                         if content_item.get("type") == "output_text":
@@ -710,6 +713,8 @@ class OpenAIResponsesRequest(APIRequestBase):
                                     parts.append(Thinking(thinking))
 
                             content = Message("assistant", parts)
+                            if message_phase is not None:
+                                content.extra = {"phase": message_phase}
 
                             # Extract usage information
                             if "usage" in data and data["usage"] is not None:

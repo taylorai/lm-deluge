@@ -719,13 +719,18 @@ class Conversation:
             if m.role == "assistant":
                 pending_message_content: list[dict] = []
                 has_tool_calls = any(isinstance(p, ToolCall) for p in m.parts)
+                message_phase = (m.extra or {}).get("phase") if m.extra else None
 
                 def flush_assistant_message() -> None:
                     nonlocal pending_message_content
                     if pending_message_content:
-                        input_items.append(
-                            {"role": "assistant", "content": pending_message_content}
-                        )
+                        item: dict = {
+                            "role": "assistant",
+                            "content": pending_message_content,
+                        }
+                        if message_phase is not None:
+                            item["phase"] = message_phase
+                        input_items.append(item)
                         pending_message_content = []
 
                 for p in m.parts:

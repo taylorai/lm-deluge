@@ -30,6 +30,9 @@ Part = Text | Image | File | ToolCall | ToolResult | Thinking
 class Message:
     role: Role
     parts: list[Part]
+    # Provider-specific per-message metadata (e.g. OpenAI Responses `phase`).
+    # Round-tripped through serialization but ignored by providers that don't use it.
+    extra: dict | None = None
 
     @property
     def fingerprint(self) -> str:
@@ -159,7 +162,10 @@ class Message:
                     thinking_block["thought_signature"] = signature
                 content_blocks.append(thinking_block)
 
-        return {"role": self.role, "content": content_blocks}
+        result: dict = {"role": self.role, "content": content_blocks}
+        if self.extra:
+            result["extra"] = json_safe(self.extra)
+        return result
 
     @classmethod
     def from_log(cls, data: dict) -> "Message":
@@ -233,7 +239,8 @@ class Message:
             else:
                 raise ValueError(f"Unknown part type {p['type']!r}")
 
-        return cls(role, parts)
+        extra = data.get("extra")
+        return cls(role, parts, extra=extra if isinstance(extra, dict) else None)
 
     def with_text(self, content: str) -> "Message":
         """Append a text block and return self for chaining."""
