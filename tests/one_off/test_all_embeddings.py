@@ -60,6 +60,10 @@ async def main():
         ("embed-english-light-v3.0", 384, {}),
         ("embed-multilingual-v3.0", 1024, {}),
         ("embed-multilingual-light-v3.0", 384, {}),
+        # ZeroEntropy
+        ("zembed-1", 2560, {"input_type": "document"}),
+        ("zembed-1", 320, {"input_type": "document", "dimensions": 320}),
+        ("zembed-1", 2560, {"input_type": "query"}),
     ]
 
     passed = 0

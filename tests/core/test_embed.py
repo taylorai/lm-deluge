@@ -34,6 +34,7 @@ def test_registry_models():
         "embed-english-light-v3.0",
         "embed-multilingual-v3.0",
         "embed-multilingual-light-v3.0",
+        "zembed-1",
     ]
     for model in expected:
         assert model in REGISTRY, f"Missing model: {model}"
@@ -86,6 +87,33 @@ def test_build_request_cohere_custom_input_type():
     print("PASSED: Cohere custom input_type")
 
 
+def test_build_request_zeroentropy():
+    """ZeroEntropy requests use the /models/embed URL and require input_type."""
+    os.environ["ZEROENTROPY_API_KEY"] = "test-ze-key"
+    url, headers, payload = _build_request(
+        "zembed-1", ["hello"], "zeroentropy", {"dimensions": 320}
+    )
+    assert url == "https://api.zeroentropy.dev/v1/models/embed"
+    assert headers["Authorization"] == "Bearer test-ze-key"
+    assert payload["model"] == "zembed-1"
+    assert payload["input"] == ["hello"]
+    assert payload["input_type"] == "document"
+    assert payload["dimensions"] == 320
+    print("PASSED: ZeroEntropy request building")
+
+
+def test_build_request_zeroentropy_query_input_type():
+    """ZeroEntropy honors input_type=query when passed in extra_params."""
+    os.environ["ZEROENTROPY_API_KEY"] = "key"
+    _, _, payload = _build_request(
+        "zembed-1", ["hello"], "zeroentropy", {"input_type": "query"}
+    )
+    assert payload["input_type"] == "query"
+    count = sum(1 for k in payload if k == "input_type")
+    assert count == 1
+    print("PASSED: ZeroEntropy query input_type")
+
+
 def test_parse_response_openai():
     """OpenAI response parsing extracts embeddings and tokens."""
     result = {
@@ -111,6 +139,21 @@ def test_parse_response_cohere():
     assert embeddings == [[0.1, 0.2], [0.3, 0.4]]
     assert tokens == 3
     print("PASSED: Cohere response parsing")
+
+
+def test_parse_response_zeroentropy():
+    """ZeroEntropy response parsing pulls from results[].embedding and usage.total_tokens."""
+    result = {
+        "results": [
+            {"embedding": [0.1, 0.2]},
+            {"embedding": [0.3, 0.4]},
+        ],
+        "usage": {"total_bytes": 200, "total_tokens": 7},
+    }
+    embeddings, tokens = _parse_response("zeroentropy", result)
+    assert embeddings == [[0.1, 0.2], [0.3, 0.4]]
+    assert tokens == 7
+    print("PASSED: ZeroEntropy response parsing")
 
 
 # ---------------------------------------------------------------------------
@@ -458,8 +501,11 @@ if __name__ == "__main__":
     test_build_request_openai()
     test_build_request_cohere()
     test_build_request_cohere_custom_input_type()
+    test_build_request_zeroentropy()
+    test_build_request_zeroentropy_query_input_type()
     test_parse_response_openai()
     test_parse_response_cohere()
+    test_parse_response_zeroentropy()
     test_stack_results_success()
     test_stack_results_with_errors()
     test_embed_parallel_async_basic()

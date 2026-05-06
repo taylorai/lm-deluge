@@ -47,6 +47,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "provider": "cohere",
         "cost_per_million": 0.10,
     },
+    # ZeroEntropy
+    "zembed-1": {
+        "provider": "zeroentropy",
+        "cost_per_million": 0.05,
+    },
 }
 
 MAX_BATCH_SIZE = 96
@@ -122,6 +127,16 @@ def _build_request(
             "texts": texts,
             **extra_params,
         }
+    elif provider == "zeroentropy":
+        url = "https://api.zeroentropy.dev/v1/models/embed"
+        headers = {"Authorization": f"Bearer {os.environ.get('ZEROENTROPY_API_KEY')}"}
+        input_type = extra_params.pop("input_type", "document")
+        payload = {
+            "model": model,
+            "input_type": input_type,
+            "input": texts,
+            **extra_params,
+        }
     else:
         raise ValueError(f"Unsupported provider: {provider}")
     return url, headers, payload
@@ -135,6 +150,9 @@ def _parse_response(provider: str, result: dict) -> tuple[list[list[float]], int
     elif provider == "cohere":
         embeddings = result["embeddings"]["float"]
         tokens = result.get("meta", {}).get("billed_units", {}).get("input_tokens", 0)
+    elif provider == "zeroentropy":
+        embeddings = [item["embedding"] for item in result["results"]]
+        tokens = result.get("usage", {}).get("total_tokens", 0)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
     return embeddings, tokens

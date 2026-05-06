@@ -1,6 +1,7 @@
 """Tests for the NVIDIA hosted NIM provider."""
 
 import asyncio
+import os
 
 from lm_deluge import LLMClient
 from lm_deluge.api_requests.context import RequestContext
@@ -89,6 +90,41 @@ async def test_nvidia_request_uses_max_tokens_and_extra_body():
     assert request.request_json["chat_template_kwargs"] == {"thinking": False}
 
 
+async def test_nvidia_live_smoke():
+    """Live smoke test: hit NVIDIA NIM with a registered model and a generic prefix model."""
+    assert os.environ.get("NVIDIA_API_KEY"), (
+        "NVIDIA_API_KEY not set; run with `bop run deluge -- python tests/models/test_nvidia_provider.py`"
+    )
+
+    client = LLMClient("gpt-oss-20b-nvidia", max_new_tokens=64)
+    res = await client.process_prompts_async(
+        ["Say 'hello from nvidia' and nothing else."]
+    )
+    assert res[0] is not None, "no response from registered NVIDIA model"
+    assert not res[0].is_error, (
+        f"registered NVIDIA model errored: {res[0].error_message}"
+    )
+    completion = res[0].completion
+    assert completion and completion.strip(), (
+        "registered NVIDIA model returned empty completion"
+    )
+    print(f"✓ gpt-oss-20b-nvidia completion: {completion!r}")
+
+    generic_client = LLMClient("nvidia:openai/gpt-oss-20b", max_new_tokens=64)
+    res2 = await generic_client.process_prompts_async(
+        ["Reply with the single word: pong"]
+    )
+    assert res2[0] is not None, "no response from generic nvidia: prefix"
+    assert not res2[0].is_error, (
+        f"generic nvidia: prefix errored: {res2[0].error_message}"
+    )
+    completion2 = res2[0].completion
+    assert completion2 and completion2.strip(), (
+        "generic nvidia: prefix returned empty completion"
+    )
+    print(f"✓ nvidia:openai/gpt-oss-20b completion: {completion2!r}")
+
+
 async def main():
     print("Running test_static_nvidia_models_registered...")
     test_static_nvidia_models_registered()
@@ -108,6 +144,10 @@ async def main():
 
     print("\nRunning test_nvidia_request_uses_max_tokens_and_extra_body...")
     await test_nvidia_request_uses_max_tokens_and_extra_body()
+    print("✓ Passed")
+
+    print("\nRunning test_nvidia_live_smoke...")
+    await test_nvidia_live_smoke()
     print("✓ Passed")
 
     print("\n✅ All NVIDIA provider tests passed!")
