@@ -13,7 +13,7 @@ from lm_deluge import LLMClient, SamplingParams
 client = LLMClient(
     model_names=["gpt-4.1-mini"],
     max_requests_per_minute=1_000,
-    max_tokens_per_minute=100_000,
+    max_tokens_per_minute=500_000,
     max_concurrent_requests=225,
     sampling_params=[SamplingParams(temperature=1.0, max_new_tokens=512)],
     max_attempts=5,

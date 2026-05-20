@@ -125,7 +125,7 @@ class _LLMClient(BaseModel):
     model_names: str | list[str] = ["gpt-4.1-mini"]
     name: str | None = None
     max_requests_per_minute: int = 1_000
-    max_tokens_per_minute: int = 100_000
+    max_tokens_per_minute: int = 500_000
     max_concurrent_requests: int = 225
     sampling_params: list[SamplingParams] = []
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform"
@@ -580,9 +580,9 @@ class _LLMClient(BaseModel):
 
         # background mode only allowed for responses api
         if self.background:
-            assert (
-                self.use_responses_api
-            ), "background mode only allowed for responses api"
+            assert self.use_responses_api, (
+                "background mode only allowed for responses api"
+            )
 
         # codex models require responses api
         for model_name in self.model_names:
@@ -1259,9 +1259,9 @@ class _LLMClient(BaseModel):
                 error_message="Task not found",
             )
 
-        assert isinstance(
-            result, APIResponse
-        ), f"Expected APIResponse, got {type(result)}. Use wait_for_agent_loop for agent loop tasks."
+        assert isinstance(result, APIResponse), (
+            f"Expected APIResponse, got {type(result)}. Use wait_for_agent_loop for agent loop tasks."
+        )
         return result
 
     async def wait_for_all(
@@ -1299,9 +1299,9 @@ class _LLMClient(BaseModel):
                 tid = tasks_map.pop(task)
                 task_result = self._results.get(tid, await task)
                 assert task_result
-                assert isinstance(
-                    task_result, APIResponse
-                ), f"Expected APIResponse, got {type(task_result)}. as_completed() only works with single requests, not agent loops."
+                assert isinstance(task_result, APIResponse), (
+                    f"Expected APIResponse, got {type(task_result)}. as_completed() only works with single requests, not agent loops."
+                )
                 yield tid, task_result
 
         while tasks_map:
@@ -1312,9 +1312,9 @@ class _LLMClient(BaseModel):
                 tid = tasks_map.pop(task)
                 task_result = self._results.get(tid, await task)
                 assert task_result
-                assert isinstance(
-                    task_result, APIResponse
-                ), f"Expected APIResponse, got {type(task_result)}. as_completed() only works with single requests, not agent loops."
+                assert isinstance(task_result, APIResponse), (
+                    f"Expected APIResponse, got {type(task_result)}. as_completed() only works with single requests, not agent loops."
+                )
                 yield tid, task_result
 
     async def stream(
@@ -1532,9 +1532,9 @@ class _LLMClient(BaseModel):
         if result is None:
             raise RuntimeError(f"Agent loop task {task_id} not found")
 
-        assert isinstance(
-            result, AgentLoopResponse
-        ), f"Expected AgentLoopResponse, got {type(result)}"
+        assert isinstance(result, AgentLoopResponse), (
+            f"Expected AgentLoopResponse, got {type(result)}"
+        )
         return result.conversation, result.final_response
 
     async def run_agent_loop(
@@ -1843,7 +1843,7 @@ def LLMClient(
     *,
     name: str | None = None,
     max_requests_per_minute: int = 1_000,
-    max_tokens_per_minute: int = 100_000,
+    max_tokens_per_minute: int = 500_000,
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
@@ -1883,7 +1883,7 @@ def LLMClient(
     *,
     name: str | None = None,
     max_requests_per_minute: int = 1_000,
-    max_tokens_per_minute: int = 100_000,
+    max_tokens_per_minute: int = 500_000,
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
@@ -1922,7 +1922,7 @@ def LLMClient(
     *,
     name: str | None = None,
     max_requests_per_minute: int = 1_000,
-    max_tokens_per_minute: int = 100_000,
+    max_tokens_per_minute: int = 500_000,
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",

@@ -30,7 +30,7 @@ The scheduler keeps three pools full (requests, tokens, concurrent tasks) and on
 
 ## Default Values
 
-If you don't specify limits, the defaults shown above (`1_000` requests/min, `100_000` tokens/min, and `225` concurrent) are used for every model. Pick values that match the quotas issued by each provider.
+If you don't specify limits, the defaults shown above (`1_000` requests/min, `500_000` tokens/min, and `225` concurrent) are used for every model. Pick values that match the quotas issued by each provider.
 
 ## Multi-Model Rate Limiting
 

@@ -54,6 +54,7 @@ def test_default_model():
     client = LLMClient()
     assert isinstance(client, _LLMClient)
     assert client.model_names == ["gpt-4.1-mini"]
+    assert client.max_tokens_per_minute == 500_000
     print("✓ Default model works")
 
 

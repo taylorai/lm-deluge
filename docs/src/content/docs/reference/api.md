@@ -17,7 +17,7 @@ LLMClient(
     *,
     name: str | None = None,
     max_requests_per_minute: int = 1_000,
-    max_tokens_per_minute: int = 100_000,
+    max_tokens_per_minute: int = 500_000,
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",

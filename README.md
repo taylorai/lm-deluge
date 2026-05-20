@@ -68,11 +68,10 @@ Putting it all together:
 from lm_deluge import LLMClient, SamplingParams
 
 client = LLMClient(
-    "gpt-4",
+    "gpt-5.4",
     max_requests_per_minute=100,
-    max_tokens_per_minute=100_000,
+    max_tokens_per_minute=500_000,
     max_concurrent_requests=500,
-    sampling_params=SamplingParams(temperature=0.5, max_new_tokens=30)
 )
 
 await client.process_prompts_async(

@@ -122,7 +122,7 @@ async def multi_turn_computer_use():
     client = LLMClient(
         model_names=["claude-4-sonnet"],
         max_requests_per_minute=10,
-        max_tokens_per_minute=100000,
+        max_tokens_per_minute=500000,
         max_concurrent_requests=1,
     )
 
@@ -223,7 +223,7 @@ Configure conservative limits for Computer Use:
 client = LLMClient(
     model_names=["claude-4-sonnet"],
     max_requests_per_minute=6,       # Conservative
-    max_tokens_per_minute=100000,    # Higher for screenshots
+    max_tokens_per_minute=500000,    # Higher for screenshots
     max_concurrent_requests=1,       # Sequential for consistency
     request_timeout=60,              # Longer timeout
 )
