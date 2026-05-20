@@ -54,12 +54,15 @@ async def _build_gemini_request(
 
     # Handle reasoning models (thinking)
     is_gemini_3 = "gemini-3" in model.name.lower()
-    is_gemini_3_flash = "gemini-3-flash" in model.name.lower()
+    is_gemini_3_flash = "flash" in model.name.lower()
     if is_gemini_3:
         # gemini3 MUST think
         if not sampling_params.reasoning_effort:
-            maybe_warn("WARN_GEMINI3_NO_REASONING")
-            effort = "low"
+            if model.name == "gemini-3.5-flash":
+                effort = "medium"
+            else:
+                maybe_warn("WARN_GEMINI3_NO_REASONING")
+                effort = "low"
         else:
             effort_key = sampling_params.reasoning_effort
             if effort_key == "xhigh":

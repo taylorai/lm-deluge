@@ -196,6 +196,57 @@ def test_gemini_3_flash_thinking_level_high():
     assert thinking_config.get("thinkingLevel") == "high"
 
 
+def test_gemini_35_flash_default_thinking_level():
+    """Gemini 3.5 Flash should default to thinkingLevel=medium."""
+    model = APIModel.from_registry("gemini-3.5-flash")
+    convo = Conversation().user("Hello")
+    request = asyncio.run(
+        _build_gemini_request(
+            model,
+            convo,
+            None,
+            SamplingParams(reasoning_effort=None),
+        )
+    )
+    thinking_config = request["generationConfig"].get("thinkingConfig")
+    assert thinking_config is not None
+    assert thinking_config.get("thinkingLevel") == "medium"
+
+
+def test_gemini_35_flash_thinking_level_minimal():
+    """Gemini 3.5 Flash should support thinkingLevel=minimal directly."""
+    model = APIModel.from_registry("gemini-3.5-flash")
+    convo = Conversation().user("Hello")
+    request = asyncio.run(
+        _build_gemini_request(
+            model,
+            convo,
+            None,
+            SamplingParams(reasoning_effort="minimal"),
+        )
+    )
+    thinking_config = request["generationConfig"].get("thinkingConfig")
+    assert thinking_config is not None
+    assert thinking_config.get("thinkingLevel") == "minimal"
+
+
+def test_gemini_35_flash_thinking_level_medium():
+    """Gemini 3.5 Flash should support thinkingLevel=medium directly."""
+    model = APIModel.from_registry("gemini-3.5-flash")
+    convo = Conversation().user("Hello")
+    request = asyncio.run(
+        _build_gemini_request(
+            model,
+            convo,
+            None,
+            SamplingParams(reasoning_effort="medium"),
+        )
+    )
+    thinking_config = request["generationConfig"].get("thinkingConfig")
+    assert thinking_config is not None
+    assert thinking_config.get("thinkingLevel") == "medium"
+
+
 if __name__ == "__main__":
     test_gemini_3_thinking_level_high()
     test_gemini_3_thinking_level_low()
@@ -208,4 +259,7 @@ if __name__ == "__main__":
     test_gemini_3_flash_thinking_level_medium()
     test_gemini_3_flash_thinking_level_low()
     test_gemini_3_flash_thinking_level_high()
+    test_gemini_35_flash_default_thinking_level()
+    test_gemini_35_flash_thinking_level_minimal()
+    test_gemini_35_flash_thinking_level_medium()
     print("All tests passed!")

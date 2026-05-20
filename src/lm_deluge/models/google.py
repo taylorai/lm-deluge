@@ -92,6 +92,20 @@ GOOGLE_MODELS = {
         "reasoning_model": True,
         "supports_images": True,
     },
+    "gemini-3.5-flash-compat": {
+        "id": "gemini-3.5-flash-compat",
+        "name": "gemini-3.5-flash",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "openai",
+        "input_cost": 1.5,
+        "cached_input_cost": 0.15,
+        "output_cost": 9.0,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     # Native Gemini API versions with file support
     "gemini-2.0-flash": {
         "id": "gemini-2.0-flash",
@@ -163,6 +177,20 @@ GOOGLE_MODELS = {
         "supports_images": True,
     },
     # Gemini 3 models - advanced reasoning with thought signatures
+    "gemini-3.5-flash": {
+        "id": "gemini-3.5-flash",
+        "name": "gemini-3.5-flash",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 1.5,
+        "cached_input_cost": 0.15,
+        "output_cost": 9.0,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     "gemini-3-pro-preview": {
         "id": "gemini-3-pro-preview",
         "name": "gemini-3-pro-preview",
