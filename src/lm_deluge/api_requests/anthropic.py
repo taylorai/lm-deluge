@@ -38,7 +38,9 @@ def _is_claude_46(model: APIModel) -> bool:
 
 
 def _is_claude_47(model: APIModel) -> bool:
-    return model.id == "claude-4.7-opus" or "4-7" in model.name
+    return model.id in {"claude-4.7-opus", "claude-4.8-opus"} or any(
+        version in model.name for version in ("4-7", "4-8")
+    )
 
 
 def _is_claude_46_or_newer(model: APIModel) -> bool:
@@ -51,6 +53,7 @@ def _supports_ga_effort(model: APIModel) -> bool:
         "claude-4.6-opus",
         "claude-4.6-sonnet",
         "claude-4.7-opus",
+        "claude-4.8-opus",
     }
 
 

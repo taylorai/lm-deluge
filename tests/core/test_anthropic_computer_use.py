@@ -9,7 +9,6 @@ import asyncio
 import os
 import random
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Tool
 from lm_deluge.prompt import Image, Message, Text, ToolResult
@@ -21,8 +20,6 @@ from lm_deluge.tool.builtin.anthropic import (
     model_to_version,
     text_editor_tool,
 )
-
-dotenv.load_dotenv()
 
 
 def test_model_to_version():
@@ -38,6 +35,7 @@ def test_model_to_version():
     assert model_to_version("claude-4-opus") == "2025-01-24"
     assert model_to_version("claude-sonnet-4-5-20250929") == "2025-01-24"
     assert model_to_version("claude-haiku-4-5-20251015") == "2025-01-24"
+    assert model_to_version("claude-opus-4-8") == "2025-01-24"
 
     # Claude 3.7 (deprecated) - uses 2025-01-24
     assert model_to_version("claude-3.7-sonnet") == "2025-01-24"
@@ -68,6 +66,7 @@ def test_get_beta_header():
     # Claude 4 models
     assert get_beta_header("claude-4-sonnet") == "computer-use-2025-01-24"
     assert get_beta_header("claude-sonnet-4-5-20250929") == "computer-use-2025-01-24"
+    assert get_beta_header("claude-opus-4-8") == "computer-use-2025-01-24"
 
     # Claude 3.7
     assert get_beta_header("claude-3.7-sonnet") == "computer-use-2025-01-24"

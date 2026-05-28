@@ -143,23 +143,18 @@ class BedrockNovaRequest(APIRequestBase):
         payload = json.dumps(self.request_json, separators=(",", ":")).encode("utf-8")
 
         assert self.url is not None, "URL must be set after build_request"
-        assert (
-            self.request_header is not None
-        ), "Headers must be set after build_request"
+        assert self.request_header is not None, (
+            "Headers must be set after build_request"
+        )
 
         if self.auth is not None:
             # SigV4 signing path
-            import requests
-
-            fake_request = requests.Request(
+            final_headers = self.auth.sign_headers(
                 method="POST",
                 url=self.url,
-                data=payload,
                 headers=self.request_header.copy(),
+                payload=payload,
             )
-            prepared_request = fake_request.prepare()
-            signed_request = self.auth(prepared_request)
-            final_headers = dict(signed_request.headers)
         else:
             # API key path — headers already contain Authorization: Bearer …
             final_headers = self.request_header

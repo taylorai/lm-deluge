@@ -2,13 +2,15 @@
 """Bedrock request builder tests."""
 
 import asyncio
+import datetime as dt
 import os
 
+from lm_deluge.api_requests.aws_sigv4 import AWSV4Signer
 from lm_deluge.api_requests.bedrock import (
     _build_anthropic_bedrock_request,
     _build_openai_bedrock_request,
 )
-from lm_deluge.api_requests.bedrock_auth import get_bedrock_auth
+from lm_deluge.api_requests.bedrock_auth import get_bedrock_auth, has_bedrock_auth
 from lm_deluge.api_requests.bedrock_regions import (
     configured_bedrock_regions,
     is_probably_region_scoped_bedrock_error,
@@ -18,7 +20,7 @@ from lm_deluge.api_requests.bedrock_regions import (
 )
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.config import SamplingParams
-from lm_deluge.models import APIModel
+from lm_deluge.models import APIModel, find_models
 from lm_deluge.prompt import Conversation, Message
 from lm_deluge.tool import Tool
 
@@ -78,9 +80,9 @@ def test_bedrock_anthropic_tools_never_strict():
     assert "tools" in request_json
     first_tool = request_json["tools"][0]
     assert "strict" not in first_tool
-    assert (
-        first_tool["input_schema"]["properties"]["days"]["default"] == 3
-    ), "defaults should be preserved when strict=False"
+    assert first_tool["input_schema"]["properties"]["days"]["default"] == 3, (
+        "defaults should be preserved when strict=False"
+    )
 
 
 def test_bedrock_openai_tools_force_non_strict():
@@ -249,7 +251,12 @@ def test_bedrock_claude_47_request_omits_temperature_and_top_p():
     _ensure_fake_aws_creds()
     reset_bedrock_region_state_for_tests()
 
-    for model_id in ("claude-4.7-opus-bedrock", "claude-4.7-opus-bedrock-global"):
+    for model_id in (
+        "claude-4.7-opus-bedrock",
+        "claude-4.7-opus-bedrock-global",
+        "claude-4.8-opus-bedrock",
+        "claude-4.8-opus-bedrock-global",
+    ):
         context = RequestContext(
             task_id=1,
             model_name=model_id,
@@ -284,6 +291,31 @@ def test_bedrock_claude_47_registered():
     assert global_model.supports_images
 
 
+def test_bedrock_claude_48_registered():
+    us_model = APIModel.from_registry("claude-4.8-opus-bedrock")
+    assert us_model.name == "us.anthropic.claude-opus-4-8"
+    assert us_model.regions == [
+        "ca-central-1",
+        "ca-west-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+    ]
+    assert us_model.reasoning_model
+    assert us_model.supports_json
+    assert us_model.supports_images
+
+    global_model = APIModel.from_registry("claude-4.8-opus-bedrock-global")
+    assert global_model.name == "global.anthropic.claude-opus-4-8"
+    assert isinstance(global_model.regions, list)
+    assert "me-south-1" not in global_model.regions
+    assert len(global_model.regions) > 20
+    assert global_model.reasoning_model
+    assert global_model.supports_json
+    assert global_model.supports_images
+
+
 def test_bedrock_invalid_security_token_is_region_scoped():
     error = '{"message": "The security token included in the request is invalid."}'
     assert is_probably_region_scoped_bedrock_error(error)
@@ -308,7 +340,7 @@ def test_bedrock_api_key_auth_returns_bearer_header():
     os.environ["AWS_BEDROCK_API_KEY"] = "br-test-key-123"
     try:
         auth, headers = get_bedrock_auth("us-east-1")
-        assert auth is None, "API key auth should not return an AWS4Auth object"
+        assert auth is None, "API key auth should not return a SigV4 signer"
         assert headers["Authorization"] == "Bearer br-test-key-123"
     finally:
         _clear_bedrock_auth_env()
@@ -356,6 +388,37 @@ def test_bedrock_api_key_preferred_over_sigv4():
         _ensure_fake_aws_creds()
 
 
+def test_bedrock_auth_availability_requires_supported_credentials():
+    _clear_bedrock_auth_env()
+    os.environ["AWS_PROFILE"] = "default"
+    try:
+        assert not has_bedrock_auth()
+        os.environ["AWS_ACCESS_KEY_ID"] = "test-key"
+        assert not has_bedrock_auth()
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "test-secret"
+        assert has_bedrock_auth()
+    finally:
+        os.environ.pop("AWS_PROFILE", None)
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_bedrock_auto_model_filter_uses_supported_credentials():
+    _clear_bedrock_auth_env()
+    os.environ["AWS_PROFILE"] = "default"
+    try:
+        model_ids = {model.id for model in find_models(has_api_key=True)}
+        assert "claude-4-sonnet-bedrock" not in model_ids
+
+        os.environ["BEDROCK_API_KEY"] = "br-test-key"
+        model_ids = {model.id for model in find_models(has_api_key=True)}
+        assert "claude-4-sonnet-bedrock" in model_ids
+    finally:
+        os.environ.pop("AWS_PROFILE", None)
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
 def test_bedrock_sigv4_fallback_when_no_api_key():
     """Without API key env vars, falls back to SigV4."""
     _clear_bedrock_auth_env()
@@ -363,11 +426,86 @@ def test_bedrock_sigv4_fallback_when_no_api_key():
     os.environ["AWS_SECRET_ACCESS_KEY"] = "test-secret"
     try:
         auth, headers = get_bedrock_auth("us-east-1")
-        assert auth is not None, "Should return AWS4Auth object"
+        assert isinstance(auth, AWSV4Signer), "Should return internal SigV4 signer"
+        assert auth.service == "bedrock"
+        assert auth.region == "us-east-1"
         assert "Authorization" not in headers
     finally:
         _clear_bedrock_auth_env()
         _ensure_fake_aws_creds()
+
+
+def test_bedrock_sigv4_includes_session_token_in_signed_headers():
+    _clear_bedrock_auth_env()
+    os.environ["AWS_ACCESS_KEY_ID"] = "test-key"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "test-secret"
+    os.environ["AWS_SESSION_TOKEN"] = "session-token"
+    try:
+        auth, _ = get_bedrock_auth("us-west-2")
+        assert isinstance(auth, AWSV4Signer)
+        signed_headers = auth.sign_headers(
+            method="POST",
+            url="https://bedrock-runtime.us-west-2.amazonaws.com/model/example/invoke",
+            payload=b"{}",
+            headers={"Content-Type": "application/json"},
+            timestamp=dt.datetime(2024, 1, 2, 3, 4, 5, tzinfo=dt.timezone.utc),
+        )
+        assert signed_headers["X-Amz-Security-Token"] == "session-token"
+        assert "x-amz-security-token" in signed_headers["Authorization"]
+        assert "x-amz-content-sha256" in signed_headers["Authorization"]
+    finally:
+        _clear_bedrock_auth_env()
+        _ensure_fake_aws_creds()
+
+
+def test_sigv4_matches_aws_iam_example_signature():
+    """Validate against the canonical AWS IAM ListUsers SigV4 example."""
+    signer = AWSV4Signer(
+        access_key="AKIDEXAMPLE",
+        secret_key="wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+        region="us-east-1",
+        service="iam",
+    )
+    headers = signer.sign_headers(
+        method="GET",
+        url="https://iam.amazonaws.com/?Action=ListUsers&Version=2010-05-08",
+        payload=b"",
+        headers={},
+        timestamp=dt.datetime(2015, 8, 30, 12, 36, tzinfo=dt.timezone.utc),
+        include_payload_hash_header=False,
+    )
+
+    expected = (
+        "AWS4-HMAC-SHA256 "
+        "Credential=AKIDEXAMPLE/20150830/us-east-1/iam/aws4_request, "
+        "SignedHeaders=host;x-amz-date, "
+        "Signature=b2e4af44cfad96d9ffa3c5653674a927b9b0995c33de22e1f843745ce37c1d5e"
+    )
+    assert headers["Authorization"] == expected
+
+
+def test_sigv4_can_sign_s3_style_requests():
+    signer = AWSV4Signer(
+        access_key="AKIDEXAMPLE",
+        secret_key="secret",
+        region="us-east-1",
+        service="s3",
+    )
+    headers = signer.sign_headers(
+        method="PUT",
+        url="https://example-bucket.s3.us-east-1.amazonaws.com/path//object.txt",
+        payload=b"hello",
+        headers={"Content-Type": "text/plain"},
+        timestamp=dt.datetime(2024, 1, 2, 3, 4, 5, tzinfo=dt.timezone.utc),
+    )
+
+    assert (
+        "Credential=AKIDEXAMPLE/20240102/us-east-1/s3/aws4_request"
+        in headers["Authorization"]
+    )
+    assert headers["X-Amz-Content-Sha256"] == (
+        "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+    )
 
 
 def test_bedrock_no_creds_at_all_raises():
@@ -419,12 +557,18 @@ if __name__ == "__main__":
     test_bedrock_claude_45_46_request_omits_top_p()
     test_bedrock_claude_47_request_omits_temperature_and_top_p()
     test_bedrock_claude_47_registered()
+    test_bedrock_claude_48_registered()
     test_bedrock_invalid_security_token_is_region_scoped()
     test_bedrock_api_key_auth_returns_bearer_header()
     test_bedrock_bearer_token_env_alias()
     test_bedrock_api_key_short_env_var()
     test_bedrock_api_key_preferred_over_sigv4()
+    test_bedrock_auth_availability_requires_supported_credentials()
+    test_bedrock_auto_model_filter_uses_supported_credentials()
     test_bedrock_sigv4_fallback_when_no_api_key()
+    test_bedrock_sigv4_includes_session_token_in_signed_headers()
+    test_sigv4_matches_aws_iam_example_signature()
+    test_sigv4_can_sign_s3_style_requests()
     test_bedrock_no_creds_at_all_raises()
     test_bedrock_api_key_builder_sets_auth_none()
     print("Bedrock request tests passed.")
