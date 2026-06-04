@@ -13,10 +13,6 @@ import os
 from lm_deluge import LLMClient
 from lm_deluge.tool import Tool
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 async def dump_first_response():
     """Make a single API call to o4-mini with tool and dump the raw response."""

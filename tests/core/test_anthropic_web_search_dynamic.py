@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.builtin.anthropic import web_search_tool_dynamic
-
-dotenv.load_dotenv()
 
 
 def _raw_content_blocks(resp) -> list[dict]:
@@ -131,15 +128,15 @@ async def test_dynamic_web_search_live():
     assert resp.completion, "Expected a completion from the model"
     completion_lower = resp.completion.lower()
 
-    assert (
-        "france" in completion_lower
-    ), f"Expected mention of France, got: {resp.completion[:300]}"
-    assert (
-        "germany" in completion_lower
-    ), f"Expected mention of Germany, got: {resp.completion[:300]}"
-    assert any(
-        term in completion_lower for term in ["million", "population"]
-    ), f"Expected population-related response, got: {resp.completion[:300]}"
+    assert "france" in completion_lower, (
+        f"Expected mention of France, got: {resp.completion[:300]}"
+    )
+    assert "germany" in completion_lower, (
+        f"Expected mention of Germany, got: {resp.completion[:300]}"
+    )
+    assert any(term in completion_lower for term in ["million", "population"]), (
+        f"Expected population-related response, got: {resp.completion[:300]}"
+    )
 
     assert_web_search_called(resp)
 

@@ -9,10 +9,6 @@ from lm_deluge.models import APIModel
 from lm_deluge.prompt import Conversation, Message, Text, ToolCall, ToolResult
 from lm_deluge.tool.builtin.openai import computer_use_openai
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 async def test_openai_responses_basic():
     """Test basic text generation with OpenAI Responses API"""
@@ -59,12 +55,12 @@ async def test_openai_computer_use_model():
     try:
         # Test that the computer use model is properly registered
         model = APIModel.from_registry("openai-computer-use-preview")
-        assert (
-            model.name == "computer-use-preview"
-        ), f"Unexpected model name: {model.name}"
-        assert (
-            model.api_base == "https://api.openai.com/v1"
-        ), f"Unexpected api_base: {model.api_base}"
+        assert model.name == "computer-use-preview", (
+            f"Unexpected model name: {model.name}"
+        )
+        assert model.api_base == "https://api.openai.com/v1", (
+            f"Unexpected api_base: {model.api_base}"
+        )
 
         print("✓ Computer use model registration test passed")
         return True

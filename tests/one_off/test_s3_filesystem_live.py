@@ -14,7 +14,6 @@ import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from dotenv import load_dotenv
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
@@ -24,8 +23,6 @@ from lm_deluge.tool.prefab.filesystem import (  # noqa: E402
     ConflictError,
     RetryConfig,
 )
-
-load_dotenv()
 
 
 def get_test_bucket():
@@ -54,9 +51,9 @@ def test_basic_read_write():
 
         # Read it back
         read_content = backend.read_file("test.txt")
-        assert (
-            read_content == content
-        ), f"Content mismatch: {read_content!r} != {content!r}"
+        assert read_content == content, (
+            f"Content mismatch: {read_content!r} != {content!r}"
+        )
         print("✓ Read back content matches")
 
         # Overwrite
@@ -367,9 +364,9 @@ def test_concurrent_writes_with_retry():
         )
 
         # The final value should equal the number of successful increments
-        assert (
-            final_value == total_successes
-        ), f"Value mismatch: {final_value} != {total_successes}"
+        assert final_value == total_successes, (
+            f"Value mismatch: {final_value} != {total_successes}"
+        )
         print("✓ Counter value matches successful increments")
     finally:
         backend.delete_path(".")

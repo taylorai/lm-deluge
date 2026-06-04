@@ -23,12 +23,10 @@ Required Modal secrets:
 import json
 import os
 
-import dotenv
 import modal
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sandbox.pybubble_sandbox import PybubbleSandbox
 
-dotenv.load_dotenv()
 
 app = modal.App("lm-deluge-pybubble-llm-test")
 

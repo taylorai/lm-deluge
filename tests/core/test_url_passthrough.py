@@ -3,15 +3,7 @@
 import base64
 from unittest.mock import patch
 
-from lm_deluge.prompt import Conversation, File, Image
-
-
-class _FakeResponse:
-    def __init__(self, content: bytes):
-        self.content = content
-
-    def raise_for_status(self) -> None:
-        return None
+from lm_deluge.prompt import Conversation, File, Image, Video
 
 
 def test_image_url_passthrough_openai_chat():
@@ -56,12 +48,12 @@ def test_file_url_passthrough_openai_responses():
 def test_file_url_falls_back_to_base64_for_openai_chat():
     fake_pdf = b"%PDF-test"
     with patch(
-        "lm_deluge.prompt.file.requests.get",
-        return_value=_FakeResponse(fake_pdf),
-    ) as mocked_get:
+        "lm_deluge.prompt.file.read_url_bytes",
+        return_value=fake_pdf,
+    ) as mocked_fetch:
         file = File(data="https://example.com/doc.pdf")
         emitted = file.oa_chat()
-    assert mocked_get.call_count == 1
+    assert mocked_fetch.call_count == 1
     assert emitted["type"] == "file"
     assert emitted["file"]["filename"] == "doc.pdf"
     assert emitted["file"]["file_data"].startswith("data:application/pdf;base64,")
@@ -92,18 +84,30 @@ def test_non_url_data_still_uses_base64():
     assert file_openai["file_data"].startswith("data:application/pdf;base64,")
 
 
+def test_video_url_byte_loading_uses_stdlib_fetch_helper():
+    fake_video = b"video-test"
+    with patch(
+        "lm_deluge.prompt.video.read_url_bytes",
+        return_value=fake_video,
+    ) as mocked_fetch:
+        video = Video(data="https://example.com/video.mp4")
+        assert video._bytes() == fake_video
+
+    assert mocked_fetch.call_count == 1
+
+
 def test_image_url_still_base64_for_mistral_and_nova():
     fake_jpg = b"\xff\xd8\xff\xdb"
     expected_b64 = base64.b64encode(fake_jpg).decode("utf-8")
     with patch(
-        "lm_deluge.prompt.image.requests.get",
-        return_value=_FakeResponse(fake_jpg),
-    ) as mocked_get:
+        "lm_deluge.prompt.image.read_url_bytes",
+        return_value=fake_jpg,
+    ) as mocked_fetch:
         image = Image(data="https://example.com/photo.jpg")
         mistral_payload = image.mistral()
         nova_payload = image.nova()
 
-    assert mocked_get.call_count == 2
+    assert mocked_fetch.call_count == 2
     assert mistral_payload["image_url"].startswith("data:image/jpeg;base64,")
     assert nova_payload["image"]["source"]["bytes"] == expected_b64
 
@@ -197,6 +201,7 @@ if __name__ == "__main__":
     test_file_url_passthrough_anthropic()
     test_file_url_passthrough_gemini()
     test_non_url_data_still_uses_base64()
+    test_video_url_byte_loading_uses_stdlib_fetch_helper()
     test_image_url_still_base64_for_mistral_and_nova()
     test_conversation_from_anthropic_supports_url_sources()
     test_conversation_from_openai_chat_accepts_string_image_url()

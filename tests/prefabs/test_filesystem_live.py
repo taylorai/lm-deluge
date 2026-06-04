@@ -3,15 +3,12 @@
 import asyncio
 import json
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.filesystem import (
     FilesystemManager,
     InMemoryWorkspaceBackend,
 )
-
-dotenv.load_dotenv()
 
 
 async def test_filesystem_manager_live_flow():
@@ -49,9 +46,9 @@ async def test_filesystem_manager_live_flow():
 
     assert resp.completion, "Model should return a completion after tool use"
     expected_content = "Title: Filesystem Integration Test\nStatus: blue\nAction: done"
-    assert (
-        backend.read_file("notes/design.md") == expected_content
-    ), "Filesystem should persist the scripted file content"
+    assert backend.read_file("notes/design.md") == expected_content, (
+        "Filesystem should persist the scripted file content"
+    )
 
     apply_patch_calls: list[dict[str, object]] = []
     for message in conv.messages:

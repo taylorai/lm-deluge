@@ -18,9 +18,10 @@ from .signatures import (
 from .text import Text
 from .thinking import Thinking
 from .tool_calls import ToolCall, ToolResult, ToolResultPart
+from .video import Video
 
 Role = Literal["system", "user", "assistant", "tool"]
-Part = Text | Image | File | ToolCall | ToolResult | Thinking
+Part = Text | Image | Video | File | ToolCall | ToolResult | Thinking
 
 
 #####################################################
@@ -331,6 +332,20 @@ class Message:
         """
         return self.with_file(data, media_type=media_type, filename=filename)
 
+    def with_video(
+        self,
+        data: bytes | str | Path | io.BytesIO | Video,
+        *,
+        media_type: str | None = None,
+    ) -> "Message":
+        if not isinstance(data, Video):
+            video = Video(data, media_type=media_type)
+        else:
+            video = data
+
+        self.parts.append(video)
+        return self
+
     async def with_remote_file(
         self,
         data: bytes | str | Path | io.BytesIO | File,
@@ -397,6 +412,7 @@ class Message:
         *,
         image: str | bytes | Path | io.BytesIO | None = None,
         file: File | str | bytes | Path | io.BytesIO | None = None,
+        video: Video | str | bytes | Path | io.BytesIO | None = None,
     ) -> "Message":
         res = cls("user", [])
         if text is not None:
@@ -405,6 +421,8 @@ class Message:
             res.with_image(image)
         if file is not None:
             res.with_file(file)
+        if video is not None:
+            res.with_video(video)
         return res
 
     @classmethod
@@ -440,6 +458,8 @@ class Message:
                     part_list.append(Text(item["text"]))
                 elif item["type"] == "image_url":
                     part_list.append(Image(data=item["image_url"]["url"]))
+                elif item["type"] == "video_url":
+                    part_list.append(Video(data=item["video_url"]["url"]))
                 elif item["type"] == "file":
                     file_data = item["file"]
                     if "file_id" in file_data:

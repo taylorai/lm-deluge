@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.models import registry
-
-dotenv.load_dotenv()
 
 
 def test_generic_openrouter_single_model():

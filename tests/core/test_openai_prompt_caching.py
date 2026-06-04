@@ -8,11 +8,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-import dotenv
 
 from lm_deluge.client import LLMClient
-
-dotenv.load_dotenv()
 
 
 def generate_long_prompt(min_tokens: int = 1500) -> str:
@@ -134,15 +131,15 @@ async def test_openai_prompt_caching():
 
     # Second request should have cache hits
     assert result2.usage.has_cache_hit, "Second request should have cache hits"
-    assert (
-        result2.usage.cache_read_tokens > 0
-    ), f"Second request should have cached tokens, got {result2.usage.cache_read_tokens}"
+    assert result2.usage.cache_read_tokens > 0, (
+        f"Second request should have cached tokens, got {result2.usage.cache_read_tokens}"
+    )
 
     # The cached tokens should be a significant portion of the prompt
     # OpenAI caches starting at 1024 tokens, so we expect at least that much
-    assert (
-        result2.usage.cache_read_tokens >= 1024
-    ), f"Expected at least 1024 cached tokens, got {result2.usage.cache_read_tokens}"
+    assert result2.usage.cache_read_tokens >= 1024, (
+        f"Expected at least 1024 cached tokens, got {result2.usage.cache_read_tokens}"
+    )
 
     print("✅ OpenAI prompt caching test passed!")
     print(

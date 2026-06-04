@@ -91,6 +91,11 @@ async def _build_oa_chat_request(
         "temperature": sampling_params.temperature,
         "top_p": sampling_params.top_p,
     }
+    if model.omit_default_sampling_params:
+        if sampling_params.temperature == 1.0:
+            del request_json["temperature"]
+        if sampling_params.top_p == 1.0:
+            del request_json["top_p"]
     if context.service_tier:
         assert context.service_tier in [
             "auto",

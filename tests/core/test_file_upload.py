@@ -5,13 +5,9 @@ import os
 import tempfile
 from pathlib import Path
 
-from dotenv import load_dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, File, Message
-
-# Load environment variables from .env file
-load_dotenv()
 
 
 async def test_openai_file_upload():

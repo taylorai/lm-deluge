@@ -6,7 +6,7 @@ FastAPI proxy endpoint and verifies cache reads become non-zero after the
 initial turn.
 
 Requirements:
-- ANTHROPIC_API_KEY in environment (or .env)
+- ANTHROPIC_API_KEY in environment
 - Network access
 
 Run with:
@@ -18,12 +18,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-import dotenv
 from fastapi.testclient import TestClient
 
 from lm_deluge.server import create_app
 
-dotenv.load_dotenv()
 
 README_PATH = Path(__file__).resolve().parents[2] / "README.md"
 MIN_CACHEABLE_TOKENS_ESTIMATE = 4200

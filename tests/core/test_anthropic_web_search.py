@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.builtin.anthropic import web_search_tool
-
-dotenv.load_dotenv()
 
 
 def _raw_content_blocks(resp) -> list[dict]:
@@ -191,12 +188,12 @@ async def test_web_search_multi_step():
     completion_lower = resp.completion.lower()
 
     # Should mention both countries
-    assert (
-        "brazil" in completion_lower
-    ), f"Expected mention of Brazil, got: {resp.completion[:300]}"
-    assert (
-        "indonesia" in completion_lower
-    ), f"Expected mention of Indonesia, got: {resp.completion[:300]}"
+    assert "brazil" in completion_lower, (
+        f"Expected mention of Brazil, got: {resp.completion[:300]}"
+    )
+    assert "indonesia" in completion_lower, (
+        f"Expected mention of Indonesia, got: {resp.completion[:300]}"
+    )
 
     # Should have GDP-related content
     assert any(
@@ -208,9 +205,9 @@ async def test_web_search_multi_step():
 
     # The model should have performed multiple searches (one per country at minimum)
     n_searches = count_web_searches(resp)
-    assert (
-        n_searches >= 2
-    ), f"Expected at least 2 web searches (one per country), got {n_searches}"
+    assert n_searches >= 2, (
+        f"Expected at least 2 web searches (one per country), got {n_searches}"
+    )
 
     print("multi-step web search test passed")
     print(f"Model performed {n_searches} web searches to build comparative answer")

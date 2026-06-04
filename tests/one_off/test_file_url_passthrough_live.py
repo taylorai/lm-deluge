@@ -15,12 +15,10 @@ Requirements:
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import File, Image
 
-dotenv.load_dotenv()
 
 PDF_URL = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
 IMAGE_URL = "https://www.w3.org/Icons/w3c_main.png"

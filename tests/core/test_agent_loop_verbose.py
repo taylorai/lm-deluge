@@ -2,11 +2,8 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Tool
-
-dotenv.load_dotenv()
 
 
 def get_weather(city: str) -> str:

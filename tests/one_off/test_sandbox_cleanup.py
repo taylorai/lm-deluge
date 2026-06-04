@@ -3,11 +3,8 @@
 import asyncio
 import gc
 
-import dotenv
 
 from lm_deluge.tool.prefab.sandbox import DaytonaSandbox, ModalSandbox
-
-dotenv.load_dotenv()
 
 
 def test_modal_context_manager():

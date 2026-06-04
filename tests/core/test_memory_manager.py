@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.memory import MemoryManager
-
-dotenv.load_dotenv()
 
 
 def test_memory_manager_crud_cycle():

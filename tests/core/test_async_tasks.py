@@ -2,11 +2,8 @@ import asyncio
 
 
 def test_async_start_and_wait():
-    import dotenv
 
     from lm_deluge import Conversation, LLMClient
-
-    dotenv.load_dotenv()
 
     async def run_test():
         client = LLMClient(
@@ -46,11 +43,8 @@ def test_async_start_and_wait():
 
 
 def test_async_as_completed():
-    import dotenv
 
     from lm_deluge import Conversation, LLMClient
-
-    dotenv.load_dotenv()
 
     async def run_test():
         client = LLMClient(

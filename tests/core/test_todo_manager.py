@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.todos import TodoItem, TodoManager
-
-dotenv.load_dotenv()
 
 
 async def test_todo_manager_creates_list():

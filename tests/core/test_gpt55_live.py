@@ -7,12 +7,10 @@ assistant message items.
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Message, Text
 
-dotenv.load_dotenv()
 
 MODEL = "gpt-5.5"
 

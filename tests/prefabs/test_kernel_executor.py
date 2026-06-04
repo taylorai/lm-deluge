@@ -8,10 +8,6 @@ Integration tests require KERNEL_API_KEY environment variable.
 
 import os
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 def test_anthropic_converter_screenshot():
     """Test converting Anthropic screenshot action."""

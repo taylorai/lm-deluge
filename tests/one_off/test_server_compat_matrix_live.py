@@ -4,7 +4,6 @@ import time
 import warnings
 from pathlib import Path
 
-from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 
 
@@ -18,8 +17,6 @@ def _read_png_bytes() -> bytes:
 
 
 _PNG_BYTES = _read_png_bytes()
-
-load_dotenv()
 
 
 def _b64_data_url(data: bytes, mime: str) -> str:
@@ -50,9 +47,9 @@ def _require_env(name: str) -> bool:
 
 
 def _assert_ok(response):
-    assert (
-        response.status_code == 200
-    ), f"status={response.status_code} body={response.text}"
+    assert response.status_code == 200, (
+        f"status={response.status_code} body={response.text}"
+    )
 
 
 _RETRY_STATUS_CODES = {429, 500, 502, 503, 504, 529}

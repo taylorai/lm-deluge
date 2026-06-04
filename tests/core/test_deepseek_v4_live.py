@@ -6,12 +6,9 @@ Skips entries whose API key env var is not set.
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.models import registry
-
-dotenv.load_dotenv()
 
 
 ENTRIES = [

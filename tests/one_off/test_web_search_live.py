@@ -1,19 +1,16 @@
 """Live integration test for WebSearchManager prefab tool.
 
 This test requires:
-- EXA_API_KEY environment variable set (in .env file)
+- EXA_API_KEY environment variable set
 """
 
 import asyncio
 import os
 import sys
 
-from dotenv import load_dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.web_search import ExaWebSearchManager
-
-load_dotenv()
 
 
 async def test_web_search_with_llm():

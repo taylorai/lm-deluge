@@ -1,11 +1,9 @@
 import random
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.api_requests.base import APIResponse
 
-dotenv.load_dotenv()
 models_to_test = [
     # meta
     # "llama-3.3-8b",

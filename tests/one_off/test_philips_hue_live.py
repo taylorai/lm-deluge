@@ -3,11 +3,8 @@
 import asyncio
 import json
 
-from dotenv import load_dotenv
 
 from lm_deluge.tool.prefab import PhilipsHueManager
-
-load_dotenv()
 
 
 async def main():

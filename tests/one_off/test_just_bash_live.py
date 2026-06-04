@@ -1,7 +1,7 @@
 """Live integration tests for JustBashSandbox with a real model.
 
 Requires:
-  - ANTHROPIC_API_KEY set (or in .env)
+  - ANTHROPIC_API_KEY set
   - just-bash installed (npm install -g just-bash)
 
 Run: .venv/bin/python tests/one_off/test_just_bash_live.py
@@ -9,12 +9,10 @@ Run: .venv/bin/python tests/one_off/test_just_bash_live.py
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sandbox import JustBashSandbox
 
-dotenv.load_dotenv()
 
 MODEL = "claude-4.6-sonnet"
 
@@ -99,12 +97,12 @@ async def test_error_recovery():
     assert resp.completion
     lower = resp.completion.lower()
     # Model should mention the error and the successful recovery
-    assert (
-        "error" in lower or "no such file" in lower or "not found" in lower
-    ), "Model should mention the error from the missing file"
-    assert (
-        "recovered" in lower or "successfully" in lower or "echo" in lower
-    ), "Model should report the recovery command output"
+    assert "error" in lower or "no such file" in lower or "not found" in lower, (
+        "Model should mention the error from the missing file"
+    )
+    assert "recovered" in lower or "successfully" in lower or "echo" in lower, (
+        "Model should report the recovery command output"
+    )
     print("test_error_recovery passed")
 
 

@@ -4,11 +4,8 @@ Live network test for kimi-k2.5 model.
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Message
-
-dotenv.load_dotenv()
 
 
 async def test_kimi_k25_text():

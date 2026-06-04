@@ -1,10 +1,7 @@
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
-
-dotenv.load_dotenv()
 
 
 async def main():

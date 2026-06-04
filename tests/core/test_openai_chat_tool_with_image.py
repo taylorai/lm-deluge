@@ -6,14 +6,11 @@ through the lm-deluge library (using the workaround of images in user message).
 import asyncio
 import io
 
-import dotenv
 from PIL import Image as PILImage
 
 from lm_deluge import Conversation, LLMClient, Tool
 from lm_deluge.prompt.image import Image
 from lm_deluge.prompt.text import Text
-
-dotenv.load_dotenv()
 
 
 def create_test_image() -> Image:

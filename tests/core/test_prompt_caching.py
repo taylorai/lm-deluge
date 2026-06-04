@@ -5,10 +5,6 @@ from lm_deluge.prompt import Conversation, Message
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tool import Tool
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 def test_cache_patterns():
     """Test that cache control is correctly applied for different patterns."""
@@ -23,12 +19,12 @@ def test_cache_patterns():
 
     # Test system_and_tools caching
     system_msg, messages = conv.to_anthropic(cache_pattern="system_and_tools")
-    assert isinstance(
-        system_msg, list
-    ), "System message should be structured format for caching"
-    assert system_msg[0]["cache_control"] == {
-        "type": "ephemeral"
-    }, "System should have cache control"
+    assert isinstance(system_msg, list), (
+        "System message should be structured format for caching"
+    )
+    assert system_msg[0]["cache_control"] == {"type": "ephemeral"}, (
+        "System should have cache control"
+    )
 
     # Test last_user_message caching
     system_msg, messages = conv.to_anthropic(cache_pattern="last_user_message")
@@ -40,14 +36,14 @@ def test_cache_patterns():
     assert last_user_idx is not None, "Should have user messages"
     content = messages[last_user_idx]["content"]
     if isinstance(content, list):
-        assert content[-1]["cache_control"] == {
-            "type": "ephemeral"
-        }, "Last user message should have cache control"
+        assert content[-1]["cache_control"] == {"type": "ephemeral"}, (
+            "Last user message should have cache control"
+        )
     else:
         # Should be converted to structured format
-        assert (
-            False
-        ), "User message content should be converted to list format for caching"
+        assert False, (
+            "User message content should be converted to list format for caching"
+        )
 
 
 async def test_tools_only_caching():
@@ -92,9 +88,9 @@ async def test_tools_only_caching():
     # Check that cache control was added to the last tool
     tools = request.request_json.get("tools", [])
     assert len(tools) > 0, "Should have tools"
-    assert tools[-1]["cache_control"] == {
-        "type": "ephemeral"
-    }, "Last tool should have cache control"
+    assert tools[-1]["cache_control"] == {"type": "ephemeral"}, (
+        "Last tool should have cache control"
+    )
 
 
 def test_usage_tracking():
@@ -213,9 +209,9 @@ async def test_bedrock_caching():
     # Check that system message has cache control
     system_msg = request.request_json.get("system")
     if isinstance(system_msg, list):
-        assert system_msg[0]["cache_control"] == {
-            "type": "ephemeral"
-        }, "System should have cache control for Bedrock"
+        assert system_msg[0]["cache_control"] == {"type": "ephemeral"}, (
+            "System should have cache control for Bedrock"
+        )
 
     # Test tools_only caching
     context2 = RequestContext(
@@ -235,9 +231,9 @@ async def test_bedrock_caching():
     # Check that cache control was added to the last tool
     tools = request.request_json.get("tools", [])
     assert len(tools) > 0, "Should have tools"
-    assert tools[-1]["cache_control"] == {
-        "type": "ephemeral"
-    }, "Last tool should have cache control for Bedrock"
+    assert tools[-1]["cache_control"] == {"type": "ephemeral"}, (
+        "Last tool should have cache control for Bedrock"
+    )
 
 
 def test_image_locking():
@@ -254,9 +250,9 @@ def test_image_locking():
     # Check that the image data is now bytes
     image_parts = conv.messages[0].images
     assert len(image_parts) > 0, "Should have image parts"
-    assert isinstance(
-        image_parts[0].data, bytes
-    ), "Image data should be bytes after locking"
+    assert isinstance(image_parts[0].data, bytes), (
+        "Image data should be bytes after locking"
+    )
 
 
 def test_no_cache_control_without_cache():
@@ -273,9 +269,9 @@ def test_no_cache_control_without_cache():
         content = msg["content"]
         if isinstance(content, list):
             for block in content:
-                assert (
-                    "cache_control" not in block
-                ), "Should not have cache control without caching"
+                assert "cache_control" not in block, (
+                    "Should not have cache control without caching"
+                )
 
 
 def test_automatic_cache_no_block_level_markers():
@@ -291,18 +287,18 @@ def test_automatic_cache_no_block_level_markers():
     system_msg, messages = conv.to_anthropic(cache_pattern="automatic")
 
     # System should remain as plain string (no block-level cache_control)
-    assert isinstance(
-        system_msg, str
-    ), "System should remain as string with automatic caching"
+    assert isinstance(system_msg, str), (
+        "System should remain as string with automatic caching"
+    )
 
     # No messages should have cache_control markers
     for msg in messages:
         content = msg["content"]
         if isinstance(content, list):
             for block in content:
-                assert (
-                    "cache_control" not in block
-                ), "Automatic caching should not add block-level cache_control"
+                assert "cache_control" not in block, (
+                    "Automatic caching should not add block-level cache_control"
+                )
 
 
 async def test_automatic_cache_top_level_flag():
@@ -340,21 +336,21 @@ async def test_automatic_cache_top_level_flag():
     await request.build_request()
 
     # Top-level cache_control should be present
-    assert (
-        "cache_control" in request.request_json
-    ), "Automatic caching should add top-level cache_control"
-    assert request.request_json["cache_control"] == {
-        "type": "ephemeral"
-    }, "Top-level cache_control should be {'type': 'ephemeral'}"
+    assert "cache_control" in request.request_json, (
+        "Automatic caching should add top-level cache_control"
+    )
+    assert request.request_json["cache_control"] == {"type": "ephemeral"}, (
+        "Top-level cache_control should be {'type': 'ephemeral'}"
+    )
 
     # No block-level cache_control on messages
     for msg in request.request_json["messages"]:
         content = msg["content"]
         if isinstance(content, list):
             for block in content:
-                assert (
-                    "cache_control" not in block
-                ), "Automatic caching should not add block-level cache_control"
+                assert "cache_control" not in block, (
+                    "Automatic caching should not add block-level cache_control"
+                )
 
 
 async def test_automatic_cache_with_tools():
@@ -393,17 +389,17 @@ async def test_automatic_cache_with_tools():
     await request.build_request()
 
     # Top-level cache_control should be present
-    assert (
-        "cache_control" in request.request_json
-    ), "Automatic caching should add top-level cache_control"
+    assert "cache_control" in request.request_json, (
+        "Automatic caching should add top-level cache_control"
+    )
     assert request.request_json["cache_control"] == {"type": "ephemeral"}
 
     # Tools should NOT have block-level cache_control
     tools = request.request_json.get("tools", [])
     for t in tools:
-        assert (
-            "cache_control" not in t
-        ), "Automatic caching should not add cache_control to individual tools"
+        assert "cache_control" not in t, (
+            "Automatic caching should not add cache_control to individual tools"
+        )
 
 
 if __name__ == "__main__":

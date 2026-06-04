@@ -1,18 +1,15 @@
 """Live integration test for the BatchTool using real models.
 
-Loads API keys via dotenv and verifies the batch tool executes multiple tool
+Uses environment-provided API keys and verifies the batch tool executes multiple tool
 calls in a single roundtrip and returns the combined result back to the model.
 """
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
 from lm_deluge.tool.prefab.batch_tool import BatchTool
-
-dotenv.load_dotenv()
 
 
 def _make_math_tools(call_log: dict[str, int]) -> list[Tool]:

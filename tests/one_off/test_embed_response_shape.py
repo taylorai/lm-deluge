@@ -5,9 +5,6 @@ import json
 import os
 
 import aiohttp
-import dotenv
-
-dotenv.load_dotenv()
 
 
 async def main():

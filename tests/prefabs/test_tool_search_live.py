@@ -6,13 +6,10 @@ invoke it by id using the call helper. Requires API keys in the environment.
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
 from lm_deluge.tool.prefab.tool_search import ToolSearchTool
-
-dotenv.load_dotenv()
 
 
 def _make_math_tools(call_log: dict[str, int]) -> list[Tool]:

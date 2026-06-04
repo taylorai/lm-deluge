@@ -21,6 +21,7 @@ from .signatures import (
 from .text import Text
 from .thinking import Thinking
 from .tool_calls import ToolCall, ToolResult, ToolResultPart
+from .video import Video
 
 CachePattern = Literal[
     "tools_only",
@@ -31,7 +32,7 @@ CachePattern = Literal[
     "automatic",
 ]
 Role = Literal["system", "user", "assistant", "tool"]
-Part = Text | Image | File | ToolCall | ToolResult | Thinking
+Part = Text | Image | Video | File | ToolCall | ToolResult | Thinking
 
 
 ###############################################################################
@@ -56,6 +57,7 @@ class Conversation:
         *,
         image: bytes | str | Path | Image | None = None,
         file: bytes | str | Path | File | None = None,
+        video: bytes | str | Path | Video | None = None,
     ) -> "Conversation":
         """Add a user message and return self for chaining."""
         msg = Message.user(text)
@@ -63,6 +65,8 @@ class Conversation:
             msg.with_image(image)
         if file is not None:
             msg.with_file(file)
+        if video is not None:
+            msg.with_video(video)
         self.messages.append(msg)
         return self
 
@@ -102,6 +106,20 @@ class Conversation:
                 raise ValueError("image content missing url")
             return Image(data=url, media_type=media_type, detail=detail)
 
+        def _to_video_from_url(block: dict) -> Video:
+            payload = block.get("video_url") or block.get("input_video") or {}
+            if isinstance(payload, str):
+                url = payload
+                media_type = block.get("media_type")
+            elif isinstance(payload, dict):
+                url = payload.get("url")
+                media_type = payload.get("media_type")
+            else:
+                raise ValueError("video content has invalid payload")
+            if url is None:
+                raise ValueError("video content missing url")
+            return Video(data=url, media_type=media_type)
+
         def _to_file(block: dict) -> File:
             payload = block.get("file") or block.get("input_file") or {}
             if isinstance(payload, dict):
@@ -137,6 +155,7 @@ class Conversation:
 
         text_types = {"text", "input_text", "output_text", "refusal"}
         image_types = {"image_url", "input_image", "image"}
+        video_types = {"video_url", "input_video", "video"}
         file_types = {"file", "input_file"}
         audio_types = {"audio", "input_audio"}
 
@@ -157,6 +176,8 @@ class Conversation:
                         parts.append(Text(text_value))
                 elif block_type in image_types:
                     parts.append(_to_image_from_url(block))
+                elif block_type in video_types:
+                    parts.append(_to_video_from_url(block))
                 elif block_type in file_types:
                     parts.append(_to_file(block))
                 elif block_type in audio_types:

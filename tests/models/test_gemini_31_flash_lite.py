@@ -1,10 +1,7 @@
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Tool
-
-dotenv.load_dotenv()
 
 
 async def test_native_basic():

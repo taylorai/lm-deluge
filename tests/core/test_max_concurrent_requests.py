@@ -3,12 +3,9 @@
 import asyncio
 import time
 
-import dotenv
 
 from lm_deluge.api_requests.response import APIResponse
 from lm_deluge.client import LLMClient
-
-dotenv.load_dotenv()
 
 
 async def test_max_concurrent_requests_one():

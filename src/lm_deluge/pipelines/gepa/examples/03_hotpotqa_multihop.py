@@ -23,18 +23,17 @@ Requirements:
 """
 
 import os
+import random
 import re
 import string
 import sys
 from collections import Counter
-
-import dotenv
+from importlib import import_module
+from typing import Any, cast
 
 from lm_deluge import LLMClient
 from lm_deluge.pipelines.gepa import Component, EvalResult, optimize
 from lm_deluge.prompt import Conversation, Message
-
-dotenv.load_dotenv()
 
 
 def load_hotpotqa_sample(
@@ -42,37 +41,34 @@ def load_hotpotqa_sample(
 ) -> tuple[list[dict], list[dict]]:
     """Load a sample of HotpotQA problems."""
     try:
-        from datasets import load_dataset
+        datasets = cast(Any, import_module("datasets"))
     except ImportError:
         print("Please install datasets: pip install datasets")
         sys.exit(1)
 
     print("Loading HotpotQA dataset...")
-    ds = load_dataset(
+    ds = datasets.load_dataset(
         "hotpot_qa", "distractor", split="validation", trust_remote_code=True
     )
 
     data = []
-    for item in ds:  # type: ignore
+    for item in ds:
         # Combine supporting facts into context
         context_parts = []
         for title, sentences in zip(
-            item["context"]["title"],  # type: ignore
-            item["context"]["sentences"],  # type: ignore
+            item["context"]["title"],
+            item["context"]["sentences"],
         ):
             context_parts.append(f"[{title}]\n" + " ".join(sentences))
 
         data.append(
             {
-                "question": item["question"],  # type: ignore
+                "question": item["question"],
                 "context": "\n\n".join(context_parts),
-                "answer": item["answer"],  # type: ignore
-                "type": item["type"],  # type: ignore  # 'comparison' or 'bridge'
+                "answer": item["answer"],
+                "type": item["type"],  # 'comparison' or 'bridge'
             }
         )
-
-    # Shuffle and split
-    import random
 
     random.seed(42)
     random.shuffle(data)
@@ -144,11 +140,11 @@ def make_evaluate_fn(task_client: LLMClient):  # type: ignore
         conv = Conversation().system(component_values["system_prompt"])
 
         user_msg = f"""Context:
-{example['context']}
+{example["context"]}
 
-Question: {example['question']}
+Question: {example["question"]}
 
-{component_values['answer_format']}"""
+{component_values["answer_format"]}"""
         conv = conv.add(Message.user(user_msg))
 
         # Run inference
@@ -162,8 +158,8 @@ Question: {example['question']}
         # Build detailed feedback
         if f1 >= 0.8:
             feedback = f"""Score: {f1:.2f} (GOOD)
-Question type: {example['type']}
-Expected: {example['answer']}
+Question type: {example["type"]}
+Expected: {example["answer"]}
 Got: {extracted}"""
         else:
             hint = ""
@@ -173,10 +169,10 @@ Got: {extracted}"""
                 hint = "This requires following a chain of reasoning."
 
             feedback = f"""Score: {f1:.2f} (NEEDS IMPROVEMENT)
-Question type: {example['type']}
-Expected: {example['answer']}
+Question type: {example["type"]}
+Expected: {example["answer"]}
 Got: {extracted}
-Model output: {output[:300]}{'...' if len(output) > 300 else ''}
+Model output: {output[:300]}{"..." if len(output) > 300 else ""}
 Hint: {hint}"""
 
         # Return full trajectory
@@ -213,13 +209,13 @@ def main():
     print(f"Training set types: {dict(train_types)}")
 
     # Create clients
-    task_client = LLMClient(  # type: ignore[operator]
+    task_client = LLMClient(
         model,
         max_requests_per_minute=100,
         max_new_tokens=256,
         temperature=0.0,
     )
-    proposer_client = LLMClient(  # type: ignore[operator]
+    proposer_client = LLMClient(
         proposer_model,
         max_requests_per_minute=50,
         max_new_tokens=1024,
@@ -249,7 +245,7 @@ def main():
     # Run optimization
     result = optimize(
         components=components,
-        evaluate_fn=make_evaluate_fn(task_client),  # type: ignore[arg-type]
+        evaluate_fn=make_evaluate_fn(task_client),  # pyright: ignore[reportArgumentType]
         dataset=trainset,
         val_dataset=valset,
         task_client=task_client,

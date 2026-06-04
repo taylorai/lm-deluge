@@ -5,7 +5,7 @@ This test requires:
 2. A service account with credentials
 3. A test spreadsheet shared with the service account
 
-Required environment variables (in .env file):
+Required environment variables:
 - GOOGLE_SHEETS_CREDENTIALS: JSON string of service account credentials
 - TEST_SHEET_ID: ID of the test Google Sheet
 
@@ -37,13 +37,9 @@ import json
 import os
 import sys
 
-from dotenv import load_dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sheets import SheetsManager
-
-# Load environment variables from .env file
-load_dotenv()
 
 
 def test_sheets_live():
@@ -55,12 +51,12 @@ def test_sheets_live():
 
     if not credentials_json:
         print("❌ GOOGLE_SHEETS_CREDENTIALS not set in environment")
-        print("   Please add it to your .env file")
+        print("   Please provide it in the environment")
         sys.exit(1)
 
     if not sheet_id:
         print("❌ TEST_SHEET_ID not set in environment")
-        print("   Please add it to your .env file")
+        print("   Please provide it in the environment")
         sys.exit(1)
 
     print(f"📋 Using sheet ID: {sheet_id}")

@@ -8,11 +8,8 @@ import base64
 import io
 import json
 
-import dotenv
 from openai import AsyncOpenAI
 from PIL import Image as PILImage
-
-dotenv.load_dotenv()
 
 
 def create_test_image_base64() -> str:

@@ -3,12 +3,9 @@
 import asyncio
 import os
 
-import dotenv
 
 import lm_deluge
 from lm_deluge.models import APIModel
-
-dotenv.load_dotenv()
 
 
 async def test_gpt_5_2_responses_cost_live():
@@ -37,19 +34,19 @@ async def test_gpt_5_2_responses_cost_live():
     assert result.usage is not None, "Usage should be populated"
     assert result.raw_response is not None, "Raw response should be present"
     assert "usage" in result.raw_response, "Raw response missing usage"
-    assert (
-        "input_tokens" in result.raw_response["usage"]
-    ), "Expected Responses API usage shape with input_tokens"
-    assert (
-        "output_tokens" in result.raw_response["usage"]
-    ), "Expected Responses API usage shape with output_tokens"
+    assert "input_tokens" in result.raw_response["usage"], (
+        "Expected Responses API usage shape with input_tokens"
+    )
+    assert "output_tokens" in result.raw_response["usage"], (
+        "Expected Responses API usage shape with output_tokens"
+    )
 
-    assert (
-        result.usage.input_tokens > 0
-    ), f"Expected input tokens > 0, got {result.usage.input_tokens}"
-    assert (
-        result.usage.output_tokens > 0
-    ), f"Expected output tokens > 0, got {result.usage.output_tokens}"
+    assert result.usage.input_tokens > 0, (
+        f"Expected input tokens > 0, got {result.usage.input_tokens}"
+    )
+    assert result.usage.output_tokens > 0, (
+        f"Expected output tokens > 0, got {result.usage.output_tokens}"
+    )
     assert result.cost is not None, "Expected non-null cost"
     assert result.cost > 0, f"Expected positive cost, got {result.cost}"
 
@@ -64,9 +61,9 @@ async def test_gpt_5_2_responses_cost_live():
     if cache_read_tokens > 0 and model.cached_input_cost is not None:
         expected_cost += cache_read_tokens * model.cached_input_cost / 1e6
 
-    assert (
-        abs(result.cost - expected_cost) < 1e-12
-    ), f"Cost mismatch: actual={result.cost}, expected={expected_cost}"
+    assert abs(result.cost - expected_cost) < 1e-12, (
+        f"Cost mismatch: actual={result.cost}, expected={expected_cost}"
+    )
 
     print("✅ gpt-5.2 Responses API usage/cost test passed")
     print(

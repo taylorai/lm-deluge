@@ -8,13 +8,11 @@ attach the repo README as a file to naturally cross that threshold.
 import asyncio
 from pathlib import Path
 
-import dotenv
 import xxhash
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
 
-dotenv.load_dotenv()
 
 README = Path(__file__).resolve().parents[2] / "README.md"
 

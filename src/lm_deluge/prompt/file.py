@@ -7,8 +7,9 @@ from functools import cached_property
 from pathlib import Path
 from typing import Literal
 
-import requests
 import xxhash
+
+from lm_deluge.prompt.url_fetch import read_url_bytes
 
 
 @dataclass
@@ -33,26 +34,25 @@ class File:
 
     # helpers -----------------------------------------------------------------
     def _bytes(self) -> bytes:
-        if isinstance(self.data, bytes):
-            return self.data
-        elif isinstance(self.data, io.BytesIO):
-            return self.data.getvalue()
-        elif self._is_url():
-            res = requests.get(self.data)
-            res.raise_for_status()
-            return res.content
-        elif isinstance(self.data, str) and os.path.exists(self.data):
-            with open(self.data, "rb") as f:
+        data = self.data
+        if isinstance(data, bytes):
+            return data
+        elif isinstance(data, io.BytesIO):
+            return data.getvalue()
+        elif isinstance(data, str) and data.startswith(("http://", "https://")):
+            return read_url_bytes(data)
+        elif isinstance(data, str) and os.path.exists(data):
+            with open(data, "rb") as f:
                 return f.read()
-        elif isinstance(self.data, Path) and self.data.exists():
-            return Path(self.data).read_bytes()
-        elif isinstance(self.data, str) and self.data.startswith("data:"):
-            header, encoded = self.data.split(",", 1)
+        elif isinstance(data, Path) and data.exists():
+            return Path(data).read_bytes()
+        elif isinstance(data, str) and data.startswith("data:"):
+            _, encoded = data.split(",", 1)
             return base64.b64decode(encoded)
         else:
-            err = f"unreadable file. self.data type: {type(self.data)}"
-            if isinstance(self.data, str) and len(self.data) < 1_000:
-                err += f". self.data: {len(self.data)}"
+            err = f"unreadable file. self.data type: {type(data)}"
+            if isinstance(data, str) and len(data) < 1_000:
+                err += f". self.data: {len(data)}"
             raise ValueError(err)
 
     def _is_url(self) -> bool:

@@ -5,7 +5,7 @@ This test requires:
 2. A service account with credentials
 3. A test document shared with the service account
 
-Required environment variables (in .env file):
+Required environment variables:
 - GOOGLE_DOCS_CREDENTIALS: JSON string of service account credentials
 - TEST_DOC_ID: ID of the test Google Doc
 """
@@ -15,13 +15,9 @@ import json
 import os
 import sys
 
-from dotenv import load_dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.docs import DocsManager
-
-# Load environment variables from .env file
-load_dotenv()
 
 
 def test_docs_live():
@@ -33,12 +29,12 @@ def test_docs_live():
 
     if not credentials_json:
         print("❌ GOOGLE_DOCS_CREDENTIALS not set in environment")
-        print("   Please add it to your .env file")
+        print("   Please provide it in the environment")
         sys.exit(1)
 
     if not doc_id:
         print("❌ TEST_DOC_ID not set in environment")
-        print("   Please add it to your .env file")
+        print("   Please provide it in the environment")
         sys.exit(1)
 
     print(f"📄 Using document ID: {doc_id}")

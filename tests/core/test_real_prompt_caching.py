@@ -12,13 +12,10 @@ Run with: python tests/test_real_caching.py
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, Message
 from lm_deluge.tool import Tool
-
-dotenv.load_dotenv()
 
 
 def create_long_system_message() -> str:
@@ -251,9 +248,9 @@ async def test_real_caching_integration():
 
     # Verify cache write occurred
     assert result1.usage.has_cache_write, "First request should have written to cache"
-    assert (
-        result1.usage.cache_write_tokens and result1.usage.cache_write_tokens > 0
-    ), "Should have cache write tokens"
+    assert result1.usage.cache_write_tokens and result1.usage.cache_write_tokens > 0, (
+        "Should have cache write tokens"
+    )
 
     # Create follow-up conversation (continuing the conversation)
     conv2 = (
@@ -292,9 +289,9 @@ async def test_real_caching_integration():
 
     # Verify cache read occurred
     assert result2.usage.has_cache_hit, "Second request should have read from cache"
-    assert (
-        result2.usage.cache_read_tokens and result2.usage.cache_read_tokens > 0
-    ), "Should have cache read tokens"
+    assert result2.usage.cache_read_tokens and result2.usage.cache_read_tokens > 0, (
+        "Should have cache read tokens"
+    )
 
     # Verify the cache read tokens approximately match the cache write tokens from first request
     # (allowing for small differences due to additional context)
@@ -311,9 +308,9 @@ async def test_real_caching_integration():
     )
 
     # The cache read should be significant (at least 80% of what was written)
-    assert (
-        cache_read_second >= cache_write_first * 0.8
-    ), f"Cache read tokens ({cache_read_second}) should be close to cache write tokens ({cache_write_first})"
+    assert cache_read_second >= cache_write_first * 0.8, (
+        f"Cache read tokens ({cache_read_second}) should be close to cache write tokens ({cache_write_first})"
+    )
 
     print("🎉 Real caching integration test passed!")
     print(
@@ -371,9 +368,9 @@ async def test_real_caching_bedrock_integration():
 
     # Verify cache write occurred
     assert result1.usage.has_cache_write, "First request should have written to cache"
-    assert (
-        result1.usage.cache_write_tokens and result1.usage.cache_write_tokens > 0
-    ), "Should have cache write tokens"
+    assert result1.usage.cache_write_tokens and result1.usage.cache_write_tokens > 0, (
+        "Should have cache write tokens"
+    )
 
     # Create follow-up conversation (continuing the conversation)
     conv2 = (
@@ -412,9 +409,9 @@ async def test_real_caching_bedrock_integration():
 
     # Verify cache read occurred
     assert result2.usage.has_cache_hit, "Second request should have read from cache"
-    assert (
-        result2.usage.cache_read_tokens and result2.usage.cache_read_tokens > 0
-    ), "Should have cache read tokens"
+    assert result2.usage.cache_read_tokens and result2.usage.cache_read_tokens > 0, (
+        "Should have cache read tokens"
+    )
 
     # Verify the cache read tokens approximately match the cache write tokens from first request
     # (allowing for small differences due to additional context)
@@ -431,9 +428,9 @@ async def test_real_caching_bedrock_integration():
     )
 
     # The cache read should be significant (at least 80% of what was written)
-    assert (
-        cache_read_second >= cache_write_first * 0.8
-    ), f"Cache read tokens ({cache_read_second}) should be close to cache write tokens ({cache_write_first})"
+    assert cache_read_second >= cache_write_first * 0.8, (
+        f"Cache read tokens ({cache_read_second}) should be close to cache write tokens ({cache_write_first})"
+    )
 
     print("🎉 Real Bedrock caching integration test passed!")
     print(

@@ -2,13 +2,10 @@ import asyncio
 import json
 import os
 
-import dotenv
 import xxhash
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import MCPServer, Tool
-
-dotenv.load_dotenv()
 
 
 def reverse_string(text: str):
@@ -102,9 +99,9 @@ async def mcp_agent_loop():
     tool_reply = conv.messages[2]  # user -> tc -> tr
     tool_reply_content = tool_reply.parts[0].result  # type: ignore
     assert isinstance(tool_reply_content, str), "reply content should be str"
-    assert (
-        "searchTime" in tool_reply_content and "costDollars" in tool_reply_content
-    ), "no exa search performed"
+    assert "searchTime" in tool_reply_content and "costDollars" in tool_reply_content, (
+        "no exa search performed"
+    )
 
     print(resp.completion)
     print("mcp loop worked")
@@ -260,9 +257,9 @@ async def test_on_round_complete_callback():
 
     assert resp.completion
     # Should have been called at least twice (once per round)
-    assert (
-        len(callback_calls) >= 2
-    ), f"Expected at least 2 callback calls, got {len(callback_calls)}"
+    assert len(callback_calls) >= 2, (
+        f"Expected at least 2 callback calls, got {len(callback_calls)}"
+    )
 
     # Round numbers should be sequential starting from 0
     for i, (round_num, _) in enumerate(callback_calls):
@@ -270,9 +267,9 @@ async def test_on_round_complete_callback():
 
     # Message count should increase each round
     for i in range(1, len(callback_calls)):
-        assert (
-            callback_calls[i][1] > callback_calls[i - 1][1]
-        ), "Message count should increase"
+        assert callback_calls[i][1] > callback_calls[i - 1][1], (
+            "Message count should increase"
+        )
 
     print("on_round_complete callback test passed")
 
@@ -386,9 +383,9 @@ async def test_on_round_complete_accumulate_parts():
     from lm_deluge.prompt.tool_calls import ToolCall
 
     tool_call_count = sum(1 for p in all_parts if isinstance(p, ToolCall))
-    assert (
-        tool_call_count >= 3
-    ), f"Expected at least 3 tool calls, got {tool_call_count}"
+    assert tool_call_count >= 3, (
+        f"Expected at least 3 tool calls, got {tool_call_count}"
+    )
 
     print(
         f"on_round_complete parts accumulation test passed (accumulated {len(all_parts)} parts)"

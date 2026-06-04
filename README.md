@@ -23,7 +23,7 @@
 pip install lm-deluge
 ```
 
-The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GEMINI_API_KEY`. `LLMClient` will automatically load the `.env` file when imported; we recommend using that to set the environment variables. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GEMINI_API_KEY`. LM Deluge does not load `.env` files; populate the environment before constructing clients. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 ## Quickstart
 

@@ -5,15 +5,12 @@ Tests nested Pydantic models, TypedDicts, unions, and validates that
 the generated schemas work correctly with real LLM API calls.
 """
 
-import dotenv
 from typing import Annotated
 from typing_extensions import TypedDict, NotRequired
 from pydantic import BaseModel, Field
 
 from lm_deluge import LLMClient
 from lm_deluge.tool import Tool
-
-dotenv.load_dotenv()
 
 
 # ============================================================================
@@ -199,12 +196,12 @@ async def test_pydantic_output_schema():
     assert tool.output_schema is not None, "Should have output schema"
     # The root type (SearchResponse) is the schema itself, nested types go in $defs
     assert tool.output_schema.get("type") == "object", "Root should be object type"
-    assert (
-        "$defs" in tool.output_schema
-    ), "Output schema should have $defs for nested types"
-    assert (
-        "ProductResult" in tool.output_schema["$defs"]
-    ), "Should have ProductResult in $defs"
+    assert "$defs" in tool.output_schema, (
+        "Output schema should have $defs for nested types"
+    )
+    assert "ProductResult" in tool.output_schema["$defs"], (
+        "Should have ProductResult in $defs"
+    )
 
     # Verify description includes output info
     assert "Returns:" in tool.description
@@ -251,9 +248,9 @@ async def test_annotated_descriptions():
 
     # Check that the description from Annotated is in the schema
     query_schema = tool.parameters.get("query", {})
-    assert (
-        query_schema.get("description") == "Search query for products"
-    ), f"Expected description, got: {query_schema}"
+    assert query_schema.get("description") == "Search query for products", (
+        f"Expected description, got: {query_schema}"
+    )
 
     print("✅ Annotated descriptions test passed!")
 
@@ -286,9 +283,9 @@ async def test_complex_tool_with_real_api_call():
     assert len(tool_calls) > 0, "Should have tool calls"
 
     tool_call = tool_calls[0]
-    assert (
-        tool_call.name == "greet_person"
-    ), f"Expected greet_person, got {tool_call.name}"
+    assert tool_call.name == "greet_person", (
+        f"Expected greet_person, got {tool_call.name}"
+    )
 
     # Execute the tool with the model's arguments
     args = tool_call.arguments
@@ -297,9 +294,9 @@ async def test_complex_tool_with_real_api_call():
 
     # Verify the result contains expected data
     assert "Alice" in tool_result, f"Expected 'Alice' in result, got: {tool_result}"
-    assert (
-        "San Francisco" in tool_result
-    ), f"Expected 'San Francisco' in result, got: {tool_result}"
+    assert "San Francisco" in tool_result, (
+        f"Expected 'San Francisco' in result, got: {tool_result}"
+    )
 
     print("✅ End-to-end complex tool test passed!")
     print(f"   Tool result: {tool_result}")

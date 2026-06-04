@@ -23,10 +23,6 @@ import asyncio
 import os
 import sys
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 def get_config():
     """Get test configuration from environment."""

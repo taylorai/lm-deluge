@@ -1,7 +1,5 @@
-python-dotenv
 pyjson5
 PyYAML
-requests
 aiohttp
 xxhash
 tqdm

@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sandbox import ModalSandbox
-
-dotenv.load_dotenv()
 
 
 async def test_sandbox_creation():

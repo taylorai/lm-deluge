@@ -15,7 +15,6 @@ import asyncio
 import base64
 from pathlib import Path
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Message, ToolResult, Image
@@ -23,7 +22,6 @@ from lm_deluge.tool.builtin.anthropic import (
     get_anthropic_cu_tools,
 )
 
-dotenv.load_dotenv()
 
 # Path to static screenshot for testing
 SCREENSHOT_PATH = Path(__file__).parent.parent / "cua_screenshot.png"

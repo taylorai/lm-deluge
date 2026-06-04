@@ -10,11 +10,9 @@ from unittest.mock import patch
 
 import aiohttp
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Tool
 
-dotenv.load_dotenv()
 
 MODEL = "gpt-4.1-nano"
 N_PROMPTS = 50

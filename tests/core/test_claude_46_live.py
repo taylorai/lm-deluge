@@ -8,13 +8,11 @@ import asyncio
 import json
 import random
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Message, Text
 from lm_deluge.tool import Tool
 
-dotenv.load_dotenv()
 
 MODELS = ["claude-4.6-sonnet", "claude-4.6-opus"]
 
@@ -31,9 +29,9 @@ async def _simple_request(model: str, prompt: str | Conversation, **kwargs) -> s
     llm = LLMClient(model, max_new_tokens=256, **kwargs)
     responses = await llm.process_prompts_async([prompt], return_completions_only=False)
     resp = responses[0]
-    assert (
-        resp is not None and not resp.is_error
-    ), f"Request failed for {model}: {resp.error_message if resp else 'None'}"
+    assert resp is not None and not resp.is_error, (
+        f"Request failed for {model}: {resp.error_message if resp else 'None'}"
+    )
     # With interleaved thinking, .completion returns the first Text part which
     # may be whitespace. Join all text parts for a robust check.
     all_text = "".join(
@@ -116,9 +114,9 @@ async def test_budget_tokens():
             return_completions_only=False,
         )
         resp = responses[0]
-        assert (
-            resp is not None and not resp.is_error
-        ), f"[{label}] budget_tokens request failed: {resp.error_message if resp else 'None'}"
+        assert resp is not None and not resp.is_error, (
+            f"[{label}] budget_tokens request failed: {resp.error_message if resp else 'None'}"
+        )
         assert resp.completion.strip(), f"[{label}] Empty completion with budget_tokens"
         # Should have thinking content since we requested a budget
         print(f"  [{label}] Budget tokens OK: {resp.completion.strip()[:60]}")
@@ -148,17 +146,17 @@ async def test_structured_outputs():
             return_completions_only=False,
         )
         resp = responses[0]
-        assert (
-            resp is not None and not resp.is_error
-        ), f"[{label}] Structured output failed: {resp.error_message if resp else 'None'}"
+        assert resp is not None and not resp.is_error, (
+            f"[{label}] Structured output failed: {resp.error_message if resp else 'None'}"
+        )
         # Join all text parts (interleaved thinking may split them)
         all_text = "".join(
             part.text for part in resp.content.parts if isinstance(part, Text)
         ).strip()
         parsed = json.loads(all_text)
-        assert (
-            "name" in parsed and "age" in parsed
-        ), f"[{label}] Missing fields: {parsed}"
+        assert "name" in parsed and "age" in parsed, (
+            f"[{label}] Missing fields: {parsed}"
+        )
         assert isinstance(parsed["name"], str), f"[{label}] name not string: {parsed}"
         assert isinstance(parsed["age"], int), f"[{label}] age not int: {parsed}"
         print(f"  [{label}] Structured output OK: {parsed}")
@@ -197,9 +195,9 @@ async def test_tool_use_single_call():
             return_completions_only=False,
         )
         resp = responses[0]
-        assert (
-            resp is not None and not resp.is_error
-        ), f"[{label}] Tool call failed: {resp.error_message if resp else 'None'}"
+        assert resp is not None and not resp.is_error, (
+            f"[{label}] Tool call failed: {resp.error_message if resp else 'None'}"
+        )
         tool_calls = resp.content.tool_calls
         assert len(tool_calls) > 0, f"[{label}] No tool calls returned"
         tc = tool_calls[0]
@@ -217,14 +215,14 @@ async def test_tool_use_agent_loop():
         final_conv, resp = await llm.run_agent_loop(
             conv, tools=[dice_tool], max_rounds=3
         )
-        assert (
-            resp is not None and not resp.is_error
-        ), f"[{label}] Agent loop failed: {resp.error_message if resp else 'None'}"
+        assert resp is not None and not resp.is_error, (
+            f"[{label}] Agent loop failed: {resp.error_message if resp else 'None'}"
+        )
         assert resp.completion.strip(), f"[{label}] Empty agent loop completion"
         # The conversation should have tool call + result messages
-        assert (
-            len(final_conv.messages) >= 3
-        ), f"[{label}] Expected at least 3 messages (user, assistant+tool, tool_result, assistant), got {len(final_conv.messages)}"
+        assert len(final_conv.messages) >= 3, (
+            f"[{label}] Expected at least 3 messages (user, assistant+tool, tool_result, assistant), got {len(final_conv.messages)}"
+        )
         print(f"  [{label}] Agent loop OK: {resp.completion.strip()[:80]}")
     print("PASS test_tool_use_agent_loop")
 
@@ -274,7 +272,7 @@ async def main():
             import traceback
 
             traceback.print_exc()
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Results: {passed} passed, {failed} failed out of {len(tests)}")
     if failed:
         raise SystemExit(1)

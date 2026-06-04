@@ -2,11 +2,8 @@
 
 import asyncio
 
-import dotenv
 
 import lm_deluge
-
-dotenv.load_dotenv()
 
 
 async def main():

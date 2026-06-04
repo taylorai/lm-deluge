@@ -15,14 +15,11 @@ import os
 import sys
 import uuid
 
-from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from lm_deluge import LLMClient, Conversation  # noqa: E402
 from lm_deluge.tool.prefab.memory import S3MemoryManager  # noqa: E402
-
-load_dotenv()
 
 
 def get_test_bucket():
@@ -58,9 +55,9 @@ async def test_llm_adds_and_retrieves_memories():
 
         # Verify memories were created
         all_memories = manager.get_all_memories()
-        assert (
-            len(all_memories) >= 2
-        ), f"Expected at least 2 memories, got {len(all_memories)}"
+        assert len(all_memories) >= 2, (
+            f"Expected at least 2 memories, got {len(all_memories)}"
+        )
         print(f"✓ Created {len(all_memories)} memories")
 
         # Verify content
@@ -86,7 +83,7 @@ async def test_llm_searches_and_reads():
     # Pre-populate some memories
     manager._add(
         "API key location",
-        "The API key is stored in the .env file under OPENAI_API_KEY",
+        "The API key is provided in the environment under OPENAI_API_KEY",
     )
     manager._add(
         "Database password", "The database password is stored in secrets manager"
@@ -154,9 +151,9 @@ async def test_llm_updates_memory():
         memories = manager.get_all_memories()
         assert len(memories) == 1
         content_lower = memories[0].content.lower()
-        assert (
-            "development" in content_lower or "50" in content_lower
-        ), f"Expected updated content, got: {memories[0].content}"
+        assert "development" in content_lower or "50" in content_lower, (
+            f"Expected updated content, got: {memories[0].content}"
+        )
         print(f"✓ Memory updated correctly: {memories[0].content[:100]}...")
 
     finally:
@@ -193,12 +190,12 @@ async def test_llm_deletes_memory():
 
         # Verify deletion
         memories = manager.get_all_memories()
-        assert (
-            len(memories) == 1
-        ), f"Expected 1 memory after deletion, got {len(memories)}"
-        assert (
-            "important" in memories[0].description.lower()
-        ), "Wrong memory was deleted"
+        assert len(memories) == 1, (
+            f"Expected 1 memory after deletion, got {len(memories)}"
+        )
+        assert "important" in memories[0].description.lower(), (
+            "Wrong memory was deleted"
+        )
         print("✓ Correct memory was deleted, 'Important note' remains")
 
     finally:
@@ -243,9 +240,9 @@ async def test_llm_multi_session_persistence():
 
         # Verify the memory was found
         response_lower = (resp2.completion or "").lower()
-        assert (
-            "blue42" in response_lower or "blue 42" in response_lower
-        ), "Expected LLM to find and report the secret code"
+        assert "blue42" in response_lower or "blue 42" in response_lower, (
+            "Expected LLM to find and report the secret code"
+        )
         print("✓ Memory persisted and was retrieved in new session")
 
     finally:

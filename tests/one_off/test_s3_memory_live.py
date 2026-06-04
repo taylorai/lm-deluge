@@ -12,7 +12,6 @@ import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
@@ -20,8 +19,6 @@ from lm_deluge.tool.prefab.memory import (  # noqa: E402
     S3MemoryManager,
     S3RetryConfig,
 )
-
-load_dotenv()
 
 
 def get_test_bucket():
@@ -207,9 +204,9 @@ def test_concurrent_adds():
 
         # Should have all expected memories
         expected_count = num_workers * adds_per_worker
-        assert (
-            len(all_memories) == expected_count
-        ), f"Expected {expected_count}, got {len(all_memories)}"
+        assert len(all_memories) == expected_count, (
+            f"Expected {expected_count}, got {len(all_memories)}"
+        )
         print(f"✓ All {expected_count} memories created successfully")
 
     finally:

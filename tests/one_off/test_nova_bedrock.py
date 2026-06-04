@@ -11,11 +11,8 @@ import asyncio
 import os
 import sys
 
-from dotenv import load_dotenv
 
 from lm_deluge import LLMClient, Conversation, Tool
-
-load_dotenv()
 
 
 async def test_nova_basic():

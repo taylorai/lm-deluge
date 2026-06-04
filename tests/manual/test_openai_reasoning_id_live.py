@@ -3,7 +3,6 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.prompt import Conversation, Message, ToolResult
@@ -46,9 +45,9 @@ async def _responses_live_test():
     if response.content is not None:
         thinking_parts = response.content.thinking_parts
     assert thinking_parts, "No Thinking parts parsed from response content"
-    assert any(
-        tp.id == reasoning_id for tp in thinking_parts
-    ), "Thinking.id does not match reasoning item id"
+    assert any(tp.id == reasoning_id for tp in thinking_parts), (
+        "Thinking.id does not match reasoning item id"
+    )
 
     # Round-trip through Message log (reasoning should still be preserved locally)
     msg = Message("assistant", [thinking_parts[0]])
@@ -72,9 +71,9 @@ async def _responses_live_test():
         for item in followup_payload.get("input", [])
         if item.get("type") == "reasoning"
     ]
-    assert (
-        not reasoning_items_followup
-    ), "Reasoning items should be dropped in follow-up when no tool calls are present"
+    assert not reasoning_items_followup, (
+        "Reasoning items should be dropped in follow-up when no tool calls are present"
+    )
     followup_response = await client.start(followup)
     assert followup_response.completion is not None
 
@@ -130,9 +129,9 @@ async def _responses_tool_call_live_test():
         for item in followup_payload.get("input", [])
         if item.get("type") == "reasoning"
     ]
-    assert (
-        followup_reasoning
-    ), "Reasoning items should be emitted when tool calls are present"
+    assert followup_reasoning, (
+        "Reasoning items should be emitted when tool calls are present"
+    )
 
     followup_response = await client.start(followup, tools=[tool_spec])
     if followup_response.raw_response is not None:
@@ -145,7 +144,6 @@ async def _responses_tool_call_live_test():
 
 
 def main():
-    dotenv.load_dotenv()
     if not os.getenv("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set, skipping live OpenAI reasoning id tests")
         return

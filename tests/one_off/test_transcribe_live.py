@@ -5,7 +5,6 @@ Requires API keys set in environment. Uses a real audio file.
 
 import asyncio
 
-import dotenv
 
 from lm_deluge.transcribe import (
     TranscriptionResponse,
@@ -13,7 +12,6 @@ from lm_deluge.transcribe import (
     transcribe_sync,
 )
 
-dotenv.load_dotenv()
 
 AUDIO_FILE = "/Users/benjamin/Downloads/MuseumOfBadArt.ogg"
 
@@ -58,9 +56,9 @@ async def test_auto_split():
     print(f"Text (first 300 chars): {r.text[:300]}...")
     print(f"Text (last 200 chars): ...{r.text[-200:]}")
     # Should start with "Museum of Bad Art"
-    assert (
-        "museum" in r.text[:100].lower()
-    ), "Expected 'museum' near start of transcript"
+    assert "museum" in r.text[:100].lower(), (
+        "Expected 'museum' near start of transcript"
+    )
     print("  (auto-split + stitch succeeded)")
     print()
 

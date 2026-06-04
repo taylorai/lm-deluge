@@ -6,10 +6,6 @@ import os
 
 from lm_deluge import Conversation, LLMClient
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 async def main():
     if not os.getenv("GEMINI_API_KEY"):

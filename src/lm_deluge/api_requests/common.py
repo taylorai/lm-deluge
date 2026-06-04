@@ -6,6 +6,7 @@ from .bedrock import BedrockRequest
 from .bedrock_nova import BedrockNovaRequest
 from .gemini import GeminiRequest
 from .nvidia import NVIDIARequest
+from .moondream import MoondreamRequest
 
 CLASSES = {
     "openai": OpenAIRequest,
@@ -17,4 +18,5 @@ CLASSES = {
     "bedrock-nova": BedrockNovaRequest,
     "gemini": GeminiRequest,
     "nvidia": NVIDIARequest,
+    "moondream": MoondreamRequest,
 }

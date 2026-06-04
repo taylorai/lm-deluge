@@ -3,14 +3,11 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.config import SamplingParams
 from lm_deluge.tool import Tool
 from lm_deluge.prompt import ThoughtSignature
-
-dotenv.load_dotenv()
 
 
 def test_gemini_3_basic_reasoning():

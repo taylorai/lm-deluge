@@ -2,13 +2,10 @@
 
 import asyncio
 
-import dotenv
 import xxhash
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
-
-dotenv.load_dotenv()
 
 
 def reverse_string(text: str):

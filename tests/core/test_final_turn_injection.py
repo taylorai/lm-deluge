@@ -14,13 +14,10 @@ so the model MUST hit the final-turn injection path:
 
 import asyncio
 
-import dotenv
 import xxhash
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
-
-dotenv.load_dotenv()
 
 
 def hash_string(text: str) -> str:
@@ -55,16 +52,16 @@ async def test_final_turn_injection_openai():
     assert 1 in rounds_seen, f"Did not reach final turn; rounds seen: {rounds_seen}"
     assert resp.completion, "No text response on final turn"
     expected_hash = xxhash.xxh64("FINAL_TURN_TEST").hexdigest()
-    assert (
-        expected_hash in resp.completion
-    ), f"Expected hash {expected_hash} in response: {resp.completion}"
+    assert expected_hash in resp.completion, (
+        f"Expected hash {expected_hash} in response: {resp.completion}"
+    )
 
     # Verify the injected message is in the conversation
     user_msgs = [m for m in conv.messages if m.role == "user"]
     final_turn_msgs = [m for m in user_msgs if "FINAL turn" in (m.completion or "")]
-    assert (
-        len(final_turn_msgs) == 1
-    ), "Injected final-turn message not found in conversation"
+    assert len(final_turn_msgs) == 1, (
+        "Injected final-turn message not found in conversation"
+    )
 
     print(f"OpenAI final-turn injection test passed (rounds: {rounds_seen})")
 
@@ -93,16 +90,16 @@ async def test_final_turn_injection_anthropic():
     assert 1 in rounds_seen, f"Did not reach final turn; rounds seen: {rounds_seen}"
     assert resp.completion, "No text response on final turn"
     expected_hash = xxhash.xxh64("FINAL_TURN_TEST").hexdigest()
-    assert (
-        expected_hash in resp.completion
-    ), f"Expected hash {expected_hash} in response: {resp.completion}"
+    assert expected_hash in resp.completion, (
+        f"Expected hash {expected_hash} in response: {resp.completion}"
+    )
 
     # Verify the injected message is in the conversation
     user_msgs = [m for m in conv.messages if m.role == "user"]
     final_turn_msgs = [m for m in user_msgs if "FINAL turn" in (m.completion or "")]
-    assert (
-        len(final_turn_msgs) == 1
-    ), "Injected final-turn message not found in conversation"
+    assert len(final_turn_msgs) == 1, (
+        "Injected final-turn message not found in conversation"
+    )
 
     print(f"Anthropic final-turn injection test passed (rounds: {rounds_seen})")
 

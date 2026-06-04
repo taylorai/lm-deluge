@@ -7,11 +7,8 @@ to be set. Does NOT require AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
-
-dotenv.load_dotenv()
 
 
 def _has_bedrock_api_key() -> bool:

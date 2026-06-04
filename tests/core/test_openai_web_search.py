@@ -2,12 +2,9 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.builtin.openai import web_search_openai
-
-dotenv.load_dotenv()
 
 
 async def test_web_search_single():

@@ -3,12 +3,8 @@
 # import asyncio
 # import base64
 
-# import dotenv
-
 # from lm_deluge import LLMClient
 # from lm_deluge.prompt import Conversation, Message
-
-# dotenv.load_dotenv()
 
 # # Create a small fake JPEG image in base64
 # # This is a minimal valid JPEG header + data

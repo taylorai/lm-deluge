@@ -3,11 +3,8 @@
 import asyncio
 import os
 
-import dotenv
 
 import lm_deluge
-
-dotenv.load_dotenv()
 
 
 async def test_gpt_5_1():
@@ -60,9 +57,9 @@ def test_codex_requires_responses_api():
     """Test that codex models raise an error without use_responses_api=True."""
     try:
         lm_deluge.LLMClient("gpt-5.1-codex")
-        assert (
-            False
-        ), "Should have raised ValueError for codex without use_responses_api"
+        assert False, (
+            "Should have raised ValueError for codex without use_responses_api"
+        )
     except ValueError as e:
         assert "requires use_responses_api=True" in str(e)
         print("✅ Validation correctly requires responses API for codex models")
@@ -77,9 +74,9 @@ async def test_gpt_5_1_with_none_slug():
     client = lm_deluge.LLMClient("gpt-5.1-none")
 
     # Check that the reasoning_effort is set correctly
-    assert (
-        client.reasoning_effort == "none"
-    ), f"Expected 'none', got {client.reasoning_effort}"
+    assert client.reasoning_effort == "none", (
+        f"Expected 'none', got {client.reasoning_effort}"
+    )
 
     res = await client.process_prompts_async(["What is 1+1? Answer briefly."])
 
@@ -100,9 +97,9 @@ async def test_gpt_5_1_with_minimal_slug():
     client = lm_deluge.LLMClient("gpt-5.1-minimal")
 
     # Check that the reasoning_effort is set to minimal initially
-    assert (
-        client.reasoning_effort == "minimal"
-    ), f"Expected 'minimal', got {client.reasoning_effort}"
+    assert client.reasoning_effort == "minimal", (
+        f"Expected 'minimal', got {client.reasoning_effort}"
+    )
 
     res = await client.process_prompts_async(["What is 2+2? Answer briefly."])
 
@@ -112,9 +109,9 @@ async def test_gpt_5_1_with_minimal_slug():
     assert res[0].completion, "No completion received"
 
     # Check that the warning was issued
-    assert (
-        "WARN_MINIMAL_TO_NONE" in os.environ
-    ), "Warning should have been issued for minimal->none conversion"
+    assert "WARN_MINIMAL_TO_NONE" in os.environ, (
+        "Warning should have been issued for minimal->none conversion"
+    )
 
     print("✅ GPT-5.1 with -minimal slug (converted to none):", res[0].completion)
 
@@ -128,9 +125,9 @@ async def test_old_model_with_none_slug():
     client = lm_deluge.LLMClient("o3-mini-none")
 
     # Check that the reasoning_effort is set to none initially
-    assert (
-        client.reasoning_effort == "none"
-    ), f"Expected 'none', got {client.reasoning_effort}"
+    assert client.reasoning_effort == "none", (
+        f"Expected 'none', got {client.reasoning_effort}"
+    )
 
     res = await client.process_prompts_async(["What is 3+3? Answer briefly."])
 

@@ -13,10 +13,6 @@ from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tracker import StatusTracker
 from lm_deluge.usage import Usage
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 def test_sampling_params_logprobs():
     """Test that SamplingParams properly stores logprobs and top_logprobs."""
@@ -227,22 +223,22 @@ def test_integration_logprobs_openai():
             assert result.content
 
             # Verify logprobs are present
-            assert (
-                result.logprobs is not None
-            ), "Logprobs should be present in the response"
-            assert (
-                len(result.logprobs) > 0
-            ), "Logprobs should contain at least one entry"
+            assert result.logprobs is not None, (
+                "Logprobs should be present in the response"
+            )
+            assert len(result.logprobs) > 0, (
+                "Logprobs should contain at least one entry"
+            )
 
             # Verify logprob entry structure
             first_logprob = result.logprobs[0]
             assert "token" in first_logprob, "Logprob entry should have 'token' field"
-            assert (
-                "logprob" in first_logprob
-            ), "Logprob entry should have 'logprob' field"
-            assert (
-                "top_logprobs" in first_logprob
-            ), "Logprob entry should have 'top_logprobs' field"
+            assert "logprob" in first_logprob, (
+                "Logprob entry should have 'logprob' field"
+            )
+            assert "top_logprobs" in first_logprob, (
+                "Logprob entry should have 'top_logprobs' field"
+            )
 
             # Verify top_logprobs structure
             top_logprobs = first_logprob["top_logprobs"]
@@ -253,12 +249,12 @@ def test_integration_logprobs_openai():
             # Verify top logprob structure
             first_top_logprob = top_logprobs[0]
             assert "token" in first_top_logprob, "Top logprob should have 'token' field"
-            assert (
-                "logprob" in first_top_logprob
-            ), "Top logprob should have 'logprob' field"
-            assert isinstance(
-                first_top_logprob["logprob"], (int, float)
-            ), "Logprob should be numeric"
+            assert "logprob" in first_top_logprob, (
+                "Top logprob should have 'logprob' field"
+            )
+            assert isinstance(first_top_logprob["logprob"], (int, float)), (
+                "Logprob should be numeric"
+            )
 
             print(
                 f"✓ Integration test passed! Got logprobs for {len(result.logprobs)} tokens"

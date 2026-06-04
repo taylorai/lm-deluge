@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import Any, cast
 
 from datasets import load_dataset
-from dotenv import load_dotenv
 
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.client import _LLMClient
@@ -36,8 +35,6 @@ CORPUS_FILE = DATA_DIR / "corpus.jsonl"
 QUERIES_FILE = DATA_DIR / "queries.jsonl"
 INDEX_DIR = DATA_DIR / "tantivy_index"
 RESULTS_DIR = DATA_DIR / "results"
-
-load_dotenv()
 
 
 def derive_key(password: str, length: int) -> bytes:

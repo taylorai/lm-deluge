@@ -3,13 +3,10 @@
 
 import asyncio
 import json
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.tool import Tool
 from lm_deluge.config import SamplingParams
-
-dotenv.load_dotenv()
 
 
 async def test_responses_api_structured_outputs():

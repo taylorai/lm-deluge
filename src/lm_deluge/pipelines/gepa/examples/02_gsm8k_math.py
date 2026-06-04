@@ -18,17 +18,15 @@ Requirements:
 """
 
 import os
+import random
 import re
 import sys
-from typing import cast
-
-import dotenv
+from importlib import import_module
+from typing import Any, cast
 
 from lm_deluge.client import LLMClient, _LLMClient
 from lm_deluge.pipelines.gepa import Component, EvalResult, optimize
 from lm_deluge.prompt import Conversation, Message
-
-dotenv.load_dotenv()
 
 
 def load_gsm8k_sample(
@@ -36,13 +34,13 @@ def load_gsm8k_sample(
 ) -> tuple[list[dict], list[dict]]:
     """Load a sample of GSM8K problems."""
     try:
-        from datasets import load_dataset
+        datasets = cast(Any, import_module("datasets"))
     except ImportError:
         print("Please install datasets: pip install datasets")
         sys.exit(1)
 
     print("Loading GSM8K dataset...")
-    ds = load_dataset("openai/gsm8k", "main", split="train")
+    ds = datasets.load_dataset("openai/gsm8k", "main", split="train")
 
     # Extract answer from "#### <number>" format
     def extract_answer(answer_text: str) -> str:
@@ -60,9 +58,6 @@ def load_gsm8k_sample(
                 "answer": extract_answer(item["answer"]),
             }
         )
-
-    # Shuffle and split
-    import random
 
     random.seed(42)
     random.shuffle(data)

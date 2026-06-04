@@ -15,7 +15,6 @@ import asyncio
 import base64
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Message, ToolResult
@@ -26,8 +25,6 @@ from lm_deluge.tool.cua import (
     gemini_function_call_to_action,
 )
 from lm_deluge.tool.cua.actions import Screenshot
-
-dotenv.load_dotenv()
 
 
 async def browse_and_report_gemini(

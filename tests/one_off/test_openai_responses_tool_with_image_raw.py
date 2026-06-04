@@ -7,15 +7,12 @@ import asyncio
 import io
 import json
 
-import dotenv
 from openai import AsyncOpenAI
 from PIL import Image as PILImage
 
 from lm_deluge.prompt.image import Image
 from lm_deluge.prompt.text import Text
 from lm_deluge.prompt.tool_calls import ToolResult
-
-dotenv.load_dotenv()
 
 
 def create_test_image() -> Image:

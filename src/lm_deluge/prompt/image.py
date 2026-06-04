@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-import requests
-from PIL import Image as PILImage  # type: ignore
+from PIL import Image as PILImage
+
+from lm_deluge.prompt.url_fetch import read_url_bytes
 
 MediaType = Literal["image/jpeg", "image/png", "image/gif", "image/webp"] | str
 
@@ -36,7 +37,7 @@ class Image:
         last_page: int | None = None,
     ) -> list["Image"]:
         try:
-            from pdf2image import convert_from_path  # type: ignore
+            from pdf2image import convert_from_path
         except ImportError:
             raise RuntimeError("pdf2image is required for PDF conversion.")
 
@@ -67,33 +68,32 @@ class Image:
         # )
         # print(f"DEBUG: Image._bytes called: id={id(self)}, data={data_type}, preview={data_preview}")
 
-        if isinstance(self.data, bytes):
-            return self.data
-        elif isinstance(self.data, io.BytesIO):
-            return self.data.getvalue()
-        elif self._is_url():
-            res = requests.get(self.data)
-            res.raise_for_status()
-            return res.content
-        elif isinstance(self.data, str) and os.path.exists(self.data):
-            with open(self.data, "rb") as f:
+        data = self.data
+        if isinstance(data, bytes):
+            return data
+        elif isinstance(data, io.BytesIO):
+            return data.getvalue()
+        elif isinstance(data, str) and data.startswith(("http://", "https://")):
+            return read_url_bytes(data)
+        elif isinstance(data, str) and os.path.exists(data):
+            with open(data, "rb") as f:
                 return f.read()
-        elif isinstance(self.data, Path) and self.data.exists():
-            return Path(self.data).read_bytes()
-        elif isinstance(self.data, str) and self.data.startswith("data:"):
+        elif isinstance(data, Path) and data.exists():
+            return Path(data).read_bytes()
+        elif isinstance(data, str) and data.startswith("data:"):
             # print("base64 path selected")
-            header, encoded = self.data.split(",", 1)
+            _, encoded = data.split(",", 1)
             return base64.b64decode(encoded)
         else:
-            if isinstance(self.data, str):
-                content = self.data[:1_000]
-            elif isinstance(self.data, bytes):
+            if isinstance(data, str):
+                content = data[:1_000]
+            elif isinstance(data, bytes):
                 content = "[raw bytes]"
             else:
-                content = f"[raw {type(self.data)}]"
+                content = f"[raw {type(data)}]"
             # print(f"DEBUG: Image._bytes ERROR PATH: type={type(self.data)}, content={content}")
             raise ValueError(
-                f"unreadable image format. type: {type(self.data)}. content: {content}"
+                f"unreadable image format. type: {type(data)}. content: {content}"
             )
 
     def _is_url(self) -> bool:

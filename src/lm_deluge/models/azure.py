@@ -1,22 +1,6 @@
 import os
 
-from dotenv import dotenv_values, find_dotenv
-
-
-def _get_azure_url() -> str:
-    env_value = os.getenv("AZURE_URL")
-    if env_value:
-        return env_value
-
-    dotenv_path = find_dotenv(usecwd=True)
-    if not dotenv_path:
-        return ""
-
-    values = dotenv_values(dotenv_path)
-    return values.get("AZURE_URL") or ""
-
-
-AZURE_URL = _get_azure_url()
+AZURE_URL = os.getenv("AZURE_URL", "")
 
 AZURE_MODELS = {
     # GPT OSS / DeepSeek

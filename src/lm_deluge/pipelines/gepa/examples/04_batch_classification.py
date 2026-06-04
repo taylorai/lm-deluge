@@ -19,13 +19,9 @@ Requirements:
 import os
 import sys
 
-import dotenv
-
 from lm_deluge import LLMClient
 from lm_deluge.pipelines.gepa import Component, EvalResult, optimize
 from lm_deluge.prompt import Conversation, Message
-
-dotenv.load_dotenv()
 
 
 # Simple sentiment dataset
@@ -136,9 +132,9 @@ def make_evaluate_fn(task_client: LLMClient):  # type: ignore
         conv = Conversation().system(component_values["system_prompt"])
 
         user_msg = f"""Text to classify:
-"{example['text']}"
+"{example["text"]}"
 
-{component_values['output_format']}"""
+{component_values["output_format"]}"""
         conv = conv.add(Message.user(user_msg))
 
         # Run inference
@@ -153,13 +149,13 @@ def make_evaluate_fn(task_client: LLMClient):  # type: ignore
         # Build feedback
         if correct:
             feedback = f"""Score: 1.0 (CORRECT)
-Text: "{example['text'][:50]}..."
-Expected: {example['label']}
+Text: "{example["text"][:50]}..."
+Expected: {example["label"]}
 Predicted: {pred}"""
         else:
             feedback = f"""Score: 0.0 (INCORRECT)
-Text: "{example['text']}"
-Expected: {example['label']}
+Text: "{example["text"]}"
+Expected: {example["label"]}
 Model output: {output}
 Extracted prediction: {pred}
 
@@ -196,13 +192,13 @@ def main():
     print(f"Training: {len(trainset)}, Validation: {len(valset)} examples")
 
     # Create clients
-    task_client = LLMClient(  # type: ignore[operator]
+    task_client = LLMClient(
         model,
         max_requests_per_minute=200,
         max_new_tokens=50,
         temperature=0.0,
     )
-    proposer_client = LLMClient(  # type: ignore[operator]
+    proposer_client = LLMClient(
         proposer_model,
         max_requests_per_minute=50,
         max_new_tokens=1024,
@@ -232,7 +228,7 @@ def main():
     # Run optimization
     result = optimize(
         components=components,
-        evaluate_fn=make_evaluate_fn(task_client),  # type: ignore[arg-type]
+        evaluate_fn=make_evaluate_fn(task_client),  # pyright: ignore[reportArgumentType]
         dataset=trainset,
         val_dataset=valset,
         task_client=task_client,

@@ -3,12 +3,9 @@
 import os
 from typing import Any
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.api_requests.response import APIResponse
-
-dotenv.load_dotenv()
 
 
 AZURE_MODELS = [

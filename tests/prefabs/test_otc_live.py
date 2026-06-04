@@ -1,19 +1,16 @@
 """Live integration test for OTC ToolComposer using real models.
 
-Loads API keys via dotenv like the subagent tests and exercises an OTC program
+Uses environment-provided API keys and exercises an OTC program
 that must call compose + math tools to solve a problem. Intended to be run
 manually when credentials are available.
 """
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
 from lm_deluge.tool.prefab.otc import ToolComposer
-
-dotenv.load_dotenv()
 
 
 def _make_math_tools(call_log: dict[str, int]) -> list[Tool]:
@@ -87,9 +84,9 @@ async def test_otc_math_composition_live():
 
     # The compose output should include the answer, and the model should echo it.
     tool_results = [part.result for msg in conv.messages for part in msg.tool_results]
-    assert any(
-        "752" in str(result) for result in tool_results
-    ), "Compose output missing expected answer"
+    assert any("752" in str(result) for result in tool_results), (
+        "Compose output missing expected answer"
+    )
 
     assert resp.completion, "Model did not return a completion"
     final_text = resp.completion.lower()

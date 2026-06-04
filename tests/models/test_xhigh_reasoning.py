@@ -3,12 +3,9 @@
 import asyncio
 import os
 
-import dotenv
 
 import lm_deluge
 from lm_deluge.models import APIModel
-
-dotenv.load_dotenv()
 
 
 def test_gpt_5_2_supports_xhigh():
@@ -38,9 +35,9 @@ def test_xhigh_suffix_parsing():
     client = lm_deluge.LLMClient("gpt-5.2-xhigh")
 
     assert client.models == ["gpt-5.2"], f"Expected ['gpt-5.2'], got {client.models}"
-    assert (
-        client.reasoning_effort == "xhigh"
-    ), f"Expected 'xhigh', got {client.reasoning_effort}"
+    assert client.reasoning_effort == "xhigh", (
+        f"Expected 'xhigh', got {client.reasoning_effort}"
+    )
     assert all(sp.reasoning_effort == "xhigh" for sp in client.sampling_params)
     print("✅ -xhigh suffix correctly parsed from model name")
 
@@ -49,12 +46,12 @@ def test_xhigh_suffix_codex_max():
     """Test that -xhigh suffix works with gpt-5.1-codex-max."""
     client = lm_deluge.LLMClient("gpt-5.1-codex-max-xhigh", use_responses_api=True)
 
-    assert client.models == [
-        "gpt-5.1-codex-max"
-    ], f"Expected ['gpt-5.1-codex-max'], got {client.models}"
-    assert (
-        client.reasoning_effort == "xhigh"
-    ), f"Expected 'xhigh', got {client.reasoning_effort}"
+    assert client.models == ["gpt-5.1-codex-max"], (
+        f"Expected ['gpt-5.1-codex-max'], got {client.models}"
+    )
+    assert client.reasoning_effort == "xhigh", (
+        f"Expected 'xhigh', got {client.reasoning_effort}"
+    )
     print("✅ -xhigh suffix correctly parsed for gpt-5.1-codex-max")
 
 
@@ -72,9 +69,9 @@ async def test_gpt_5_2_xhigh_live():
     assert len(res) == 1, f"Expected 1 result, got {len(res)}"
     assert not res[0].is_error, f"Request failed: {res[0].error_message}"
     assert res[0].completion, "No completion received"
-    assert (
-        "56" in res[0].completion
-    ), f"Expected 56 in completion, got: {res[0].completion}"
+    assert "56" in res[0].completion, (
+        f"Expected 56 in completion, got: {res[0].completion}"
+    )
 
     print(f"✅ gpt-5.2 with xhigh works: {res[0].completion}")
 
@@ -95,9 +92,9 @@ async def test_gpt_5_1_codex_max_xhigh_live():
     assert len(res) == 1, f"Expected 1 result, got {len(res)}"
     assert not res[0].is_error, f"Request failed: {res[0].error_message}"
     assert res[0].completion, "No completion received"
-    assert (
-        "63" in res[0].completion
-    ), f"Expected 63 in completion, got: {res[0].completion}"
+    assert "63" in res[0].completion, (
+        f"Expected 63 in completion, got: {res[0].completion}"
+    )
 
     print(f"✅ gpt-5.1-codex-max with xhigh works: {res[0].completion}")
 
@@ -123,9 +120,9 @@ async def test_xhigh_fallback_to_high():
     assert res[0].completion, "No completion received"
 
     # Verify warning was issued
-    assert (
-        "WARN_XHIGH_TO_HIGH" in os.environ
-    ), "Warning should have been issued for xhigh->high conversion"
+    assert "WARN_XHIGH_TO_HIGH" in os.environ, (
+        "Warning should have been issued for xhigh->high conversion"
+    )
 
     print(f"✅ xhigh correctly falls back to high for gpt-5.1: {res[0].completion}")
 
@@ -149,9 +146,9 @@ async def test_o3_xhigh_fallback():
     assert not res[0].is_error, f"Request failed: {res[0].error_message}"
 
     # Verify warning was issued
-    assert (
-        "WARN_XHIGH_TO_HIGH" in os.environ
-    ), "Warning should have been issued for xhigh->high conversion on o3"
+    assert "WARN_XHIGH_TO_HIGH" in os.environ, (
+        "Warning should have been issued for xhigh->high conversion on o3"
+    )
 
     print(f"✅ xhigh correctly falls back to high for o3: {res[0].completion}")
 
@@ -175,9 +172,9 @@ async def test_standard_effort_still_works():
 
         assert res, f"No results for {effort}"
         assert len(res) == 1, f"Expected 1 result for {effort}"
-        assert not res[
-            0
-        ].is_error, f"Request failed for {effort}: {res[0].error_message}"
+        assert not res[0].is_error, (
+            f"Request failed for {effort}: {res[0].error_message}"
+        )
 
         print(f"✅ gpt-5.2 with {effort} effort works")
 

@@ -6,14 +6,11 @@ Uses lm-deluge library with the auto tool loop.
 import asyncio
 import io
 
-import dotenv
 from PIL import Image as PILImage
 
 from lm_deluge import Conversation, LLMClient, Tool
 from lm_deluge.prompt.image import Image
 from lm_deluge.prompt.text import Text
-
-dotenv.load_dotenv()
 
 
 def create_test_image() -> Image:

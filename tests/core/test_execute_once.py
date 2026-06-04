@@ -5,10 +5,6 @@ from lm_deluge.models import APIModel
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 async def test_execute_once_real():
     """Test that execute_once() makes a real API call and returns APIResponse."""

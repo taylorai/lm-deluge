@@ -1,13 +1,11 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.mcp import MCPClient
 from lm_deluge.tool import Tool
 
-dotenv.load_dotenv()
 
 EXA_API_KEY = os.getenv("EXA_API_KEY")
 if not EXA_API_KEY:

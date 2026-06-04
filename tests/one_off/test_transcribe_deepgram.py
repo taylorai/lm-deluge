@@ -5,11 +5,9 @@ Requires DEEPGRAM_API_KEY set in environment.
 
 import asyncio
 
-import dotenv
 
 from lm_deluge.transcribe import transcribe_async, transcribe_sync
 
-dotenv.load_dotenv()
 
 AUDIO_FILE = "/Users/benjamin/Downloads/MuseumOfBadArt.ogg"
 

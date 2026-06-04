@@ -9,11 +9,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 
-import dotenv
-
 from lm_deluge.client import LLMClient
-
-dotenv.load_dotenv()
 
 
 def generate_long_prompt(min_tokens: int = 2000) -> str:

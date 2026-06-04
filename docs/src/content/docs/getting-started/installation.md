@@ -19,7 +19,7 @@ Optional extras:
 
 ## API Keys
 
-LM Deluge reads API keys from environment variables so the client can contact each provider directly. Load them at process startup (for example with [`python-dotenv`](https://pypi.org/project/python-dotenv/)) and pass the values down to your workers, CLI scripts, or notebook kernels.
+LM Deluge reads API keys from environment variables so the client can contact each provider directly. Populate the process environment before constructing clients and pass those values down to your workers, CLI scripts, or notebook kernels.
 
 ### Required Environment Variables
 
@@ -48,34 +48,24 @@ AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 ```
 
-### .env File
+### Local Environment
 
-Create a `.env` file in your project root:
+Set the variables in your shell, process manager, or secret manager before running your application:
 
 ```bash
-# .env
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=...
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+export GEMINI_API_KEY=...
 ```
 
-Load the file inside your application:
-
-```python
-import dotenv
-
-dotenv.load_dotenv()
-```
+If your application wants `.env` behavior for local development, install and invoke a loader in your application entrypoint before importing or using LM Deluge.
 
 ## Verification
 
 Verify your installation by running a simple test:
 
 ```python
-import dotenv
 from lm_deluge import LLMClient
-
-dotenv.load_dotenv()
 
 client = LLMClient("gpt-4.1-mini")
 responses = client.process_prompts_sync(["Say hello!"])

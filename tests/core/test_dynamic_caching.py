@@ -1,9 +1,6 @@
 import asyncio
 
 from lm_deluge import Conversation, LLMClient
-import dotenv
-
-dotenv.load_dotenv()
 
 
 class SimpleCache:
@@ -87,12 +84,12 @@ async def test_dynamic_caching():
     # - 6 local cache hits (requests 3-8 should hit cache from request 1)
 
     assert len(responses) == 8, f"Expected 8 responses, got {len(responses)}"
-    assert (
-        cache.puts < 3
-    ), f"Expected < 3 cache puts (for 1 unique prompt), got {cache.puts}"
-    assert (
-        local_cache_hits >= 5
-    ), f"Expected at least 5 local cache hits, got {local_cache_hits}"
+    assert cache.puts < 3, (
+        f"Expected < 3 cache puts (for 1 unique prompt), got {cache.puts}"
+    )
+    assert local_cache_hits >= 5, (
+        f"Expected at least 5 local cache hits, got {local_cache_hits}"
+    )
 
     print("✅ Dynamic caching test passed!")
 

@@ -4,11 +4,8 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
-
-dotenv.load_dotenv()
 
 
 async def test_background_mode_basic():

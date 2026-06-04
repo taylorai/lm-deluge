@@ -5,12 +5,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sqlite import SqliteManager
-
-dotenv.load_dotenv()
 
 
 # ---------------------------------------------------------------------------
@@ -496,9 +493,9 @@ async def test_live_agent_queries_from_dicts():
         final_conv, response = await llm.run_agent_loop(conv, tools=tools, max_rounds=5)
         assert response is not None
         assert not response.is_error, response.error_message
-        assert "Tokyo" in (
-            response.completion or ""
-        ), f"Expected 'Tokyo' in response, got: {response.completion!r}"
+        assert "Tokyo" in (response.completion or ""), (
+            f"Expected 'Tokyo' in response, got: {response.completion!r}"
+        )
         print(f"  Agent answer: {response.completion!r}")
     finally:
         manager.close()
@@ -549,9 +546,9 @@ async def test_live_agent_schema_discovery():
         assert not response.is_error, response.error_message
         completion = response.completion or ""
         # avg of 120000 and 130000 is 125000
-        assert (
-            "125000" in completion or "125,000" in completion
-        ), f"Expected '125000' in response, got: {completion!r}"
+        assert "125000" in completion or "125,000" in completion, (
+            f"Expected '125000' in response, got: {completion!r}"
+        )
         print(f"  Agent answer: {completion!r}")
     finally:
         manager.close()
@@ -582,9 +579,9 @@ async def test_live_agent_from_dicts_on_disk_path():
             )
             assert response is not None
             assert not response.is_error, response.error_message
-            assert "Python" in (
-                response.completion or ""
-            ), f"Expected 'Python' in response, got: {response.completion!r}"
+            assert "Python" in (response.completion or ""), (
+                f"Expected 'Python' in response, got: {response.completion!r}"
+            )
             print(f"  Agent answer: {response.completion!r}")
         finally:
             manager.close()

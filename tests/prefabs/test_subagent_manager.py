@@ -2,13 +2,10 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool import Tool
 from lm_deluge.tool.prefab.subagents import SubAgentManager
-
-dotenv.load_dotenv()
 
 
 def add_numbers(a: float, b: float) -> float:

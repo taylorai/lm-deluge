@@ -4,14 +4,12 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Message
 from lm_deluge.config import SamplingParams
 from lm_deluge.prompt import Thinking, ThoughtSignature
 from lm_deluge.tool.prefab import RandomTools
 
-dotenv.load_dotenv()
 
 GEMINI_MODEL = os.getenv("GEMINI_THOUGHT_SIGNATURE_MODEL", "gemini-3-pro-preview")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_THOUGHT_SIGNATURE_MODEL", "claude-4.5-sonnet")
@@ -79,9 +77,9 @@ def test_gemini_thought_signature_ignored_by_anthropic():
             for call in tool_calls
             if isinstance(call.thought_signature, ThoughtSignature)
         ]
-        assert (
-            signed_tool_calls
-        ), "Expected Gemini thought signatures on thinking or tool calls"
+        assert signed_tool_calls, (
+            "Expected Gemini thought signatures on thinking or tool calls"
+        )
         # Mirror proxy behavior: emit a thinking block carrying the signature.
         gemini_message.parts.insert(
             0,

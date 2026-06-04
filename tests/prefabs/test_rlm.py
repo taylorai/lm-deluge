@@ -7,12 +7,9 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.tool.prefab import RLMManager, RLMPipeline
-
-dotenv.load_dotenv()
 
 
 async def test_rlm_simple_context_operations():

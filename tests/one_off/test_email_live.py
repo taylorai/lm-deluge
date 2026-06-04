@@ -15,10 +15,6 @@ import os
 import sys
 from datetime import datetime
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 async def test_send_email_live():
     """Send a real test email via SES."""

@@ -8,12 +8,10 @@ import asyncio
 import os
 import sys
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sandbox import SeatbeltSandbox
 
-dotenv.load_dotenv()
 
 if sys.platform != "darwin":
     print("SKIPPED: SeatbeltSandbox tests only run on macOS")

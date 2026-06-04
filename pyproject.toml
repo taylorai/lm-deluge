@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "lm_deluge"
-version = "0.0.138"
+version = "0.0.140"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
@@ -12,23 +12,21 @@ keywords = []
 license = { text = "" }
 classifiers = []
 dependencies = [
-    "python-dotenv",
     "pyjson5",
     "PyYAML",
     "aiohttp",
-    "requests",
-    "xxhash",
+    "xxhash==3.6.0",
     "tqdm",
     "pydantic",
-    "markdownify-rs>=0.1.1",
+    "markdownify-rs==0.1.5",
     "pillow",
     "rich",
-    "filetype"
+    "filetype==1.2.0"
 ]
 
 [project.optional-dependencies]
 pdf = ["pdf2image"]
-aws = ["boto3>=1.28.0", "requests-aws4auth"]
+aws = ["boto3>=1.28.0"]
 google = ["google-auth"]
 docker = ["docker>=7.0.0"]
 pybubble = ["pybubble; platform_system == 'Linux' and python_version >= '3.12'"]

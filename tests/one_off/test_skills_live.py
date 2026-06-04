@@ -9,14 +9,11 @@ import os
 import tempfile
 from typing import cast
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Skill
 from lm_deluge.prompt import ToolResult
 from lm_deluge.prompt.text import Text
 from lm_deluge.util.anthropic_files import save_response_files
-
-dotenv.load_dotenv()
 
 
 async def test_anthropic_builtin_skill():

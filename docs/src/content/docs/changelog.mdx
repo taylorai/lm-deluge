@@ -5,6 +5,18 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.140 · 2026-05-29
+
+- **Claude Opus 4.8**: Added `claude-4.8-opus` for the Anthropic API plus `claude-4.8-opus-bedrock` and `claude-4.8-opus-bedrock-global` for Amazon Bedrock. Opus 4.8 uses the Claude 4.7+ request path for adaptive thinking, `output_config.effort`, `xhigh`, task budgets, and sampling-parameter stripping. Live Bedrock audits passed all configured US regions and all 30 configured global regions after excluding `me-south-1`, which timed out empirically.
+- **Claude Opus 4.7 and Bedrock global profiles**: Added `claude-4.7-opus` and its US/global Bedrock profiles, including request-builder support for adaptive thinking, summarized thinking display, effort defaults, task budgets, assistant-prefill rejection, and 4.7 sampling constraints.
+- **New model families**: Added Gemini 3.5 Flash (`gemini-3.5-flash` and OpenAI-compatible variant), GPT-5.5, DeepSeek V4 Pro/Flash, Kimi K2.6 through both Moonshot and OpenRouter, NVIDIA hosted NIM models/dynamic `nvidia:` model IDs, Perceptron (`perceptron-mk1`, `isaac-0.2-2b`, `sonar`) with image/video support, and a native Moondream provider plus `MoondreamClient`.
+- **Spatial utilities**: Refactored `lm_deluge.util.spatial` into a package with shared point/box/count parsing, drawing helpers, and provider-specific parsers for Gemini, Moondream, and Perceptron. Added focused spatial tests for normalization and provider output parsing.
+- **Bedrock auth hardening**: Replaced `requests-aws4auth` with an internal Python 3.10-compatible AWS SigV4 header signer that works for Bedrock and straightforward AWS services such as S3. Bedrock Anthropic, OpenAI-compatible, and Nova request paths now sign aiohttp requests directly; API-key auth still takes precedence when present.
+- **Dependency and secret-loading cleanup**: Removed `python-dotenv`, `requests`, and `requests-aws4auth` from core/runtime dependency paths. Library code and tests now expect credentials from the process environment instead of loading `.env` files implicitly, reducing surprise secret loading in production.
+- **Prompt media and URL handling**: Added a `Video` prompt part and shared async URL byte-fetching helpers so providers that require inline media can fetch and encode images/video without the `requests` dependency.
+- **Rate-limit defaults**: Raised the default token-per-minute budget from `100_000` to `500_000`, reducing failures for prompts that naturally exceed the old default.
+- **Cloudflare sandbox prefab**: Added the Cloudflare Worker sandbox assets and prefab plumbing for lightweight remote command execution.
+
 ## 0.0.139 · 2026-04-23
 
 - **NVIDIA provider**: Added a first-class NVIDIA hosted NIM provider using `https://integrate.api.nvidia.com/v1` with `NVIDIA_API_KEY`. Includes curated registry entries for models such as `minimax-m2.7-nvidia`, `deepseek-3.2-nvidia`, `kimi-k2.5-nvidia`, `glm-5.1-nvidia`, `gpt-oss-120b-nvidia`, and `sarvam-m-nvidia`.

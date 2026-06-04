@@ -10,10 +10,10 @@ import traceback
 from contextlib import asynccontextmanager
 
 import aiohttp
-from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from lm_deluge.api_requests.bedrock_auth import has_bedrock_auth
 from lm_deluge.models import APIModel, registry
 from lm_deluge.prompt import CachePattern
 from lm_deluge.api_requests.context import RequestContext
@@ -94,9 +94,6 @@ async def lifespan(app: FastAPI):
     """Manage application lifespan - startup and shutdown."""
     global _http_session
 
-    # Load .env file if present
-    load_dotenv()
-
     # Create shared aiohttp session
     connector = aiohttp.TCPConnector(
         limit=100,
@@ -119,7 +116,7 @@ def _is_model_available(api_model: APIModel) -> bool:
     env_var = api_model.api_key_env_var
     if not env_var:
         if api_model.api_spec == "bedrock":
-            return bool(os.getenv("AWS_ACCESS_KEY_ID") or os.getenv("AWS_PROFILE"))
+            return has_bedrock_auth()
         return False
     return bool(os.getenv(env_var))
 

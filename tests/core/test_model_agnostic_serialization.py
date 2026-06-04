@@ -1,10 +1,7 @@
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient, Message, Tool
-
-dotenv.load_dotenv()
 
 
 def random_number_generator(max_value: int) -> str:
@@ -62,9 +59,9 @@ async def test_text_only_cross_model_conversation():
 
     # Verify serialization contains expected structure
     assert "messages" in serialized_log, "Serialized log should contain messages"
-    assert (
-        len(serialized_log["messages"]) == 3
-    ), "Should have system, user, and assistant messages"  # system + user + assistant
+    assert len(serialized_log["messages"]) == 3, (
+        "Should have system, user, and assistant messages"
+    )  # system + user + assistant
 
     # Step 3: Deserialize and continue with GPT-4
     conversation_restored = Conversation.from_log(serialized_log)
@@ -169,14 +166,14 @@ async def test_tool_calls_cross_model_conversation():
                     found_tool_call = True
                     assert "id" in content_block, "Tool call should have id"
                     assert "name" in content_block, "Tool call should have name"
-                    assert (
-                        "arguments" in content_block
-                    ), "Tool call should have arguments"
+                    assert "arguments" in content_block, (
+                        "Tool call should have arguments"
+                    )
                 elif content_block["type"] == "tool_result":
                     found_tool_result = True
-                    assert (
-                        "tool_call_id" in content_block
-                    ), "Tool result should have tool_call_id"
+                    assert "tool_call_id" in content_block, (
+                        "Tool result should have tool_call_id"
+                    )
                     assert "result" in content_block, "Tool result should have result"
 
         assert found_tool_call, "Serialized conversation should contain tool call"
@@ -231,12 +228,12 @@ async def test_tool_calls_cross_model_conversation():
                         tool_result_count += 1
 
             # Should have 2 tool calls and 2 tool results (one from each model)
-            assert (
-                tool_call_count >= 2
-            ), f"Should have at least 2 tool calls, got {tool_call_count}"
-            assert (
-                tool_result_count >= 2
-            ), f"Should have at least 2 tool results, got {tool_result_count}"
+            assert tool_call_count >= 2, (
+                f"Should have at least 2 tool calls, got {tool_call_count}"
+            )
+            assert tool_result_count >= 2, (
+                f"Should have at least 2 tool results, got {tool_result_count}"
+            )
 
             # Step 5: Final deserialization and response with Claude
             conversation_final = Conversation.from_log(serialized_log_2)
@@ -254,12 +251,12 @@ async def test_tool_calls_cross_model_conversation():
             )
 
             claude_final_response = claude_final_responses[0]
-            assert (
-                claude_final_response is not None
-            ), "Final Claude response should not be None"
-            assert (
-                claude_final_response.content is not None
-            ), "Final Claude should have content"
+            assert claude_final_response is not None, (
+                "Final Claude response should not be None"
+            )
+            assert claude_final_response.content is not None, (
+                "Final Claude should have content"
+            )
 
             final_text = claude_final_response.content.completion
             assert final_text is not None, "Should have final response text"
@@ -308,9 +305,9 @@ async def test_serialization_preserves_message_structure():
     restored = Conversation.from_log(serialized)
 
     # Verify structure is preserved
-    assert len(conversation.messages) == len(
-        restored.messages
-    ), "Message count should be preserved"
+    assert len(conversation.messages) == len(restored.messages), (
+        "Message count should be preserved"
+    )
 
     for orig, rest in zip(conversation.messages, restored.messages):
         assert orig.role == rest.role, f"Role mismatch: {orig.role} vs {rest.role}"

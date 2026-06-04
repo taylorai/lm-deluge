@@ -1,11 +1,8 @@
 import asyncio
 
-import dotenv
 
 from lm_deluge.client import LLMClient
 from lm_deluge.prompt import File
-
-dotenv.load_dotenv()
 
 
 async def main():

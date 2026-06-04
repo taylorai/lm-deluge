@@ -1,12 +1,9 @@
 import asyncio
 import random
 
-import dotenv
 
 import lm_deluge
 from lm_deluge.tool import Tool
-
-dotenv.load_dotenv()
 
 
 def run_rng(kind: str, n: int | None = None, p: float | None = 0.5) -> str:
@@ -69,15 +66,15 @@ async def test_arcee_tool_calling():
 
     # Check that the tool call is for our random_choice function
     tool_call = tool_calls[0]
-    assert (
-        tool_call.name == "random_choice"
-    ), f"Expected random_choice, got {tool_call.name}"
+    assert tool_call.name == "random_choice", (
+        f"Expected random_choice, got {tool_call.name}"
+    )
 
     # Check that the arguments include kind and n
     assert "kind" in tool_call.arguments, "Should have 'kind' in arguments"
-    assert (
-        tool_call.arguments["kind"] == "integer"
-    ), f"Expected kind='integer', got {tool_call.arguments['kind']}"
+    assert tool_call.arguments["kind"] == "integer", (
+        f"Expected kind='integer', got {tool_call.arguments['kind']}"
+    )
     assert "n" in tool_call.arguments, "Should have 'n' in arguments"
 
     # Execute the tool to verify it works
@@ -111,9 +108,9 @@ async def test_arcee_complete_tool_execution():
     assert len(tool_calls) > 0, "Should have at least one tool call"
 
     tool_call = tool_calls[0]
-    assert (
-        tool_call.name == "random_choice"
-    ), f"Expected random_choice, got {tool_call.name}"
+    assert tool_call.name == "random_choice", (
+        f"Expected random_choice, got {tool_call.name}"
+    )
 
     # Execute the tool
     tool_result = rng_tool.call(**tool_call.arguments)
@@ -149,7 +146,9 @@ async def test_arcee_complete_tool_execution():
         or "random" in final_text.lower()
         or "number" in final_text.lower()
     )
-    assert result_mentioned, f"Final response should acknowledge the tool result '{tool_result}', got: {final_text}"
+    assert result_mentioned, (
+        f"Final response should acknowledge the tool result '{tool_result}', got: {final_text}"
+    )
 
     print("✅ Arcee complete tool execution test passed!")
     print(f"   Tool result: {tool_result}")

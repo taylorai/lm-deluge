@@ -2,12 +2,10 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab.sandbox import DaytonaSandbox
 
-dotenv.load_dotenv()
 
 # Shared sandbox instance for all tests to avoid hitting disk limits
 _shared_sandbox: DaytonaSandbox | None = None

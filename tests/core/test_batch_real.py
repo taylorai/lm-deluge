@@ -8,11 +8,8 @@ Run with: python tests/test_batch_real.py
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge.client import LLMClient
-
-dotenv.load_dotenv()
 
 
 async def test_openai_batch():

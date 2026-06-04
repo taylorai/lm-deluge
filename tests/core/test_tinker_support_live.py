@@ -3,11 +3,9 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 
-dotenv.load_dotenv()
 
 TINKER_MODEL = (
     "tinker://6f72ae89-3217-5f40-a31f-ba02ab572f6b:train:0/"

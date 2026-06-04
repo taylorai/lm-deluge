@@ -3,13 +3,10 @@
 
 import asyncio
 import json
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.tool import Tool
 from lm_deluge.config import SamplingParams
-
-dotenv.load_dotenv()
 
 
 async def test_anthropic_json_outputs_real():
@@ -61,9 +58,9 @@ async def test_anthropic_json_outputs_real():
         # Verify values make sense
         assert "john" in parsed["name"].lower(), "Name should contain 'john'"
         assert "john@example.com" in parsed["email"].lower(), "Email should be correct"
-        assert (
-            "enterprise" in parsed["plan_interest"].lower()
-        ), "Plan should be Enterprise"
+        assert "enterprise" in parsed["plan_interest"].lower(), (
+            "Plan should be Enterprise"
+        )
         assert parsed["demo_requested"] is True, "Demo should be requested"
 
         print("✅ All fields validated successfully!")
@@ -120,16 +117,16 @@ async def test_anthropic_strict_tools_real():
     print(f"   Arguments: {json.dumps(tool_call.arguments, indent=2)}")
 
     # Verify tool call structure
-    assert (
-        tool_call.name == "get_weather"
-    ), f"Expected get_weather, got {tool_call.name}"
+    assert tool_call.name == "get_weather", (
+        f"Expected get_weather, got {tool_call.name}"
+    )
     assert "location" in tool_call.arguments, "Should have 'location' argument"
 
     # Location should mention San Francisco
     location = tool_call.arguments["location"]
-    assert (
-        "san francisco" in location.lower()
-    ), f"Location should mention San Francisco, got: {location}"
+    assert "san francisco" in location.lower(), (
+        f"Location should mention San Francisco, got: {location}"
+    )
 
     # If unit is provided, it should be valid
     if "unit" in tool_call.arguments:

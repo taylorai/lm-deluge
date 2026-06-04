@@ -3,12 +3,10 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.models import APIModel
 
-dotenv.load_dotenv()
 
 MODELS = [
     ("gpt-5.4-mini", 0.75, 0.075, 4.5),
@@ -32,9 +30,9 @@ async def test_model(
     assert model.supports_images, f"{model_name} should support images"
     assert model.supports_json, f"{model_name} should support JSON mode"
     assert model.input_cost == input_cost, f"Unexpected input cost for {model_name}"
-    assert (
-        model.cached_input_cost == cached_input_cost
-    ), f"Unexpected cached input cost for {model_name}"
+    assert model.cached_input_cost == cached_input_cost, (
+        f"Unexpected cached input cost for {model_name}"
+    )
     assert model.output_cost == output_cost, f"Unexpected output cost for {model_name}"
 
     client = LLMClient(model_name, use_responses_api=True, max_new_tokens=32)
@@ -44,9 +42,9 @@ async def test_model(
     assert len(responses) == 1, f"Expected 1 response for {model_name}"
 
     response = responses[0]
-    assert (
-        not response.is_error
-    ), f"{model_name} request failed: {response.error_message}"
+    assert not response.is_error, (
+        f"{model_name} request failed: {response.error_message}"
+    )
     assert response.completion, f"{model_name} returned no completion"
     assert "42" in response.completion, f"{model_name} did not answer 42"
     assert response.usage is not None, f"{model_name} returned no usage"
@@ -62,9 +60,9 @@ async def test_model(
     if cache_read_tokens > 0 and model.cached_input_cost is not None:
         expected_cost += cache_read_tokens * model.cached_input_cost / 1e6
 
-    assert (
-        abs(response.cost - expected_cost) < 1e-12
-    ), f"Cost mismatch for {model_name}: actual={response.cost}, expected={expected_cost}"
+    assert abs(response.cost - expected_cost) < 1e-12, (
+        f"Cost mismatch for {model_name}: actual={response.cost}, expected={expected_cost}"
+    )
 
     print(f"✅ {model_name}: {response.completion}")
     print(

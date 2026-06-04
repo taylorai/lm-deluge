@@ -4,6 +4,7 @@ import os
 import random
 from dataclasses import dataclass, field
 
+from ..api_requests.bedrock_auth import has_bedrock_auth
 from ..api_requests.context import RequestContext
 
 # Import and register all provider models
@@ -24,9 +25,11 @@ from .kimi import KIMI_MODELS
 from .meta import META_MODELS
 from .minimax import MINIMAX_MODELS
 from .mistral import MISTRAL_MODELS
+from .moondream import MOONDREAM_MODELS
 from .nvidia import NVIDIA_MODELS
 from .openai import OPENAI_MODELS
 from .openrouter import OPENROUTER_MODELS
+from .perceptron import PERCEPTRON_MODELS
 from .together import TOGETHER_MODELS
 from .zai import ZAI_MODELS
 
@@ -50,6 +53,7 @@ class APIModel:
     reasoning_model: bool = False
     supports_xhigh: bool = False
     supports_verbosity: bool = False
+    omit_default_sampling_params: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
 
     @classmethod
@@ -110,6 +114,7 @@ def register_model(
     reasoning_model: bool = False,
     supports_xhigh: bool = False,
     supports_verbosity: bool = False,
+    omit_default_sampling_params: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
     aliases: list[str] | None = None,
     # tokens_per_minute: int | None = None,
@@ -140,6 +145,7 @@ def register_model(
         reasoning_model=reasoning_model,
         supports_xhigh=supports_xhigh,
         supports_verbosity=supports_verbosity,
+        omit_default_sampling_params=omit_default_sampling_params,
         regions=regions,
         # tokens_per_minute=tokens_per_minute,
         # requests_per_minute=requests_per_minute,
@@ -182,9 +188,11 @@ _PROVIDER_MODELS = [
     (META_MODELS, "meta"),
     (MINIMAX_MODELS, "minimax"),
     (MISTRAL_MODELS, "mistral"),
+    (MOONDREAM_MODELS, "moondream"),
     (NVIDIA_MODELS, "nvidia"),
     (OPENAI_MODELS, "openai"),
     (OPENROUTER_MODELS, "openrouter"),
+    (PERCEPTRON_MODELS, "perceptron"),
     (TOGETHER_MODELS, "together"),
     (GROQ_MODELS, "groq"),
     (INCEPTION_MODELS, "inception"),
@@ -291,9 +299,9 @@ def find_models(
 
     if has_api_key is not None:
         if has_api_key:
-            results = [m for m in results if os.environ.get(m.api_key_env_var)]
+            results = [m for m in results if _has_model_auth(m)]
         else:
-            results = [m for m in results if not os.environ.get(m.api_key_env_var)]
+            results = [m for m in results if not _has_model_auth(m)]
 
     if sort_by is not None:
         reverse = sort_by.startswith("-")
@@ -309,3 +317,9 @@ def find_models(
         results = results[:limit]
 
     return results
+
+
+def _has_model_auth(model: APIModel) -> bool:
+    if model.api_spec == "bedrock":
+        return has_bedrock_auth()
+    return bool(model.api_key_env_var and os.environ.get(model.api_key_env_var))

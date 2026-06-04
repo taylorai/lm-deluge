@@ -17,7 +17,6 @@ import asyncio
 import base64
 import os
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Message, ToolResult, Image
@@ -28,8 +27,6 @@ from lm_deluge.tool.cua import (
     anthropic_tool_call_to_action,
     create_computer_batch_tool,
 )
-
-dotenv.load_dotenv()
 
 
 async def browse_and_report(

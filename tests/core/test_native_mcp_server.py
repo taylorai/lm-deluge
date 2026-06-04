@@ -3,12 +3,9 @@
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge import LLMClient
 from lm_deluge.tool import MCPServer
-
-dotenv.load_dotenv()
 
 
 async def test_native_mcp_anthropic():

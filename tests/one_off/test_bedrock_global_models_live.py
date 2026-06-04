@@ -9,7 +9,6 @@ import json
 import os
 from dataclasses import dataclass
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.api_requests.bedrock_regions import (
@@ -17,8 +16,6 @@ from lm_deluge.api_requests.bedrock_regions import (
     reset_bedrock_region_state_for_tests,
 )
 from lm_deluge.models import APIModel, find_models
-
-dotenv.load_dotenv()
 
 
 @dataclass
@@ -109,9 +106,9 @@ def _restore_region_override(previous: str | None) -> None:
 
 async def _exercise_model_region(model_id: str, region: str) -> RegionResult:
     model = APIModel.from_registry(model_id)
-    assert model.name.startswith(
-        "global.anthropic."
-    ), f"{model_id} is not configured as a global Bedrock profile: {model.name}"
+    assert model.name.startswith("global.anthropic."), (
+        f"{model_id} is not configured as a global Bedrock profile: {model.name}"
+    )
 
     previous_override = _set_single_region_override(model.id, model.name, region)
     client = LLMClient(

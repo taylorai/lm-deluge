@@ -10,10 +10,6 @@ Run with:
 
 import asyncio
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 async def test_sandbox_creation():
     """Test that we can create a DockerSandbox and it has correct tools."""

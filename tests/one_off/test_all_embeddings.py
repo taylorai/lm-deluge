@@ -3,11 +3,9 @@
 import asyncio
 import traceback
 
-import dotenv
 
 from lm_deluge.embed import embed_parallel_async, stack_results
 
-dotenv.load_dotenv()
 
 TEXTS = [
     "The cat sat on the mat.",

@@ -2,11 +2,8 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge.embed import embed_parallel_async, embed_sync, stack_results
-
-dotenv.load_dotenv()
 
 
 async def test_async():

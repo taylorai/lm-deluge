@@ -1,10 +1,8 @@
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 
-dotenv.load_dotenv()
 
 MODELS = [
     "kimi-k2.5-cf",

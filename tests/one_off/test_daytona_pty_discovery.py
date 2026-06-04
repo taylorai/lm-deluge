@@ -1,8 +1,5 @@
 import asyncio
-import dotenv
 from lm_deluge.tool.prefab.sandbox import DaytonaSandbox
-
-dotenv.load_dotenv()
 
 
 async def test_daytona_pty():

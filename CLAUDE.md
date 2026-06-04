@@ -10,16 +10,7 @@
 
 - **No inline imports.** All imports at the top of the file, unless guarding an optional dependency.
 - **No `== True` / `== False`** — causes ruff errors.
-- `dotenv.load_dotenv()` goes AFTER all imports (not inline with them):
-  ```python
-  import asyncio
-
-  import dotenv
-
-  from lm_deluge import Conversation, LLMClient
-
-  dotenv.load_dotenv()  # MUST be after ALL imports
-  ```
+- Do not use `python-dotenv` in library code or tests. Tests should receive credentials through the process environment.
 
 ## Testing
 

@@ -2,11 +2,8 @@
 
 import asyncio
 
-import dotenv
 
 from lm_deluge.tool.prefab.sandbox import ModalSandbox
-
-dotenv.load_dotenv()
 
 
 async def test_stateless_mode_no_state_persistence():
@@ -21,9 +18,9 @@ async def test_stateless_mode_no_state_persistence():
     output = await sandbox._exec(command="echo $MY_VAR")
 
     # In stateless mode, the variable should be empty (just a newline or empty)
-    assert (
-        "hello123" not in output
-    ), f"Variable should NOT persist in stateless mode, got: {output}"
+    assert "hello123" not in output, (
+        f"Variable should NOT persist in stateless mode, got: {output}"
+    )
 
     print(f"Output (should be empty): '{output.strip()}'")
     print("✓ Stateless mode correctly does NOT persist state")
@@ -44,9 +41,9 @@ async def test_stateful_mode_variable_persistence():
     output2 = await sandbox._exec(command="echo $MY_VAR")
     print(f"Read variable output: '{output2}'")
 
-    assert (
-        "hello123" in output2
-    ), f"Variable should persist in stateful mode, got: {output2}"
+    assert "hello123" in output2, (
+        f"Variable should persist in stateful mode, got: {output2}"
+    )
 
     print("✓ Stateful mode correctly persists variables")
 

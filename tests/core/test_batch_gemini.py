@@ -8,11 +8,8 @@ Run with: python tests/core/test_batch_gemini.py
 import asyncio
 import os
 
-import dotenv
 
 from lm_deluge.client import LLMClient
-
-dotenv.load_dotenv()
 
 
 async def test_gemini_batch():

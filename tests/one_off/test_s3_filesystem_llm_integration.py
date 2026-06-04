@@ -16,14 +16,11 @@ import os
 import sys
 import uuid
 
-from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from lm_deluge import LLMClient, Conversation  # noqa: E402
 from lm_deluge.tool.prefab.filesystem import S3FilesystemManager  # noqa: E402
-
-load_dotenv()
 
 
 def get_test_bucket():
@@ -160,9 +157,9 @@ async def test_llm_searches_files():
 
         # Verify it found the TODOs
         response_lower = (resp.completion or "").lower()
-        assert (
-            "error handling" in response_lower or "implement" in response_lower
-        ), "Expected LLM to report the TODO items"
+        assert "error handling" in response_lower or "implement" in response_lower, (
+            "Expected LLM to report the TODO items"
+        )
         print("✓ LLM found and reported TODO items")
 
     finally:
@@ -203,12 +200,12 @@ async def test_llm_edits_file():
         # Verify the changes
         content = manager.backend.read_file("config.json")
         config = json.loads(content)
-        assert (
-            config.get("debug") is True
-        ), f"Expected debug=True, got {config.get('debug')}"
-        assert (
-            config.get("max_retries") == 5
-        ), f"Expected max_retries=5, got {config.get('max_retries')}"
+        assert config.get("debug") is True, (
+            f"Expected debug=True, got {config.get('debug')}"
+        )
+        assert config.get("max_retries") == 5, (
+            f"Expected max_retries=5, got {config.get('max_retries')}"
+        )
         print(f"✓ Config updated correctly: {config}")
 
     finally:

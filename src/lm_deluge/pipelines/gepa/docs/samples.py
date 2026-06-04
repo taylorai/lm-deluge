@@ -13,7 +13,7 @@ Prerequisites:
         python -m lm_deluge.server --port 8000
 
 Run:
-    uv run python gepa_lm_deluge_full.py --corpus-file ... --queries-file ... --env-file ...
+    uv run python gepa_lm_deluge_full.py --corpus-file ... --queries-file ...
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ from typing import Any
 
 import verifiers as vf  # type: ignore
 from datasets import Dataset  # type: ignore
-from dotenv import load_dotenv
 from fts_bench import (  # type: ignore
     DEFAULT_FETCH_DOCSTRING,
     DEFAULT_SEARCH_DOCSTRING,
@@ -35,10 +34,10 @@ from fts_bench import (  # type: ignore
 )
 from verifiers.utils.tool_utils import convert_func_to_oai_tool  # type: ignore
 
-from openai import AsyncOpenAI  # type: ignore
+from openai import AsyncOpenAI
 
-from lm_deluge.client import LLMClient  # type: ignore
-from lm_deluge.util.json import try_load_json  # type: ignore
+from lm_deluge.client import LLMClient
+from lm_deluge.util.json import try_load_json
 
 # ---------------------- Helpers ---------------------- #
 
@@ -148,7 +147,7 @@ def _run_generate_sync(
     async def _run():
         outputs: vf.GenerateOutputs = await env.generate(
             inputs=dataset,
-            client=client,  # type: ignore[arg-type]
+            client=client,
             model=model,
             rollouts_per_example=rollouts_per_example,
             max_concurrent=max_concurrency,
@@ -212,11 +211,11 @@ def evaluate_candidate(
             "question": formatted[idx].get(question_key, ""),
             "answer": str(results.answer[idx]),
             "reward": scores[idx],
-            "tool_calls": _count_tool_calls(completion_messages),  # type: ignore
-            "tool_calls_detail": _summarize_tool_calls(completion_messages),  # type: ignore
-            "assistant_message": _extract_assistant_message(completion_messages),  # type: ignore
+            "tool_calls": _count_tool_calls(completion_messages),
+            "tool_calls_detail": _summarize_tool_calls(completion_messages),
+            "assistant_message": _extract_assistant_message(completion_messages),
             "predicted_documents": _parse_documents_from_completion(
-                completion_messages  # type: ignore
+                completion_messages
             ),
             "prompt_messages": results.prompt[idx],
             "completion_messages": completion_messages,
@@ -363,7 +362,6 @@ def parse_args() -> argparse.Namespace:
         "--queries-file",
         default="/Users/benjamin/building_codes_queries_with_labels.jsonl",
     )
-    parser.add_argument("--env-file", default="/Users/benjamin/Desktop/llm_tokens.env")
     parser.add_argument(
         "--model",
         default="claude-5-mini",
@@ -412,7 +410,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    load_dotenv(args.env_file)
     rng = random.Random(args.seed)
 
     # Build base environment once (keeps the index hot).
@@ -702,4 +699,4 @@ if __name__ == "__main__":
 #     --use-merge --max-merge-invocations 5 --merge-period 3 \
 #     --corpus-file /Users/benjamin/ccr_corpus.jsonl \
 #     --queries-file /Users/benjamin/ccr_queries_with_labels.jsonl \
-#     --env-file .env --model gpt-5-mini --reflection-model gpt-5-mini
+#     --model gpt-5-mini --reflection-model gpt-5-mini

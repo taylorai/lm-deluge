@@ -34,7 +34,6 @@ import json
 import os
 from dataclasses import dataclass
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.api_requests.bedrock_regions import (
@@ -42,8 +41,6 @@ from lm_deluge.api_requests.bedrock_regions import (
     reset_bedrock_region_state_for_tests,
 )
 from lm_deluge.models import APIModel, find_models
-
-dotenv.load_dotenv()
 
 
 @dataclass

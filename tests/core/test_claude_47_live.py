@@ -10,13 +10,11 @@ import asyncio
 import json
 import random
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Message, Text, Thinking
 from lm_deluge.tool import Tool
 
-dotenv.load_dotenv()
 
 MODEL = "claude-4.7-opus"
 
@@ -25,9 +23,9 @@ async def _simple_request(prompt: str | Conversation, **kwargs) -> str:
     llm = LLMClient(MODEL, max_new_tokens=512, **kwargs)
     responses = await llm.process_prompts_async([prompt], return_completions_only=False)
     resp = responses[0]
-    assert (
-        resp is not None and not resp.is_error
-    ), f"Request failed: {resp.error_message if resp else 'None'}"
+    assert resp is not None and not resp.is_error, (
+        f"Request failed: {resp.error_message if resp else 'None'}"
+    )
     all_text = "".join(
         part.text for part in resp.content.parts if isinstance(part, Text)
     )
@@ -43,9 +41,9 @@ async def test_prefill_blocked():
     responses = await llm.process_prompts_async([prompt], return_completions_only=False)
     resp = responses[0]
     assert resp is not None and resp.is_error, "Expected an error response"
-    assert (
-        "prefill" in (resp.error_message or "").lower()
-    ), f"Wrong error: {resp.error_message}"
+    assert "prefill" in (resp.error_message or "").lower(), (
+        f"Wrong error: {resp.error_message}"
+    )
     print("PASS test_prefill_blocked")
 
 
@@ -59,9 +57,9 @@ async def test_adaptive_summarized_default():
         return_completions_only=False,
     )
     resp = responses[0]
-    assert (
-        resp and not resp.is_error
-    ), f"Request failed: {resp.error_message if resp else 'None'}"
+    assert resp and not resp.is_error, (
+        f"Request failed: {resp.error_message if resp else 'None'}"
+    )
     # Summary text goes into Thinking.summary, not .content
     thinking_parts = [p for p in resp.content.parts if isinstance(p, Thinking)]
     if thinking_parts:
@@ -147,9 +145,9 @@ async def test_task_budget_beta():
         return_completions_only=False,
     )
     resp = responses[0]
-    assert (
-        resp and not resp.is_error
-    ), f"task_budget request failed: {resp.error_message if resp else 'None'}"
+    assert resp and not resp.is_error, (
+        f"task_budget request failed: {resp.error_message if resp else 'None'}"
+    )
     assert resp.completion.strip(), "Empty completion"
     print(f"  task_budget OK: {resp.completion.strip()[:80]}")
     print("PASS test_task_budget_beta")
@@ -175,9 +173,9 @@ async def test_structured_outputs():
         return_completions_only=False,
     )
     resp = responses[0]
-    assert (
-        resp and not resp.is_error
-    ), f"Structured output failed: {resp.error_message if resp else 'None'}"
+    assert resp and not resp.is_error, (
+        f"Structured output failed: {resp.error_message if resp else 'None'}"
+    )
     all_text = "".join(
         part.text for part in resp.content.parts if isinstance(part, Text)
     ).strip()
@@ -218,9 +216,9 @@ async def test_tool_use_single_call():
         return_completions_only=False,
     )
     resp = responses[0]
-    assert (
-        resp and not resp.is_error
-    ), f"Tool call failed: {resp.error_message if resp else 'None'}"
+    assert resp and not resp.is_error, (
+        f"Tool call failed: {resp.error_message if resp else 'None'}"
+    )
     tool_calls = resp.content.tool_calls
     assert len(tool_calls) > 0, "No tool calls returned"
     tc = tool_calls[0]
@@ -233,13 +231,13 @@ async def test_tool_use_agent_loop():
     llm = LLMClient(MODEL, max_new_tokens=512)
     conv = Conversation().user("Roll a 20-sided die for me and tell me the result.")
     final_conv, resp = await llm.run_agent_loop(conv, tools=[dice_tool], max_rounds=3)
-    assert (
-        resp and not resp.is_error
-    ), f"Agent loop failed: {resp.error_message if resp else 'None'}"
+    assert resp and not resp.is_error, (
+        f"Agent loop failed: {resp.error_message if resp else 'None'}"
+    )
     assert resp.completion.strip(), "Empty agent loop completion"
-    assert (
-        len(final_conv.messages) >= 3
-    ), f"Expected >=3 messages, got {len(final_conv.messages)}"
+    assert len(final_conv.messages) >= 3, (
+        f"Expected >=3 messages, got {len(final_conv.messages)}"
+    )
     print(f"  agent loop OK: {resp.completion.strip()[:80]}")
     print("PASS test_tool_use_agent_loop")
 

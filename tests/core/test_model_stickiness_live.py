@@ -6,14 +6,11 @@ import asyncio
 import os
 import sys
 
-import dotenv
 
 # Add the src directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 from lm_deluge import Conversation, LLMClient
-
-dotenv.load_dotenv()
 
 
 async def test_multi_turn_stickiness():
@@ -45,9 +42,9 @@ async def test_multi_turn_stickiness():
     print(f"Turn 2 used model: {second_model}")
     print(f"Response: {response.completion}")
     assert not response.is_error, f"Second turn failed: {response.error_message}"
-    assert (
-        second_model == first_model
-    ), f"Model changed! {first_model} -> {second_model}"
+    assert second_model == first_model, (
+        f"Model changed! {first_model} -> {second_model}"
+    )
 
     # Third turn - still same model
     conv = conv.user("Now say 'thanks' and nothing else.")
@@ -77,9 +74,9 @@ async def test_explicit_prefer_model():
 
     # Force claude
     response = await client.start(conv, prefer_model="claude-4.5-haiku")
-    assert (
-        response.model_internal == "claude-4.5-haiku"
-    ), f"Got {response.model_internal}"
+    assert response.model_internal == "claude-4.5-haiku", (
+        f"Got {response.model_internal}"
+    )
     assert not response.is_error, f"Failed: {response.error_message}"
     print(f"✓ Forced claude-4.5-haiku, got: {response.model_internal}")
 
@@ -121,9 +118,9 @@ async def test_fallback_on_deprecated_model():
         # Check if o1-mini was blocklisted
         print(f"Blocklisted models: {client._blocklisted_models}")
     else:
-        assert (
-            response.model_internal == "gpt-4.1-mini"
-        ), f"Expected fallback to gpt-4.1-mini, got {response.model_internal}"
+        assert response.model_internal == "gpt-4.1-mini", (
+            f"Expected fallback to gpt-4.1-mini, got {response.model_internal}"
+        )
         print("✓ Fallback to working model succeeded")
 
     client.close()
@@ -173,9 +170,9 @@ async def test_agent_loop_stickiness():
 
     if len(models_used) > 1:
         # All rounds should use the same model
-        assert all(
-            m == models_used[0] for m in models_used
-        ), f"Model changed during agent loop: {models_used}"
+        assert all(m == models_used[0] for m in models_used), (
+            f"Model changed during agent loop: {models_used}"
+        )
         print("✓ Agent loop maintained same model across all rounds")
     else:
         print("✓ Agent loop completed in 1 round (no tool calls needed)")
@@ -243,9 +240,9 @@ async def test_blocklisting_persists():
 
     if "o1-mini" in client._blocklisted_models:
         # o1-mini should never be selected again
-        assert (
-            response2.model_internal == "gpt-4.1-mini"
-        ), f"Blocklisted model was used: {response2.model_internal}"
+        assert response2.model_internal == "gpt-4.1-mini", (
+            f"Blocklisted model was used: {response2.model_internal}"
+        )
         print("✓ Blocklisted model was not used in subsequent request")
     else:
         print(

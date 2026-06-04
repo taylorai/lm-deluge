@@ -6,7 +6,6 @@ These tests use a real LLM to verify the tools work correctly in an agent loop.
 
 import asyncio
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.tool.prefab import (
@@ -14,8 +13,6 @@ from lm_deluge.tool.prefab import (
     InMemoryWorkspaceBackend,
     get_curl_tool,
 )
-
-dotenv.load_dotenv()
 
 
 async def test_curl_simple_request():

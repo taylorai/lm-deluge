@@ -18,15 +18,12 @@ import json
 import os
 from typing import Any
 
-import dotenv
 
 from lm_deluge import Conversation, LLMClient
 from lm_deluge.api_requests.anthropic import _build_anthropic_request
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel
-
-dotenv.load_dotenv()
 
 
 def _require_api_key() -> bool:

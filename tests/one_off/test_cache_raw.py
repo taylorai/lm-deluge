@@ -5,9 +5,7 @@ import json
 import os
 
 import aiohttp
-import dotenv
 
-dotenv.load_dotenv()
 
 PADDING = (
     "Here is some background context for this task. "
