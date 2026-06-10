@@ -42,6 +42,16 @@ ContentBlock = TextContent | ImageContent
 
 
 @dataclass
+class ResourceContents:
+    """One contents entry from reading an MCP resource."""
+
+    uri: str
+    mimeType: str | None = None
+    text: str | None = None
+    blob: str | None = None
+
+
+@dataclass
 class CallToolResult:
     """Result from calling an MCP tool."""
 

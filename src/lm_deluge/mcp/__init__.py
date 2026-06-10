@@ -8,6 +8,7 @@ features needed by lm-deluge:
 - Connecting to MCP servers (HTTP or stdio)
 - Listing available tools
 - Calling tools
+- Reading resources
 
 Usage:
     from lm_deluge.mcp import MCPClient, MCPTool
@@ -24,6 +25,7 @@ from .types import (
     ImageContent,
     MCPError,
     MCPTool,
+    ResourceContents,
     TextContent,
 )
 
@@ -35,4 +37,5 @@ __all__ = [
     "ContentBlock",
     "TextContent",
     "ImageContent",
+    "ResourceContents",
 ]

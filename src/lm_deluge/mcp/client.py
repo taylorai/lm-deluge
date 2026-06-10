@@ -9,6 +9,7 @@ from .types import (
     ImageContent,
     MCPError,
     MCPTool,
+    ResourceContents,
     TextContent,
 )
 
@@ -202,3 +203,33 @@ class MCPClient:
             content=content,
             isError=result.get("isError", False),
         )
+
+    async def read_resource(self, uri: str) -> list[ResourceContents]:
+        """
+        Read a resource from the MCP server.
+
+        Args:
+            uri: URI of the resource to read.
+
+        Returns:
+            List of contents entries (text or base64 blob).
+        """
+        response = await self._transport.send_request(
+            "resources/read",
+            {"uri": uri},
+            self._next_id(),
+        )
+
+        if "error" in response:
+            raise MCPError(response["error"])
+
+        result = response.get("result", {})
+        return [
+            ResourceContents(
+                uri=item.get("uri", uri),
+                mimeType=item.get("mimeType"),
+                text=item.get("text"),
+                blob=item.get("blob"),
+            )
+            for item in result.get("contents", [])
+        ]
