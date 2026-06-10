@@ -44,7 +44,12 @@ def _is_claude_45_46_compat_model(model: APIModel) -> bool:
 
 
 def _is_claude_47_bedrock(model: APIModel) -> bool:
-    return "4-7" in model.name or "4-8" in model.name
+    return (
+        "4-7" in model.name
+        or "4-8" in model.name
+        or model.id == "claude-fable-5-bedrock"
+        or "claude-fable-5" in model.name
+    )
 
 
 async def _build_anthropic_bedrock_request(

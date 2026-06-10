@@ -49,6 +49,8 @@ CLAUDE_4_8_US_SOURCE_REGIONS = [
     "us-west-2",
 ]
 
+CLAUDE_FABLE_5_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
+
 # global.anthropic.claude-opus-4-7 commercial source regions, verified live.
 # me-south-1 dropped - currently unreachable (Iran conflict).
 CLAUDE_GLOBAL_SOURCE_REGIONS_V47 = [
@@ -117,6 +119,8 @@ CLAUDE_GLOBAL_SOURCE_REGIONS_V48 = [
     "us-west-1",
     "us-west-2",
 ]
+
+CLAUDE_FABLE_5_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
 
 # Source regions for global cross-region profiles as documented by AWS Bedrock.
 # Global profile routing and supported regions can evolve over time.
@@ -209,6 +213,34 @@ BEDROCK_MODELS = {
     #  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
     #  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
     # ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
+    "claude-fable-5-bedrock": {
+        "id": "claude-fable-5-bedrock",
+        "name": "us.anthropic.claude-fable-5",
+        "regions": CLAUDE_FABLE_5_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 10.0,
+        "output_cost": 50.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+    },
+    "claude-fable-5-bedrock-global": {
+        "id": "claude-fable-5-bedrock-global",
+        "name": "global.anthropic.claude-fable-5",
+        "regions": CLAUDE_FABLE_5_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 10.0,
+        "output_cost": 50.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+    },
     "claude-3-haiku-bedrock": {
         "id": "claude-3-haiku-bedrock",
         "name": "us.anthropic.claude-3-haiku-20240307-v1:0",

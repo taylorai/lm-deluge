@@ -10,6 +10,22 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-fable-5": {
+        "id": "claude-fable-5",
+        "name": "claude-fable-5",
+        "aliases": ["claude-5-fable"],
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        "input_cost": 10.0,
+        "cached_input_cost": 1.0,
+        "cache_write_cost": 12.5,
+        "output_cost": 50.0,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+    },
     "claude-4.8-opus": {
         "id": "claude-4.8-opus",
         "name": "claude-opus-4-8",
