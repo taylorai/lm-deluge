@@ -6,7 +6,7 @@ from lm_deluge import Conversation, LLMClient, Tool
 
 async def test_native_basic():
     """Basic completion via native Gemini API."""
-    client = LLMClient("gemini-3.1-flash-lite-preview", max_new_tokens=64)
+    client = LLMClient("gemini-3.1-flash-lite", max_new_tokens=64)
     res = await client.process_prompts_async(
         ["What is 2+2? Reply with just the number."]
     )
@@ -37,7 +37,7 @@ async def test_native_tool_use():
         return str(a + b)
 
     tool = Tool.from_function(add)
-    client = LLMClient("gemini-3.1-flash-lite-preview", max_new_tokens=256)
+    client = LLMClient("gemini-3.1-flash-lite", max_new_tokens=256)
     conv = Conversation().user(
         "Use the add tool to compute 17 + 25, then tell me the result."
     )
@@ -48,7 +48,7 @@ async def test_native_tool_use():
 
 
 async def main():
-    print("Testing gemini-3.1-flash-lite-preview (native)...")
+    print("Testing gemini-3.1-flash-lite (native)...")
     await test_native_basic()
     await test_native_tool_use()
 
@@ -56,7 +56,7 @@ async def main():
     await test_compat_basic()
     # NOTE: compat tool use skipped — Gemini 3.x OpenAI-compat endpoint
     # requires thought signatures which the OpenAI format can't carry.
-    # Use the native gemini-3.1-flash-lite-preview for tool calling.
+    # Use the native gemini-3.1-flash-lite for tool calling.
 
     print("All tests passed!")
 

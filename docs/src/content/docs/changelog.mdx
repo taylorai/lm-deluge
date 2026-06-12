@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.141 · 2026-06-12
+
+- **Gemini 3.1 Flash-Lite GA**: Added `gemini-3.1-flash-lite` for the native Gemini API and updated `gemini-3.1-flash-lite-compat` to target the GA model name instead of the discontinued preview. The preview ID remains registered for backward compatibility. Live validation passed for native basic completion, native tool use, and the OpenAI-compatible basic completion path.
+
 ## 0.0.140 · 2026-05-29
 
 - **Claude Opus 4.8**: Added `claude-4.8-opus` for the Anthropic API plus `claude-4.8-opus-bedrock` and `claude-4.8-opus-bedrock-global` for Amazon Bedrock. Opus 4.8 uses the Claude 4.7+ request path for adaptive thinking, `output_config.effort`, `xhigh`, task budgets, and sampling-parameter stripping. Live Bedrock audits passed all configured US regions and all 30 configured global regions after excluding `me-south-1`, which timed out empirically.

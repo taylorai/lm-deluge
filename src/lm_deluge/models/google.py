@@ -80,7 +80,7 @@ GOOGLE_MODELS = {
     },
     "gemini-3.1-flash-lite-compat": {
         "id": "gemini-3.1-flash-lite-compat",
-        "name": "gemini-3.1-flash-lite-preview",
+        "name": "gemini-3.1-flash-lite",
         "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
         "api_key_env_var": "GEMINI_API_KEY",
         "supports_json": True,
@@ -221,6 +221,20 @@ GOOGLE_MODELS = {
         "supports_images": True,
     },
     # Gemini 3.1 Flash Lite
+    "gemini-3.1-flash-lite": {
+        "id": "gemini-3.1-flash-lite",
+        "name": "gemini-3.1-flash-lite",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 0.25,
+        "cached_input_cost": 0.025,
+        "output_cost": 1.5,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     "gemini-3.1-flash-lite-preview": {
         "id": "gemini-3.1-flash-lite-preview",
         "name": "gemini-3.1-flash-lite-preview",
