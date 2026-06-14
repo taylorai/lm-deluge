@@ -58,6 +58,28 @@ class RequestContext:
     def num_tokens(self):
         return self.prompt.count_tokens(self.sampling_params.max_new_tokens)
 
+    def validate_request_config(self) -> None:
+        """Reject provider/model option combinations that are known to 400."""
+        from ..models import APIModel
+
+        model = APIModel.from_registry(self.model_name)
+
+        if (
+            model.provider == "openai"
+            and model.api_spec == "openai"
+            and model.reasoning_model
+            and model.supports_responses
+            and not self.use_responses_api
+            and self.tools
+            and model.id.startswith(("gpt-5.4", "gpt-5.5"))
+        ):
+            raise ValueError(
+                f"Invalid config for model '{self.model_name}': OpenAI chat "
+                "completions does not support function tools together with "
+                "reasoning_effort for this model. Set use_responses_api=True "
+                "or remove tools/reasoning."
+            )
+
     def maybe_callback(self, response, tracker):
         if not self.callback:
             return

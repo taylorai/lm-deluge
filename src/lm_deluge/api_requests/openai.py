@@ -82,6 +82,7 @@ async def _build_oa_chat_request(
     model: APIModel,
     context: RequestContext,
 ) -> dict:
+    context.validate_request_config()
     prompt = context.prompt
     sampling_params = context.sampling_params
     tools = context.tools

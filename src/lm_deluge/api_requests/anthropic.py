@@ -101,6 +101,28 @@ def _transform_tool_schema_for_anthropic(tool: dict) -> dict:
     return transformed_tool
 
 
+def _validate_anthropic_request_config(
+    model: APIModel, context: RequestContext, request_json: dict
+) -> None:
+    thinking = request_json.get("thinking")
+    thinking_enabled = isinstance(thinking, dict) and thinking.get("type") in {
+        "adaptive",
+        "enabled",
+    }
+
+    if (
+        model.provider == "anthropic"
+        and thinking_enabled
+        and "temperature" in request_json
+        and request_json["temperature"] != 1.0
+    ):
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': Anthropic requires "
+            "temperature=1 when thinking is enabled or adaptive. Set temperature=1, "
+            "or disable thinking with reasoning_effort='none'."
+        )
+
+
 def _build_anthropic_request(
     model: APIModel,
     context: RequestContext,
@@ -283,10 +305,21 @@ def _build_anthropic_request(
     if "4-1" in model.name or "4-5" in model.name or "4-6" in model.name:
         request_json.pop("top_p")
 
+    if _is_claude_46(model):
+        thinking = request_json.get("thinking")
+        thinking_enabled = isinstance(thinking, dict) and thinking.get("type") in {
+            "adaptive",
+            "enabled",
+        }
+        if thinking_enabled:
+            request_json.pop("temperature", None)
+
     # Claude 4.7+ rejects non-default temperature, top_p, top_k with a 400.
     if _is_claude_47(model):
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
+
+    _validate_anthropic_request_config(model, context, request_json)
 
     # task_budget is Opus 4.7+ only (beta).
     if sampling_params.task_budget is not None:

@@ -1157,9 +1157,7 @@ class _LLMClient(BaseModel):
         prefer_model: str | None = None,
         http_session: aiohttp.ClientSession | None = None,
     ) -> int:
-        tracker = self._get_tracker()
         task_id = self._next_task_id
-        self._next_task_id += 1
         prompt = prompts_to_conversations([prompt])[0]
         model, sampling_params = self._resolve_model(prefer_model, prompt)
         assert isinstance(prompt, Conversation)
@@ -1170,7 +1168,6 @@ class _LLMClient(BaseModel):
             sampling_params=sampling_params,
             attempts_left=self.max_attempts,
             request_timeout=self.request_timeout,
-            status_tracker=tracker,
             tools=tools,
             skills=skills,
             container_id=container_id,
@@ -1184,6 +1181,10 @@ class _LLMClient(BaseModel):
             force_local_mcp=self.force_local_mcp,
             http_session=http_session,
         )
+        context.validate_request_config()
+        tracker = self._get_tracker()
+        context.status_tracker = tracker
+        self._next_task_id += 1
         if self._should_auto_tool_loop(tools):
             task = asyncio.create_task(self._run_context_with_tool_loop(context))
         else:
