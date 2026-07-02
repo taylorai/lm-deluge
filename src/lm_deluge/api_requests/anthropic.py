@@ -37,6 +37,10 @@ def _is_claude_46(model: APIModel) -> bool:
     return model.id in {"claude-4.6-opus", "claude-4.6-sonnet"} or "4-6" in model.name
 
 
+def _is_claude_5_sonnet(model: APIModel) -> bool:
+    return model.id == "claude-5-sonnet" or model.name == "claude-sonnet-5"
+
+
 def _is_claude_47(model: APIModel) -> bool:
     return model.id in {
         "claude-4.7-opus",
@@ -46,11 +50,25 @@ def _is_claude_47(model: APIModel) -> bool:
 
 
 def _is_claude_46_or_newer(model: APIModel) -> bool:
-    return _is_claude_46(model) or _is_claude_47(model)
+    return _is_claude_46(model) or _is_claude_47(model) or _is_claude_5_sonnet(model)
+
+
+def _removes_manual_thinking_budget(model: APIModel) -> bool:
+    return _is_claude_47(model) or _is_claude_5_sonnet(model)
+
+
+def _adaptive_thinking_config(model: APIModel) -> dict:
+    thinking_config: dict = {"type": "adaptive"}
+    # Prefer summarized display on models where that shape is known to be
+    # accepted so callers can observe reasoning without unsafe round-trips.
+    if _is_claude_47(model):
+        thinking_config["display"] = "summarized"
+    return thinking_config
 
 
 def _supports_ga_effort(model: APIModel) -> bool:
     return model.id in {
+        "claude-5-sonnet",
         "claude-4.5-opus",
         "claude-4.6-opus",
         "claude-4.6-sonnet",
@@ -68,7 +86,7 @@ def _anthropic_effort(effort: str | None, model: APIModel | None = None) -> str 
     if effort == "xhigh":
         # xhigh is a real Anthropic effort value on 4.7+; older models
         # don't accept it, so we map it to "max" there.
-        if model is not None and _is_claude_47(model):
+        if model is not None and (_is_claude_47(model) or model.supports_xhigh):
             return "xhigh"
         return "max"
     if effort in {"low", "medium", "high", "max"}:
@@ -193,13 +211,8 @@ def _build_anthropic_request(
                 if not _is_claude_47(model):
                     request_json["thinking"] = {"type": "disabled"}
             else:
-                thinking_config: dict = {"type": "adaptive"}
-                # Prefer summarized display so callers can observe reasoning.
-                # The default on 4.7 is "omitted"; we opt in explicitly.
-                if _is_claude_47(model):
-                    thinking_config["display"] = "summarized"
-                request_json["thinking"] = thinking_config
-                # Map reasoning_effort to output_config.effort for 4.6/4.7
+                request_json["thinking"] = _adaptive_thinking_config(model)
+                # Map reasoning_effort to output_config.effort for newer Claude models.
                 if sampling_params.reasoning_effort is not None:
                     mapped = _anthropic_effort(
                         sampling_params.reasoning_effort, model=model
@@ -210,7 +223,10 @@ def _build_anthropic_request(
                         output_config = request_json["output_config"]
                         assert isinstance(output_config, dict)
                         output_config["effort"] = mapped
-        elif sampling_params.thinking_budget is not None and _is_claude_47(model):
+        elif (
+            sampling_params.thinking_budget is not None
+            and _removes_manual_thinking_budget(model)
+        ):
             # 4.7 rejects budget_tokens with 400. Translate to adaptive + effort.
             budget = sampling_params.thinking_budget
             if budget <= 0:
@@ -222,13 +238,12 @@ def _build_anthropic_request(
             elif budget < 32768:
                 translated_effort = "high"
             else:
-                translated_effort = "xhigh"
+                translated_effort = (
+                    "xhigh" if _is_claude_47(model) or model.supports_xhigh else "max"
+                )
             maybe_warn("WARN_CLAUDE_47_BUDGET_TOKENS_REMOVED", effort=translated_effort)
             if translated_effort != "none":
-                request_json["thinking"] = {
-                    "type": "adaptive",
-                    "display": "summarized",
-                }
+                request_json["thinking"] = _adaptive_thinking_config(model)
                 mapped = _anthropic_effort(translated_effort, model=model)
                 if mapped is not None:
                     if "output_config" not in request_json:
@@ -316,6 +331,12 @@ def _build_anthropic_request(
 
     # Claude 4.7+ rejects non-default temperature, top_p, top_k with a 400.
     if _is_claude_47(model):
+        request_json.pop("top_p", None)
+        request_json.pop("temperature", None)
+
+    # Claude Sonnet 5 rejects non-default sampling parameters. Because lm-deluge
+    # always materializes defaults, omit them entirely.
+    if _is_claude_5_sonnet(model):
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
 

@@ -9,6 +9,7 @@ from lm_deluge.models import APIModel, find_models, registry
 def test_anthropic_aliases_resolve():
     """Anthropic API-style names resolve to the same model as canonical names."""
     pairs = [
+        ("claude-5-sonnet", "claude-sonnet-5"),
         ("claude-4.6-opus", "claude-opus-4-6"),
         ("claude-4.6-opus", "claude-opus-4.6"),
         ("claude-4.6-sonnet", "claude-sonnet-4-6"),
@@ -48,6 +49,11 @@ def test_alias_with_reasoning_suffix():
     model = APIModel.from_registry(client.models[0])
     assert model.id == "claude-4.5-haiku"
     assert client.sampling_params[0].reasoning_effort == "medium"
+
+    client = LLMClient("claude-sonnet-5-high")
+    model = APIModel.from_registry(client.models[0])
+    assert model.id == "claude-5-sonnet"
+    assert client.sampling_params[0].reasoning_effort == "high"
     print("Alias + reasoning suffix tests passed")
 
 
@@ -58,9 +64,9 @@ def test_find_models_no_duplicates():
     """find_models() returns each model exactly once despite aliases."""
     all_models = find_models()
     ids = [m.id for m in all_models]
-    assert len(ids) == len(
-        set(ids)
-    ), f"Duplicates: {[x for x in ids if ids.count(x) > 1]}"
+    assert len(ids) == len(set(ids)), (
+        f"Duplicates: {[x for x in ids if ids.count(x) > 1]}"
+    )
     print(f"find_models: {len(all_models)} unique models, no duplicates")
 
 
@@ -83,9 +89,9 @@ def test_unknown_name_raises():
 def test_registry_has_aliases():
     """Registry should have more entries than unique model ids."""
     unique_ids = {m.id for m in registry.values()}
-    assert len(registry) > len(
-        unique_ids
-    ), "Registry should contain alias entries beyond canonical ids"
+    assert len(registry) > len(unique_ids), (
+        "Registry should contain alias entries beyond canonical ids"
+    )
     print(f"Registry: {len(registry)} entries, {len(unique_ids)} unique models")
 
 

@@ -47,6 +47,7 @@ def _is_claude_47_bedrock(model: APIModel) -> bool:
     return (
         "4-7" in model.name
         or "4-8" in model.name
+        or "claude-sonnet-5" in model.name
         or model.id == "claude-fable-5-bedrock"
         or "claude-fable-5" in model.name
     )

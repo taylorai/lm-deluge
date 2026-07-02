@@ -10,6 +10,21 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-5-sonnet": {
+        "id": "claude-5-sonnet",
+        "name": "claude-sonnet-5",
+        "aliases": ["claude-sonnet-5"],
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        "input_cost": 3.0,
+        "cached_input_cost": 0.30,
+        "cache_write_cost": 3.75,
+        "output_cost": 15.0,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     "claude-fable-5": {
         "id": "claude-fable-5",
         "name": "claude-fable-5",

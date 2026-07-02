@@ -50,6 +50,7 @@ CLAUDE_4_8_US_SOURCE_REGIONS = [
 ]
 
 CLAUDE_FABLE_5_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
+CLAUDE_5_SONNET_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
 
 # global.anthropic.claude-opus-4-7 commercial source regions, verified live.
 # me-south-1 dropped - currently unreachable (Iran conflict).
@@ -121,6 +122,7 @@ CLAUDE_GLOBAL_SOURCE_REGIONS_V48 = [
 ]
 
 CLAUDE_FABLE_5_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
+CLAUDE_5_SONNET_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
 
 # Source regions for global cross-region profiles as documented by AWS Bedrock.
 # Global profile routing and supported regions can evolve over time.
@@ -213,6 +215,32 @@ BEDROCK_MODELS = {
     #  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
     #  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
     # ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
+    "claude-5-sonnet-bedrock": {
+        "id": "claude-5-sonnet-bedrock",
+        "name": "us.anthropic.claude-sonnet-5",
+        "regions": CLAUDE_5_SONNET_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
+    "claude-5-sonnet-bedrock-global": {
+        "id": "claude-5-sonnet-bedrock-global",
+        "name": "global.anthropic.claude-sonnet-5",
+        "regions": CLAUDE_5_SONNET_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 3.0,
+        "output_cost": 15.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+    },
     "claude-fable-5-bedrock": {
         "id": "claude-fable-5-bedrock",
         "name": "us.anthropic.claude-fable-5",
@@ -536,6 +564,7 @@ BEDROCK_MODELS = {
 
 # | Model | Source regions in lm-deluge | RPM / source region | TPM / source region | Approx sprayed RPM | Approx sprayed TPM |
 # |---|---:|---:|---:|---:|---:|
+# | claude-5-sonnet-bedrock-global | 30 | unknown | unknown | unknown | unknown |
 # | claude-4-sonnet-bedrock-global | 5 | 200 | 200,000 | 1,000 | 1,000,000 |
 # | claude-4.5-haiku-bedrock-global | 27 | 1,000 | 5,000,000 | 27,000 | 135,000,000 |
 # | claude-4.5-sonnet-bedrock-global | 27 | 1,000 | 5,000,000 | 27,000 | 135,000,000 |

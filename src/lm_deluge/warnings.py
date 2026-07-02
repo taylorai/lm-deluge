@@ -20,7 +20,7 @@ WARNINGS: dict[str, str] = {
     "WARN_THINKING_BUDGET_AND_REASONING_EFFORT": "`reasoning_effort` and `thinking_budget` both provided. `thinking_budget` will take priority.",
     "WARN_KIMI_THINKING_NO_REASONING": "kimi-k2-thinking works best with thinking enabled. set thinking_budget > 0 or reasoning_effort to anything but none",
     "WARN_CLAUDE_46_BUDGET_TOKENS_DEPRECATED": "thinking budget_tokens is deprecated on Claude 4.6 models and will be removed in a future release. Use adaptive thinking (default) with the effort parameter instead.",
-    "WARN_CLAUDE_47_BUDGET_TOKENS_REMOVED": "thinking budget_tokens is not supported on Claude 4.7+ and returns 400. Translating to adaptive thinking with effort={effort}.",
+    "WARN_CLAUDE_47_BUDGET_TOKENS_REMOVED": "thinking budget_tokens is not supported on this Claude model and returns 400. Translating to adaptive thinking with effort={effort}.",
     "WARN_CLAUDE_47_SAMPLING_DROPPED": "temperature/top_p are not supported on Claude 4.7+. Dropping from request for {model_name}.",
     "WARN_TASK_BUDGET_UNSUPPORTED": "task_budget is only supported on Claude Opus 4.7+, ignoring for {model_name}.",
 }

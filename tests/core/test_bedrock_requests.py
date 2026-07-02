@@ -252,6 +252,8 @@ def test_bedrock_claude_47_request_omits_temperature_and_top_p():
     reset_bedrock_region_state_for_tests()
 
     for model_id in (
+        "claude-5-sonnet-bedrock",
+        "claude-5-sonnet-bedrock-global",
         "claude-4.7-opus-bedrock",
         "claude-4.7-opus-bedrock-global",
         "claude-4.8-opus-bedrock",
@@ -273,6 +275,36 @@ def test_bedrock_claude_47_request_omits_temperature_and_top_p():
 
         assert "temperature" not in request_json, model_id
         assert "top_p" not in request_json, model_id
+
+
+def test_bedrock_claude_sonnet_5_registered():
+    model = APIModel.from_registry("claude-5-sonnet-bedrock")
+    assert model.name == "us.anthropic.claude-sonnet-5"
+    assert model.regions == [
+        "ca-central-1",
+        "ca-west-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+    ]
+    assert model.input_cost == 3.0
+    assert model.output_cost == 15.0
+    assert model.reasoning_model
+    assert model.supports_json
+    assert model.supports_images
+
+    global_model = APIModel.from_registry("claude-5-sonnet-bedrock-global")
+    assert global_model.name == "global.anthropic.claude-sonnet-5"
+    assert isinstance(global_model.regions, list)
+    assert "ca-west-1" in global_model.regions
+    assert "me-south-1" not in global_model.regions
+    assert len(global_model.regions) == 30
+    assert global_model.input_cost == 3.0
+    assert global_model.output_cost == 15.0
+    assert global_model.reasoning_model
+    assert global_model.supports_json
+    assert global_model.supports_images
 
 
 def test_bedrock_claude_fable_5_registered():
@@ -588,6 +620,7 @@ if __name__ == "__main__":
     test_bedrock_region_weights_env_override()
     test_bedrock_claude_45_46_request_omits_top_p()
     test_bedrock_claude_47_request_omits_temperature_and_top_p()
+    test_bedrock_claude_sonnet_5_registered()
     test_bedrock_claude_fable_5_registered()
     test_bedrock_claude_47_registered()
     test_bedrock_claude_48_registered()
