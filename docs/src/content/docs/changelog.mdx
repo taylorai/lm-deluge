@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.142 · 2026-07-02
+
+- **Claude Sonnet 5**: Added `claude-5-sonnet` for the Anthropic API with `claude-sonnet-5` alias support, adaptive thinking defaults, removed manual thinking-budget translation, sampling-parameter stripping, assistant-prefill blocking, and focused request/live coverage. Added Bedrock profiles `claude-5-sonnet-bedrock` (`us.anthropic.claude-sonnet-5`) and `claude-5-sonnet-bedrock-global` (`global.anthropic.claude-sonnet-5`). Live validation passed through `bop run lm-deluge -- ...` for the Anthropic API, all 6 configured US Bedrock source regions, and all 30 configured global Bedrock source regions.
+- **Invalid reasoning config validation**: Added request validation that fails fast for incompatible model/request combinations instead of sending requests that the provider rejects later. Anthropic adaptive-thinking requests now strip or reject non-default `temperature`, and GPT-5.4/GPT-5.5 reasoning models now reject function tools on Chat Completions with a clear `use_responses_api=True` error.
+
 ## 0.0.141 · 2026-06-12
 
 - **Gemini 3.1 Flash-Lite GA**: Added `gemini-3.1-flash-lite` for the native Gemini API and updated `gemini-3.1-flash-lite-compat` to target the GA model name instead of the discontinued preview. The preview ID remains registered for backward compatibility. Live validation passed for native basic completion, native tool use, and the OpenAI-compatible basic completion path.
