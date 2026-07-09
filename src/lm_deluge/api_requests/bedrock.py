@@ -17,6 +17,7 @@ from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
 from ..models import APIModel
+from .anthropic import apply_anthropic_reasoning_config
 from .base import APIRequestBase, APIResponse, parse_retry_after
 from .bedrock_auth import get_bedrock_auth
 from .bedrock_regions import (
@@ -94,9 +95,24 @@ async def _build_anthropic_bedrock_request(
         "messages": messages,
     }
 
+    # Forward thinking/effort settings identically to the direct Anthropic route.
+    apply_anthropic_reasoning_config(model, context, request_json)
+    if not model.reasoning_model:
+        # Models without extended thinking reject the field on Bedrock.
+        request_json.pop("thinking", None)
+
     # Claude 4.1/4.5/4.6 on Bedrock reject simultaneous temperature + top_p.
     if _is_claude_45_46_compat_model(model):
         request_json.pop("top_p", None)
+
+    # Claude 4.6 rejects non-default temperature when thinking is enabled/adaptive.
+    if "4-6" in model.name:
+        thinking = request_json.get("thinking")
+        if isinstance(thinking, dict) and thinking.get("type") in {
+            "adaptive",
+            "enabled",
+        }:
+            request_json.pop("temperature", None)
 
     # Claude 4.7+ on Bedrock rejects any non-default temperature/top_p.
     if _is_claude_47_bedrock(model):

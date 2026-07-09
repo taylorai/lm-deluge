@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.143 · 2026-07-08
+
+- **Bedrock now forwards thinking/effort settings**: The Bedrock Anthropic request builder previously ignored `thinking_budget`, `reasoning_effort`, and `global_effort` entirely — thinking could never be enabled via Bedrock, silently. The reasoning/effort logic is now shared with the direct Anthropic builder (`apply_anthropic_reasoning_config`), so both routes send identical `thinking` and `output_config` payloads: adaptive thinking + effort on Claude 4.6+, `budget_tokens` (with the `max_tokens` bump and temperature pinning) on older reasoning models, and effort-to-budget translation. Models without extended thinking omit the `thinking` field, and Claude 4.6 on Bedrock drops non-default `temperature` when thinking is active, mirroring the direct route.
+- **Behavior change**: Claude 4.6+ Bedrock models now default to adaptive thinking with `output_config.effort: high`, matching the direct Anthropic API. Adaptive thinking shares the `max_new_tokens` budget with visible output (by design — adaptive usage can't be predicted, so headroom is the caller's responsibility). Callers relying on the old "Bedrock never thinks" behavior should pass `reasoning_effort="none"` or raise `max_new_tokens`.
+- **Bedrock-aware model version checks**: `_is_claude_47`, `_is_claude_5_sonnet`, and GA-effort detection now recognize Bedrock model names (e.g. `us.anthropic.claude-fable-5`, `us.anthropic.claude-sonnet-5`), so version-gated request features apply consistently across routes.
+
 ## 0.0.142 · 2026-07-02
 
 - **Claude Sonnet 5**: Added `claude-5-sonnet` for the Anthropic API with `claude-sonnet-5` alias support, adaptive thinking defaults, removed manual thinking-budget translation, sampling-parameter stripping, assistant-prefill blocking, and focused request/live coverage. Added Bedrock profiles `claude-5-sonnet-bedrock` (`us.anthropic.claude-sonnet-5`) and `claude-5-sonnet-bedrock-global` (`global.anthropic.claude-sonnet-5`). Live validation passed through `bop run lm-deluge -- ...` for the Anthropic API, all 6 configured US Bedrock source regions, and all 30 configured global Bedrock source regions.

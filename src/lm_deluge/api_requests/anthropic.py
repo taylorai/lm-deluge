@@ -38,15 +38,20 @@ def _is_claude_46(model: APIModel) -> bool:
 
 
 def _is_claude_5_sonnet(model: APIModel) -> bool:
-    return model.id == "claude-5-sonnet" or model.name == "claude-sonnet-5"
+    return model.id == "claude-5-sonnet" or "claude-sonnet-5" in model.name
 
 
 def _is_claude_47(model: APIModel) -> bool:
-    return model.id in {
-        "claude-4.7-opus",
-        "claude-4.8-opus",
-        "claude-fable-5",
-    } or any(version in model.name for version in ("4-7", "4-8"))
+    return (
+        model.id
+        in {
+            "claude-4.7-opus",
+            "claude-4.8-opus",
+            "claude-fable-5",
+        }
+        or any(version in model.name for version in ("4-7", "4-8"))
+        or "fable-5" in model.name
+    )
 
 
 def _is_claude_46_or_newer(model: APIModel) -> bool:
@@ -67,15 +72,13 @@ def _adaptive_thinking_config(model: APIModel) -> dict:
 
 
 def _supports_ga_effort(model: APIModel) -> bool:
-    return model.id in {
-        "claude-5-sonnet",
-        "claude-4.5-opus",
-        "claude-4.6-opus",
-        "claude-4.6-sonnet",
-        "claude-4.7-opus",
-        "claude-4.8-opus",
-        "claude-fable-5",
-    }
+    # Version checks are name-aware so Bedrock variants of the same models
+    # (e.g. claude-4.6-opus-bedrock) are recognized too.
+    return (
+        _is_claude_46_or_newer(model)
+        or model.id in {"claude-4.5-opus", "claude-4.5-opus-bedrock"}
+        or "opus-4-5" in model.name
+    )
 
 
 def _anthropic_effort(effort: str | None, model: APIModel | None = None) -> str | None:
@@ -141,49 +144,16 @@ def _validate_anthropic_request_config(
         )
 
 
-def _build_anthropic_request(
+def apply_anthropic_reasoning_config(
     model: APIModel,
     context: RequestContext,
-):
-    prompt = context.prompt
-    cache_pattern = context.cache
-    tools = context.tools
+    request_json: dict,
+) -> None:
+    """Apply output-effort and extended-thinking settings to a Messages-format
+    request body (in place). Shared by the direct Anthropic and Bedrock request
+    builders so both routes forward the same reasoning arguments.
+    """
     sampling_params = context.sampling_params
-    system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
-    # if not system_message:
-    #     print("WARNING: system_message is None")
-    base_headers = {
-        "x-api-key": os.getenv(model.api_key_env_var),
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-
-    # Check if any messages contain uploaded files (file_id)
-    # If so, add the files-api beta header
-    for msg in prompt.messages:
-        for file in msg.files:
-            if file.is_remote and file.remote_provider == "anthropic":
-                _add_beta(base_headers, "files-api-2025-04-14")
-                break
-
-    request_json = {
-        "model": model.name,
-        "messages": messages,
-        "temperature": sampling_params.temperature,
-        "top_p": sampling_params.top_p,
-        "max_tokens": sampling_params.max_new_tokens,
-    }
-
-    # Claude 4.6+ models do not support assistant prefill (last assistant turn).
-    if (
-        _is_claude_46_or_newer(model)
-        and messages
-        and messages[-1].get("role") == "assistant"
-    ):
-        raise ValueError(
-            "Claude 4.6+ models do not support assistant prefill. "
-            "End the prompt with a user/tool message instead."
-        )
 
     requested_output_effort = _requested_output_effort(sampling_params)
     default_output_effort = "high" if _supports_ga_effort(model) else None
@@ -310,6 +280,53 @@ def _build_anthropic_request(
             request_json["thinking"] = {"type": "disabled"}
         if sampling_params.reasoning_effort:
             print("ignoring reasoning_effort for non-reasoning model")
+
+
+def _build_anthropic_request(
+    model: APIModel,
+    context: RequestContext,
+):
+    prompt = context.prompt
+    cache_pattern = context.cache
+    tools = context.tools
+    sampling_params = context.sampling_params
+    system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
+    # if not system_message:
+    #     print("WARNING: system_message is None")
+    base_headers = {
+        "x-api-key": os.getenv(model.api_key_env_var),
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+
+    # Check if any messages contain uploaded files (file_id)
+    # If so, add the files-api beta header
+    for msg in prompt.messages:
+        for file in msg.files:
+            if file.is_remote and file.remote_provider == "anthropic":
+                _add_beta(base_headers, "files-api-2025-04-14")
+                break
+
+    request_json = {
+        "model": model.name,
+        "messages": messages,
+        "temperature": sampling_params.temperature,
+        "top_p": sampling_params.top_p,
+        "max_tokens": sampling_params.max_new_tokens,
+    }
+
+    # Claude 4.6+ models do not support assistant prefill (last assistant turn).
+    if (
+        _is_claude_46_or_newer(model)
+        and messages
+        and messages[-1].get("role") == "assistant"
+    ):
+        raise ValueError(
+            "Claude 4.6+ models do not support assistant prefill. "
+            "End the prompt with a user/tool message instead."
+        )
+
+    apply_anthropic_reasoning_config(model, context, request_json)
 
     if system_message is not None:
         request_json["system"] = system_message
