@@ -17,7 +17,7 @@ from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
 from ..models import APIModel
-from .anthropic import apply_anthropic_reasoning_config
+from .anthropic import _is_claude_47, apply_anthropic_reasoning_config
 from .base import APIRequestBase, APIResponse, parse_retry_after
 from .bedrock_auth import get_bedrock_auth
 from .bedrock_regions import (
@@ -383,18 +383,35 @@ class BedrockRequest(APIRequestBase):
                             thinking_content = item.get("thinking", "")
                             thinking = thinking_content
                             signature = item.get("signature")
-                            parts.append(
-                                Thinking(
-                                    thinking_content,
-                                    raw_payload=item,
-                                    thought_signature=ThoughtSignature(
-                                        signature,
-                                        provider="anthropic",
+                            if _is_claude_47(self.model):
+                                round_trip_payload = dict(item)
+                                round_trip_payload["thinking"] = ""
+                                parts.append(
+                                    Thinking(
+                                        "",
+                                        summary=thinking_content,
+                                        raw_payload=round_trip_payload,
+                                        thought_signature=ThoughtSignature(
+                                            signature,
+                                            provider="anthropic",
+                                        )
+                                        if signature is not None
+                                        else None,
                                     )
-                                    if signature is not None
-                                    else None,
                                 )
-                            )
+                            else:
+                                parts.append(
+                                    Thinking(
+                                        thinking_content,
+                                        raw_payload=item,
+                                        thought_signature=ThoughtSignature(
+                                            signature,
+                                            provider="anthropic",
+                                        )
+                                        if signature is not None
+                                        else None,
+                                    )
+                                )
                         elif item["type"] == "redacted_thinking":
                             parts.append(
                                 Thinking(

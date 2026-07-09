@@ -7,13 +7,19 @@ Builds request bodies offline (no network calls).
 
 import asyncio
 import os
+from unittest.mock import MagicMock
 
 from lm_deluge import LLMClient
 from lm_deluge.api_requests.anthropic import _build_anthropic_request
-from lm_deluge.api_requests.bedrock import _build_anthropic_bedrock_request
+from lm_deluge.api_requests.bedrock import (
+    BedrockRequest,
+    _build_anthropic_bedrock_request,
+)
 from lm_deluge.api_requests.context import RequestContext
+from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel
-from lm_deluge.prompt import Conversation
+from lm_deluge.prompt import Conversation, Thinking
+from lm_deluge.tracker import StatusTracker
 
 # Bearer auth path so building requests needs no real AWS credentials.
 os.environ.setdefault("AWS_BEDROCK_API_KEY", "test-key-not-real")
@@ -139,6 +145,57 @@ async def test_non_reasoning_model_omits_thinking():
     assert "output_config" not in body, body.get("output_config")
 
 
+async def test_summarized_bedrock_thinking_strips_text_on_roundtrip():
+    response_data = {
+        "content": [
+            {
+                "type": "thinking",
+                "thinking": "Summary text that should not round-trip",
+                "signature": "sig-abc-123",
+            },
+            {"type": "text", "text": "Done"},
+        ],
+        "usage": {"input_tokens": 3, "output_tokens": 4},
+    }
+    context = RequestContext(
+        task_id=0,
+        model_name="claude-fable-5-bedrock",
+        prompt=Conversation().user("hello"),
+        sampling_params=SamplingParams(),
+        status_tracker=StatusTracker(
+            max_requests_per_minute=100,
+            max_tokens_per_minute=100_000,
+            max_concurrent_requests=10,
+        ),
+    )
+    request = BedrockRequest(context)
+
+    mock_http_response = MagicMock()
+    mock_http_response.status = 200
+    mock_http_response.headers = {"Content-Type": "application/json"}
+
+    async def mock_json():
+        return response_data
+
+    mock_http_response.json = mock_json
+
+    result = await request.handle_response(mock_http_response)
+
+    assert not result.is_error, result.error_message
+    assert result.thinking == "Summary text that should not round-trip"
+    assert result.content is not None
+    thinking = result.content.parts[0]
+    assert isinstance(thinking, Thinking)
+    assert thinking.content == ""
+    assert thinking.summary == "Summary text that should not round-trip"
+    assert thinking.raw_payload is not None
+    assert thinking.raw_payload["thinking"] == ""
+    assert thinking.raw_payload["signature"] == "sig-abc-123"
+    serialized = thinking.anthropic()
+    assert serialized["thinking"] == ""
+    assert serialized["signature"] == "sig-abc-123"
+
+
 async def main():
     await test_46_adaptive_thinking_and_effort_forwarded()
     await test_46_parity_with_direct_anthropic()
@@ -147,6 +204,7 @@ async def main():
     await test_46_reasoning_effort_none_disables_thinking()
     await test_fable_5_bedrock_adaptive_by_default()
     await test_non_reasoning_model_omits_thinking()
+    await test_summarized_bedrock_thinking_strips_text_on_roundtrip()
     print("all bedrock reasoning-forwarding tests passed")
 
 
