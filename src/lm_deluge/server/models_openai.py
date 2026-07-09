@@ -63,7 +63,9 @@ class OpenAIChatCompletionsRequest(BaseModel):
     response_format: dict[str, Any] | None = None
 
     # Reasoning models
-    reasoning_effort: Literal["low", "medium", "high"] | None = None
+    reasoning_effort: (
+        Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"] | None
+    ) = None
     verbosity: (
         Literal["none", "minimal", "low", "medium", "high", "xhigh", "max"] | None
     ) = None

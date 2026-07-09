@@ -3,7 +3,7 @@ from typing import Literal, TypeAlias
 from pydantic import BaseModel, model_validator
 
 ReasoningEffort: TypeAlias = Literal[
-    "none", "minimal", "low", "medium", "high", "xhigh"
+    "none", "minimal", "low", "medium", "high", "xhigh", "max"
 ]
 GlobalEffort: TypeAlias = Literal[
     "none", "minimal", "low", "medium", "high", "xhigh", "max"

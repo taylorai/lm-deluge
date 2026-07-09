@@ -68,6 +68,9 @@ async def _build_gemini_request(
             if effort_key == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
                 effort_key = "high"
+            elif effort_key == "max":
+                maybe_warn("WARN_MAX_TO_HIGH", model_name=model.name)
+                effort_key = "high"
             if is_gemini_3_flash:
                 # Flash supports minimal, low, medium, high
                 level_map = {
@@ -112,6 +115,9 @@ async def _build_gemini_request(
             effort_key = sampling_params.reasoning_effort
             if effort_key == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
+                effort_key = "high"
+            elif effort_key == "max":
+                maybe_warn("WARN_MAX_TO_HIGH", model_name=model.name)
                 effort_key = "high"
             level_map = {
                 "minimal": 256,

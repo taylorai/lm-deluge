@@ -71,7 +71,7 @@ class RequestContext:
             and model.supports_responses
             and not self.use_responses_api
             and self.tools
-            and model.id.startswith(("gpt-5.4", "gpt-5.5"))
+            and model.id.startswith(("gpt-5.4", "gpt-5.5", "gpt-5.6"))
         ):
             raise ValueError(
                 f"Invalid config for model '{self.model_name}': OpenAI chat "

@@ -17,7 +17,7 @@ def _search(query: str) -> str:
 
 def test_gpt5_reasoning_tools_require_responses_api():
     async def run():
-        for model_name in ["gpt-5.4-mini", "gpt-5.5"]:
+        for model_name in ["gpt-5.4-mini", "gpt-5.5", "gpt-5.6-terra"]:
             ctx = RequestContext(
                 task_id=0,
                 model_name=model_name,
@@ -38,7 +38,7 @@ def test_gpt5_reasoning_tools_require_responses_api():
 
 
 def test_start_nowait_rejects_gpt5_reasoning_tools_before_task_creation():
-    for model_name in ["gpt-5.4-mini", "gpt-5.5"]:
+    for model_name in ["gpt-5.4-mini", "gpt-5.5", "gpt-5.6-terra"]:
         client = LLMClient(model_name)
         client.open(show_progress=False)
         try:

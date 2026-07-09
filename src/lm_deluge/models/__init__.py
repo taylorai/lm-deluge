@@ -52,6 +52,8 @@ class APIModel:
     supports_responses: bool = False
     reasoning_model: bool = False
     supports_xhigh: bool = False
+    supports_max_reasoning: bool = False
+    supports_reasoning_none: bool = False
     supports_verbosity: bool = False
     omit_default_sampling_params: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
@@ -113,6 +115,8 @@ def register_model(
     supports_responses: bool = False,
     reasoning_model: bool = False,
     supports_xhigh: bool = False,
+    supports_max_reasoning: bool = False,
+    supports_reasoning_none: bool = False,
     supports_verbosity: bool = False,
     omit_default_sampling_params: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
@@ -144,6 +148,8 @@ def register_model(
         supports_responses=supports_responses,
         reasoning_model=reasoning_model,
         supports_xhigh=supports_xhigh,
+        supports_max_reasoning=supports_max_reasoning,
+        supports_reasoning_none=supports_reasoning_none,
         supports_verbosity=supports_verbosity,
         omit_default_sampling_params=omit_default_sampling_params,
         regions=regions,

@@ -32,7 +32,7 @@ def test_client_allows_none():
 
 def test_client_allows_standard_values():
     """Test that LLMClient still accepts standard reasoning_effort values."""
-    for effort in ["low", "medium", "high"]:
+    for effort in ["low", "medium", "high", "xhigh", "max"]:
         client = LLMClient("gpt-5", reasoning_effort=effort)
         assert client.reasoning_effort == effort
 

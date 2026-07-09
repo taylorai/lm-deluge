@@ -112,12 +112,13 @@ class _LLMClient(BaseModel):
     """
 
     _REASONING_SUFFIXES: ClassVar[
-        dict[str, Literal["low", "medium", "high", "xhigh", "minimal", "none"]]
+        dict[str, Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"]]
     ] = {
         "-low": "low",
         "-medium": "medium",
         "-high": "high",
         "-xhigh": "xhigh",
+        "-max": "max",
         "-minimal": "minimal",
         "-none": "none",
     }
@@ -143,7 +144,7 @@ class _LLMClient(BaseModel):
     json_mode: bool = False
     max_new_tokens: int = 512
     reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", None
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
@@ -247,7 +248,9 @@ class _LLMClient(BaseModel):
     def _update_models(self, models: list[str]) -> None:
         normalized, per_model_efforts = self._normalize_model_names(models)
         if self.reasoning_effort is None:
-            unique_efforts = {eff for eff in per_model_efforts if eff is not None}
+            unique_efforts: set[
+                Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"]
+            ] = {eff for eff in per_model_efforts if eff is not None}
             if len(normalized) == 1 and per_model_efforts[0] is not None:
                 self.reasoning_effort = per_model_efforts[0]
             elif (
@@ -255,10 +258,7 @@ class _LLMClient(BaseModel):
                 and len(unique_efforts) != 0
                 and None not in per_model_efforts
             ):
-                self.reasoning_effort = cast(
-                    Literal["low", "medium", "high", "xhigh", "minimal", "none"],
-                    next(iter(unique_efforts)),
-                )
+                self.reasoning_effort = next(iter(unique_efforts))
         self.model_names = normalized
         self._align_sampling_params(per_model_efforts)
         self._reset_model_weights()
@@ -267,11 +267,13 @@ class _LLMClient(BaseModel):
         self, models: list[str]
     ) -> tuple[
         list[str],
-        list[Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None],
+        list[
+            Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"] | None
+        ],
     ]:
         normalized: list[str] = []
         efforts: list[
-            Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None
+            Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"] | None
         ] = []
 
         for name in models:
@@ -287,7 +289,7 @@ class _LLMClient(BaseModel):
     def _align_sampling_params(
         self,
         per_model_efforts: list[
-            Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None
+            Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"] | None
         ],
     ) -> None:
         if len(per_model_efforts) < len(self.model_names):
@@ -545,7 +547,7 @@ class _LLMClient(BaseModel):
     def _strip_reasoning_suffix_if_registered(
         cls, model_name: str
     ) -> tuple[
-        str, Literal["low", "medium", "high", "xhigh", "minimal", "none"] | None
+        str, Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"] | None
     ]:
         """Remove reasoning suffix only when the trimmed model already exists."""
         for suffix, effort in cls._REASONING_SUFFIXES.items():
@@ -1860,7 +1862,7 @@ def LLMClient(
     json_mode: bool = False,
     max_new_tokens: int = 512,
     reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", None
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
@@ -1900,7 +1902,7 @@ def LLMClient(
     json_mode: bool = False,
     max_new_tokens: int = 512,
     reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", None
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
@@ -1939,7 +1941,7 @@ def LLMClient(
     json_mode: bool = False,
     max_new_tokens: int = 512,
     reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", None
+        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None

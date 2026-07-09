@@ -17,7 +17,7 @@ from lm_deluge.warnings import maybe_warn
 
 from ..config import SamplingParams
 from ..models import APIModel
-from ..prompt import CachePattern, Conversation, Message, Text, Thinking, ToolCall
+from ..prompt import CachePattern, Conversation, Message, Part, Text, Thinking, ToolCall
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse, parse_retry_after
 
@@ -78,6 +78,41 @@ def _normalize_openai_verbosity(
     return mapped
 
 
+def _normalize_openai_reasoning_effort(
+    model: APIModel,
+    requested: str | None,
+    *,
+    model_name: str,
+) -> str:
+    effort = requested
+    if effort is None:
+        return "low"
+
+    if effort == "none" and not model.supports_reasoning_none:
+        maybe_warn("WARN_NONE_TO_LOW", model_name=model_name)
+        return "low"
+
+    if effort == "minimal" and model.supports_reasoning_none:
+        maybe_warn("WARN_MINIMAL_TO_NONE", model_name=model_name)
+        return "none"
+    if effort == "minimal" and "gpt-5" not in model.id:
+        maybe_warn("WARN_MINIMAL_TO_LOW", model_name=model_name)
+        return "low"
+
+    if effort == "xhigh" and not model.supports_xhigh:
+        maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model_name)
+        return "high"
+
+    if effort == "max" and not model.supports_max_reasoning:
+        if model.supports_xhigh:
+            maybe_warn("WARN_MAX_TO_XHIGH", model_name=model_name)
+            return "xhigh"
+        maybe_warn("WARN_MAX_TO_HIGH", model_name=model_name)
+        return "high"
+
+    return effort
+
+
 async def _build_oa_chat_request(
     model: APIModel,
     context: RequestContext,
@@ -130,31 +165,21 @@ async def _build_oa_chat_request(
     else:
         request_json["max_completion_tokens"] = sampling_params.max_new_tokens
     if model.reasoning_model:
-        effort = sampling_params.reasoning_effort
-        if effort in [None, "none"]:
-            # Disable reasoning for Gemini models when no effort requested
-            if "gemini" in model.id:
-                effort = "none"
-            # Mercury models use "instant" for no/minimal reasoning
-            elif "mercury" in model.id:
-                effort = "instant"
-            else:
-                effort = "low"
-        # Mercury models use "instant" instead of "minimal"
-        if effort == "minimal" and "mercury" in model.id:
-            effort = "instant"
-        # GPT-5.1 models don't support 'minimal', they support 'none' instead
-        elif effort == "minimal" and "gpt-5.1" in model.id:
-            maybe_warn("WARN_MINIMAL_TO_NONE", model_name=context.model_name)
+        if "gemini" in model.id and sampling_params.reasoning_effort in [None, "none"]:
             effort = "none"
-        elif effort == "minimal" and "gpt-5" not in model.id:
-            maybe_warn("WARN_MINIMAL_TO_LOW", model_name=context.model_name)
-            effort = "low"
-        # xhigh only supported for specific models (gpt-5.2, gpt-5.1-codex-max)
-        if effort == "xhigh" and not model.supports_xhigh:
-            maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
-            effort = "high"
-        # GPT-5.2 and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
+        elif "mercury" in model.id and sampling_params.reasoning_effort in [
+            None,
+            "none",
+            "minimal",
+        ]:
+            effort = "instant"
+        else:
+            effort = _normalize_openai_reasoning_effort(
+                model,
+                sampling_params.reasoning_effort,
+                model_name=context.model_name,
+            )
+        # GPT-5.2+ and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
         if model.supports_xhigh and effort != "none":
             del request_json["temperature"]
             del request_json["top_p"]
@@ -291,7 +316,7 @@ class OpenAIRequest(APIRequestBase):
                 assert data is not None, "data is None"
                 try:
                     # Parse response into Message with parts
-                    parts = []
+                    parts: list[Part] = []
                     message = data["choices"][0]["message"]
                     finish_reason = data["choices"][0]["finish_reason"]
 
@@ -421,25 +446,15 @@ async def _build_oa_responses_request(
         request_json["max_output_tokens"] = sampling_params.max_new_tokens
 
     if model.reasoning_model:
-        effort = sampling_params.reasoning_effort
-        if effort in [None, "none"]:
-            # gemini models can switch reasoning off
-            if "gemini" in model.id:
-                effort = "none"
-            else:
-                effort = "low"
-        # GPT-5.1 models don't support 'minimal', they support 'none' instead
-        if effort == "minimal" and "gpt-5.1" in model.id:
-            maybe_warn("WARN_MINIMAL_TO_NONE", model_name=context.model_name)
+        if "gemini" in model.id and sampling_params.reasoning_effort in [None, "none"]:
             effort = "none"
-        elif effort == "minimal" and "gpt-5" not in model.id:
-            maybe_warn("WARN_MINIMAL_TO_LOW", model_name=context.model_name)
-            effort = "low"
-        # xhigh only supported for specific models (gpt-5.2, gpt-5.1-codex-max)
-        if effort == "xhigh" and not model.supports_xhigh:
-            maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
-            effort = "high"
-        # GPT-5.2 and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
+        else:
+            effort = _normalize_openai_reasoning_effort(
+                model,
+                sampling_params.reasoning_effort,
+                model_name=context.model_name,
+            )
+        # GPT-5.2+ and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
         if model.supports_xhigh and effort != "none":
             del request_json["temperature"]
             del request_json["top_p"]
@@ -521,6 +536,23 @@ async def _build_oa_responses_request(
     if request_tools:
         request_json["tools"] = request_tools
 
+    if context.extra_body:
+        for key, value in context.extra_body.items():
+            if key in {"model", "input"}:
+                continue
+            reasoning = request_json.get("reasoning")
+            if (
+                key == "reasoning"
+                and isinstance(value, dict)
+                and isinstance(reasoning, dict)
+            ):
+                request_json["reasoning"] = {
+                    **reasoning,
+                    **value,
+                }
+            else:
+                request_json[key] = value
+
     return request_json
 
 
@@ -582,7 +614,7 @@ class OpenAIResponsesRequest(APIRequestBase):
                 if not is_error:
                     try:
                         # Parse Responses API format
-                        parts = []
+                        parts: list[Part] = []
                         message_phase: str | None = None
 
                         # Get the output array from the response
