@@ -91,6 +91,9 @@ async def test_45_manual_thinking_budget_forwarded():
     # Legacy budget path adds the budget on top of max_tokens and pins temp=1.
     assert body["max_tokens"] == 8_192 + 4_096, body["max_tokens"]
     assert body["temperature"] == 1.0, body.get("temperature")
+    # Bedrock Opus 4.5 rejects output_config ("Extra inputs are not permitted");
+    # GA effort is direct-API only on 4.5.
+    assert "output_config" not in body, body.get("output_config")
 
 
 async def test_45_reasoning_effort_translated_to_budget():

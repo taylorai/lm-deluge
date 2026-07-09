@@ -73,12 +73,10 @@ def _adaptive_thinking_config(model: APIModel) -> dict:
 
 def _supports_ga_effort(model: APIModel) -> bool:
     # Version checks are name-aware so Bedrock variants of the same models
-    # (e.g. claude-4.6-opus-bedrock) are recognized too.
-    return (
-        _is_claude_46_or_newer(model)
-        or model.id in {"claude-4.5-opus", "claude-4.5-opus-bedrock"}
-        or "opus-4-5" in model.name
-    )
+    # (e.g. claude-4.6-opus-bedrock) are recognized too. Opus 4.5 supports GA
+    # effort on the direct API only — Bedrock rejects output_config on it with
+    # "Extra inputs are not permitted" (verified live).
+    return _is_claude_46_or_newer(model) or model.id == "claude-4.5-opus"
 
 
 def _anthropic_effort(effort: str | None, model: APIModel | None = None) -> str | None:
