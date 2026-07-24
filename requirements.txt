@@ -5,5 +5,5 @@ xxhash
 tqdm
 pydantic
 markdownify-rs==0.1.1
-pillow
+pillow>=12.3.0
 rich

@@ -19,21 +19,21 @@ dependencies = [
     "tqdm",
     "pydantic",
     "markdownify-rs==0.1.5",
-    "pillow",
+    "pillow>=12.3.0",
     "rich",
     "filetype==1.2.0"
 ]
 
 [project.optional-dependencies]
 pdf = ["pdf2image"]
-aws = ["boto3>=1.28.0"]
-google = ["google-auth"]
-docker = ["docker>=7.0.0"]
+aws = ["boto3>=1.43.35", "urllib3>=2.7.0"]
+google = ["google-auth", "cryptography>=48.0.1", "pyasn1>=0.6.4"]
+docker = ["docker>=7.0.0", "urllib3>=2.7.0"]
 pybubble = ["pybubble; platform_system == 'Linux' and python_version >= '3.12'"]
 full_text_search = ["tantivy>=0.21.0", "lenlp>=0.1.0"]
 vector_db = ["numpy>=1.24.0"]
-sandbox = ["modal>=0.64.0", "daytona-sdk>=0.1.4", "docker>=7.0.0", "pybubble; platform_system == 'Linux' and python_version >= '3.12'"]
-server = ["fastapi>=0.100.0", "uvicorn>=0.20.0"]
+sandbox = ["boto3>=1.43.35", "modal>=0.64.0", "daytona-sdk>=0.1.4", "docker>=7.0.0", "pybubble; platform_system == 'Linux' and python_version >= '3.12'", "urllib3>=2.7.0", "multipart>=1.3.1", "cbor2>5.8.0"]
+server = ["fastapi>=0.100.0", "uvicorn>=0.20.0", "starlette>=1.3.1"]
 dev = ["ty", "pre-commit"]
 
 [project.scripts]
