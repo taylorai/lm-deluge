@@ -40,8 +40,9 @@ image has a durable, auditable build input.
 
 Image creation requires `lambda:CreateMicrovmImage`,
 `lambda:ListMicrovmImages`, `lambda:GetMicrovmImage`,
-`lambda:GetMicrovmImageVersion`, and `s3:PutObject` in addition to the runtime
-permissions below. The build role needs `s3:GetObject` for the artifact bucket.
+`lambda:GetMicrovmImageVersion`, `lambda:DeleteMicrovmImage` (used to remove
+and rebuild a cached image whose build failed), and `s3:PutObject` in addition
+to the runtime permissions below. The build role needs `s3:GetObject` for the artifact bucket.
 
 ## Create the image manually
 
