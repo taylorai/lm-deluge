@@ -52,6 +52,16 @@ CLAUDE_4_8_US_SOURCE_REGIONS = [
 CLAUDE_FABLE_5_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
 CLAUDE_5_SONNET_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
 
+# Claude Opus 5 US cross-region profile source regions, verified live.
+CLAUDE_5_OPUS_US_SOURCE_REGIONS = [
+    "ca-central-1",
+    "ca-west-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
+
 # global.anthropic.claude-opus-4-7 commercial source regions, verified live.
 # me-south-1 dropped - currently unreachable (Iran conflict).
 CLAUDE_GLOBAL_SOURCE_REGIONS_V47 = [
@@ -123,6 +133,41 @@ CLAUDE_GLOBAL_SOURCE_REGIONS_V48 = [
 
 CLAUDE_FABLE_5_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
 CLAUDE_5_SONNET_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
+
+# Claude Opus 5 global cross-region profile source regions, verified live.
+# me-south-1 timed out in the live audit.
+CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS = [
+    "af-south-1",
+    "ap-east-2",
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-northeast-3",
+    "ap-south-1",
+    "ap-south-2",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-5",
+    "ap-southeast-7",
+    "ca-central-1",
+    "ca-west-1",
+    "eu-central-1",
+    "eu-central-2",
+    "eu-north-1",
+    "eu-south-1",
+    "eu-south-2",
+    "eu-west-1",
+    "eu-west-2",
+    "eu-west-3",
+    "il-central-1",
+    "mx-central-1",
+    "sa-east-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
 
 # Source regions for global cross-region profiles as documented by AWS Bedrock.
 # Global profile routing and supported regions can evolve over time.
@@ -215,6 +260,36 @@ BEDROCK_MODELS = {
     #  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
     #  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
     # ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
+    "claude-5-opus-bedrock": {
+        "id": "claude-5-opus-bedrock",
+        "name": "us.anthropic.claude-opus-5",
+        "regions": CLAUDE_5_OPUS_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 5.0,
+        "output_cost": 25.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
+    "claude-5-opus-bedrock-global": {
+        "id": "claude-5-opus-bedrock-global",
+        "name": "global.anthropic.claude-opus-5",
+        "regions": CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 5.0,
+        "output_cost": 25.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
     "claude-5-sonnet-bedrock": {
         "id": "claude-5-sonnet-bedrock",
         "name": "us.anthropic.claude-sonnet-5",

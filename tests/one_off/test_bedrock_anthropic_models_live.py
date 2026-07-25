@@ -131,12 +131,16 @@ async def _exercise_model_region(model_id: str, region: str) -> RegionResult:
     model = APIModel.from_registry(model_id)
 
     previous_override = _set_single_region_override(model.id, model.name, region)
-    client = LLMClient(
-        model_id,
-        max_new_tokens=48,
-        max_attempts=1,
-        request_timeout=90,
-    )
+    client_kwargs = {
+        "max_new_tokens": 48,
+        "max_attempts": 1,
+        "request_timeout": 90,
+    }
+    if model_id == "claude-5-opus-bedrock":
+        # Opus 5 defaults thinking on, and 48 tokens is intentionally too
+        # small for a region smoke test that includes thinking output.
+        client_kwargs["reasoning_effort"] = "none"
+    client = LLMClient(model_id, **client_kwargs)
     try:
         responses = await client.process_prompts_async(
             [Conversation().user("Reply with exactly: BEDROCK_ANTHROPIC_OK")],

@@ -252,6 +252,8 @@ def test_bedrock_claude_47_request_omits_temperature_and_top_p():
     reset_bedrock_region_state_for_tests()
 
     for model_id in (
+        "claude-5-opus-bedrock",
+        "claude-5-opus-bedrock-global",
         "claude-5-sonnet-bedrock",
         "claude-5-sonnet-bedrock-global",
         "claude-4.7-opus-bedrock",
@@ -305,6 +307,87 @@ def test_bedrock_claude_sonnet_5_registered():
     assert global_model.reasoning_model
     assert global_model.supports_json
     assert global_model.supports_images
+
+
+def test_bedrock_claude_opus_5_registered():
+    model = APIModel.from_registry("claude-5-opus-bedrock")
+    assert model.name == "us.anthropic.claude-opus-5"
+    assert model.regions == [
+        "ca-central-1",
+        "ca-west-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+    ]
+    assert model.input_cost == 5.0
+    assert model.output_cost == 25.0
+    assert model.reasoning_model
+    assert model.supports_json
+    assert model.supports_images
+    assert model.supports_xhigh
+    assert model.supports_max_reasoning
+
+    global_model = APIModel.from_registry("claude-5-opus-bedrock-global")
+    assert global_model.name == "global.anthropic.claude-opus-5"
+    assert isinstance(global_model.regions, list)
+    assert "me-south-1" not in global_model.regions
+    assert len(global_model.regions) == 30
+    assert global_model.input_cost == 5.0
+    assert global_model.output_cost == 25.0
+    assert global_model.reasoning_model
+    assert global_model.supports_json
+    assert global_model.supports_images
+    assert global_model.supports_xhigh
+    assert global_model.supports_max_reasoning
+
+
+def test_bedrock_claude_opus_5_reasoning_policy():
+    _ensure_fake_aws_creds()
+    reset_bedrock_region_state_for_tests()
+    model = APIModel.from_registry("claude-5-opus-bedrock")
+
+    default_context = RequestContext(
+        task_id=1,
+        model_name=model.id,
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(),
+    )
+    default_body, _, _, _, _ = asyncio.run(
+        _build_anthropic_bedrock_request(model, default_context)
+    )
+    assert default_body["thinking"] == {
+        "type": "adaptive",
+        "display": "summarized",
+    }
+    assert default_body["output_config"]["effort"] == "high"
+
+    disabled_context = RequestContext(
+        task_id=1,
+        model_name=model.id,
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(reasoning_effort="none"),
+    )
+    disabled_body, _, _, _, _ = asyncio.run(
+        _build_anthropic_bedrock_request(model, disabled_context)
+    )
+    assert disabled_body["thinking"] == {"type": "disabled"}
+    assert disabled_body["output_config"]["effort"] == "high"
+
+    invalid_context = RequestContext(
+        task_id=1,
+        model_name=model.id,
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(
+            reasoning_effort="none",
+            global_effort="max",
+        ),
+    )
+    try:
+        asyncio.run(_build_anthropic_bedrock_request(model, invalid_context))
+        assert False, "Expected disabled thinking at max effort to be rejected"
+    except ValueError as exc:
+        assert "cannot disable thinking" in str(exc).lower()
 
 
 def test_bedrock_claude_fable_5_registered():
@@ -621,6 +704,8 @@ if __name__ == "__main__":
     test_bedrock_claude_45_46_request_omits_top_p()
     test_bedrock_claude_47_request_omits_temperature_and_top_p()
     test_bedrock_claude_sonnet_5_registered()
+    test_bedrock_claude_opus_5_registered()
+    test_bedrock_claude_opus_5_reasoning_policy()
     test_bedrock_claude_fable_5_registered()
     test_bedrock_claude_47_registered()
     test_bedrock_claude_48_registered()

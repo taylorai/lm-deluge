@@ -9,6 +9,7 @@ from lm_deluge.models import APIModel, find_models, registry
 def test_anthropic_aliases_resolve():
     """Anthropic API-style names resolve to the same model as canonical names."""
     pairs = [
+        ("claude-5-opus", "claude-opus-5"),
         ("claude-5-sonnet", "claude-sonnet-5"),
         ("claude-4.6-opus", "claude-opus-4-6"),
         ("claude-4.6-opus", "claude-opus-4.6"),
@@ -54,6 +55,11 @@ def test_alias_with_reasoning_suffix():
     model = APIModel.from_registry(client.models[0])
     assert model.id == "claude-5-sonnet"
     assert client.sampling_params[0].reasoning_effort == "high"
+
+    client = LLMClient("claude-opus-5-max")
+    model = APIModel.from_registry(client.models[0])
+    assert model.id == "claude-5-opus"
+    assert client.sampling_params[0].reasoning_effort == "max"
     print("Alias + reasoning suffix tests passed")
 
 

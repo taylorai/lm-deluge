@@ -17,7 +17,11 @@ from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
 
 from ..models import APIModel
-from .anthropic import _is_claude_47, apply_anthropic_reasoning_config
+from .anthropic import (
+    _is_claude_47,
+    _validate_anthropic_request_config,
+    apply_anthropic_reasoning_config,
+)
 from .base import APIRequestBase, APIResponse, parse_retry_after
 from .bedrock_auth import get_bedrock_auth
 from .bedrock_regions import (
@@ -48,6 +52,7 @@ def _is_claude_47_bedrock(model: APIModel) -> bool:
     return (
         "4-7" in model.name
         or "4-8" in model.name
+        or "claude-opus-5" in model.name
         or "claude-sonnet-5" in model.name
         or model.id == "claude-fable-5-bedrock"
         or "claude-fable-5" in model.name
@@ -118,6 +123,8 @@ async def _build_anthropic_bedrock_request(
     if _is_claude_47_bedrock(model):
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
+
+    _validate_anthropic_request_config(model, context, request_json)
 
     if system_message is not None:
         request_json["system"] = system_message

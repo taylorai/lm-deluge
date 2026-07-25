@@ -41,6 +41,10 @@ def _is_claude_5_sonnet(model: APIModel) -> bool:
     return model.id == "claude-5-sonnet" or "claude-sonnet-5" in model.name
 
 
+def _is_claude_5_opus(model: APIModel) -> bool:
+    return model.id == "claude-5-opus" or "claude-opus-5" in model.name
+
+
 def _is_claude_47(model: APIModel) -> bool:
     return (
         model.id
@@ -48,9 +52,11 @@ def _is_claude_47(model: APIModel) -> bool:
             "claude-4.7-opus",
             "claude-4.8-opus",
             "claude-fable-5",
+            "claude-5-opus",
         }
         or any(version in model.name for version in ("4-7", "4-8"))
         or "fable-5" in model.name
+        or "claude-opus-5" in model.name
     )
 
 
@@ -141,6 +147,18 @@ def _validate_anthropic_request_config(
             "or disable thinking with reasoning_effort='none'."
         )
 
+    if _is_claude_5_opus(model) and isinstance(thinking, dict):
+        output_config = request_json.get("output_config")
+        effort = (
+            output_config.get("effort") if isinstance(output_config, dict) else None
+        )
+        if thinking.get("type") == "disabled" and effort in {"xhigh", "max"}:
+            raise ValueError(
+                f"Invalid config for model '{context.model_name}': Claude Opus 5 "
+                f"cannot disable thinking at effort '{effort}'. Use effort='high' "
+                "or lower, or keep thinking enabled."
+            )
+
 
 def apply_anthropic_reasoning_config(
     model: APIModel,
@@ -174,9 +192,10 @@ def apply_anthropic_reasoning_config(
         # Claude 4.6+ models support adaptive thinking mode.
         if _is_claude_46_or_newer(model) and sampling_params.thinking_budget is None:
             if sampling_params.reasoning_effort == "none":
-                # On 4.7 adaptive is off by default, so just omit the field.
-                # On 4.6 explicit disabled is still accepted.
-                if not _is_claude_47(model):
+                # Opus 4.7/4.8 and Fable 5 default thinking off, so omission
+                # disables it. Opus 5 defaults thinking on and therefore needs
+                # an explicit wire value to preserve lm-deluge's request.
+                if not _is_claude_47(model) or _is_claude_5_opus(model):
                     request_json["thinking"] = {"type": "disabled"}
             else:
                 request_json["thinking"] = _adaptive_thinking_config(model)
@@ -508,6 +527,9 @@ def _build_anthropic_request(
             if key in {"model", "messages"}:
                 continue
             request_json[key] = value
+
+    # Passthrough fields may have changed thinking or output_config.effort.
+    _validate_anthropic_request_config(model, context, request_json)
 
     # print("request json:", request_json)
     return request_json, base_headers
