@@ -17,6 +17,13 @@ if TYPE_CHECKING:
     from .docker_sandbox import DockerSandbox as DockerSandbox
     from .fargate_sandbox import FargateSandbox as FargateSandbox
     from .just_bash_sandbox import JustBashSandbox as JustBashSandbox
+    from .lambda_microvm_sandbox import LambdaMicroVMSandbox as LambdaMicroVMSandbox
+    from .lambda_microvm_image import (
+        LambdaMicroVMImage as LambdaMicroVMImage,
+    )
+    from .lambda_microvm_image import (
+        LambdaMicroVMImageBuilder as LambdaMicroVMImageBuilder,
+    )
     from .modal_sandbox import ModalSandbox as ModalSandbox
     from .pybubble_sandbox import PybubbleSandbox as PybubbleSandbox
     from .seatbelt_sandbox import SandboxMode as SandboxMode
@@ -28,6 +35,9 @@ __all__ = [
     "DockerSandbox",
     "FargateSandbox",
     "JustBashSandbox",
+    "LambdaMicroVMSandbox",
+    "LambdaMicroVMImageBuilder",
+    "LambdaMicroVMImage",
     "ModalSandbox",
 ]
 
@@ -46,6 +56,18 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "DockerSandbox": (".docker_sandbox", "DockerSandbox"),
     "FargateSandbox": (".fargate_sandbox", "FargateSandbox"),
     "JustBashSandbox": (".just_bash_sandbox", "JustBashSandbox"),
+    "LambdaMicroVMSandbox": (
+        ".lambda_microvm_sandbox",
+        "LambdaMicroVMSandbox",
+    ),
+    "LambdaMicroVMImageBuilder": (
+        ".lambda_microvm_image",
+        "LambdaMicroVMImageBuilder",
+    ),
+    "LambdaMicroVMImage": (
+        ".lambda_microvm_image",
+        "LambdaMicroVMImage",
+    ),
     "ModalSandbox": (".modal_sandbox", "ModalSandbox"),
     "PybubbleSandbox": (".pybubble_sandbox", "PybubbleSandbox"),
     "SandboxMode": (".seatbelt_sandbox", "SandboxMode"),
