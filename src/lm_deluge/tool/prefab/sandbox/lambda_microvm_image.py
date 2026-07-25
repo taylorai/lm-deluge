@@ -5,6 +5,7 @@ import importlib
 import io
 import json
 import re
+import stat
 import time
 import zipfile
 from dataclasses import dataclass
@@ -232,6 +233,16 @@ class LambdaMicroVMImageBuilder:
                 continue
             if self._is_ignored(relative, ignore_patterns):
                 continue
+            path_stat = path.stat()
+            if not stat.S_ISREG(path_stat.st_mode):
+                raise ValueError(
+                    f"Docker context contains unsupported non-regular file: "
+                    f"{relative_name}"
+                )
+            if total_bytes + path_stat.st_size > self.max_context_bytes:
+                raise ValueError(
+                    f"Docker context exceeds {self.max_context_bytes} bytes"
+                )
             content = path.read_bytes()
             total_bytes += len(content)
             if total_bytes > self.max_context_bytes:

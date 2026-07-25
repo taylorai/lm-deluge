@@ -1,6 +1,7 @@
 import asyncio
 import ast
 import io
+import os
 import tempfile
 import zipfile
 from pathlib import Path
@@ -120,6 +121,7 @@ def make_context(root: Path) -> Path:
 def make_builder(
     client: FakeImageClient,
     s3_client: FakeS3Client,
+    **kwargs: Any,
 ) -> LambdaMicroVMImageBuilder:
     return LambdaMicroVMImageBuilder(
         client=client,
@@ -129,6 +131,7 @@ def make_builder(
         region="us-west-2",
         build_timeout=1,
         poll_interval=0.001,
+        **kwargs,
     )
 
 
@@ -192,6 +195,42 @@ def test_dockerignore_uses_root_anchored_gitwildmatch_semantics():
         assert "important.pem" in names
         assert "node_modules/root.js" not in names
         assert "src/node_modules/nested.js" in names
+
+
+def test_context_size_is_checked_before_reading_files():
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        context = make_context(Path(temporary_directory))
+        oversized = context / "oversized.bin"
+        with oversized.open("wb") as file:
+            file.truncate(1_000_000)
+
+        builder = make_builder(
+            FakeImageClient(),
+            FakeS3Client(),
+            max_context_bytes=100_000,
+        )
+        try:
+            builder._build_artifact(context / "Dockerfile", context)
+        except ValueError as error:
+            assert "exceeds 100000 bytes" in str(error)
+        else:
+            raise AssertionError("Expected oversized context rejection")
+
+
+def test_context_rejects_non_regular_files():
+    if not hasattr(os, "mkfifo"):
+        return
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        context = make_context(Path(temporary_directory))
+        os.mkfifo(context / "input.pipe")
+
+        builder = make_builder(FakeImageClient(), FakeS3Client())
+        try:
+            builder._build_artifact(context / "Dockerfile", context)
+        except ValueError as error:
+            assert "unsupported non-regular file: input.pipe" in str(error)
+        else:
+            raise AssertionError("Expected FIFO rejection")
 
 
 async def test_create_and_wait_for_image():
@@ -342,6 +381,8 @@ def test_packaged_and_standalone_agents_match():
 async def main():
     test_deterministic_filtered_artifact()
     test_dockerignore_uses_root_anchored_gitwildmatch_semantics()
+    test_context_size_is_checked_before_reading_files()
+    test_context_rejects_non_regular_files()
     await test_create_and_wait_for_image()
     await test_reuse_existing_image_without_upload()
     await test_name_collision_is_rejected()

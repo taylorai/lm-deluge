@@ -167,6 +167,8 @@ async def test_lifecycle_and_command_execution():
         "arn:aws:lambda:us-west-2:aws:network-connector:"
         "aws-network-connector:INTERNET_EGRESS"
     ]
+    assert client.run_parameters["clientToken"] == sandbox._run_client_token
+    assert len(client.run_parameters["clientToken"]) == 32
     exec_request = next(
         request for request in sandbox.requests if request[1] == "/v1/exec"
     )

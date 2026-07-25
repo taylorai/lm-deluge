@@ -266,6 +266,9 @@ def apply_anthropic_reasoning_config(
             if effort == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
                 effort = "high"
+            elif effort == "max":
+                maybe_warn("WARN_MAX_TO_HIGH", model_name=context.model_name)
+                effort = "high"
             # translate reasoning effort of low, medium, high to budget tokens
             budget = {
                 "none": 0,

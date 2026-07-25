@@ -3,6 +3,7 @@ import importlib
 import json
 import threading
 import time
+import uuid
 import warnings
 from pathlib import Path
 from typing import Any
@@ -154,6 +155,7 @@ class LambdaMicroVMSandbox:
         self._owns_http_session = False
         self._auth_token: str | None = None
         self._auth_token_refresh_at = 0.0
+        self._run_client_token = uuid.uuid4().hex
         self._initialization_lock = asyncio.Lock()
         self._token_lock = asyncio.Lock()
         self._initialized = False
@@ -272,6 +274,7 @@ class LambdaMicroVMSandbox:
             raise RuntimeError("Lambda MicroVM image has not been resolved")
 
         parameters: dict[str, Any] = {
+            "clientToken": self._run_client_token,
             "imageIdentifier": self.image_identifier,
             "ingressNetworkConnectors": ingress,
             "egressNetworkConnectors": egress,

@@ -15,12 +15,12 @@
  * All requests require an Authorization header matching the SANDBOX_API_KEY secret.
  */
 
-import { getSandbox, type SandboxInstance } from "@cloudflare/sandbox";
+import { getSandbox, proxyToSandbox } from "@cloudflare/sandbox";
 
 export { Sandbox } from "@cloudflare/sandbox";
 
 interface Env {
-  Sandbox: DurableObjectNamespace;
+  Sandbox: Parameters<typeof getSandbox>[0];
   SANDBOX_API_KEY: string;
 }
 
@@ -52,6 +52,11 @@ async function body<T>(request: Request): Promise<[T | null, Response | null]> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    // Preview URLs are authenticated by the short-lived token embedded in the
+    // hostname and must be routed before the worker API-key check.
+    const proxyResponse = await proxyToSandbox(request, env);
+    if (proxyResponse) return proxyResponse;
+
     // Auth check
     const authErr = authorize(request, env);
     if (authErr) return authErr;
@@ -210,7 +215,9 @@ export default {
       if (!data?.port) return err("Missing 'port'");
 
       try {
-        const result = await sandbox.exposePort(data.port);
+        const result = await sandbox.exposePort(data.port, {
+          hostname: url.hostname,
+        });
         return json(result);
       } catch (e: any) {
         return err(e?.message || "expose failed", 500);

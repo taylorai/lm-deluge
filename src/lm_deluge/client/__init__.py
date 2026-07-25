@@ -550,6 +550,10 @@ class _LLMClient(BaseModel):
         str, Literal["low", "medium", "high", "xhigh", "minimal", "none", "max"] | None
     ]:
         """Remove reasoning suffix only when the trimmed model already exists."""
+        # Canonical model ids can themselves end in an effort-like suffix
+        # (notably gpt-5.1-codex-max). Exact registry matches always win.
+        if model_name in registry:
+            return model_name, None
         for suffix, effort in cls._REASONING_SUFFIXES.items():
             if model_name.endswith(suffix) and len(model_name) > len(suffix):
                 candidate = model_name[: -len(suffix)]
