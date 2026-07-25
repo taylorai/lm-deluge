@@ -21,6 +21,7 @@ dependencies = [
     "pydantic",
     "markdownify-rs==0.1.5",
     "pillow>=12.3.0",
+    "pygments>=2.20.0",
     "rich",
     "filetype==1.2.0"
 ]
