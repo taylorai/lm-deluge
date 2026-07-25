@@ -1,13 +1,14 @@
 {
   "name": "lm-deluge-sandbox-worker",
   "private": true,
+  "packageManager": "pnpm@10.24.0",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "@cloudflare/sandbox": "*",
+    "@cloudflare/sandbox": "0.8.9",
     "typescript": "^5.9.3",
-    "wrangler": "^4.76.0"
+    "wrangler": "^4.114.0"
   }
 }
