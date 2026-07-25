@@ -238,6 +238,10 @@ def apply_anthropic_reasoning_config(
                     output_config = request_json["output_config"]
                     assert isinstance(output_config, dict)
                     output_config["effort"] = mapped
+            elif not _is_claude_47(model) or _is_claude_5_opus(model):
+                # Opus 5 defaults thinking on, so a zero budget must send an
+                # explicit disabled value (omission would enable thinking).
+                request_json["thinking"] = {"type": "disabled"}
         elif sampling_params.thinking_budget is not None:
             if _is_claude_46(model):
                 maybe_warn("WARN_CLAUDE_46_BUDGET_TOKENS_DEPRECATED")

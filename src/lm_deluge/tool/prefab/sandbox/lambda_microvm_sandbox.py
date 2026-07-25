@@ -1,6 +1,7 @@
 import asyncio
 import importlib
 import json
+import threading
 import time
 import warnings
 from pathlib import Path
@@ -298,20 +299,39 @@ class LambdaMicroVMSandbox:
                     "This Lambda MicroVM sandbox has already been destroyed"
                 )
 
+            cleanup_requested = threading.Event()
+            creation_state = {"terminated": False}
+            run_task: asyncio.Task[dict[str, Any]] | None = None
+
+            def run_microvm() -> dict[str, Any]:
+                response = self.client.run_microvm(**self._run_parameters())
+                self.microvm_id = response["microvmId"]
+                if cleanup_requested.is_set():
+                    try:
+                        self.client.terminate_microvm(microvmIdentifier=self.microvm_id)
+                    except Exception:
+                        pass
+                    else:
+                        creation_state["terminated"] = True
+                        self._destroyed = True
+                return response
+
             try:
                 await self._ensure_image()
-                response = await asyncio.to_thread(
-                    self.client.run_microvm, **self._run_parameters()
-                )
-                self.microvm_id = response["microvmId"]
+                run_task = asyncio.create_task(asyncio.to_thread(run_microvm))
+                response = await asyncio.shield(run_task)
                 self.endpoint = response.get("endpoint")
-                await self._wait_for_state("RUNNING", timeout=self.startup_timeout)
-                await self._ensure_auth_token(force=True)
-                await self._wait_for_health(timeout=self.startup_timeout)
+                await self._wait_for_ready(timeout=self.startup_timeout)
                 self._initialized = True
-            except Exception:
-                terminated = False
-                if self.microvm_id:
+            except BaseException:
+                cleanup_requested.set()
+                if run_task is not None and not run_task.done():
+                    try:
+                        await asyncio.shield(run_task)
+                    except Exception:
+                        pass
+                terminated = creation_state["terminated"]
+                if self.microvm_id and not terminated:
                     try:
                         await self._terminate_microvm()
                         terminated = True
@@ -336,19 +356,56 @@ class LambdaMicroVMSandbox:
             self.endpoint = response["endpoint"]
         return response
 
+    @staticmethod
+    def _raise_for_terminal_state(
+        response: dict[str, Any], *, waiting_for: str
+    ) -> None:
+        current_state = response.get("state")
+        if current_state in {"TERMINATING", "TERMINATED"}:
+            message = response.get("stateReason", "No reason provided")
+            raise RuntimeError(
+                f"Lambda MicroVM terminated while waiting for {waiting_for}: {message}"
+            )
+
+    async def _wait_for_ready(self, *, timeout: float):
+        deadline = time.monotonic() + timeout
+        last_state: str | None = None
+        last_error: Exception | None = None
+        while True:
+            response = await self._get_microvm()
+            last_state = response.get("state")
+            self._raise_for_terminal_state(response, waiting_for="agent readiness")
+            if self.endpoint:
+                try:
+                    remaining = deadline - time.monotonic()
+                    result = await self._request_json(
+                        "GET", "/health", timeout=min(10, max(0.1, remaining))
+                    )
+                    if result.get("status") == "ok":
+                        return
+                    last_error = RuntimeError(f"Unexpected health response: {result}")
+                except Exception as error:
+                    last_error = error
+            if time.monotonic() >= deadline:
+                detail = (
+                    f"last health error: {last_error}"
+                    if last_error is not None
+                    else "endpoint was not available"
+                )
+                raise TimeoutError(
+                    f"Lambda MicroVM agent did not become ready within {timeout:g}s "
+                    f"(last state: {last_state}; {detail})"
+                )
+            await asyncio.sleep(self.poll_interval)
+
     async def _wait_for_state(self, state: str, *, timeout: float):
         deadline = time.monotonic() + timeout
-        terminal_states = {"TERMINATING", "TERMINATED"}
         while True:
             response = await self._get_microvm()
             current_state = response.get("state")
             if current_state == state:
                 return
-            if current_state in terminal_states:
-                message = response.get("stateReason", "No reason provided")
-                raise RuntimeError(
-                    f"Lambda MicroVM terminated while waiting for {state}: {message}"
-                )
+            self._raise_for_terminal_state(response, waiting_for=state)
             if time.monotonic() >= deadline:
                 raise TimeoutError(
                     f"Lambda MicroVM did not reach {state} within {timeout:g}s "
@@ -551,8 +608,10 @@ class LambdaMicroVMSandbox:
             running = process.get("running", False)
             exit_code = process.get("exitCode")
             status = "running" if running else f"completed (exit code: {exit_code})"
+            log_path = process.get("logPath", "unknown")
             lines.append(
-                f"Process: {process_name}\nCommand: {command}\nStatus: {status}"
+                f"Process: {process_name}\nCommand: {command}\nStatus: {status}\n"
+                f"Log path: {log_path}"
             )
             recent_output = process.get("recentOutput")
             if recent_output:
@@ -646,7 +705,10 @@ class LambdaMicroVMSandbox:
         )
         process_tool = Tool(
             name="list_processes",
-            description="Check background-process status and recent output.",
+            description=(
+                "Check background-process status and a truncated recentOutput preview. "
+                "Use the bash tool to read the full log from logPath."
+            ),
             run=self._check_process,
             parameters={
                 "name": {

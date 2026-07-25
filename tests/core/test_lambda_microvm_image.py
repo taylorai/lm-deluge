@@ -1,5 +1,6 @@
 import asyncio
 import ast
+import io
 import tempfile
 import zipfile
 from pathlib import Path
@@ -29,6 +30,7 @@ class FakeImageClient:
     def __init__(self):
         self.image: dict[str, Any] | None = None
         self.create_calls: list[dict[str, Any]] = []
+        self.delete_calls: list[dict[str, Any]] = []
         self.list_calls: list[dict[str, Any]] = []
         self.version_states = [
             {"state": "IN_PROGRESS", "status": "INACTIVE"},
@@ -65,6 +67,16 @@ class FakeImageClient:
         return {
             "imageArn": f"arn:aws:lambda:us-west-2:123:microvm-image:{parameters['name']}",
             "imageVersion": "1.0",
+        }
+
+    def delete_microvm_image(self, **parameters: Any) -> dict[str, Any]:
+        assert self.image is not None
+        assert parameters["imageIdentifier"] == self.image["imageArn"]
+        self.delete_calls.append(parameters)
+        self.image = None
+        return {
+            "imageIdentifier": parameters["imageIdentifier"],
+            "state": "DELETING",
         }
 
     def get_microvm_image_version(self, **parameters: Any) -> dict[str, Any]:
@@ -152,6 +164,36 @@ def test_deterministic_filtered_artifact():
         assert changed.content_hash != first.content_hash
 
 
+def test_dockerignore_uses_root_anchored_gitwildmatch_semantics():
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        context = make_context(Path(temporary_directory))
+        (context / ".dockerignore").write_text(
+            "# private keys\n\n**/*.pem\n!important.pem\nnode_modules\n"
+        )
+        (context / "secret.pem").write_text("root secret")
+        (context / "important.pem").write_text("public fixture")
+        nested = context / "a" / "b"
+        nested.mkdir(parents=True)
+        (nested / "key.pem").write_text("nested secret")
+        root_modules = context / "node_modules"
+        root_modules.mkdir()
+        (root_modules / "root.js").write_text("excluded")
+        nested_modules = context / "src" / "node_modules"
+        nested_modules.mkdir(parents=True)
+        (nested_modules / "nested.js").write_text("included")
+
+        builder = make_builder(FakeImageClient(), FakeS3Client())
+        artifact = builder._build_artifact(context / "Dockerfile", context)
+        with zipfile.ZipFile(io.BytesIO(artifact.content)) as archive:
+            names = archive.namelist()
+
+        assert "secret.pem" not in names
+        assert "a/b/key.pem" not in names
+        assert "important.pem" in names
+        assert "node_modules/root.js" not in names
+        assert "src/node_modules/nested.js" in names
+
+
 async def test_create_and_wait_for_image():
     with tempfile.TemporaryDirectory() as temporary_directory:
         context = make_context(Path(temporary_directory))
@@ -232,6 +274,63 @@ async def test_concurrent_create_conflict_reuses_winner():
         assert image.image_version == "1.0"
 
 
+async def test_failed_existing_image_is_deleted_and_rebuilt():
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        context = make_context(Path(temporary_directory))
+        client = FakeImageClient()
+        s3_client = FakeS3Client()
+        builder = make_builder(client, s3_client)
+        artifact = builder._build_artifact(context / "Dockerfile", context)
+        image_name = f"lm-deluge-{artifact.content_hash[:16]}"
+        image_arn = f"arn:aws:lambda:us-west-2:123:microvm-image:{image_name}"
+        client.image = {
+            "name": image_name,
+            "imageArn": image_arn,
+            "state": "CREATE_FAILED",
+            "tags": {CONTENT_HASH_TAG: artifact.content_hash},
+        }
+
+        image = await builder.ensure_image(context / "Dockerfile")
+
+        assert image.created
+        assert client.delete_calls == [{"imageIdentifier": image_arn}]
+        assert len(client.create_calls) == 1
+        assert len(s3_client.puts) == 1
+
+
+async def test_failed_existing_image_rebuild_failure_is_raised():
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        context = make_context(Path(temporary_directory))
+        client = FakeImageClient()
+        client.version_states = [
+            {
+                "state": "FAILED",
+                "status": "INACTIVE",
+                "stateReason": "replacement build failed",
+            }
+        ]
+        builder = make_builder(client, FakeS3Client())
+        artifact = builder._build_artifact(context / "Dockerfile", context)
+        image_name = f"lm-deluge-{artifact.content_hash[:16]}"
+        image_arn = f"arn:aws:lambda:us-west-2:123:microvm-image:{image_name}"
+        client.image = {
+            "name": image_name,
+            "imageArn": image_arn,
+            "state": "CREATE_FAILED",
+            "tags": {CONTENT_HASH_TAG: artifact.content_hash},
+        }
+
+        try:
+            await builder.ensure_image(context / "Dockerfile")
+        except RuntimeError as error:
+            assert "replacement build failed" in str(error)
+        else:
+            raise AssertionError("Expected the replacement image build to fail")
+
+        assert client.delete_calls == [{"imageIdentifier": image_arn}]
+        assert len(client.create_calls) == 1
+
+
 def test_packaged_and_standalone_agents_match():
     packaged = Path(
         "src/lm_deluge/tool/prefab/sandbox/lambda_microvm_agent.py"
@@ -242,10 +341,13 @@ def test_packaged_and_standalone_agents_match():
 
 async def main():
     test_deterministic_filtered_artifact()
+    test_dockerignore_uses_root_anchored_gitwildmatch_semantics()
     await test_create_and_wait_for_image()
     await test_reuse_existing_image_without_upload()
     await test_name_collision_is_rejected()
     await test_concurrent_create_conflict_reuses_winner()
+    await test_failed_existing_image_is_deleted_and_rebuilt()
+    await test_failed_existing_image_rebuild_failure_is_raised()
     test_packaged_and_standalone_agents_match()
     print("Lambda MicroVM image builder tests passed")
 

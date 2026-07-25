@@ -1,5 +1,6 @@
 import asyncio
 import tempfile
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -71,6 +72,29 @@ class FakeBuildingLambdaMicroVMClient(FakeLambdaMicroVMClient):
 
     def get_microvm_image_version(self, **parameters: Any) -> dict[str, Any]:
         return {"state": "SUCCESSFUL", "status": "ACTIVE"}
+
+
+class BlockingRunLambdaMicroVMClient(FakeLambdaMicroVMClient):
+    def __init__(self):
+        super().__init__()
+        self.run_started = threading.Event()
+        self.release_run = threading.Event()
+
+    def run_microvm(self, **parameters: Any) -> dict[str, Any]:
+        self.run_started.set()
+        assert self.release_run.wait(timeout=1)
+        return super().run_microvm(**parameters)
+
+
+class PendingWithoutEndpointClient(FakeLambdaMicroVMClient):
+    def __init__(self):
+        super().__init__()
+        self.polled = threading.Event()
+
+    def get_microvm(self, *, microvmIdentifier: str) -> dict[str, Any]:
+        assert microvmIdentifier == "mvm-test"
+        self.polled.set()
+        return {"microvmId": microvmIdentifier, "state": "PENDING"}
 
 
 class FakeS3Client:
@@ -230,6 +254,56 @@ async def test_partial_initialization_is_terminated():
     assert sandbox._destroyed
 
 
+async def test_cancellation_while_create_is_in_flight_terminates_microvm():
+    client = BlockingRunLambdaMicroVMClient()
+    sandbox = FakeHTTPSandbox("image", client=client, poll_interval=0.001)
+    initialization = asyncio.create_task(sandbox._ensure_initialized())
+    assert await asyncio.to_thread(client.run_started.wait, 1)
+
+    initialization.cancel()
+    await asyncio.sleep(0)
+    client.release_run.set()
+    try:
+        await initialization
+    except asyncio.CancelledError:
+        pass
+    else:
+        raise AssertionError("Expected initialization to be cancelled")
+
+    assert client.terminated == ["mvm-test"]
+    assert sandbox._destroyed
+
+
+async def test_cancellation_while_polling_terminates_microvm():
+    client = PendingWithoutEndpointClient()
+    sandbox = FakeHTTPSandbox("image", client=client, poll_interval=0.001)
+    initialization = asyncio.create_task(sandbox._ensure_initialized())
+    assert await asyncio.to_thread(client.polled.wait, 1)
+
+    initialization.cancel()
+    try:
+        await initialization
+    except asyncio.CancelledError:
+        pass
+    else:
+        raise AssertionError("Expected initialization to be cancelled")
+
+    assert client.terminated == ["mvm-test"]
+    assert sandbox._destroyed
+
+
+async def test_healthy_endpoint_is_ready_while_state_is_pending():
+    client = FakeLambdaMicroVMClient()
+    client.states = ["PENDING"]
+    sandbox = FakeHTTPSandbox("image", client=client, poll_interval=0.001)
+
+    await sandbox._ensure_initialized()
+
+    assert sandbox._initialized
+    assert any(path == "/health" for _, path, _, _ in sandbox.requests)
+    await sandbox._destroy()
+
+
 async def test_suspend_and_resume():
     client = FakeLambdaMicroVMClient()
     sandbox = FakeHTTPSandbox("image", client=client, poll_interval=0.001)
@@ -321,6 +395,9 @@ async def main():
     await test_no_internet_requires_restricted_vpc_connector()
     await test_expired_token_is_refreshed_once()
     await test_partial_initialization_is_terminated()
+    await test_cancellation_while_create_is_in_flight_terminates_microvm()
+    await test_cancellation_while_polling_terminates_microvm()
+    await test_healthy_endpoint_is_ready_while_state_is_pending()
     await test_suspend_and_resume()
     await test_background_and_process_tools()
     await test_dockerfile_build_is_integrated_before_launch()

@@ -1,6 +1,7 @@
 import asyncio
 import fnmatch
 import hashlib
+import importlib
 import io
 import json
 import re
@@ -35,6 +36,7 @@ DEFAULT_HOOKS = {
 DEFAULT_IGNORED_NAMES = {".git", ".venv", "__pycache__", ".DS_Store"}
 DEFAULT_IGNORED_PATTERNS = {".env", ".env.*", ".aws", ".ssh", ".npmrc", ".pypirc"}
 IMAGE_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9-_]+")
+FAILED_IMAGE_STATES = {"CREATE_FAILED", "UPDATE_FAILED", "DELETE_FAILED"}
 
 
 @dataclass(frozen=True)
@@ -150,9 +152,13 @@ class LambdaMicroVMImageBuilder:
         image_name = f"{self.image_name_prefix}-{artifact.content_hash[:16]}"
         existing = await self._get_image_if_present(image_name)
         if existing is not None:
-            return await self._reuse_or_wait_for_image(
-                image_name, artifact.content_hash, existing
-            )
+            if existing.get("state") in FAILED_IMAGE_STATES:
+                self._validate_image_hash(image_name, artifact.content_hash, existing)
+                await self._delete_failed_image(existing)
+            else:
+                return await self._reuse_or_wait_for_image(
+                    image_name, artifact.content_hash, existing
+                )
 
         artifact_key = (
             f"{self.artifact_prefix}/{artifact.content_hash}.zip"
@@ -271,19 +277,27 @@ class LambdaMicroVMImageBuilder:
         archive.writestr(info, content)
 
     @staticmethod
-    def _read_dockerignore(context_path: Path) -> list[str]:
+    def _read_dockerignore(context_path: Path) -> Any | None:
         dockerignore = context_path / ".dockerignore"
         if not dockerignore.is_file():
-            return []
-        patterns = []
+            return None
+        patterns: list[str] = []
         for line in dockerignore.read_text(encoding="utf-8").splitlines():
             pattern = line.strip()
-            if pattern and not pattern.startswith("#"):
-                patterns.append(pattern)
-        return patterns
+            if not pattern or pattern.startswith("#"):
+                continue
+            negation = "!" if pattern.startswith("!") else ""
+            body = pattern[1:] if negation else pattern
+            if not body:
+                continue
+            if not body.startswith(("/", "**")):
+                body = f"/{body}"
+            patterns.append(f"{negation}{body}")
+        pathspec = importlib.import_module("pathspec")
+        return pathspec.PathSpec.from_lines("gitwildmatch", patterns)
 
     @staticmethod
-    def _is_ignored(relative: Path, patterns: list[str]) -> bool:
+    def _is_ignored(relative: Path, dockerignore: Any | None) -> bool:
         if any(part in DEFAULT_IGNORED_NAMES for part in relative.parts):
             return True
         if any(
@@ -292,23 +306,9 @@ class LambdaMicroVMImageBuilder:
             for pattern in DEFAULT_IGNORED_PATTERNS
         ):
             return True
-        candidate = relative.as_posix()
-        ignored = False
-        for raw_pattern in patterns:
-            negated = raw_pattern.startswith("!")
-            pattern = raw_pattern[1:] if negated else raw_pattern
-            pattern = pattern.lstrip("/").rstrip("/")
-            if not pattern:
-                continue
-            if "/" in pattern:
-                matched = fnmatch.fnmatch(candidate, pattern) or candidate.startswith(
-                    f"{pattern}/"
-                )
-            else:
-                matched = any(fnmatch.fnmatch(part, pattern) for part in relative.parts)
-            if matched:
-                ignored = not negated
-        return ignored
+        return bool(
+            dockerignore is not None and dockerignore.match_file(relative.as_posix())
+        )
 
     @staticmethod
     def _wrapper_dockerfile(dockerfile: str) -> str:
@@ -386,6 +386,57 @@ class LambdaMicroVMImageBuilder:
             if not next_token:
                 return None
 
+    @staticmethod
+    def _validate_image_hash(
+        image_name: str, content_hash: str, image: dict[str, Any]
+    ) -> None:
+        actual_hash = image.get("tags", {}).get(CONTENT_HASH_TAG)
+        if actual_hash != content_hash:
+            raise RuntimeError(
+                f"Lambda MicroVM image name collision for {image_name!r}; expected "
+                f"content hash {content_hash}, found {actual_hash!r}"
+            )
+
+    async def _delete_failed_image(self, image: dict[str, Any]) -> None:
+        try:
+            response = await asyncio.to_thread(
+                self.client.delete_microvm_image,
+                imageIdentifier=image["imageArn"],
+            )
+        except Exception as error:
+            if self._is_aws_error(error, "ResourceNotFoundException"):
+                return
+            raise
+        if response.get("state") == "DELETED":
+            return
+
+        deadline = time.monotonic() + self.build_timeout
+        while True:
+            try:
+                current = await asyncio.to_thread(
+                    self.client.get_microvm_image,
+                    imageIdentifier=image["imageArn"],
+                )
+            except Exception as error:
+                if self._is_aws_error(error, "ResourceNotFoundException"):
+                    return
+                raise
+            state = current.get("state")
+            if state == "DELETED":
+                return
+            if state == "DELETE_FAILED":
+                reason = current.get("stateReason", "No reason provided")
+                raise RuntimeError(
+                    f"Failed to delete Lambda MicroVM image {image['imageArn']!r}: "
+                    f"{reason}"
+                )
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Lambda MicroVM image {image['imageArn']!r} was not deleted "
+                    f"within {self.build_timeout:g}s"
+                )
+            await asyncio.sleep(self.poll_interval)
+
     async def _reuse_or_wait_for_image(
         self,
         image_name: str,
@@ -396,11 +447,7 @@ class LambdaMicroVMImageBuilder:
         actual_hash = image.get("tags", {}).get(CONTENT_HASH_TAG)
         if actual_hash is None and state in {"CREATING", "UPDATING"}:
             return await self._wait_for_existing_image(image_name, content_hash)
-        if actual_hash != content_hash:
-            raise RuntimeError(
-                f"Lambda MicroVM image name collision for {image_name!r}; expected "
-                f"content hash {content_hash}, found {actual_hash!r}"
-            )
+        self._validate_image_hash(image_name, content_hash, image)
         active_version = image.get("latestActiveImageVersion")
         if state in {"CREATED", "UPDATED"} and active_version:
             return LambdaMicroVMImage(
@@ -409,7 +456,7 @@ class LambdaMicroVMImageBuilder:
                 content_hash=content_hash,
                 created=False,
             )
-        if state in {"CREATE_FAILED", "UPDATE_FAILED", "DELETE_FAILED"}:
+        if state in FAILED_IMAGE_STATES:
             raise RuntimeError(
                 f"Existing Lambda MicroVM image {image_name!r} is in failed state "
                 f"{image.get('state')}"

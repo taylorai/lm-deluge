@@ -97,6 +97,13 @@ def test_opus_5_legacy_budget_translates_to_effort():
     assert "budget_tokens" not in body["thinking"]
 
 
+def test_opus_5_zero_budget_disables_thinking():
+    # Opus 5 thinks by default, so a zero budget must send an explicit
+    # disabled value rather than omitting the thinking field.
+    body, _ = _build(thinking_budget=0)
+    assert body["thinking"] == {"type": "disabled"}
+
+
 def test_opus_5_drops_sampling_params():
     body, _ = _build(temperature=0.2, top_p=0.9)
     assert "temperature" not in body
@@ -152,6 +159,7 @@ if __name__ == "__main__":
     test_opus_5_rejects_disabled_thinking_at_xhigh_or_max()
     test_opus_5_validates_extra_body_after_merge()
     test_opus_5_legacy_budget_translates_to_effort()
+    test_opus_5_zero_budget_disables_thinking()
     test_opus_5_drops_sampling_params()
     test_opus_5_rejects_assistant_prefill()
     test_opus_5_supports_128k_max_tokens_payload()

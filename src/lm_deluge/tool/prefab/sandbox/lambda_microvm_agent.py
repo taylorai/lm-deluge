@@ -5,6 +5,7 @@ import os
 import re
 import signal
 import subprocess
+import tempfile
 import threading
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -19,6 +20,7 @@ WORKING_DIR = Path(os.environ.get("LM_DELUGE_WORKING_DIR", "/workspace"))
 PROCESS_DIR = Path(os.environ.get("LM_DELUGE_PROCESS_DIR", "/tmp/lm-deluge-processes"))
 MAX_REQUEST_BYTES = 1024 * 1024
 MAX_CAPTURE_BYTES = 1024 * 1024
+PREVIEW_BYTES = 20_000
 MAX_TIMEOUT_MS = 600_000
 PROCESS_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
@@ -38,10 +40,17 @@ process_counter = 0
 microvm_id: str | None = None
 
 
-def _tail_bytes(value: bytes, limit: int = MAX_CAPTURE_BYTES) -> str:
-    if len(value) > limit:
-        value = b"...[truncated]...\n" + value[-limit:]
-    return value.decode("utf-8", errors="replace")
+def _read_file_tail(file: Any, limit: int) -> str:
+    # Read only the last `limit` bytes so memory stays bounded no matter how
+    # much the command printed.
+    size = file.seek(0, os.SEEK_END)
+    if size > limit:
+        file.seek(size - limit)
+        return "...[truncated]...\n" + file.read(limit).decode(
+            "utf-8", errors="replace"
+        )
+    file.seek(0)
+    return file.read().decode("utf-8", errors="replace")
 
 
 def _next_process_name() -> str:
@@ -52,29 +61,36 @@ def _next_process_name() -> str:
 
 
 def _run_foreground(command: str, timeout_ms: int) -> dict[str, Any]:
-    process = subprocess.Popen(
-        ["bash", "-lc", command],
-        cwd=WORKING_DIR,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        start_new_session=True,
-    )
-    timed_out = False
-    try:
-        stdout, stderr = process.communicate(timeout=timeout_ms / 1000)
-    except subprocess.TimeoutExpired:
-        timed_out = True
+    # Output goes to temp files rather than pipes so a command that prints
+    # far more than MAX_CAPTURE_BYTES spills to disk instead of exhausting
+    # the MicroVM's memory; only the tails are read back.
+    with (
+        tempfile.TemporaryFile() as stdout_file,
+        tempfile.TemporaryFile() as stderr_file,
+    ):
+        process = subprocess.Popen(
+            ["bash", "-lc", command],
+            cwd=WORKING_DIR,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            start_new_session=True,
+        )
+        timed_out = False
         try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        stdout, stderr = process.communicate()
-    return {
-        "stdout": _tail_bytes(stdout),
-        "stderr": _tail_bytes(stderr),
-        "exitCode": process.returncode,
-        "timedOut": timed_out,
-    }
+            process.wait(timeout=timeout_ms / 1000)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+        return {
+            "stdout": _read_file_tail(stdout_file, MAX_CAPTURE_BYTES),
+            "stderr": _read_file_tail(stderr_file, MAX_CAPTURE_BYTES),
+            "exitCode": process.returncode,
+            "timedOut": timed_out,
+        }
 
 
 def _run_background(command: str, requested_name: str | None) -> dict[str, Any]:
@@ -115,7 +131,8 @@ def _process_details(record: ProcessRecord) -> dict[str, Any]:
     if exit_code is not None and not record.log_file.closed:
         record.log_file.close()
     try:
-        output = _tail_bytes(record.log_path.read_bytes(), limit=5000)
+        with record.log_path.open("rb") as log:
+            output = _read_file_tail(log, PREVIEW_BYTES)
     except FileNotFoundError:
         output = ""
     return {
@@ -125,6 +142,7 @@ def _process_details(record: ProcessRecord) -> dict[str, Any]:
         "running": exit_code is None,
         "exitCode": exit_code,
         "recentOutput": output,
+        "logPath": str(record.log_path),
     }
 
 
