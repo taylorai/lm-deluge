@@ -4,8 +4,9 @@ from lm_deluge import Conversation, LLMClient, Message
 
 models_to_test = [
     # meta
-    "llama-4-maverick",
-    "llama-4-scout",
+    "muse-spark-1.1",
+    "muse-spark-1.2",
+    "muse-spark-1.2-contributor",
     # anthropic
     "claude-3-opus",
     "claude-3.7-sonnet",

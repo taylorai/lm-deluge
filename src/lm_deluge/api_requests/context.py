@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Any, Callable, Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import aiohttp
 
@@ -42,6 +42,7 @@ class RequestContext:
     output_schema: "type[BaseModel] | dict | None" = None
     cache: CachePattern | None = None
     use_responses_api: bool = False
+    stateless_responses: bool | None = None
     background: bool = False
     service_tier: str | None = None
     extra_headers: dict[str, str] | None = None
@@ -63,6 +64,29 @@ class RequestContext:
         from ..models import APIModel
 
         model = APIModel.from_registry(self.model_name)
+
+        if self.stateless_responses is not None and not self.use_responses_api:
+            raise ValueError(
+                "stateless_responses is only valid when use_responses_api=True"
+            )
+
+        effective_stateless = (
+            self.stateless_responses
+            if self.stateless_responses is not None
+            else model.stateless_responses
+        )
+        if (
+            self.use_responses_api
+            and model.requires_stateless_responses
+            and not effective_stateless
+        ):
+            raise ValueError(
+                f"Model '{self.model_name}' requires stateless_responses=True"
+            )
+        if self.use_responses_api and self.background and effective_stateless:
+            raise ValueError(
+                "background=True is incompatible with stateless Responses requests"
+            )
 
         if (
             model.provider == "openai"
@@ -104,6 +128,7 @@ class RequestContext:
             "output_schema": self.output_schema,
             "cache": self.cache,
             "use_responses_api": self.use_responses_api,
+            "stateless_responses": self.stateless_responses,
             "background": self.background,
             "service_tier": self.service_tier,
             "extra_headers": self.extra_headers,

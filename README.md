@@ -23,7 +23,7 @@
 pip install lm-deluge
 ```
 
-The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GEMINI_API_KEY`. LM Deluge does not load `.env` files; populate the environment before constructing clients. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+The package relies on environment variables for API keys. Typical variables include `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `COHERE_API_KEY`, `META_API_KEY`, and `GEMINI_API_KEY`. Meta Model API also calls its credential `MODEL_API_KEY`; LM Deluge accepts either name and prefers `META_API_KEY` when both are set. LM Deluge does not load `.env` files; populate the environment before constructing clients. For Bedrock, you'll need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 
 ## Quickstart
 
@@ -36,6 +36,25 @@ client = LLMClient("gpt-4.1-mini")
 resps = client.process_prompts_sync(["Hello, world!"])
 print(resps[0].completion)
 ```
+
+Muse Spark supports both Chat Completions and the Responses API. Use Responses for
+agentic and multi-turn tool workflows so encrypted reasoning can be replayed:
+
+```python
+from lm_deluge import LLMClient
+
+client = LLMClient("muse-spark-1.2", use_responses_api=True)
+response = client.process_prompts_sync(["Explain this repository."])[0]
+print(response.completion)
+```
+
+For providers that support both Responses history modes, set
+`stateless_responses=True` to send `store=false` and replay encrypted reasoning
+client-side, or `False` to use stored responses. The default `None` uses the model's
+preferred mode. Muse Spark requires stateless mode.
+
+`muse-spark-1.2-contributor` may use prompts and completions to train future Meta
+models. Use `muse-spark-1.1` or `muse-spark-1.2` when that data use is unsuitable.
 
 ## Spraying Across Models
 

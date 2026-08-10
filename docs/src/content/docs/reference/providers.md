@@ -24,7 +24,7 @@ print(next(iter(registry.values())))
 | `lm_deluge.models.google` | Google Gemini | `GEMINI_API_KEY` |
 | `lm_deluge.models.cohere` | Cohere Command + Embed models | `COHERE_API_KEY` |
 | `lm_deluge.models.mistral` | Mistral models | `MISTRAL_API_KEY` |
-| `lm_deluge.models.meta` | Meta Llama models (direct API) | `META_API_KEY` |
+| `lm_deluge.models.meta` | Meta Model API (Muse Spark) | `META_API_KEY` or `MODEL_API_KEY` |
 | `lm_deluge.models.deepseek` | DeepSeek | `DEEPSEEK_API_KEY` |
 | `lm_deluge.models.groq` | Groq-hosted Llama and Mixtral | `GROQ_API_KEY` |
 | `lm_deluge.models.grok` | xAI Grok models | `GROK_API_KEY` |
@@ -35,7 +35,17 @@ print(next(iter(registry.values())))
 | `lm_deluge.models.kimi` | Moonshot/Kimi | `KIMI_API_KEY` |
 | `lm_deluge.models.minimax` | MiniMax | `MINIMAX_API_KEY` |
 
-Some providers (Anthropic, Meta) can also be accessed through AWS Bedrock. In that case the registry entry points at the Bedrock endpoint and lists `api_key_env_var="AWS_ACCESS_KEY_ID"` with implicit use of `AWS_SECRET_ACCESS_KEY`.
+Some providers (including Anthropic and Meta models) can also be accessed through AWS Bedrock using separate Bedrock registry entries and AWS credentials.
+
+Muse Spark models support Chat Completions by default and the Responses API with
+`use_responses_api=True`. For Meta Model API credentials, `META_API_KEY` takes
+precedence over Meta's generic `MODEL_API_KEY` name. The contributor-tier model may
+use prompts and completions to train future Meta models.
+
+`LLMClient(..., stateless_responses=True)` enables client-managed Responses history
+with encrypted reasoning replay. `False` selects stored Responses history, while the
+default `None` uses the model's preferred mode. Muse Spark only supports stateless
+mode and rejects `stateless_responses=False`.
 
 ## Discovering Models at Runtime
 

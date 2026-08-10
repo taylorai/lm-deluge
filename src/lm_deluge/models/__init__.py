@@ -6,11 +6,11 @@ from dataclasses import dataclass, field
 
 from ..api_requests.bedrock_auth import has_bedrock_auth
 from ..api_requests.context import RequestContext
+from .anthropic import ANTHROPIC_MODELS
+from .arcee import ARCEE_MODELS
 
 # Import and register all provider models
 from .azure import AZURE_MODELS
-from .anthropic import ANTHROPIC_MODELS
-from .arcee import ARCEE_MODELS
 from .bedrock import BEDROCK_MODELS
 from .cerebras import CEREBRAS_MODELS
 from .cloudflare import CLOUDFLARE_MODELS
@@ -41,6 +41,7 @@ class APIModel:
     api_base: str
     api_key_env_var: str
     api_spec: str
+    api_key_env_var_fallbacks: list[str] = field(default_factory=list)
     provider: str = ""  # The actual provider (anthropic, openai, together, etc.)
     cached_input_cost: float | None = 0  # $ per million cached/read input tokens
     cache_write_cost: float | None = 0  # $ per million cache write tokens
@@ -51,11 +52,15 @@ class APIModel:
     supports_logprobs: bool = False
     supports_responses: bool = False
     reasoning_model: bool = False
+    supports_minimal_reasoning: bool = False
     supports_xhigh: bool = False
     supports_max_reasoning: bool = False
     supports_reasoning_none: bool = False
     supports_verbosity: bool = False
     omit_default_sampling_params: bool = False
+    omit_default_reasoning_effort: bool = False
+    stateless_responses: bool = False
+    requires_stateless_responses: bool = False
     regions: list[str] | dict[str, int] = field(default_factory=list)
 
     @classmethod
@@ -77,6 +82,23 @@ class APIModel:
         else:
             raise ValueError("no regions to sample")
         return random.sample(regions, 1, counts=weights)[0]
+
+    @property
+    def api_key_env_vars(self) -> tuple[str, ...]:
+        """Credential environment variables in deterministic precedence order."""
+        return tuple(
+            name
+            for name in (self.api_key_env_var, *self.api_key_env_var_fallbacks)
+            if name
+        )
+
+    def resolve_api_key(self) -> str | None:
+        """Return the first configured credential for this model."""
+        for env_var in self.api_key_env_vars:
+            value = os.environ.get(env_var)
+            if value:
+                return value
+        return None
 
     def make_request(self, context: RequestContext):
         from ..api_requests.common import CLASSES
@@ -114,13 +136,18 @@ def register_model(
     supports_logprobs: bool = False,
     supports_responses: bool = False,
     reasoning_model: bool = False,
+    supports_minimal_reasoning: bool = False,
     supports_xhigh: bool = False,
     supports_max_reasoning: bool = False,
     supports_reasoning_none: bool = False,
     supports_verbosity: bool = False,
     omit_default_sampling_params: bool = False,
+    omit_default_reasoning_effort: bool = False,
+    stateless_responses: bool = False,
+    requires_stateless_responses: bool = False,
     regions: list[str] | dict[str, int] = field(default_factory=list),
     aliases: list[str] | None = None,
+    api_key_env_var_fallbacks: list[str] | None = None,
     # tokens_per_minute: int | None = None,
     # requests_per_minute: int | None = None,
 ) -> APIModel:
@@ -136,6 +163,7 @@ def register_model(
         name=name,
         api_base=api_base,
         api_key_env_var=api_key_env_var,
+        api_key_env_var_fallbacks=list(api_key_env_var_fallbacks or []),
         api_spec=api_spec,
         provider=provider,
         cached_input_cost=cached_input_cost,
@@ -147,11 +175,15 @@ def register_model(
         supports_logprobs=supports_logprobs,
         supports_responses=supports_responses,
         reasoning_model=reasoning_model,
+        supports_minimal_reasoning=supports_minimal_reasoning,
         supports_xhigh=supports_xhigh,
         supports_max_reasoning=supports_max_reasoning,
         supports_reasoning_none=supports_reasoning_none,
         supports_verbosity=supports_verbosity,
         omit_default_sampling_params=omit_default_sampling_params,
+        omit_default_reasoning_effort=omit_default_reasoning_effort,
+        stateless_responses=stateless_responses,
+        requires_stateless_responses=requires_stateless_responses,
         regions=regions,
         # tokens_per_minute=tokens_per_minute,
         # requests_per_minute=requests_per_minute,
@@ -206,8 +238,10 @@ _PROVIDER_MODELS = [
 ]
 
 for model_dict, provider_name in _PROVIDER_MODELS:
-    for cfg in model_dict.values():
-        register_model(**cfg, provider=provider_name)  # type: ignore[arg-type]
+    for model_id, cfg in model_dict.items():
+        # The mapping key is the canonical registry ID unless a provider entry
+        # deliberately overrides it.
+        register_model(**{"id": model_id, **cfg}, provider=provider_name)  # type: ignore[arg-type]
 
 
 # print("Valid models:", registry.keys())
@@ -328,4 +362,4 @@ def find_models(
 def _has_model_auth(model: APIModel) -> bool:
     if model.api_spec == "bedrock":
         return has_bedrock_auth()
-    return bool(model.api_key_env_var and os.environ.get(model.api_key_env_var))
+    return model.resolve_api_key() is not None

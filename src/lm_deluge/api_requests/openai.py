@@ -1,8 +1,7 @@
 import json
-import os
 import traceback as tb
+from collections.abc import Sequence
 from types import SimpleNamespace
-from typing import Sequence
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -92,6 +91,8 @@ def _normalize_openai_reasoning_effort(
         maybe_warn("WARN_NONE_TO_LOW", model_name=model_name)
         return "low"
 
+    if effort == "minimal" and model.supports_minimal_reasoning:
+        return "minimal"
     if effort == "minimal" and model.supports_reasoning_none:
         maybe_warn("WARN_MINIMAL_TO_NONE", model_name=model_name)
         return "none"
@@ -165,7 +166,15 @@ async def _build_oa_chat_request(
     else:
         request_json["max_completion_tokens"] = sampling_params.max_new_tokens
     if model.reasoning_model:
-        if "gemini" in model.id and sampling_params.reasoning_effort in [None, "none"]:
+        if (
+            sampling_params.reasoning_effort is None
+            and model.omit_default_reasoning_effort
+        ):
+            effort = None
+        elif "gemini" in model.id and sampling_params.reasoning_effort in [
+            None,
+            "none",
+        ]:
             effort = "none"
         elif "mercury" in model.id and sampling_params.reasoning_effort in [
             None,
@@ -180,13 +189,14 @@ async def _build_oa_chat_request(
                 model_name=context.model_name,
             )
         # GPT-5.2+ and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
-        if model.supports_xhigh and effort != "none":
-            del request_json["temperature"]
-            del request_json["top_p"]
-        else:
+        if model.supports_xhigh and effort not in {None, "none"}:
+            request_json.pop("temperature", None)
+            request_json.pop("top_p", None)
+        elif not model.omit_default_sampling_params:
             request_json["temperature"] = 1.0
             request_json["top_p"] = 1.0
-        request_json["reasoning_effort"] = effort
+        if effort is not None:
+            request_json["reasoning_effort"] = effort
     else:
         if sampling_params.reasoning_effort:
             maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=context.model_name)
@@ -279,9 +289,7 @@ class OpenAIRequest(APIRequestBase):
 
     async def build_request(self):
         self.url = f"{self.model.api_base}/chat/completions"
-        base_headers = {
-            "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
-        }
+        base_headers = {"Authorization": f"Bearer {self.model.resolve_api_key()}"}
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["anthropic"]
         )
@@ -411,6 +419,7 @@ async def _build_oa_responses_request(
     model: APIModel,
     context: RequestContext,
 ):
+    context.validate_request_config()
     prompt = context.prompt
     sampling_params = context.sampling_params
     tools = context.tools
@@ -422,6 +431,11 @@ async def _build_oa_responses_request(
         "top_p": sampling_params.top_p,
         "background": context.background or False,
     }
+    if model.omit_default_sampling_params:
+        if sampling_params.temperature == 1.0:
+            del request_json["temperature"]
+        if sampling_params.top_p == 1.0:
+            del request_json["top_p"]
     if context.service_tier:
         assert context.service_tier in [
             "auto",
@@ -446,7 +460,15 @@ async def _build_oa_responses_request(
         request_json["max_output_tokens"] = sampling_params.max_new_tokens
 
     if model.reasoning_model:
-        if "gemini" in model.id and sampling_params.reasoning_effort in [None, "none"]:
+        if (
+            sampling_params.reasoning_effort is None
+            and model.omit_default_reasoning_effort
+        ):
+            effort = None
+        elif "gemini" in model.id and sampling_params.reasoning_effort in [
+            None,
+            "none",
+        ]:
             effort = "none"
         else:
             effort = _normalize_openai_reasoning_effort(
@@ -455,16 +477,17 @@ async def _build_oa_responses_request(
                 model_name=context.model_name,
             )
         # GPT-5.2+ and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
-        if model.supports_xhigh and effort != "none":
-            del request_json["temperature"]
-            del request_json["top_p"]
-        else:
+        if model.supports_xhigh and effort not in {None, "none"}:
+            request_json.pop("temperature", None)
+            request_json.pop("top_p", None)
+        elif not model.omit_default_sampling_params:
             request_json["temperature"] = 1.0
             request_json["top_p"] = 1.0
-        request_json["reasoning"] = {
-            "effort": effort,
-            "summary": "auto",
-        }
+        if effort is not None:
+            request_json["reasoning"] = {
+                "effort": effort,
+                "summary": "auto",
+            }
     else:
         if sampling_params.reasoning_effort:
             maybe_warn("WARN_REASONING_UNSUPPORTED", model_name=context.model_name)
@@ -553,6 +576,28 @@ async def _build_oa_responses_request(
             else:
                 request_json[key] = value
 
+    stateless_responses = (
+        context.stateless_responses
+        if context.stateless_responses is not None
+        else model.stateless_responses
+    )
+    if stateless_responses:
+        if request_json.get("store") is True:
+            raise ValueError("store=True is incompatible with stateless_responses=True")
+        raw_include = request_json.get("include")
+        if raw_include is None:
+            include = []
+        elif isinstance(raw_include, list):
+            include = list(raw_include)
+        else:
+            raise ValueError("include must be a list")
+        if "reasoning.encrypted_content" not in include:
+            include.append("reasoning.encrypted_content")
+        request_json["include"] = include
+        request_json["store"] = False
+    elif context.stateless_responses is False:
+        request_json["store"] = True
+
     return request_json
 
 
@@ -571,7 +616,7 @@ class OpenAIResponsesRequest(APIRequestBase):
     async def build_request(self):
         self.url = f"{self.model.api_base}/responses"
         self.request_header = {
-            "Authorization": f"Bearer {os.getenv(self.model.api_key_env_var)}"
+            "Authorization": f"Bearer {self.model.resolve_api_key()}"
         }
 
         self.request_json = await _build_oa_responses_request(self.model, self.context)
@@ -767,7 +812,7 @@ class OpenAIResponsesRequest(APIRequestBase):
 
                     except Exception as e:
                         is_error = True
-                        error_message = f"Error parsing {self.model.name} responses API response: {str(e)}"
+                        error_message = f"Error parsing {self.model.name} responses API response: {e!s}"
                         print("got data:", data)
                         traceback = tb.format_exc()
                         print(f"Error details:\n{traceback}")
@@ -833,7 +878,7 @@ async def stream_chat(
     if model.api_spec != "openai":
         raise ValueError("streaming only supported on openai models for now")
     url = f"{model.api_base}/chat/completions"
-    base_headers = {"Authorization": f"Bearer {os.getenv(model.api_key_env_var)}"}
+    base_headers = {"Authorization": f"Bearer {model.resolve_api_key()}"}
 
     # Merge extra headers, filtering out anthropic headers
     request_header = dict(base_headers)

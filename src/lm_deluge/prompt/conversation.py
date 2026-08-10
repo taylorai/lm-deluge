@@ -731,28 +731,30 @@ class Conversation:
         return result
 
     def to_openai_responses(self) -> dict:
-        # OpenAI Responses = single “input” array, role must be user/assistant
+        # OpenAI Responses uses a single typed input array.
         input_items = []
 
         for m in self.messages:
-            if m.role == "system":
-                continue
             if m.role == "assistant":
                 pending_message_content: list[dict] = []
                 has_tool_calls = any(isinstance(p, ToolCall) for p in m.parts)
                 message_phase = (m.extra or {}).get("phase") if m.extra else None
+                reasoning_needs_follower = False
 
-                def flush_assistant_message() -> None:
-                    nonlocal pending_message_content
+                def flush_assistant_message(
+                    phase: str | None = message_phase,
+                ) -> None:
+                    nonlocal pending_message_content, reasoning_needs_follower
                     if pending_message_content:
                         item: dict = {
                             "role": "assistant",
                             "content": pending_message_content,
                         }
-                        if message_phase is not None:
-                            item["phase"] = message_phase
+                        if phase is not None:
+                            item["phase"] = phase
                         input_items.append(item)
                         pending_message_content = []
+                        reasoning_needs_follower = False
 
                 for p in m.parts:
                     if isinstance(p, Text):
@@ -779,19 +781,35 @@ class Conversation:
                                 input_items.append(p.oa_resp())
                         else:
                             input_items.append(p.oa_resp())
+                        reasoning_needs_follower = False
                         continue
 
                     if isinstance(p, Thinking):
                         flush_assistant_message()
-                        if not has_tool_calls:
-                            continue
                         if p.raw_payload:
                             raw_id = p.raw_payload.get("id")
-                            if isinstance(raw_id, str) and raw_id.startswith("rs_"):
+                            has_encrypted_content = bool(
+                                p.raw_payload.get("encrypted_content")
+                            )
+                            if (
+                                isinstance(raw_id, str)
+                                and raw_id.startswith("rs_")
+                                and (has_tool_calls or has_encrypted_content)
+                            ):
                                 input_items.append(dict(p.raw_payload))
+                                reasoning_needs_follower = True
                         continue
 
                 flush_assistant_message()
+                if reasoning_needs_follower:
+                    # Responses requires a reasoning item to be followed by an
+                    # assistant message or function call before the next user turn.
+                    input_items.append(
+                        {
+                            "role": "assistant",
+                            "content": [{"type": "output_text", "text": ""}],
+                        }
+                    )
                 continue
 
             if m.role == "tool":

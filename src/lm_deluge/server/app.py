@@ -14,9 +14,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from lm_deluge.api_requests.bedrock_auth import has_bedrock_auth
+from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.models import APIModel, registry
 from lm_deluge.prompt import CachePattern
-from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.tracker import StatusTracker
 
 from .adapters import (
@@ -113,12 +113,9 @@ async def lifespan(app: FastAPI):
 
 def _is_model_available(api_model: APIModel) -> bool:
     """Check if model is available based on configured API keys."""
-    env_var = api_model.api_key_env_var
-    if not env_var:
-        if api_model.api_spec == "bedrock":
-            return has_bedrock_auth()
-        return False
-    return bool(os.getenv(env_var))
+    if api_model.api_spec == "bedrock":
+        return has_bedrock_auth()
+    return api_model.resolve_api_key() is not None
 
 
 def create_app(policy: ProxyModelPolicy | None = None) -> FastAPI:

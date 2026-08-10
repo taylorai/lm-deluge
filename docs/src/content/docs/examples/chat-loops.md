@@ -286,8 +286,8 @@ client = LLMClient("claude-4-sonnet")
 # Google
 client = LLMClient("gemini-2.0-flash")
 
-# Open source via inference providers
-client = LLMClient("llama-3.3-70b")
+# Meta Model API
+client = LLMClient("muse-spark-1.2", use_responses_api=True)
 
 # Multiple models with fallback
 client = LLMClient(["claude-4-sonnet", "gpt-4.1"], model_weights=[0.7, 0.3])

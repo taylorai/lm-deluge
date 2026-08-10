@@ -136,6 +136,7 @@ class _LLMClient(BaseModel):
     extra_headers: dict[str, str] | None = None
     extra_body: dict[str, Any] | None = None
     use_responses_api: bool = False
+    stateless_responses: bool | None = None
     background: bool = False
     # sampling params - if provided, and sampling_params is not,
     # these override the defaults
@@ -589,6 +590,32 @@ class _LLMClient(BaseModel):
             assert self.use_responses_api, (
                 "background mode only allowed for responses api"
             )
+
+        if self.stateless_responses is not None and not self.use_responses_api:
+            raise ValueError(
+                "stateless_responses is only valid when use_responses_api=True"
+            )
+
+        for model_name in self.model_names:
+            model = registry[model_name]
+            effective_stateless = (
+                self.stateless_responses
+                if self.stateless_responses is not None
+                else model.stateless_responses
+            )
+            if (
+                self.use_responses_api
+                and model.requires_stateless_responses
+                and not effective_stateless
+            ):
+                raise ValueError(
+                    f"Model '{model_name}' requires stateless_responses=True"
+                )
+            if self.use_responses_api and self.background and effective_stateless:
+                raise ValueError(
+                    "background=True is incompatible with stateless Responses "
+                    f"requests for model '{model_name}'"
+                )
 
         # codex models require responses api
         for model_name in self.model_names:
@@ -1180,6 +1207,7 @@ class _LLMClient(BaseModel):
             output_schema=output_schema,
             cache=cache,
             use_responses_api=self.use_responses_api,
+            stateless_responses=self.stateless_responses,
             background=self.background,
             service_tier=service_tier,
             extra_headers=self.extra_headers,
@@ -1860,6 +1888,7 @@ def LLMClient(
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
     use_responses_api: bool = False,
+    stateless_responses: bool | None = None,
     background: bool = False,
     temperature: float = 1.0,
     top_p: float = 1.0,
@@ -1900,6 +1929,7 @@ def LLMClient(
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
     use_responses_api: bool = False,
+    stateless_responses: bool | None = None,
     background: bool = False,
     temperature: float = 1.0,
     top_p: float = 1.0,
@@ -1939,6 +1969,7 @@ def LLMClient(
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
     use_responses_api: bool = False,
+    stateless_responses: bool | None = None,
     background: bool = False,
     temperature: float = 1.0,
     top_p: float = 1.0,
@@ -1990,6 +2021,7 @@ def LLMClient(
         extra_headers=extra_headers,
         extra_body=extra_body,
         use_responses_api=use_responses_api,
+        stateless_responses=stateless_responses,
         background=background,
         temperature=temperature,
         top_p=top_p,
