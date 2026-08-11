@@ -1121,15 +1121,30 @@ class _LLMClient(BaseModel):
                 return response
             current = await retry_queue.get()
 
-    async def _run_context_with_tool_loop(self, context: RequestContext) -> APIResponse:
+    async def _run_context_with_tool_loop(
+        self,
+        context: RequestContext,
+        max_rounds: int,
+        on_message: Callable[[Message], Awaitable[None]] | None,
+    ) -> APIResponse:
         expanded_tools = await self._expand_executable_tools(context.tools)
 
         working = Conversation(
-            [Message(m.role, list(m.parts)) for m in context.prompt.messages]
+            [
+                Message(
+                    m.role,
+                    list(m.parts),
+                    extra=dict(m.extra) if m.extra is not None else None,
+                )
+                for m in context.prompt.messages
+            ],
+            model_used=context.prompt.model_used,
         )
         current_container_id = context.container_id
         last_response: APIResponse | None = None
-        max_rounds = 100
+        loop_stop_reason: Literal["no_tool_calls", "max_rounds", "error"] = (
+            "no_tool_calls"
+        )
 
         for round_num in range(max_rounds):
             if round_num > 0 and context.status_tracker is not None:
@@ -1145,12 +1160,21 @@ class _LLMClient(BaseModel):
             if response.container_id:
                 current_container_id = response.container_id
 
-            if response.content is None:
+            if response.is_error or response.content is None:
+                loop_stop_reason = "error"
                 break
 
-            working = working.with_message(response.content)
+            working = working.with_message(
+                response.content, model_used=response.model_internal
+            )
+            if on_message is not None:
+                await on_message(response.content)
+
             tool_calls = response.content.tool_calls_to_execute
             if not tool_calls:
+                break
+            if round_num == max_rounds - 1:
+                loop_stop_reason = "max_rounds"
                 break
 
             results = await execute_tool_calls(tool_calls, expanded_tools)
@@ -1169,13 +1193,28 @@ class _LLMClient(BaseModel):
                         built_in_type=call.built_in_type,
                     )
                 )
-            working = working.with_message(Message("tool", tool_parts))
+            tool_message = Message("tool", tool_parts)
+            working = working.with_message(tool_message)
+            if on_message is not None:
+                await on_message(tool_message)
 
         if last_response is None:
             raise RuntimeError("model did not return a response")
 
+        last_response.trajectory = working
+        last_response.loop_stop_reason = loop_stop_reason
         self._results[context.task_id] = last_response
         return last_response
+
+    async def _run_context_single_with_message_callback(
+        self,
+        context: RequestContext,
+        on_message: Callable[[Message], Awaitable[None]],
+    ) -> APIResponse:
+        response = await self._run_context_single(context)
+        if response.content is not None:
+            await on_message(response.content)
+        return response
 
     def start_nowait(
         self,
@@ -1189,7 +1228,12 @@ class _LLMClient(BaseModel):
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
         http_session: aiohttp.ClientSession | None = None,
+        max_rounds: int = 100,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
     ) -> int:
+        if max_rounds < 1:
+            raise ValueError("max_rounds must be at least 1")
+
         task_id = self._next_task_id
         prompt = prompts_to_conversations([prompt])[0]
         model, sampling_params = self._resolve_model(prefer_model, prompt)
@@ -1220,7 +1264,13 @@ class _LLMClient(BaseModel):
         context.status_tracker = tracker
         self._next_task_id += 1
         if self._should_auto_tool_loop(tools):
-            task = asyncio.create_task(self._run_context_with_tool_loop(context))
+            task = asyncio.create_task(
+                self._run_context_with_tool_loop(context, max_rounds, on_message)
+            )
+        elif on_message is not None:
+            task = asyncio.create_task(
+                self._run_context_single_with_message_callback(context, on_message)
+            )
         else:
             task = asyncio.create_task(self._run_context_single(context))
         self._tasks[task_id] = task
@@ -1238,6 +1288,8 @@ class _LLMClient(BaseModel):
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
+        max_rounds: int = 100,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
     ) -> APIResponse:
         return await self._start_once(
             prompt,
@@ -1248,6 +1300,8 @@ class _LLMClient(BaseModel):
             cache=cache,
             service_tier=service_tier,
             prefer_model=prefer_model,
+            max_rounds=max_rounds,
+            on_message=on_message,
         )
 
     async def _start_once(
@@ -1262,6 +1316,8 @@ class _LLMClient(BaseModel):
         service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
         prefer_model: str | None = None,
         http_session: aiohttp.ClientSession | None = None,
+        max_rounds: int = 100,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
     ) -> APIResponse:
         task_id = self.start_nowait(
             prompt,
@@ -1273,6 +1329,8 @@ class _LLMClient(BaseModel):
             service_tier=service_tier,
             prefer_model=prefer_model,
             http_session=http_session,
+            max_rounds=max_rounds,
+            on_message=on_message,
         )
         return await self.wait_for(task_id)
 

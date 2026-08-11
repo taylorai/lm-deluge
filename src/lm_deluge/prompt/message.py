@@ -1,9 +1,10 @@
 import base64
 import io
 import json
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from lm_deluge.warnings import deprecated
 
@@ -89,39 +90,56 @@ class Message:
         """Get all thinking parts with proper typing."""
         return [part for part in self.parts if part.type == "thinking"]  # type: ignore
 
-    def to_log(self, *, preserve_media: bool = False) -> dict:
+    def to_log(
+        self,
+        *,
+        lossless: bool = True,
+        preserve_media: bool | None = None,
+    ) -> dict:
         """
-        Return a JSON-serialisable dict that fully captures the message.
+        Return a JSON-serialisable v2 log representation of the message.
 
         Args:
-            preserve_media: If True, store full base64-encoded bytes for images and files.
-                           If False (default), replace with placeholder tags.
+            lossless: Preserve media and opaque provider payloads. This is the default.
+            preserve_media: Deprecated compatibility alias. When provided, it overrides
+                ``lossless`` (True selects lossless mode, False selects compact mode).
         """
+        if preserve_media is not None:
+            warnings.warn(
+                "preserve_media is deprecated; use lossless instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            lossless = preserve_media
+
+        def serialize_media_part(part: Text | Image) -> dict:
+            if isinstance(part, Text):
+                block: dict = {"type": "text", "text": part.text}
+                signature = serialize_signature(part.thought_signature)
+                if signature is not None:
+                    block["thought_signature"] = signature
+                return block
+
+            if lossless:
+                return {
+                    "type": "image",
+                    "data": base64.b64encode(part._bytes()).decode("ascii"),
+                    "media_type": part.media_type,
+                    "detail": part.detail,
+                }
+            width, height = part.size
+            return {
+                "type": "image",
+                "omitted": "media",
+                "tag": f"<Image {width}×{height}>",
+            }
+
         content_blocks: list[dict] = []
         for p in self.parts:
-            if isinstance(p, Text):
-                text_block: dict = {"type": "text", "text": p.text}
-                signature = serialize_signature(p.thought_signature)
-                if signature is not None:
-                    text_block["thought_signature"] = signature
-                content_blocks.append(text_block)
-            elif isinstance(p, Image):
-                if preserve_media:
-                    content_blocks.append(
-                        {
-                            "type": "image",
-                            "data": base64.b64encode(p._bytes()).decode("ascii"),
-                            "media_type": p.media_type,
-                            "detail": p.detail,
-                        }
-                    )
-                else:
-                    w, h = p.size
-                    content_blocks.append(
-                        {"type": "image", "tag": f"<Image ({w}×{h})>"}
-                    )
+            if isinstance(p, (Text, Image)):
+                content_blocks.append(serialize_media_part(p))
             elif isinstance(p, File):
-                if preserve_media:
+                if lossless:
                     content_blocks.append(
                         {
                             "type": "file",
@@ -133,37 +151,66 @@ class Message:
                 else:
                     size = p.size
                     content_blocks.append(
-                        {"type": "file", "tag": f"<File ({size} bytes)>"}
+                        {
+                            "type": "file",
+                            "omitted": "media",
+                            "tag": f"<File {size} bytes>",
+                        }
                     )
             elif isinstance(p, ToolCall):
-                tool_call_block = {
+                tool_call_block: dict = {
                     "type": "tool_call",
                     "id": p.id,
                     "name": p.name,
                     "arguments": json_safe(p.arguments),
+                    "built_in": p.built_in,
+                    "built_in_type": p.built_in_type,
                 }
+                if p.extra_body is not None:
+                    extra_body = dict(p.extra_body)
+                    if not lossless:
+                        extra_body.pop("raw_item", None)
+                    tool_call_block["extra_body"] = json_safe(extra_body)
                 signature = serialize_signature(p.thought_signature)
                 if signature is not None:
                     tool_call_block["thought_signature"] = signature
                 content_blocks.append(tool_call_block)
             elif isinstance(p, ToolResult):
+                if isinstance(p.result, list):
+                    serialized_result: Any = [
+                        serialize_media_part(part) for part in p.result
+                    ]
+                else:
+                    serialized_result = json_safe(p.result)
                 content_blocks.append(
                     {
                         "type": "tool_result",
                         "tool_call_id": p.tool_call_id,
-                        "result": json_safe(p.result),
+                        "result": serialized_result,
+                        "built_in": p.built_in,
+                        "built_in_type": p.built_in_type,
+                        "files": json_safe(p.files),
                     }
                 )
             elif isinstance(p, Thinking):
-                thinking_block: dict = {"type": "thinking", "content": p.content}
-                if p.id is not None:
-                    thinking_block["id"] = p.id
+                thinking_block: dict = {
+                    "type": "thinking",
+                    "content": p.content,
+                    "id": p.id,
+                    "summary": p.summary,
+                }
+                if lossless and p.raw_payload is not None:
+                    thinking_block["raw_payload"] = json_safe(p.raw_payload)
                 signature = serialize_signature(p.thought_signature)
                 if signature is not None:
                     thinking_block["thought_signature"] = signature
                 content_blocks.append(thinking_block)
 
-        result: dict = {"role": self.role, "content": content_blocks}
+        result: dict = {
+            "log_version": 2,
+            "role": self.role,
+            "content": content_blocks,
+        }
         if self.extra:
             result["extra"] = json_safe(self.extra)
         return result
@@ -171,16 +218,32 @@ class Message:
     @classmethod
     def from_log(cls, data: dict) -> "Message":
         """Re-hydrate a Message previously produced by `to_log()`."""
-        import base64
-
         role: Role = data["role"]
         parts: list[Part] = []
 
-        for p in data["content"]:
+        def deserialize_tool_result_part(part: dict) -> ToolResultPart:
+            if part.get("type") == "text":
+                return Text(
+                    part.get("text", ""),
+                    thought_signature=deserialize_signature(
+                        part.get("thought_signature")
+                    ),
+                )
+            if part.get("type") == "image":
+                if "data" in part:
+                    return Image(
+                        data=base64.b64decode(part["data"]),
+                        media_type=part.get("media_type"),
+                        detail=part.get("detail", "auto"),
+                    )
+                return Text(part.get("tag", "<Image omitted>"))
+            raise ValueError(f"Unknown tool result part type {part.get('type')!r}")
+
+        for p in data.get("content", []):
             if p["type"] == "text":
                 parts.append(
                     Text(
-                        p["text"],
+                        p.get("text", ""),
                         thought_signature=deserialize_signature(
                             p.get("thought_signature")
                         ),
@@ -197,8 +260,8 @@ class Message:
                         )
                     )
                 else:
-                    # Placeholder tag only
-                    parts.append(Text(p["tag"]))
+                    # v1 placeholder or v2 typed omission marker.
+                    parts.append(Text(p.get("tag", "<Image omitted>")))
             elif p["type"] == "file":
                 if "data" in p:
                     # Full file data was preserved
@@ -210,31 +273,51 @@ class Message:
                         )
                     )
                 else:
-                    # Placeholder tag only
-                    parts.append(Text(p["tag"]))
+                    # v1 placeholder or v2 typed omission marker.
+                    parts.append(Text(p.get("tag", "<File omitted>")))
             elif p["type"] == "tool_call":
                 parts.append(
                     ToolCall(
-                        id=p["id"],
-                        name=p["name"],
-                        arguments=p["arguments"],
+                        id=p.get("id", ""),
+                        name=p.get("name", ""),
+                        arguments=p.get("arguments", {}),
+                        built_in=p.get("built_in", False),
+                        built_in_type=p.get("built_in_type"),
+                        extra_body=p.get("extra_body"),
                         thought_signature=deserialize_signature(
                             p.get("thought_signature")
                         ),
                     )
                 )
             elif p["type"] == "tool_result":
+                serialized_result = p.get("result", "")
+                if isinstance(serialized_result, list):
+                    tool_result: str | dict | list[ToolResultPart] = [
+                        deserialize_tool_result_part(part)
+                        for part in serialized_result
+                        if isinstance(part, dict)
+                    ]
+                else:
+                    tool_result = serialized_result
                 parts.append(
-                    ToolResult(tool_call_id=p["tool_call_id"], result=p["result"])
+                    ToolResult(
+                        tool_call_id=p.get("tool_call_id", ""),
+                        result=tool_result,
+                        built_in=p.get("built_in", False),
+                        built_in_type=p.get("built_in_type"),
+                        files=p.get("files"),
+                    )
                 )
             elif p["type"] == "thinking":
                 parts.append(
                     Thinking(
-                        content=p["content"],
+                        content=p.get("content", ""),
+                        raw_payload=p.get("raw_payload"),
                         id=p.get("id"),
                         thought_signature=deserialize_signature(
                             p.get("thought_signature")
                         ),
+                        summary=p.get("summary"),
                     )
                 )
             else:

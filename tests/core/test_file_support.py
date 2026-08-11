@@ -326,8 +326,8 @@ def test_file_to_log_and_from_log():
         pdf_bytes, filename="test.pdf"
     )
 
-    # Test to_log without preserve_media (should redact file bytes)
-    log_data = msg.to_log()
+    # Test compact logging (should redact file bytes)
+    log_data = msg.to_log(lossless=False)
     assert len(log_data["content"]) == 2
 
     file_block = log_data["content"][1]
@@ -341,8 +341,8 @@ def test_file_to_log_and_from_log():
     assert isinstance(restored_msg.parts[1], Text)
     assert "bytes" in restored_msg.parts[1].text
 
-    # Test to_log with preserve_media=True (should include full data)
-    log_data_full = msg.to_log(preserve_media=True)
+    # Test lossless logging (the default; should include full data)
+    log_data_full = msg.to_log()
     assert len(log_data_full["content"]) == 2
 
     file_block_full = log_data_full["content"][1]

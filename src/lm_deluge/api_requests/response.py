@@ -1,6 +1,7 @@
 import json
 import random
 from dataclasses import dataclass
+from typing import Literal
 
 from lm_deluge.prompt import Conversation, Message
 from lm_deluge.usage import Usage
@@ -47,6 +48,9 @@ class APIResponse:
     container_id: str | None = None
     # Raw API response for debugging
     raw_response: dict | None = None
+    # Responses API automatic tool-loop metadata (in-memory only)
+    trajectory: Conversation | None = None
+    loop_stop_reason: Literal["no_tool_calls", "max_rounds", "error"] | None = None
 
     @property
     def completion(self) -> str | None:
@@ -123,7 +127,10 @@ class APIResponse:
             #     f"Warning: Completion provided without token counts for model {self.model_internal}."
             # )
         if isinstance(self.prompt, Conversation):
-            self.prompt = self.prompt.to_log()  # avoid keeping images in memory
+            # APIResponse prompt snapshots are diagnostic metadata, not durable
+            # conversation logs. Keep their historical compact behavior so a
+            # response does not retain prompt media bytes in memory.
+            self.prompt = self.prompt.to_log(lossless=False)
 
     def to_dict(self):
         return {

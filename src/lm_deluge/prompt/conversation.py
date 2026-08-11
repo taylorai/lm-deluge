@@ -1,5 +1,5 @@
-import base64
 import json
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -14,9 +14,7 @@ from .image import Image
 from .message import Message
 from .signatures import (
     ThoughtSignature,
-    deserialize_signature,
     normalize_signature,
-    serialize_signature,
 )
 from .text import Text
 from .thinking import Thinking
@@ -1039,86 +1037,32 @@ class Conversation:
         hasher.update(json.dumps([m.fingerprint for m in self.messages]).encode())
         return hasher.hexdigest()
 
-    def to_log(self, *, preserve_media: bool = False) -> dict:
+    def to_log(
+        self,
+        *,
+        lossless: bool = True,
+        preserve_media: bool | None = None,
+    ) -> dict:
         """
-        Return a JSON-serialisable dict that fully captures the conversation.
+        Return a JSON-serialisable v2 log representation of the conversation.
 
         Args:
-            preserve_media: If True, store full base64-encoded bytes for images and files.
-                           If False (default), replace with placeholder tags.
+            lossless: Preserve media and opaque provider payloads. This is the default.
+            preserve_media: Deprecated compatibility alias. When provided, it overrides
+                ``lossless`` (True selects lossless mode, False selects compact mode).
         """
+        if preserve_media is not None:
+            warnings.warn(
+                "preserve_media is deprecated; use lossless instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            lossless = preserve_media
 
-        serialized: list[dict] = []
-
-        for msg in self.messages:
-            content_blocks: list[dict] = []
-            for p in msg.parts:
-                if isinstance(p, Text):
-                    text_block: dict = {"type": "text", "text": p.text}
-                    signature = serialize_signature(p.thought_signature)
-                    if signature is not None:
-                        text_block["thought_signature"] = signature
-                    content_blocks.append(text_block)
-                elif isinstance(p, Image):
-                    if preserve_media:
-                        content_blocks.append(
-                            {
-                                "type": "image",
-                                "data": base64.b64encode(p._bytes()).decode("ascii"),
-                                "media_type": p.media_type,
-                                "detail": p.detail,
-                            }
-                        )
-                    else:
-                        w, h = p.size
-                        content_blocks.append(
-                            {"type": "image", "tag": f"<Image ({w}×{h})>"}
-                        )
-                elif isinstance(p, File):
-                    if preserve_media:
-                        content_blocks.append(
-                            {
-                                "type": "file",
-                                "data": base64.b64encode(p._bytes()).decode("ascii"),
-                                "media_type": p.media_type,
-                                "filename": p.filename,
-                            }
-                        )
-                    else:
-                        size = p.size
-                        content_blocks.append(
-                            {"type": "file", "tag": f"<File ({size} bytes)>"}
-                        )
-                elif isinstance(p, ToolCall):
-                    tool_call_block = {
-                        "type": "tool_call",
-                        "id": p.id,
-                        "name": p.name,
-                        "arguments": p.arguments,
-                    }
-                    signature = serialize_signature(p.thought_signature)
-                    if signature is not None:
-                        tool_call_block["thought_signature"] = signature
-                    content_blocks.append(tool_call_block)
-                elif isinstance(p, ToolResult):
-                    content_blocks.append(
-                        {
-                            "type": "tool_result",
-                            "tool_call_id": p.tool_call_id,
-                            "result": p.result
-                            if isinstance(p.result, str)
-                            else f"<Tool result ({len(p.result)} blocks)>",
-                        }
-                    )
-                elif isinstance(p, Thinking):
-                    thinking_block: dict = {"type": "thinking", "content": p.content}
-                    signature = serialize_signature(p.thought_signature)
-                    if signature is not None:
-                        thinking_block["thought_signature"] = signature
-                    content_blocks.append(thinking_block)
-            serialized.append({"role": msg.role, "content": content_blocks})
-
-        result: dict[str, Any] = {"messages": serialized}
+        result: dict[str, Any] = {
+            "log_version": 2,
+            "messages": [msg.to_log(lossless=lossless) for msg in self.messages],
+        }
         if self.model_used is not None:
             result["model_used"] = self.model_used
         return result
@@ -1231,77 +1175,9 @@ class Conversation:
     @classmethod
     def from_log(cls, payload: dict) -> "Conversation":
         """Re-hydrate a Conversation previously produced by `to_log()`."""
-
-        msgs: list[Message] = []
-
-        for m in payload.get("messages", []):
-            role: Role = m["role"]  # 'system' | 'user' | 'assistant'
-            parts: list[Part] = []
-
-            for p in m["content"]:
-                if p["type"] == "text":
-                    parts.append(
-                        Text(
-                            p["text"],
-                            thought_signature=deserialize_signature(
-                                p.get("thought_signature")
-                            ),
-                        )
-                    )
-                elif p["type"] == "image":
-                    if "data" in p:
-                        # Full image data was preserved
-                        parts.append(
-                            Image(
-                                data=base64.b64decode(p["data"]),
-                                media_type=p.get("media_type"),
-                                detail=p.get("detail", "auto"),
-                            )
-                        )
-                    else:
-                        # Placeholder tag only
-                        parts.append(Text(p["tag"]))
-                elif p["type"] == "file":
-                    if "data" in p:
-                        # Full file data was preserved
-                        parts.append(
-                            File(
-                                data=base64.b64decode(p["data"]),
-                                media_type=p.get("media_type"),
-                                filename=p.get("filename"),
-                            )
-                        )
-                    else:
-                        # Placeholder tag only
-                        parts.append(Text(p["tag"]))
-                elif p["type"] == "tool_call":
-                    parts.append(
-                        ToolCall(
-                            id=p["id"],
-                            name=p["name"],
-                            arguments=p["arguments"],
-                            thought_signature=deserialize_signature(
-                                p.get("thought_signature")
-                            ),
-                        )
-                    )
-                elif p["type"] == "tool_result":
-                    parts.append(
-                        ToolResult(tool_call_id=p["tool_call_id"], result=p["result"])
-                    )
-                elif p["type"] == "thinking":
-                    parts.append(
-                        Thinking(
-                            content=p["content"],
-                            id=p.get("id"),
-                            thought_signature=deserialize_signature(
-                                p.get("thought_signature")
-                            ),
-                        )
-                    )
-                else:
-                    raise ValueError(f"Unknown part type {p['type']!r}")
-
-            msgs.append(Message(role, parts))
-
+        msgs = [
+            Message.from_log(message)
+            for message in payload.get("messages", [])
+            if isinstance(message, dict)
+        ]
         return cls(msgs, model_used=payload.get("model_used"))
