@@ -58,6 +58,10 @@ class StreamableHTTPTransport(Transport):
         self._session: aiohttp.ClientSession | None = None
 
     async def connect(self) -> None:
+        if self._session is not None and not self._session.closed:
+            raise RuntimeError("HTTP transport already connected")
+
+        self.session_id = None
         timeout = aiohttp.ClientTimeout(
             total=self.read_timeout,
             connect=self.timeout,
@@ -65,9 +69,11 @@ class StreamableHTTPTransport(Transport):
         self._session = aiohttp.ClientSession(timeout=timeout)
 
     async def close(self) -> None:
-        if self._session:
-            await self._session.close()
-            self._session = None
+        session = self._session
+        self._session = None
+        self.session_id = None
+        if session and not session.closed:
+            await session.close()
 
     def _build_headers(self) -> dict[str, str]:
         headers = {
@@ -80,7 +86,8 @@ class StreamableHTTPTransport(Transport):
         return headers
 
     async def send_request(self, method: str, params: Any, request_id: int) -> dict:
-        if not self._session:
+        session = self._session
+        if session is None or session.closed:
             raise RuntimeError("Transport not connected")
 
         message: dict[str, Any] = {
@@ -92,7 +99,7 @@ class StreamableHTTPTransport(Transport):
         if params is not None:
             message["params"] = params
 
-        async with self._session.post(
+        async with session.post(
             self.url,
             json=message,
             headers=self._build_headers(),
@@ -133,14 +140,15 @@ class StreamableHTTPTransport(Transport):
         raise RuntimeError("SSE stream ended without response")
 
     async def send_notification(self, method: str, params: Any = None) -> None:
-        if not self._session:
+        session = self._session
+        if session is None or session.closed:
             raise RuntimeError("Transport not connected")
 
         message: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             message["params"] = params
 
-        async with self._session.post(
+        async with session.post(
             self.url,
             json=message,
             headers=self._build_headers(),
@@ -171,11 +179,18 @@ class StdioTransport(Transport):
         self.cwd = cwd
         self._process: asyncio.subprocess.Process | None = None
         self._read_buffer = ""
+        self._reader_task: asyncio.Task[None] | None = None
+        self._stderr_task: asyncio.Task[None] | None = None
+        self._pending: dict[int, asyncio.Future[dict]] = {}
+        self._write_lock = asyncio.Lock()
+        self._reader_error: Exception | None = None
 
     async def connect(self) -> None:
-        full_env = {**os.environ, **(self.env or {})}
+        if self._process is not None and self._process.returncode is None:
+            raise RuntimeError("Stdio transport already connected")
 
-        self._process = await asyncio.create_subprocess_exec(
+        full_env = {**os.environ, **(self.env or {})}
+        process = await asyncio.create_subprocess_exec(
             self.command,
             *self.args,
             stdin=asyncio.subprocess.PIPE,
@@ -184,20 +199,51 @@ class StdioTransport(Transport):
             env=full_env,
             cwd=self.cwd,
         )
+        self._process = process
+        self._read_buffer = ""
+        self._reader_error = None
+        self._reader_task = asyncio.create_task(self._read_loop(process))
+        self._stderr_task = asyncio.create_task(self._drain_stderr(process))
 
     async def close(self) -> None:
-        if self._process:
-            if self._process.stdin:
-                self._process.stdin.close()
-            self._process.terminate()
+        process = self._process
+        reader_task = self._reader_task
+        stderr_task = self._stderr_task
+
+        self._process = None
+        self._reader_task = None
+        self._stderr_task = None
+        self._read_buffer = ""
+        self._fail_pending(ConnectionError("Stdio transport closed"))
+
+        if reader_task:
+            reader_task.cancel()
+        if stderr_task:
+            stderr_task.cancel()
+
+        tasks = [task for task in (reader_task, stderr_task) if task]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        if process:
+            if process.stdin:
+                process.stdin.close()
+            if process.returncode is None:
+                process.terminate()
             try:
-                await asyncio.wait_for(self._process.wait(), timeout=5.0)
+                await asyncio.wait_for(process.wait(), timeout=5.0)
             except asyncio.TimeoutError:
-                self._process.kill()
-                await self._process.wait()
-            self._process = None
+                process.kill()
+                await process.wait()
 
     async def send_request(self, method: str, params: Any, request_id: int) -> dict:
+        if self._reader_error is not None:
+            raise ConnectionError(
+                "Stdio transport reader failed"
+            ) from self._reader_error
+        if request_id in self._pending:
+            raise RuntimeError(f"Duplicate MCP request ID: {request_id}")
+
         message: dict[str, Any] = {
             "jsonrpc": "2.0",
             "id": request_id,
@@ -206,8 +252,18 @@ class StdioTransport(Transport):
         # Only include params if not None - some servers don't handle null params
         if params is not None:
             message["params"] = params
-        await self._write(message)
-        return await self._read_response(request_id)
+
+        future = asyncio.get_running_loop().create_future()
+        self._pending[request_id] = future
+        try:
+            await self._write(message)
+            return await future
+        finally:
+            pending = self._pending.get(request_id)
+            if pending is future:
+                self._pending.pop(request_id, None)
+            if not future.done():
+                future.cancel()
 
     async def send_notification(self, method: str, params: Any = None) -> None:
         message: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
@@ -216,30 +272,52 @@ class StdioTransport(Transport):
         await self._write(message)
 
     async def _write(self, message: dict) -> None:
-        if not self._process or not self._process.stdin:
-            raise RuntimeError("Transport not connected")
+        async with self._write_lock:
+            process = self._process
+            if not process or not process.stdin:
+                raise RuntimeError("Transport not connected")
 
-        data = json.dumps(message) + "\n"
-        self._process.stdin.write(data.encode())
-        await self._process.stdin.drain()
+            data = json.dumps(message) + "\n"
+            process.stdin.write(data.encode())
+            await process.stdin.drain()
 
-    async def _read_response(self, request_id: int) -> dict:
-        if not self._process or not self._process.stdout:
-            raise RuntimeError("Transport not connected")
+    async def _read_loop(self, process: asyncio.subprocess.Process) -> None:
+        """Own stdout reads and route responses to their request futures."""
+        if not process.stdout:
+            self._fail_pending(ConnectionError("Stdio transport has no stdout"))
+            return
 
-        while True:
-            # Read more data if we don't have a complete line
-            while "\n" not in self._read_buffer:
-                chunk = await self._process.stdout.read(4096)
+        try:
+            while True:
+                chunk = await process.stdout.read(4096)
                 if not chunk:
                     raise ConnectionError("Server closed connection")
                 self._read_buffer += chunk.decode()
 
-            # Extract first complete line
-            line, self._read_buffer = self._read_buffer.split("\n", 1)
-            if line.strip():
-                message = json.loads(line)
-                # Return if this is our response, otherwise keep reading
-                # (could be a notification from the server)
-                if message.get("id") == request_id:
-                    return message
+                while "\n" in self._read_buffer:
+                    line, self._read_buffer = self._read_buffer.split("\n", 1)
+                    if not line.strip():
+                        continue
+
+                    message = json.loads(line)
+                    request_id = message.get("id")
+                    future = self._pending.get(request_id)
+                    if future is not None and not future.done():
+                        future.set_result(message)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - background task failure boundary
+            self._reader_error = exc
+            self._fail_pending(exc)
+
+    async def _drain_stderr(self, process: asyncio.subprocess.Process) -> None:
+        """Prevent verbose MCP servers from blocking on a full stderr pipe."""
+        if not process.stderr:
+            return
+        while await process.stderr.read(4096):
+            pass
+
+    def _fail_pending(self, exc: Exception) -> None:
+        for future in list(self._pending.values()):
+            if not future.done():
+                future.set_exception(exc)

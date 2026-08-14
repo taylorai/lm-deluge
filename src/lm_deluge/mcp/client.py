@@ -1,5 +1,6 @@
 """MCP Client implementation - replaces fastmcp.Client."""
 
+import asyncio
 from typing import Any
 
 from .transports import StdioTransport, StreamableHTTPTransport, Transport
@@ -62,6 +63,9 @@ class MCPClient:
         """
         self._request_id = 0
         self._transport: Transport
+        self._lifecycle_lock = asyncio.Lock()
+        self._active_contexts = 0
+        self._connected = False
 
         if config:
             servers = config.get("mcpServers", config)
@@ -101,13 +105,44 @@ class MCPClient:
         else:
             raise ValueError("Must provide config, url, or command")
 
-    async def __aenter__(self) -> "MCPClient":
-        await self._transport.connect()
-        await self._initialize()
-        return self
+    async def __aenter__(self) -> "MCPClient":  # noqa: PYI034 - Python 3.10 support
+        # Only connection lifecycle is serialized. Once this method returns,
+        # requests from all active contexts may run concurrently.
+        async with self._lifecycle_lock:
+            if not self._connected:
+                try:
+                    await self._transport.connect()
+                    await self._initialize()
+                except BaseException:
+                    await self._close_transport()
+                    raise
+                self._connected = True
+
+            self._active_contexts += 1
+            return self
 
     async def __aexit__(self, *args) -> None:
-        await self._transport.close()
+        async with self._lifecycle_lock:
+            if self._active_contexts <= 0:
+                raise RuntimeError("MCPClient context exited without a matching entry")
+
+            self._active_contexts -= 1
+            if self._active_contexts == 0:
+                try:
+                    await self._close_transport()
+                finally:
+                    self._connected = False
+
+    async def _close_transport(self) -> None:
+        """Close the transport without letting caller cancellation interrupt cleanup."""
+        close_task = asyncio.create_task(self._transport.close())
+        try:
+            await asyncio.shield(close_task)
+        except asyncio.CancelledError:
+            # A context exit must not leave a half-closed transport that a later
+            # entry could accidentally reuse. Preserve cancellation after cleanup.
+            await close_task
+            raise
 
     def _next_id(self) -> int:
         self._request_id += 1
