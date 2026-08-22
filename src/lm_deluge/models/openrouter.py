@@ -66,6 +66,17 @@ OPENROUTER_MODELS = {
         "supports_json": True,
         "api_spec": "openai",
     },
+    "glm-5.3-openrouter": {
+        "id": "glm-5.3-openrouter",
+        "name": "z-ai/glm-5.3",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "input_cost": 1.40,
+        "cached_input_cost": 0.26,
+        "output_cost": 4.40,
+    },
     "nemotron-3-ultra-openrouter": {
         "id": "nemotron-3-ultra-openrouter",
         "name": "nvidia/nemotron-3-ultra-550b-a55b",
