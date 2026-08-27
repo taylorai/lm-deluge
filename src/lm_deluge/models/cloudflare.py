@@ -1,5 +1,25 @@
 CLOUDFLARE_MODELS = {
     # --- Moonshot AI ---
+    "kimi-k2.7-code-cf": {
+        "id": "kimi-k2.7-code-cf",
+        "name": "@cf/moonshotai/kimi-k2.7-code",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "supports_images": True,
+        "reasoning_model": True,
+    },
+    "kimi-k2.6-cf": {
+        "id": "kimi-k2.6-cf",
+        "name": "@cf/moonshotai/kimi-k2.6",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "supports_images": True,
+        "reasoning_model": True,
+    },
     "kimi-k2.5-cf": {
         "id": "kimi-k2.5-cf",
         "name": "@cf/moonshotai/kimi-k2.5",
@@ -11,9 +31,58 @@ CLOUDFLARE_MODELS = {
         "reasoning_model": True,
     },
     # --- Zhipu AI ---
+    "glm-5.3-flash-cf": {
+        "id": "glm-5.3-flash-cf",
+        "name": "@cf/zai-org/glm-5.3-flash",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "supports_images": True,
+        "reasoning_model": True,
+    },
+    "glm-5.2-cf": {
+        "id": "glm-5.2-cf",
+        "name": "@cf/zai-org/glm-5.2",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "reasoning_model": True,
+    },
     "glm-4.7-flash-cf": {
         "id": "glm-4.7-flash-cf",
         "name": "@cf/zai-org/glm-4.7-flash",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "reasoning_model": True,
+    },
+    # --- Qwen ---
+    "qwen3.8-27b-cf": {
+        "id": "qwen3.8-27b-cf",
+        "name": "@cf/qwen/qwen3.8-27b",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "supports_images": True,
+        "reasoning_model": True,
+    },
+    # --- DeepSeek ---
+    "deepseek-v4-pro-0813-cf": {
+        "id": "deepseek-v4-pro-0813-cf",
+        "name": "@cf/deepseek-ai/deepseek-v4-pro-0813",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "reasoning_model": True,
+    },
+    "deepseek-v4-flash-0731-cf": {
+        "id": "deepseek-v4-flash-0731-cf",
+        "name": "@cf/deepseek-ai/deepseek-v4-flash-0731",
         "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
         "api_key_env_var": "CLOUDFLARE_API_TOKEN",
         "api_spec": "cloudflare",
@@ -54,5 +123,14 @@ CLOUDFLARE_MODELS = {
         "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
         "api_key_env_var": "CLOUDFLARE_API_TOKEN",
         "api_spec": "cloudflare",
+    },
+    # --- Moondream ---
+    "moondream3.1-9b-a2b-cf": {
+        "id": "moondream3.1-9b-a2b-cf",
+        "name": "@cf/moondream/moondream3.1-9B-A2B",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare-moondream",
+        "supports_images": True,
     },
 }

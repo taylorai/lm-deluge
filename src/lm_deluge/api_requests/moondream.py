@@ -10,7 +10,6 @@ from lm_deluge.prompt import Conversation, Image, Message, Text
 
 from .base import APIRequestBase, APIResponse
 
-
 MOONDREAM_TASKS = {"caption", "query", "detect", "point", "segment"}
 
 
@@ -154,6 +153,9 @@ class MoondreamRequest(APIRequestBase):
             base_headers["X-Moondream-Auth"] = api_key
         self.request_header = self.merge_headers(base_headers)
 
+    def unwrap_response(self, data: dict[str, Any]) -> dict[str, Any]:
+        return data
+
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", "")
@@ -172,6 +174,7 @@ class MoondreamRequest(APIRequestBase):
                 )
             if not is_error:
                 assert data is not None
+                data = self.unwrap_response(data)
                 text = None
                 if self.task == "caption":
                     text = data.get("caption")
