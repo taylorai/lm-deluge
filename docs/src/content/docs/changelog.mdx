@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.148 · 2026-08-26
+
+- **Expanded Cloudflare Workers AI catalog**: Added Cloudflare-hosted profiles for GLM 5.3 Flash, Qwen 3.8 27B, DeepSeek V4 Pro and Flash, Moondream 3.1, GLM 5.2, Kimi K2.7 Code, and Kimi K2.6. The new entries expose the documented reasoning, vision, and structured-output capabilities through `-cf` model IDs (`4acf72a`).
+- **Cloudflare Moondream support**: Added a model-specific `/ai/run` adapter for Moondream 3.1, including image-to-text request mapping and recursive Cloudflare response-envelope normalization. Registry, request, response, and live completion smoke tests cover all eight new Cloudflare models (`4acf72a`).
+- **GLM 5.3 reasoning metadata**: Preserved OpenRouter's default reasoning effort while adding explicit `max` effort support and regression coverage (`27551e8`).
+
 ## 0.0.147 · 2026-08-22
 
 - **MCP client coroutine-safe**: Make MCP client coroutine-safe (`53cd28c`).
