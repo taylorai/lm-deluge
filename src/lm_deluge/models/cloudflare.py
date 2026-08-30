@@ -31,6 +31,15 @@ CLOUDFLARE_MODELS = {
         "reasoning_model": True,
     },
     # --- Zhipu AI ---
+    "glm-5.3-cf": {
+        "id": "glm-5.3-cf",
+        "name": "@cf/zai-org/glm-5.3",
+        "api_base": "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1",
+        "api_key_env_var": "CLOUDFLARE_API_TOKEN",
+        "api_spec": "cloudflare",
+        "supports_json": True,
+        "reasoning_model": True,
+    },
     "glm-5.3-flash-cf": {
         "id": "glm-5.3-flash-cf",
         "name": "@cf/zai-org/glm-5.3-flash",

@@ -10,6 +10,7 @@ from lm_deluge.models import APIModel, find_models
 from lm_deluge.prompt import Image
 
 EXPECTED_MODELS = {
+    "glm-5.3-cf": ("@cf/zai-org/glm-5.3", True, False),
     "glm-5.3-flash-cf": ("@cf/zai-org/glm-5.3-flash", True, True),
     "qwen3.8-27b-cf": ("@cf/qwen/qwen3.8-27b", True, True),
     "deepseek-v4-pro-0813-cf": (
