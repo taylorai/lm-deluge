@@ -10,6 +10,7 @@ from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel
 
 MODEL_NAME = "glm-5.3-openrouter"
+FLASH_MODEL_NAME = "glm-5.3-flash-openrouter"
 
 
 def _context(
@@ -39,6 +40,21 @@ def test_glm_5_3_registry_metadata() -> None:
     assert model.omit_default_reasoning_effort
 
 
+def test_glm_5_3_flash_registry_metadata() -> None:
+    model = APIModel.from_registry(FLASH_MODEL_NAME)
+
+    assert model.name == "z-ai/glm-5.3-flash"
+    assert model.provider == "openrouter"
+    assert model.supports_json
+    assert model.supports_images
+    assert model.reasoning_model
+    assert model.supports_max_reasoning
+    assert model.omit_default_reasoning_effort
+    assert model.input_cost == 0.15
+    assert model.cached_input_cost == 0.03
+    assert model.output_cost == 0.50
+
+
 def test_glm_5_3_max_reasoning_suffix() -> None:
     client = LLMClient(f"{MODEL_NAME}-max")
 
@@ -59,6 +75,7 @@ async def test_glm_5_3_reasoning_request_shape() -> None:
 
 async def main() -> None:
     test_glm_5_3_registry_metadata()
+    test_glm_5_3_flash_registry_metadata()
     test_glm_5_3_max_reasoning_suffix()
     await test_glm_5_3_reasoning_request_shape()
     print("All GLM 5.3 OpenRouter tests passed!")
