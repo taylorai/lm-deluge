@@ -3,6 +3,7 @@
 
 # js stuff for wranger/cf sandbox
 node_modules
+.pnpm-store/
 
 # local settings/caches
 .claude
