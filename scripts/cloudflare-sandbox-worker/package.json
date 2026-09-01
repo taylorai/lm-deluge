@@ -13,5 +13,10 @@
     "@cloudflare/sandbox": "0.8.9",
     "typescript": "^5.9.3",
     "wrangler": "^4.114.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici": "7.29.0"
+    }
   }
 }
