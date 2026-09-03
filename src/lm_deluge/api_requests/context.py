@@ -1,6 +1,7 @@
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Literal
 
 import aiohttp
 
@@ -10,6 +11,8 @@ from ..tracker import StatusTracker
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
+ThinkingPrefixMismatchBehavior = Literal["error", "drop_block"]
 
 
 @dataclass
@@ -47,6 +50,7 @@ class RequestContext:
     service_tier: str | None = None
     extra_headers: dict[str, str] | None = None
     extra_body: dict[str, Any] | None = None
+    thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error"
     force_local_mcp: bool = False
 
     # Shared HTTP session (owned by the caller, not by this context)
@@ -133,6 +137,7 @@ class RequestContext:
             "service_tier": self.service_tier,
             "extra_headers": self.extra_headers,
             "extra_body": self.extra_body,
+            "thinking_prefix_mismatch": self.thinking_prefix_mismatch,
             "force_local_mcp": self.force_local_mcp,
             "http_session": self.http_session,
         }

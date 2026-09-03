@@ -2,9 +2,10 @@ import asyncio
 from unittest.mock import MagicMock
 
 from lm_deluge.api_requests.anthropic import AnthropicRequest
-from lm_deluge.config import SamplingParams
-from lm_deluge.prompt import Conversation, Text, ThoughtSignature, Thinking, ToolCall
+from lm_deluge.api_requests.anthropic_utils import parse_anthropic_response_content
 from lm_deluge.api_requests.context import RequestContext
+from lm_deluge.config import SamplingParams
+from lm_deluge.prompt import Conversation, Text, Thinking, ThoughtSignature, ToolCall
 from lm_deluge.tracker import StatusTracker
 
 
@@ -70,6 +71,35 @@ async def test_anthropic_response_preserves_thinking_signatures():
     assert parts[3].text == "Done"
 
 
+def test_shared_parser_preserves_all_anthropic_thinking_blocks_exactly():
+    response_content = [
+        {
+            "type": "thinking",
+            "thinking": "Readable summary",
+            "signature": "sig-summary",
+        },
+        {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig-omitted",
+        },
+        {"type": "redacted_thinking", "data": "opaque-redacted-data"},
+        {"type": "text", "text": "Done"},
+    ]
+
+    message, latest_thinking = parse_anthropic_response_content(
+        response_content,
+        summarized_thinking=True,
+    )
+
+    assert latest_thinking == ""
+    assert message.anthropic()["content"] == response_content
+
+    restored = type(message).from_log(message.to_log())
+    assert restored.anthropic()["content"] == response_content
+
+
 if __name__ == "__main__":
     asyncio.run(test_anthropic_response_preserves_thinking_signatures())
+    test_shared_parser_preserves_all_anthropic_thinking_blocks_exactly()
     print("All tests passed!")

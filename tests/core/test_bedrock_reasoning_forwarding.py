@@ -33,6 +33,7 @@ def _context(model_name: str, **client_kwargs) -> RequestContext:
         model_name=model_name,
         prompt=Conversation().user("hello"),
         sampling_params=client.sampling_params[0],
+        thinking_prefix_mismatch=client.thinking_prefix_mismatch,
     )
 
 
@@ -139,18 +140,44 @@ async def test_fable_5_bedrock_adaptive_by_default():
     assert "temperature" not in body and "top_p" not in body
 
 
+async def test_fable_51_bedrock_binding_controls():
+    strict_body = await _bedrock_body(
+        "claude-fable-5.1-bedrock",
+        max_new_tokens=8_192,
+        reasoning_effort="max",
+    )
+    assert strict_body["thinking"] == {
+        "type": "adaptive",
+        "display": "summarized",
+        "block_binding": {"prefix_mismatch_behavior": "error"},
+    }
+    assert strict_body["output_config"]["effort"] == "max"
+    assert strict_body["anthropic_beta"] == [
+        "thinking-binding-controls-2026-08-01"
+    ]
+    assert "temperature" not in strict_body and "top_p" not in strict_body
+
+    drop_body = await _bedrock_body(
+        "claude-fable-5.1-bedrock-global",
+        thinking_prefix_mismatch="drop_block",
+    )
+    assert drop_body["thinking"]["block_binding"] == {
+        "prefix_mismatch_behavior": "drop_block"
+    }
+
+
 async def test_non_reasoning_model_omits_thinking():
     body = await _bedrock_body("claude-3-haiku-bedrock", max_new_tokens=1_024)
     assert "thinking" not in body, body.get("thinking")
     assert "output_config" not in body, body.get("output_config")
 
 
-async def test_summarized_bedrock_thinking_strips_text_on_roundtrip():
+async def test_summarized_bedrock_thinking_roundtrips_exactly():
     response_data = {
         "content": [
             {
                 "type": "thinking",
-                "thinking": "Summary text that should not round-trip",
+                "thinking": "Summary text that must round-trip unchanged",
                 "signature": "sig-abc-123",
             },
             {"type": "text", "text": "Done"},
@@ -182,18 +209,17 @@ async def test_summarized_bedrock_thinking_strips_text_on_roundtrip():
     result = await request.handle_response(mock_http_response)
 
     assert not result.is_error, result.error_message
-    assert result.thinking == "Summary text that should not round-trip"
+    assert result.thinking == "Summary text that must round-trip unchanged"
     assert result.content is not None
     thinking = result.content.parts[0]
     assert isinstance(thinking, Thinking)
-    assert thinking.content == ""
-    assert thinking.summary == "Summary text that should not round-trip"
+    assert thinking.content == "Summary text that must round-trip unchanged"
+    assert thinking.summary == "Summary text that must round-trip unchanged"
     assert thinking.raw_payload is not None
-    assert thinking.raw_payload["thinking"] == ""
+    assert thinking.raw_payload == response_data["content"][0]
     assert thinking.raw_payload["signature"] == "sig-abc-123"
     serialized = thinking.anthropic()
-    assert serialized["thinking"] == ""
-    assert serialized["signature"] == "sig-abc-123"
+    assert serialized == response_data["content"][0]
 
 
 async def main():
@@ -203,8 +229,9 @@ async def main():
     await test_45_reasoning_effort_translated_to_budget()
     await test_46_reasoning_effort_none_disables_thinking()
     await test_fable_5_bedrock_adaptive_by_default()
+    await test_fable_51_bedrock_binding_controls()
     await test_non_reasoning_model_omits_thinking()
-    await test_summarized_bedrock_thinking_strips_text_on_roundtrip()
+    await test_summarized_bedrock_thinking_roundtrips_exactly()
     print("all bedrock reasoning-forwarding tests passed")
 
 

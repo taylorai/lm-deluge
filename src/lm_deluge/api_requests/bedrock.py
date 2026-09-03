@@ -3,24 +3,27 @@ import json
 
 from aiohttp import ClientResponse
 
-from lm_deluge.warnings import maybe_warn
-
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.prompt import (
     Message,
     Text,
-    Thinking,
-    ThoughtSignature,
     ToolCall,
 )
 from lm_deluge.tool import MCPServer, Tool
 from lm_deluge.usage import Usage
+from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
 from .anthropic import (
+    _apply_fable_51_binding_controls,
     _is_claude_47,
     _validate_anthropic_request_config,
+    _validate_fable_context,
     apply_anthropic_reasoning_config,
+)
+from .anthropic_utils import (
+    is_anthropic_thinking_prefix_mismatch,
+    parse_anthropic_response_content,
 )
 from .base import APIRequestBase, APIResponse, parse_retry_after
 from .bedrock_auth import get_bedrock_auth
@@ -34,14 +37,11 @@ from .bedrock_regions import (
 )
 
 
-# according to bedrock docs the header is "anthropic_beta" vs. "anthropic-beta"
-# for anthropic. i don't know if this is a typo or the worst ever UX
-def _add_beta(headers: dict, beta: str):
-    if "anthropic_beta" in headers and headers["anthropic_beta"]:
-        if beta not in headers["anthropic_beta"]:
-            headers["anthropic_beta"] += f",{beta}"
-    else:
-        headers["anthropic_beta"] = beta
+def _add_beta(request_json: dict, beta: str) -> None:
+    """Add an Anthropic beta to the Bedrock request body."""
+    betas = request_json.setdefault("anthropic_beta", [])
+    if beta not in betas:
+        betas.append(beta)
 
 
 def _is_claude_45_46_compat_model(model: APIModel) -> bool:
@@ -67,6 +67,7 @@ async def _build_anthropic_bedrock_request(
     cache_pattern = context.cache
     tools = context.tools
     sampling_params = context.sampling_params
+    _validate_fable_context(model, context)
     if cache_pattern == "automatic":
         maybe_warn(
             "WARN_CACHING_UNSUPPORTED",
@@ -124,8 +125,6 @@ async def _build_anthropic_bedrock_request(
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
 
-    _validate_anthropic_request_config(model, context, request_json)
-
     if system_message is not None:
         request_json["system"] = system_message
 
@@ -144,11 +143,11 @@ async def _build_anthropic_bedrock_request(
                     "text_editor_20241022",
                     "bash_20241022",
                 ]:
-                    _add_beta(base_headers, "computer-use-2024-10-22")
+                    _add_beta(request_json, "computer-use-2024-10-22")
                 elif tool["type"] == "computer_20250124":
-                    _add_beta(base_headers, "computer-use-2025-01-24")
+                    _add_beta(request_json, "computer-use-2025-01-24")
                 elif tool["type"] == "code_execution_20250522":
-                    _add_beta(base_headers, "code-execution-2025-05-22")
+                    _add_beta(request_json, "code-execution-2025-05-22")
             elif isinstance(tool, MCPServer):
                 # Convert to individual tools locally (like OpenAI does)
                 individual_tools = await tool.to_tools()
@@ -164,6 +163,11 @@ async def _build_anthropic_bedrock_request(
         request_json["tools"] = tool_definitions
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
+
+    if _apply_fable_51_binding_controls(model, context, request_json):
+        _add_beta(request_json, "thinking-binding-controls-2026-08-01")
+
+    _validate_anthropic_request_config(model, context, request_json)
 
     return request_json, base_headers, auth, url, region
 
@@ -342,6 +346,7 @@ class BedrockRequest(APIRequestBase):
         thinking = None
         content = None
         usage = None
+        input_transformations = None
         finish_reason = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
@@ -379,64 +384,18 @@ class BedrockRequest(APIRequestBase):
                     usage = Usage.from_openai_usage(data["usage"])
                 else:
                     # Handle Anthropic-style response
-                    response_content = data["content"]
-
-                    # Parse response into Message with parts
-                    parts = []
-                    for item in response_content:
-                        if item["type"] == "text":
-                            parts.append(Text(item["text"]))
-                        elif item["type"] == "thinking":
-                            thinking_content = item.get("thinking", "")
-                            thinking = thinking_content
-                            signature = item.get("signature")
-                            if _is_claude_47(self.model):
-                                round_trip_payload = dict(item)
-                                round_trip_payload["thinking"] = ""
-                                parts.append(
-                                    Thinking(
-                                        "",
-                                        summary=thinking_content,
-                                        raw_payload=round_trip_payload,
-                                        thought_signature=ThoughtSignature(
-                                            signature,
-                                            provider="anthropic",
-                                        )
-                                        if signature is not None
-                                        else None,
-                                    )
-                                )
-                            else:
-                                parts.append(
-                                    Thinking(
-                                        thinking_content,
-                                        raw_payload=item,
-                                        thought_signature=ThoughtSignature(
-                                            signature,
-                                            provider="anthropic",
-                                        )
-                                        if signature is not None
-                                        else None,
-                                    )
-                                )
-                        elif item["type"] == "redacted_thinking":
-                            parts.append(
-                                Thinking(
-                                    item.get("data", ""),
-                                    raw_payload=item,
-                                )
-                            )
-                        elif item["type"] == "tool_use":
-                            parts.append(
-                                ToolCall(
-                                    id=item["id"],
-                                    name=item["name"],
-                                    arguments=item["input"],
-                                )
-                            )
-
-                    content = Message("assistant", parts)
+                    content, thinking = parse_anthropic_response_content(
+                        data["content"],
+                        summarized_thinking=_is_claude_47(self.model),
+                    )
                     usage = Usage.from_anthropic_usage(data["usage"])
+                    finish_reason = data.get("stop_reason")
+                    input_transformations = data.get("input_transformations")
+                    if input_transformations:
+                        maybe_warn(
+                            "WARN_ANTHROPIC_THINKING_BLOCKS_DROPPED",
+                            count=len(input_transformations),
+                        )
             except Exception as e:
                 is_error = True
                 error_message = (
@@ -493,6 +452,14 @@ class BedrockRequest(APIRequestBase):
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
 
+            if is_anthropic_thinking_prefix_mismatch(error_message):
+                error_message += (
+                    " (Thinking-prefix mismatch is permanent for this request; "
+                    "automatic retries are disabled.)"
+                )
+                self.context.attempts_left = 0
+                retry_with_different_model = False
+
         return APIResponse(
             id=self.context.task_id,
             status_code=status_code,
@@ -505,6 +472,7 @@ class BedrockRequest(APIRequestBase):
             region=self.region,
             sampling_params=self.context.sampling_params,
             usage=usage,
+            input_transformations=input_transformations,
             raw_response=data,
             finish_reason=finish_reason,
             retry_with_different_model=retry_with_different_model,

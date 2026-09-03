@@ -26,6 +26,7 @@ WARNINGS: dict[str, str] = {
     "WARN_CLAUDE_47_BUDGET_TOKENS_REMOVED": "thinking budget_tokens is not supported on this Claude model and returns 400. Translating to adaptive thinking with effort={effort}.",
     "WARN_CLAUDE_47_SAMPLING_DROPPED": "temperature/top_p are not supported on Claude 4.7+. Dropping from request for {model_name}.",
     "WARN_TASK_BUDGET_UNSUPPORTED": "task_budget is only supported on Claude Opus 4.7+, ignoring for {model_name}.",
+    "WARN_ANTHROPIC_THINKING_BLOCKS_DROPPED": "Anthropic dropped {count} thinking block(s) because their bound conversation prefix no longer matched. Inspect response.input_transformations for details.",
 }
 
 

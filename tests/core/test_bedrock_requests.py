@@ -85,6 +85,33 @@ def test_bedrock_anthropic_tools_never_strict():
     )
 
 
+def test_bedrock_anthropic_betas_are_request_body_lists():
+    _ensure_fake_aws_creds()
+    context = RequestContext(
+        task_id=1,
+        model_name="claude-4.5-sonnet-bedrock",
+        prompt=_make_prompt(),
+        sampling_params=SamplingParams(),
+        tools=[
+            {
+                "type": "computer_20250124",
+                "name": "computer",
+                "display_width_px": 1024,
+                "display_height_px": 768,
+                "display_number": 1,
+            }
+        ],
+    )
+    model = APIModel.from_registry(context.model_name)
+
+    request_json, headers, _, _, _ = asyncio.run(
+        _build_anthropic_bedrock_request(model, context)
+    )
+
+    assert request_json["anthropic_beta"] == ["computer-use-2025-01-24"]
+    assert "anthropic_beta" not in headers
+
+
 def test_bedrock_openai_tools_force_non_strict():
     """OpenAI-compatible bedrock path should also request non-strict tool schemas."""
     _ensure_fake_aws_creds()
@@ -262,6 +289,8 @@ def test_bedrock_claude_47_request_omits_temperature_and_top_p():
         "claude-4.8-opus-bedrock-global",
         "claude-fable-5-bedrock",
         "claude-fable-5-bedrock-global",
+        "claude-fable-5.1-bedrock",
+        "claude-fable-5.1-bedrock-global",
     ):
         context = RequestContext(
             task_id=1,
@@ -418,6 +447,49 @@ def test_bedrock_claude_fable_5_registered():
     assert global_model.reasoning_model
     assert global_model.supports_json
     assert global_model.supports_images
+
+
+def test_bedrock_claude_fable_51_registered():
+    model = APIModel.from_registry("claude-fable-5.1-bedrock")
+    assert model.name == "us.anthropic.claude-fable-5-1"
+    assert model.regions == [
+        "ca-central-1",
+        "ca-west-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+    ]
+    assert model.input_cost == 10.0
+    assert model.cached_input_cost == 0.25
+    assert model.cache_write_cost == 12.5
+    assert model.output_cost == 50.0
+    assert model.reasoning_model
+    assert model.supports_xhigh
+    assert model.supports_max_reasoning
+    assert model.supports_json
+    assert model.supports_images
+    for alias in (
+        "claude-fable-5-1-bedrock",
+        "claude-5.1-fable-bedrock",
+        "claude-5-1-fable-bedrock",
+    ):
+        assert APIModel.from_registry(alias) is model
+
+    global_model = APIModel.from_registry("claude-fable-5.1-bedrock-global")
+    assert global_model.name == "global.anthropic.claude-fable-5-1"
+    assert isinstance(global_model.regions, list)
+    assert "ca-west-1" in global_model.regions
+    assert "me-south-1" not in global_model.regions
+    assert len(global_model.regions) == 30
+    assert global_model.cached_input_cost == 0.25
+    assert global_model.reasoning_model
+    for alias in (
+        "claude-fable-5-1-bedrock-global",
+        "claude-5.1-fable-bedrock-global",
+        "claude-5-1-fable-bedrock-global",
+    ):
+        assert APIModel.from_registry(alias) is global_model
 
 
 def test_bedrock_claude_47_registered():
@@ -695,6 +767,7 @@ def test_bedrock_api_key_builder_sets_auth_none():
 
 if __name__ == "__main__":
     test_bedrock_anthropic_tools_never_strict()
+    test_bedrock_anthropic_betas_are_request_body_lists()
     test_bedrock_openai_tools_force_non_strict()
     test_bedrock_anthropic_uses_configured_regions_round_robin()
     test_bedrock_openai_respects_model_region_list()
@@ -707,6 +780,7 @@ if __name__ == "__main__":
     test_bedrock_claude_opus_5_registered()
     test_bedrock_claude_opus_5_reasoning_policy()
     test_bedrock_claude_fable_5_registered()
+    test_bedrock_claude_fable_51_registered()
     test_bedrock_claude_47_registered()
     test_bedrock_claude_48_registered()
     test_bedrock_invalid_security_token_is_region_scoped()

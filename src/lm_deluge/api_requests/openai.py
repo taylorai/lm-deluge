@@ -133,6 +133,15 @@ async def _build_oa_chat_request(
             del request_json["temperature"]
         if sampling_params.top_p == 1.0:
             del request_json["top_p"]
+    if model.name in {
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash",
+    }:
+        # These Gemini releases reject the legacy sampling controls, including
+        # when called through Google's OpenAI-compatible endpoint.
+        request_json.pop("temperature", None)
+        request_json.pop("top_p", None)
     if context.service_tier:
         assert context.service_tier in [
             "auto",

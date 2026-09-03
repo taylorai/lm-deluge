@@ -46,6 +46,8 @@ class APIResponse:
     response_id: str | None = None
     # Anthropic container ID - for reusing container across requests with skills
     container_id: str | None = None
+    # Anthropic beta response metadata describing dropped/rewritten input blocks.
+    input_transformations: list[dict] | None = None
     # Raw API response for debugging
     raw_response: dict | None = None
     # Responses API automatic tool-loop metadata (in-memory only)
@@ -147,6 +149,7 @@ class APIResponse:
             "content": self.content.to_log() if self.content else None,
             "usage": self.usage.to_dict() if self.usage else None,
             "finish_reason": self.finish_reason,
+            "input_transformations": self.input_transformations,
             "cost": self.cost,
         }
 
@@ -180,6 +183,7 @@ class APIResponse:
             region=data.get("region"),
             logprobs=data.get("logprobs"),
             finish_reason=data.get("finish_reason"),
+            input_transformations=data.get("input_transformations"),
             cost=data.get("cost"),
             cache_hit=data.get("cache_hit", False),
         )

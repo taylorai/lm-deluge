@@ -247,6 +247,41 @@ def test_gemini_35_flash_thinking_level_medium():
     assert thinking_config.get("thinkingLevel") == "medium"
 
 
+def test_new_gemini_flash_defaults_and_sampling_params():
+    """New Gemini Flash models default to medium and reject sampling params."""
+    convo = Conversation().user("Hello")
+    for model_name in ("gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash"):
+        model = APIModel.from_registry(model_name)
+        request = asyncio.run(
+            _build_gemini_request(
+                model,
+                convo,
+                None,
+                SamplingParams(temperature=0.2, top_p=0.8),
+            )
+        )
+
+        generation_config = request["generationConfig"]
+        assert generation_config["thinkingConfig"]["thinkingLevel"] == "medium"
+        assert "temperature" not in generation_config
+        assert "topP" not in generation_config
+
+
+def test_gemini_37_and_38_map_minimal_thinking_to_low():
+    convo = Conversation().user("Hello")
+    for model_name in ("gemini-3.7-flash", "gemini-3.8-flash"):
+        request = asyncio.run(
+            _build_gemini_request(
+                APIModel.from_registry(model_name),
+                convo,
+                None,
+                SamplingParams(reasoning_effort="minimal"),
+            )
+        )
+        thinking_config = request["generationConfig"]["thinkingConfig"]
+        assert thinking_config["thinkingLevel"] == "low"
+
+
 if __name__ == "__main__":
     test_gemini_3_thinking_level_high()
     test_gemini_3_thinking_level_low()
@@ -262,4 +297,6 @@ if __name__ == "__main__":
     test_gemini_35_flash_default_thinking_level()
     test_gemini_35_flash_thinking_level_minimal()
     test_gemini_35_flash_thinking_level_medium()
+    test_new_gemini_flash_defaults_and_sampling_params()
+    test_gemini_37_and_38_map_minimal_thinking_to_low()
     print("All tests passed!")

@@ -4,15 +4,6 @@ import os
 from aiohttp import ClientResponse
 
 from lm_deluge.api_requests.context import RequestContext
-from lm_deluge.prompt import (
-    ContainerFile,
-    Message,
-    Text,
-    Thinking,
-    ThoughtSignature,
-    ToolCall,
-    ToolResult,
-)
 from lm_deluge.tool import MCPServer, Skill, Tool
 from lm_deluge.usage import Usage
 from lm_deluge.util.schema import (
@@ -22,6 +13,10 @@ from lm_deluge.util.schema import (
 from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
+from .anthropic_utils import (
+    is_anthropic_thinking_prefix_mismatch,
+    parse_anthropic_response_content,
+)
 from .base import APIRequestBase, APIResponse, parse_retry_after
 
 
@@ -43,6 +38,14 @@ def _is_claude_5_sonnet(model: APIModel) -> bool:
 
 def _is_claude_5_opus(model: APIModel) -> bool:
     return model.id == "claude-5-opus" or "claude-opus-5" in model.name
+
+
+def _is_claude_fable(model: APIModel) -> bool:
+    return "claude-fable-5" in model.name
+
+
+def _is_claude_fable_51(model: APIModel) -> bool:
+    return model.id == "claude-fable-5.1" or "claude-fable-5-1" in model.name
 
 
 def _is_claude_47(model: APIModel) -> bool:
@@ -71,7 +74,7 @@ def _removes_manual_thinking_budget(model: APIModel) -> bool:
 def _adaptive_thinking_config(model: APIModel) -> dict:
     thinking_config: dict = {"type": "adaptive"}
     # Prefer summarized display on models where that shape is known to be
-    # accepted so callers can observe reasoning without unsafe round-trips.
+    # accepted so callers can observe reasoning while replaying blocks exactly.
     if _is_claude_47(model):
         thinking_config["display"] = "summarized"
     return thinking_config
@@ -159,6 +162,79 @@ def _validate_anthropic_request_config(
                 "or lower, or keep thinking enabled."
             )
 
+    if _is_claude_fable(model):
+        if isinstance(thinking, dict) and thinking.get("type") == "disabled":
+            raise ValueError(
+                f"Invalid config for model '{context.model_name}': Claude Fable "
+                "thinking is always on and cannot be disabled."
+            )
+
+        tool_choice = request_json.get("tool_choice")
+        if (
+            _is_claude_fable_51(model)
+            and isinstance(tool_choice, dict)
+            and tool_choice.get("type") in {"any", "tool"}
+        ):
+            raise ValueError(
+                f"Invalid config for model '{context.model_name}': Claude Fable "
+                "5.1 does not support forced tool use. Use tool_choice type "
+                "'auto' or 'none'."
+            )
+
+
+def _validate_fable_context(model: APIModel, context: RequestContext) -> None:
+    if not _is_claude_fable(model):
+        return
+
+    sampling_params = context.sampling_params
+    if sampling_params.reasoning_effort == "none":
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': Claude Fable "
+            "thinking is always on; reasoning_effort='none' cannot be honored. "
+            "Use reasoning_effort='low' for the least reasoning."
+        )
+    if (
+        sampling_params.thinking_budget is not None
+        and sampling_params.thinking_budget <= 0
+    ):
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': Claude Fable "
+            "thinking is always on; a non-positive thinking_budget cannot be "
+            "honored. Use reasoning_effort='low' for the least reasoning."
+        )
+
+    requested_output_effort = _requested_output_effort(sampling_params)
+    if requested_output_effort == "none":
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': Claude Fable "
+            "does not support output effort 'none'. Use 'low' instead."
+        )
+
+
+def _apply_fable_51_binding_controls(
+    model: APIModel,
+    context: RequestContext,
+    request_json: dict,
+) -> bool:
+    if not _is_claude_fable_51(model):
+        return False
+
+    behavior = context.thinking_prefix_mismatch
+    if behavior not in {"error", "drop_block"}:
+        raise ValueError(
+            "thinking_prefix_mismatch must be either 'error' or 'drop_block'"
+        )
+
+    thinking = request_json.get("thinking")
+    if not isinstance(thinking, dict) or thinking.get("type") != "adaptive":
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': Claude Fable 5.1 "
+            "requires adaptive thinking."
+        )
+
+    thinking["block_binding"] = {"prefix_mismatch_behavior": behavior}
+    return True
+
 
 def apply_anthropic_reasoning_config(
     model: APIModel,
@@ -192,9 +268,9 @@ def apply_anthropic_reasoning_config(
         # Claude 4.6+ models support adaptive thinking mode.
         if _is_claude_46_or_newer(model) and sampling_params.thinking_budget is None:
             if sampling_params.reasoning_effort == "none":
-                # Opus 4.7/4.8 and Fable 5 default thinking off, so omission
-                # disables it. Opus 5 defaults thinking on and therefore needs
-                # an explicit wire value to preserve lm-deluge's request.
+                # Opus 4.7/4.8 default thinking off, so omission disables it.
+                # Models with always-on thinking are rejected by the Fable
+                # validation above. Opus 5 needs an explicit wire value.
                 if not _is_claude_47(model) or _is_claude_5_opus(model):
                     request_json["thinking"] = {"type": "disabled"}
             else:
@@ -314,6 +390,7 @@ def _build_anthropic_request(
     cache_pattern = context.cache
     tools = context.tools
     sampling_params = context.sampling_params
+    _validate_fable_context(model, context)
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
     # if not system_message:
     #     print("WARNING: system_message is None")
@@ -535,6 +612,9 @@ def _build_anthropic_request(
                 continue
             request_json[key] = value
 
+    if _apply_fable_51_binding_controls(model, context, request_json):
+        _add_beta(base_headers, "thinking-binding-controls-2026-08-01")
+
     # Passthrough fields may have changed thinking or output_config.effort.
     _validate_anthropic_request_config(model, context, request_json)
 
@@ -569,6 +649,7 @@ class AnthropicRequest(APIRequestBase):
         content = None
         usage = None
         container_id = None
+        input_transformations = None
         finish_reason = None
         status_code = http_response.status
         mimetype = http_response.headers.get("Content-Type", None)
@@ -586,122 +667,18 @@ class AnthropicRequest(APIRequestBase):
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
-                response_content = data["content"]
-
-                # print("=== CONTENT ===")
-                # print(response_content)
-
-                # Parse response into Message with parts
-                parts = []
-                for item in response_content:
-                    if item["type"] == "text":
-                        parts.append(Text(item["text"]))
-                    elif item["type"] == "thinking":
-                        thinking_content = item.get("thinking", "")
-                        thinking = thinking_content
-                        signature = item.get("signature")
-                        # On Claude 4.7 with display="summarized", the
-                        # `thinking` field contains a human-readable summary
-                        # that must NOT be echoed back to the model. Stash it
-                        # as `summary` and blank out the round-trip payload's
-                        # thinking text so subsequent requests send only the
-                        # signature (preserving tool-use continuity).
-                        is_summary = _is_claude_47(self.model)
-                        if is_summary:
-                            round_trip_payload = dict(item)
-                            round_trip_payload["thinking"] = ""
-                            parts.append(
-                                Thinking(
-                                    "",
-                                    summary=thinking_content,
-                                    raw_payload=round_trip_payload,
-                                    thought_signature=ThoughtSignature(
-                                        signature,
-                                        provider="anthropic",
-                                    )
-                                    if signature is not None
-                                    else None,
-                                )
-                            )
-                        else:
-                            parts.append(
-                                Thinking(
-                                    thinking_content,
-                                    raw_payload=item,
-                                    thought_signature=ThoughtSignature(
-                                        signature,
-                                        provider="anthropic",
-                                    )
-                                    if signature is not None
-                                    else None,
-                                )
-                            )
-                    elif item["type"] == "redacted_thinking":
-                        parts.append(
-                            Thinking(
-                                item.get("data", ""),
-                                raw_payload=item,
-                            )
-                        )
-                    elif item["type"] == "tool_use":
-                        parts.append(
-                            ToolCall(
-                                id=item["id"],
-                                name=item["name"],
-                                arguments=item["input"],
-                            )
-                        )
-                    elif item["type"] in [
-                        "bash_code_execution_tool_result",
-                        "text_editor_code_execution_tool_result",
-                    ]:
-                        # Code execution / skills result - parse as ToolResult
-                        inner_content = item.get("content", {})
-                        files: list[ContainerFile] = []
-                        text_content = ""
-
-                        result_type = inner_content.get("type", "")
-                        if result_type in [
-                            "bash_code_execution_result",
-                            "text_editor_code_execution_result",
-                        ]:
-                            # Capture stdout/stderr if present
-                            if inner_content.get("stdout"):
-                                text_content += inner_content["stdout"]
-                            if inner_content.get("stderr"):
-                                text_content += inner_content["stderr"]
-
-                            for content_item in inner_content.get("content", []):
-                                item_type = content_item.get("type", "")
-                                # Handle both "file" and "bash_code_execution_output" types
-                                if item_type in ["file", "bash_code_execution_output"]:
-                                    if "file_id" in content_item:
-                                        file_info: ContainerFile = {
-                                            "file_id": content_item["file_id"],
-                                            "filename": content_item.get(
-                                                "filename", "output"
-                                            ),
-                                            "media_type": content_item.get(
-                                                "media_type"
-                                            ),
-                                        }
-                                        files.append(file_info)
-                                elif item_type == "text":
-                                    text_content += content_item.get("text", "")
-
-                        parts.append(
-                            ToolResult(
-                                tool_call_id=item.get("tool_use_id", ""),
-                                result=text_content or inner_content,
-                                built_in=True,
-                                built_in_type="bash_code_execution",
-                                files=files if files else None,
-                            )
-                        )
-
-                content = Message("assistant", parts)
+                content, thinking = parse_anthropic_response_content(
+                    data["content"],
+                    summarized_thinking=_is_claude_47(self.model),
+                )
                 usage = Usage.from_anthropic_usage(data["usage"])
                 finish_reason = data.get("stop_reason")
+                input_transformations = data.get("input_transformations")
+                if input_transformations:
+                    maybe_warn(
+                        "WARN_ANTHROPIC_THINKING_BLOCKS_DROPPED",
+                        count=len(input_transformations),
+                    )
 
                 # Extract container ID if present (for skills/code execution)
                 container_data = data.get("container")
@@ -736,7 +713,18 @@ class AnthropicRequest(APIRequestBase):
             if "context length" in error_message:
                 error_message += " (Context length exceeded, set retries to 0.)"
                 self.context.attempts_left = 0
-            retry_with_different_model = True
+            is_thinking_prefix_mismatch = is_anthropic_thinking_prefix_mismatch(
+                error_message
+            )
+            if is_thinking_prefix_mismatch:
+                error_message += (
+                    " (Thinking-prefix mismatch is permanent for this request; "
+                    "automatic retries are disabled.)"
+                )
+                self.context.attempts_left = 0
+                retry_with_different_model = False
+            else:
+                retry_with_different_model = True
 
         return APIResponse(
             id=self.context.task_id,
@@ -751,6 +739,7 @@ class AnthropicRequest(APIRequestBase):
             usage=usage,
             finish_reason=finish_reason,
             container_id=container_id,
+            input_transformations=input_transformations,
             raw_response=data,
             retry_with_different_model=retry_with_different_model,
             give_up_if_no_other_models=give_up_if_no_other_models,

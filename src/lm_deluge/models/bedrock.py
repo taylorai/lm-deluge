@@ -50,6 +50,15 @@ CLAUDE_4_8_US_SOURCE_REGIONS = [
 ]
 
 CLAUDE_FABLE_5_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
+# Claude Fable 5.1 US Geo CRIS source regions, verified live.
+CLAUDE_FABLE_5_1_US_SOURCE_REGIONS = [
+    "ca-central-1",
+    "ca-west-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
 CLAUDE_5_SONNET_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
 
 # Claude Opus 5 US cross-region profile source regions, verified live.
@@ -132,6 +141,40 @@ CLAUDE_GLOBAL_SOURCE_REGIONS_V48 = [
 ]
 
 CLAUDE_FABLE_5_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
+# Claude Fable 5.1 Global CRIS source regions, verified live.
+# me-south-1 is omitted because the endpoint timed out during discovery.
+CLAUDE_FABLE_5_1_GLOBAL_SOURCE_REGIONS = [
+    "af-south-1",
+    "ap-east-2",
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-northeast-3",
+    "ap-south-1",
+    "ap-south-2",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-5",
+    "ap-southeast-7",
+    "ca-central-1",
+    "ca-west-1",
+    "eu-central-1",
+    "eu-central-2",
+    "eu-north-1",
+    "eu-south-1",
+    "eu-south-2",
+    "eu-west-1",
+    "eu-west-2",
+    "eu-west-3",
+    "il-central-1",
+    "mx-central-1",
+    "sa-east-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
 CLAUDE_5_SONNET_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
 
 # Claude Opus 5 global cross-region profile source regions, verified live.
@@ -343,6 +386,50 @@ BEDROCK_MODELS = {
         "reasoning_model": True,
         "supports_images": True,
         "supports_xhigh": True,
+    },
+    "claude-fable-5.1-bedrock": {
+        "id": "claude-fable-5.1-bedrock",
+        "name": "us.anthropic.claude-fable-5-1",
+        "aliases": [
+            "claude-fable-5-1-bedrock",
+            "claude-5.1-fable-bedrock",
+            "claude-5-1-fable-bedrock",
+        ],
+        "regions": CLAUDE_FABLE_5_1_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 10.0,
+        "cached_input_cost": 0.25,
+        "cache_write_cost": 12.5,
+        "output_cost": 50.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
+    "claude-fable-5.1-bedrock-global": {
+        "id": "claude-fable-5.1-bedrock-global",
+        "name": "global.anthropic.claude-fable-5-1",
+        "aliases": [
+            "claude-fable-5-1-bedrock-global",
+            "claude-5.1-fable-bedrock-global",
+            "claude-5-1-fable-bedrock-global",
+        ],
+        "regions": CLAUDE_FABLE_5_1_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 10.0,
+        "cached_input_cost": 0.25,
+        "cache_write_cost": 12.5,
+        "output_cost": 50.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
     },
     "claude-3-haiku-bedrock": {
         "id": "claude-3-haiku-bedrock",

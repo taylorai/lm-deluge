@@ -40,7 +40,7 @@ from lm_deluge.prompt import (
 from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
 
 from ..api_requests.base import APIResponse
-from ..api_requests.context import RequestContext
+from ..api_requests.context import RequestContext, ThinkingPrefixMismatchBehavior
 from ..config import SamplingParams
 from ..models import APIModel, register_model, registry
 from ..tracker import StatusTracker
@@ -135,6 +135,7 @@ class _LLMClient(BaseModel):
     cache: Any = None
     extra_headers: dict[str, str] | None = None
     extra_body: dict[str, Any] | None = None
+    thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error"
     use_responses_api: bool = False
     stateless_responses: bool | None = None
     background: bool = False
@@ -1256,6 +1257,7 @@ class _LLMClient(BaseModel):
             service_tier=service_tier,
             extra_headers=self.extra_headers,
             extra_body=self.extra_body,
+            thinking_prefix_mismatch=self.thinking_prefix_mismatch,
             force_local_mcp=self.force_local_mcp,
             http_session=http_session,
         )
@@ -1945,6 +1947,7 @@ def LLMClient(
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
+    thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error",
     use_responses_api: bool = False,
     stateless_responses: bool | None = None,
     background: bool = False,
@@ -1986,6 +1989,7 @@ def LLMClient(
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
+    thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error",
     use_responses_api: bool = False,
     stateless_responses: bool | None = None,
     background: bool = False,
@@ -2026,6 +2030,7 @@ def LLMClient(
     cache: Any = None,
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
+    thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error",
     use_responses_api: bool = False,
     stateless_responses: bool | None = None,
     background: bool = False,
@@ -2078,6 +2083,7 @@ def LLMClient(
         cache=cache,
         extra_headers=extra_headers,
         extra_body=extra_body,
+        thinking_prefix_mismatch=thinking_prefix_mismatch,
         use_responses_api=use_responses_api,
         stateless_responses=stateless_responses,
         background=background,

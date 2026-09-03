@@ -39,10 +39,11 @@ async def _build_gemini_request(
                         )
 
     generation_config: dict[str, Any] = {
-        "temperature": sampling_params.temperature,
-        "topP": sampling_params.top_p,
         "maxOutputTokens": sampling_params.max_new_tokens,
     }
+    if not model.omit_default_sampling_params:
+        generation_config["temperature"] = sampling_params.temperature
+        generation_config["topP"] = sampling_params.top_p
     request_json: dict[str, Any] = {
         "contents": messages,
         "generationConfig": generation_config,
@@ -58,7 +59,12 @@ async def _build_gemini_request(
     if is_gemini_3:
         # gemini3 MUST think
         if not sampling_params.reasoning_effort:
-            if model.name == "gemini-3.5-flash":
+            if model.name in {
+                "gemini-3.5-flash",
+                "gemini-3.6-flash",
+                "gemini-3.7-flash",
+                "gemini-3.8-flash",
+            }:
                 effort = "medium"
             else:
                 maybe_warn("WARN_GEMINI3_NO_REASONING")
@@ -71,7 +77,17 @@ async def _build_gemini_request(
             elif effort_key == "max":
                 maybe_warn("WARN_MAX_TO_HIGH", model_name=model.name)
                 effort_key = "high"
-            if is_gemini_3_flash:
+            if model.name in {"gemini-3.7-flash", "gemini-3.8-flash"}:
+                # These models support low, medium, and high. Map the library's
+                # lower settings to the least expensive supported level.
+                level_map = {
+                    "none": "low",
+                    "minimal": "low",
+                    "low": "low",
+                    "medium": "medium",
+                    "high": "high",
+                }
+            elif is_gemini_3_flash:
                 # Flash supports minimal, low, medium, high
                 level_map = {
                     "none": "low",

@@ -141,7 +141,7 @@ def test_task_budget_ignored_on_46():
 # --- Summarized thinking round-trip ---
 
 
-def test_opus_47_summarized_thinking_strips_text_on_roundtrip():
+def test_opus_47_summarized_thinking_roundtrips_exactly():
     # Simulate the parse path: build a fake response item and run it through
     # the Thinking construction logic used in handle_response.
     from lm_deluge.prompt import Thinking
@@ -150,23 +150,21 @@ def test_opus_47_summarized_thinking_strips_text_on_roundtrip():
     # This is what we do in handle_response when we see the 4.7 thinking block
     item = {
         "type": "thinking",
-        "thinking": "Summary text that should not round-trip",
+        "thinking": "Summary text that must round-trip unchanged",
         "signature": "sig-abc-123",
     }
-    round_trip_payload = dict(item)
-    round_trip_payload["thinking"] = ""
     t = Thinking(
-        "",
+        item["thinking"],
         summary=item["thinking"],
-        raw_payload=round_trip_payload,
+        raw_payload=dict(item),
         thought_signature=ThoughtSignature(item["signature"], provider="anthropic"),
     )
     serialized = t.anthropic()
     assert serialized["type"] == "thinking"
-    assert serialized["thinking"] == ""  # summary text is NOT echoed
+    assert serialized["thinking"] == item["thinking"]
     assert serialized["signature"] == "sig-abc-123"
-    # but the summary is still locally accessible for UIs
-    assert t.summary == "Summary text that should not round-trip"
+    # The same text is also locally accessible as a summary for UIs.
+    assert t.summary == "Summary text that must round-trip unchanged"
 
 
 if __name__ == "__main__":
@@ -182,5 +180,5 @@ if __name__ == "__main__":
     test_opus_47_no_prefill()
     test_opus_47_task_budget_sets_output_config_and_beta_header()
     test_task_budget_ignored_on_46()
-    test_opus_47_summarized_thinking_strips_text_on_roundtrip()
+    test_opus_47_summarized_thinking_roundtrips_exactly()
     print("All tests passed!")
