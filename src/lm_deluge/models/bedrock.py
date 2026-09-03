@@ -293,6 +293,50 @@ NOVA_US_SOURCE_REGIONS = [
     "us-west-2",
 ]
 
+# OpenAI GPT-5.6 bedrock-runtime cross-Region inference source regions.
+# These are shared by Sol, Terra, and Luna per the current AWS model cards.
+GPT_5_6_US_SOURCE_REGIONS = [
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
+
+GPT_5_6_GLOBAL_SOURCE_REGIONS = [
+    "af-south-1",
+    "ap-east-2",
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-northeast-3",
+    "ap-south-1",
+    "ap-south-2",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-5",
+    "ap-southeast-6",
+    "ap-southeast-7",
+    "ca-central-1",
+    "ca-west-1",
+    "eu-central-1",
+    "eu-central-2",
+    "eu-north-1",
+    "eu-south-1",
+    "eu-south-2",
+    "eu-west-1",
+    "eu-west-2",
+    "eu-west-3",
+    "il-central-1",
+    "me-central-1",
+    "me-south-1",
+    "sa-east-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2",
+]
+
 
 BEDROCK_MODELS = {
     #  ███████████               █████                             █████
@@ -652,6 +696,83 @@ BEDROCK_MODELS = {
         "reasoning_model": True,
         "supports_images": True,
     },
+    # GPT-5.6 on AWS Bedrock. Prices are for the <=272K context tier; AWS
+    # applies separate long-context rates above that threshold.
+    "gpt-5.6-sol-bedrock": {
+        "id": "gpt-5.6-sol-bedrock",
+        "name": "us.openai.gpt-5.6-sol",
+        "aliases": ["gpt-5.6-bedrock"],
+        "regions": GPT_5_6_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 4.4,
+        "cached_input_cost": 0.44,
+        "cache_write_cost": 5.5,
+        "output_cost": 22.0,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_reasoning_none": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
+    # Re-test the Global profile in October 2026. Although AWS advertises
+    # global.openai.gpt-5.6-sol as ACTIVE and Converse accepts it, both
+    # bedrock-runtime OpenAI-compatible APIs rejected it as an invalid model
+    # identifier in live tests on 2026-09-03. Intended pricing: $4 input,
+    # $0.40 cache read, $5 cache write, and $20 output per million tokens.
+    # "gpt-5.6-sol-bedrock-global": global.openai.gpt-5.6-sol
+    "gpt-5.6-terra-bedrock": {
+        "id": "gpt-5.6-terra-bedrock",
+        "name": "us.openai.gpt-5.6-terra",
+        "regions": GPT_5_6_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 2.2,
+        "cached_input_cost": 0.22,
+        "cache_write_cost": 2.75,
+        "output_cost": 13.2,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_reasoning_none": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
+    # Re-test in October 2026; see the Global Sol note above. Intended model:
+    # "gpt-5.6-terra-bedrock-global": global.openai.gpt-5.6-terra
+    # Short-context Global pricing: $2 input, $0.20 cache read, $2.50 cache
+    # write, and $12 output per million tokens.
+    "gpt-5.6-luna-bedrock": {
+        "id": "gpt-5.6-luna-bedrock",
+        "name": "us.openai.gpt-5.6-luna",
+        "regions": GPT_5_6_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 0.22,
+        "cached_input_cost": 0.022,
+        "cache_write_cost": 0.275,
+        "output_cost": 1.32,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_reasoning_none": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
+    # Re-test in October 2026; see the Global Sol note above. Intended model:
+    # "gpt-5.6-luna-bedrock-global": global.openai.gpt-5.6-luna
+    # Short-context Global pricing: $0.20 input, $0.02 cache read, $0.25 cache
+    # write, and $1.20 output per million tokens.
     # GPT-OSS on AWS Bedrock
     "gpt-oss-120b-bedrock": {
         "id": "gpt-oss-120b-bedrock",

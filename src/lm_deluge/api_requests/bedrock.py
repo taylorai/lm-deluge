@@ -6,6 +6,7 @@ from aiohttp import ClientResponse
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.prompt import (
     Message,
+    Part,
     Text,
     ToolCall,
 )
@@ -35,6 +36,11 @@ from .bedrock_regions import (
     mark_bedrock_region_unsupported,
     pick_bedrock_source_region,
 )
+from .openai import (
+    _build_oa_chat_request,
+    _build_oa_responses_request,
+    parse_openai_responses_data,
+)
 
 
 def _add_beta(request_json: dict, beta: str) -> None:
@@ -57,6 +63,42 @@ def _is_claude_47_bedrock(model: APIModel) -> bool:
         or model.id == "claude-fable-5-bedrock"
         or "claude-fable-5" in model.name
     )
+
+
+def _is_gpt_56_bedrock(model: APIModel) -> bool:
+    return ".openai.gpt-5.6-" in model.name
+
+
+def _is_openai_bedrock_model(model: APIModel) -> bool:
+    return model.name.startswith("openai.") or ".openai." in model.name
+
+
+def _validate_openai_bedrock_runtime_body(request_json: dict) -> None:
+    service_tier = request_json.get("service_tier")
+    if service_tier not in {None, "default"}:
+        raise ValueError(
+            "GPT-5.6 on bedrock-runtime supports only the Standard service "
+            "tier; omit service_tier or set it to 'default'"
+        )
+
+    background = request_json.pop("background", None)
+    if background:
+        raise ValueError(
+            "background=True is not supported by the bedrock-runtime Responses API"
+        )
+
+    for tool in request_json.get("tools", []):
+        if tool.get("type") != "function":
+            raise ValueError(
+                "Server-side tools are not supported by the bedrock-runtime "
+                "Responses API; use lm-deluge Tool objects or local MCP tools"
+            )
+        # Structured outputs, including strict function schemas, are not
+        # supported by this endpoint/model combination.
+        if "function" in tool:
+            tool["function"]["strict"] = False
+        else:
+            tool["strict"] = False
 
 
 async def _build_anthropic_bedrock_request(
@@ -176,15 +218,54 @@ async def _build_openai_bedrock_request(
     model: APIModel,
     context: RequestContext,
 ):
-    prompt = context.prompt
-    tools = context.tools
-    sampling_params = context.sampling_params
-
     # Cross-region inference quotas are keyed to the request source region.
     region = pick_bedrock_source_region(model)
 
-    # Construct the endpoint URL for OpenAI-compatible endpoint
-    url = f"https://bedrock-runtime.{region}.amazonaws.com/openai/v1/chat/completions"
+    endpoint = "chat/completions"
+    if _is_gpt_56_bedrock(model):
+        if context.use_responses_api:
+            endpoint = "responses"
+            # bedrock-runtime has no hosted MCP tools, so MCP servers must be
+            # expanded into ordinary client-side function tools.
+            builder_context = context.copy(force_local_mcp=True)
+            request_json = await _build_oa_responses_request(model, builder_context)
+        else:
+            request_json = await _build_oa_chat_request(model, context)
+        _validate_openai_bedrock_runtime_body(request_json)
+    else:
+        prompt = context.prompt
+        tools = context.tools
+        sampling_params = context.sampling_params
+        request_json = {
+            "model": model.name,
+            "messages": prompt.to_openai(),
+            "temperature": sampling_params.temperature,
+            "top_p": sampling_params.top_p,
+            "max_completion_tokens": sampling_params.max_new_tokens,
+        }
+
+        # GPT-OSS on Bedrock doesn't support response_format.
+        if sampling_params.json_mode and model.supports_json:
+            maybe_warn("WARN_JSON_MODE_UNSUPPORTED", model_name=model.name)
+
+        if tools:
+            request_tools = []
+            for tool in tools:
+                if isinstance(tool, Tool):
+                    request_tools.append(
+                        tool.dump_for("openai-completions", strict=False)
+                    )
+                elif isinstance(tool, MCPServer):
+                    as_tools = await tool.to_tools()
+                    request_tools.extend(
+                        [
+                            item.dump_for("openai-completions", strict=False)
+                            for item in as_tools
+                        ]
+                    )
+            request_json["tools"] = request_tools
+
+    url = f"https://bedrock-runtime.{region}.amazonaws.com/openai/v1/{endpoint}"
 
     # Authenticate (Bearer token or SigV4)
     auth, auth_headers = get_bedrock_auth(region)
@@ -193,32 +274,6 @@ async def _build_openai_bedrock_request(
         "Content-Type": "application/json",
         **auth_headers,
     }
-
-    # Prepare request body in OpenAI format
-    request_json = {
-        "model": model.name,
-        "messages": prompt.to_openai(),
-        "temperature": sampling_params.temperature,
-        "top_p": sampling_params.top_p,
-        "max_completion_tokens": sampling_params.max_new_tokens,
-    }
-
-    # Note: GPT-OSS on Bedrock doesn't support response_format parameter
-    # Even though the model supports JSON, we can't use the response_format parameter
-    if sampling_params.json_mode and model.supports_json:
-        maybe_warn("WARN_JSON_MODE_UNSUPPORTED", model_name=model.name)
-
-    if tools:
-        request_tools = []
-        for tool in tools:
-            if isinstance(tool, Tool):
-                request_tools.append(tool.dump_for("openai-completions", strict=False))
-            elif isinstance(tool, MCPServer):
-                as_tools = await tool.to_tools()
-                request_tools.extend(
-                    [t.dump_for("openai-completions", strict=False) for t in as_tools]
-                )
-        request_json["tools"] = request_tools
 
     return request_json, base_headers, auth, url, region
 
@@ -236,7 +291,7 @@ class BedrockRequest(APIRequestBase):
 
         self.model = APIModel.from_registry(self.context.model_name)
         self.region = None  # Will be set during build_request
-        self.is_openai_model = self.model.name.startswith("openai.")
+        self.is_openai_model = _is_openai_bedrock_model(self.model)
 
     async def build_request(self):
         if self.is_openai_model:
@@ -358,30 +413,39 @@ class BedrockRequest(APIRequestBase):
                 data = await http_response.json()
 
                 if self.is_openai_model:
-                    # Handle OpenAI-style response
-                    parts = []
-                    message = data["choices"][0]["message"]
-                    finish_reason = data["choices"][0]["finish_reason"]
-
-                    # Add text content if present
-                    if message.get("content"):
-                        parts.append(Text(message["content"]))
-
-                    # Add tool calls if present
-                    if "tool_calls" in message:
-                        for tool_call in message["tool_calls"]:
-                            parts.append(
-                                ToolCall(
-                                    id=tool_call["id"],
-                                    name=tool_call["function"]["name"],
-                                    arguments=json.loads(
-                                        tool_call["function"]["arguments"]
-                                    ),
-                                )
+                    if self.context.use_responses_api:
+                        if data.get("status") == "incomplete":
+                            incomplete_reason = data.get("incomplete_details", {}).get(
+                                "reason", "unknown"
                             )
+                            raise ValueError(
+                                f"Response incomplete: {incomplete_reason}"
+                            )
+                        content, thinking, usage = parse_openai_responses_data(data)
+                        finish_reason = data.get("status")
+                    else:
+                        # Handle OpenAI Chat Completions response.
+                        parts: list[Part] = []
+                        message = data["choices"][0]["message"]
+                        finish_reason = data["choices"][0]["finish_reason"]
 
-                    content = Message("assistant", parts)
-                    usage = Usage.from_openai_usage(data["usage"])
+                        if message.get("content"):
+                            parts.append(Text(message["content"]))
+
+                        if "tool_calls" in message:
+                            for tool_call in message["tool_calls"]:
+                                parts.append(
+                                    ToolCall(
+                                        id=tool_call["id"],
+                                        name=tool_call["function"]["name"],
+                                        arguments=json.loads(
+                                            tool_call["function"]["arguments"]
+                                        ),
+                                    )
+                                )
+
+                        content = Message("assistant", parts)
+                        usage = Usage.from_openai_usage(data["usage"])
                 else:
                     # Handle Anthropic-style response
                     content, thinking = parse_anthropic_response_content(

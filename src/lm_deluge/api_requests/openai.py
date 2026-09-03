@@ -610,6 +610,149 @@ async def _build_oa_responses_request(
     return request_json
 
 
+def parse_openai_responses_data(
+    data: dict,
+) -> tuple[Message, str | None, Usage | None]:
+    """Parse a successful OpenAI Responses payload into lm-deluge types."""
+    parts: list[Part] = []
+    thinking: str | None = None
+    message_phase: str | None = None
+    output = data.get("output", [])
+    if not output:
+        raise ValueError(
+            f"No output in response. Status: {data.get('status')}, "
+            f"error: {data.get('error')}, incomplete details: "
+            f"{data.get('incomplete_details')}"
+        )
+
+    for item in output:
+        if item.get("type") == "message":
+            if "phase" in item:
+                message_phase = item["phase"]
+            for content_item in item.get("content", []):
+                if content_item.get("type") == "output_text":
+                    parts.append(Text(content_item["text"]))
+                elif content_item.get("type") == "refusal":
+                    parts.append(Text(content_item["refusal"]))
+        elif item.get("type") == "reasoning":
+            if not item.get("id"):
+                print(
+                    "Warning: OpenAI reasoning item missing id; round-tripping may break."
+                )
+            summary_list = item.get("summary", [])
+            summary_text = ""
+            if isinstance(summary_list, list) and summary_list:
+                first_summary = summary_list[0]
+                if isinstance(first_summary, dict):
+                    summary_text = first_summary.get("text", "")
+            parts.append(
+                Thinking(
+                    content=summary_text or "[reasoning]",
+                    raw_payload=item,
+                    id=item.get("id"),
+                    summary=summary_text or None,
+                )
+            )
+        elif item.get("type") == "function_call":
+            parts.append(
+                ToolCall(
+                    id=item["call_id"],
+                    name=item["name"],
+                    arguments=json.loads(item["arguments"]),
+                    extra_body={
+                        "item_id": item.get("id"),
+                        "arguments_json": item.get("arguments"),
+                        "raw_item": item,
+                    },
+                )
+            )
+        elif item.get("type") == "mcp_call":
+            parts.append(
+                ToolCall(
+                    id=item["id"],
+                    name=item["name"],
+                    arguments=json.loads(item["arguments"]),
+                    built_in=True,
+                    built_in_type="mcp_call",
+                    extra_body={
+                        "server_label": item["server_label"],
+                        "error": item.get("error"),
+                        "output": item.get("output"),
+                        "raw_item": item,
+                    },
+                )
+            )
+        elif item.get("type") == "computer_call":
+            parts.append(
+                ToolCall(
+                    id=item["call_id"],
+                    name="computer_call",
+                    arguments=item.get("action"),
+                    built_in=True,
+                    built_in_type="computer_call",
+                    extra_body={"raw_item": item},
+                )
+            )
+        elif item.get("type") == "web_search_call":
+            parts.append(
+                ToolCall(
+                    id=item["id"],
+                    name="web_search_call",
+                    arguments={},
+                    built_in=True,
+                    built_in_type="web_search_call",
+                    extra_body={"status": item["status"], "raw_item": item},
+                )
+            )
+        elif item.get("type") == "file_search_call":
+            parts.append(
+                ToolCall(
+                    id=item["id"],
+                    name="file_search_call",
+                    arguments={"queries": item["queries"]},
+                    built_in=True,
+                    built_in_type="file_search_call",
+                    extra_body={
+                        "status": item["status"],
+                        "results": item["results"],
+                        "raw_item": item,
+                    },
+                )
+            )
+        elif item.get("type") == "image_generation_call":
+            parts.append(
+                ToolCall(
+                    id=item["id"],
+                    name="image_generation_call",
+                    arguments={},
+                    built_in=True,
+                    built_in_type="image_generation_call",
+                    extra_body={
+                        "status": item["status"],
+                        "result": item["result"],
+                        "raw_item": item,
+                    },
+                )
+            )
+
+    response_reasoning = data.get("reasoning")
+    response_summary = (
+        response_reasoning.get("summary")
+        if isinstance(response_reasoning, dict)
+        else None
+    )
+    if isinstance(response_summary, str) and response_summary:
+        thinking = response_summary
+        if not any(isinstance(part, Thinking) for part in parts):
+            parts.append(Thinking(thinking))
+
+    content = Message("assistant", parts)
+    if message_phase is not None:
+        content.extra = {"phase": message_phase}
+    usage = Usage.from_openai_usage(data["usage"]) if data.get("usage") else None
+    return content, thinking, usage
+
+
 class OpenAIResponsesRequest(APIRequestBase):
     def __init__(self, context: RequestContext):
         super().__init__(context)
@@ -667,157 +810,7 @@ class OpenAIResponsesRequest(APIRequestBase):
 
                 if not is_error:
                     try:
-                        # Parse Responses API format
-                        parts: list[Part] = []
-                        message_phase: str | None = None
-
-                        # Get the output array from the response
-                        output = data.get("output", [])
-                        if not output:
-                            is_error = True
-                            error_message = f"No output in response. Status: {data.get('status')}, error: {data.get('error')}, incomplete details: {data.get('incomplete_details')}"
-                        else:
-                            # Process each output item
-                            for item in output:
-                                if item.get("type") == "message":
-                                    if "phase" in item:
-                                        message_phase = item["phase"]
-                                    message_content = item.get("content", [])
-                                    for content_item in message_content:
-                                        if content_item.get("type") == "output_text":
-                                            parts.append(Text(content_item["text"]))
-                                        elif content_item.get("type") == "refusal":
-                                            parts.append(Text(content_item["refusal"]))
-                                elif item.get("type") == "reasoning":
-                                    # Always create Thinking with raw_payload to preserve
-                                    # the item for round-tripping back to the API
-                                    if not item.get("id"):
-                                        print(
-                                            "Warning: OpenAI reasoning item missing id; round-tripping may break."
-                                        )
-                                    summary_list = item.get("summary", [])
-                                    summary_text = ""
-                                    if (
-                                        isinstance(summary_list, list)
-                                        and len(summary_list) > 0
-                                    ):
-                                        first_summary = summary_list[0]
-                                        if isinstance(first_summary, dict):
-                                            summary_text = first_summary.get("text", "")
-                                    parts.append(
-                                        Thinking(
-                                            content=summary_text or "[reasoning]",
-                                            raw_payload=item,
-                                            id=item.get("id"),
-                                            summary=summary_text or None,
-                                        )
-                                    )
-                                elif item.get("type") == "function_call":
-                                    parts.append(
-                                        ToolCall(
-                                            id=item["call_id"],
-                                            name=item["name"],
-                                            arguments=json.loads(item["arguments"]),
-                                            extra_body={
-                                                "item_id": item.get("id"),
-                                                "arguments_json": item.get("arguments"),
-                                                "raw_item": item,
-                                            },
-                                        )
-                                    )
-                                elif item.get("type") == "mcp_call":
-                                    parts.append(
-                                        ToolCall(
-                                            id=item["id"],
-                                            name=item["name"],
-                                            arguments=json.loads(item["arguments"]),
-                                            built_in=True,
-                                            built_in_type="mcp_call",
-                                            extra_body={
-                                                "server_label": item["server_label"],
-                                                "error": item.get("error"),
-                                                "output": item.get("output"),
-                                                "raw_item": item,
-                                            },
-                                        )
-                                    )
-
-                                elif item.get("type") == "computer_call":
-                                    parts.append(
-                                        ToolCall(
-                                            id=item["call_id"],
-                                            name="computer_call",
-                                            arguments=item.get("action"),
-                                            built_in=True,
-                                            built_in_type="computer_call",
-                                            extra_body={"raw_item": item},
-                                        )
-                                    )
-
-                                elif item.get("type") == "web_search_call":
-                                    parts.append(
-                                        ToolCall(
-                                            id=item["id"],
-                                            name="web_search_call",
-                                            arguments={},
-                                            built_in=True,
-                                            built_in_type="web_search_call",
-                                            extra_body={
-                                                "status": item["status"],
-                                                "raw_item": item,
-                                            },
-                                        )
-                                    )
-
-                                elif item.get("type") == "file_search_call":
-                                    parts.append(
-                                        ToolCall(
-                                            id=item["id"],
-                                            name="file_search_call",
-                                            arguments={"queries": item["queries"]},
-                                            built_in=True,
-                                            built_in_type="file_search_call",
-                                            extra_body={
-                                                "status": item["status"],
-                                                "results": item["results"],
-                                                "raw_item": item,
-                                            },
-                                        )
-                                    )
-                                elif item.get("type") == "image_generation_call":
-                                    parts.append(
-                                        ToolCall(
-                                            id=item["id"],
-                                            name="image_generation_call",
-                                            arguments={},
-                                            built_in=True,
-                                            built_in_type="image_generation_call",
-                                            extra_body={
-                                                "status": item["status"],
-                                                "result": item["result"],
-                                                "raw_item": item,
-                                            },
-                                        )
-                                    )
-
-                            # Handle reasoning if present in top-level field
-                            # (used by some pseudo-OpenAI APIs)
-                            if "reasoning" in data and data["reasoning"].get("summary"):
-                                thinking = data["reasoning"]["summary"]
-                                # Check if we already have a reasoning item from output
-                                has_reasoning = any(
-                                    isinstance(p, Thinking) for p in parts
-                                )
-                                if not has_reasoning:
-                                    parts.append(Thinking(thinking))
-
-                            content = Message("assistant", parts)
-                            if message_phase is not None:
-                                content.extra = {"phase": message_phase}
-
-                            # Extract usage information
-                            if "usage" in data and data["usage"] is not None:
-                                usage = Usage.from_openai_usage(data["usage"])
+                        content, thinking, usage = parse_openai_responses_data(data)
 
                     except Exception as e:
                         is_error = True

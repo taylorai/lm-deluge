@@ -36,9 +36,19 @@ full_text_search = ["tantivy>=0.21.0", "lenlp>=0.1.0"]
 vector_db = ["numpy>=1.24.0"]
 sandbox = ["boto3>=1.43.35", "modal>=0.64.0", "daytona-sdk>=0.1.4", "docker>=7.0.0", "pybubble; platform_system == 'Linux' and python_version >= '3.12'", "requests>=2.33.0", "python-dotenv>=1.2.2", "urllib3>=2.7.0", "multipart>=1.3.1", "cbor2>5.8.0", "pathspec>=0.12.1"]
 server = ["fastapi>=0.100.0", "uvicorn>=0.20.0", "starlette>=1.3.1"]
-dev = ["ty", "pre-commit"]
+
+[dependency-groups]
+dev = [
+    "build",
+    "prek==0.4.14",
+    "pyright==1.1.410",
+    "ruff==0.15.11",
+    "twine",
+    "ty==0.0.17",
+]
 
 [tool.uv]
+exclude-newer = "3 days"
 constraint-dependencies = ["h2>=4.4.1"]
 
 [project.scripts]
