@@ -293,16 +293,16 @@ NOVA_US_SOURCE_REGIONS = [
     "us-west-2",
 ]
 
-# OpenAI GPT-5.6 bedrock-runtime cross-Region inference source regions.
-# These are shared by Sol, Terra, and Luna per the current AWS model cards.
-GPT_5_6_US_SOURCE_REGIONS = [
+# OpenAI bedrock-runtime cross-Region inference source regions. These are
+# shared by GPT-5.6 and GPT-6 Astra.
+OPENAI_US_SOURCE_REGIONS = [
     "us-east-1",
     "us-east-2",
     "us-west-1",
     "us-west-2",
 ]
 
-GPT_5_6_GLOBAL_SOURCE_REGIONS = [
+OPENAI_GLOBAL_SOURCE_REGIONS = [
     "af-south-1",
     "ap-east-2",
     "ap-northeast-1",
@@ -696,13 +696,54 @@ BEDROCK_MODELS = {
         "reasoning_model": True,
         "supports_images": True,
     },
+    # GPT-6 Astra on AWS Bedrock. The Global rates match OpenAI Standard;
+    # US Geo CRIS has AWS's 10% regional-processing uplift. Prices are for
+    # the <=272K context tier; higher rates apply above that threshold.
+    "gpt-6-astra-bedrock": {
+        "id": "gpt-6-astra-bedrock",
+        "name": "us.openai.gpt-6-astra",
+        "regions": OPENAI_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 11.0,
+        "cached_input_cost": 1.1,
+        "cache_write_cost": 13.75,
+        "output_cost": 55.0,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
+    "gpt-6-astra-bedrock-global": {
+        "id": "gpt-6-astra-bedrock-global",
+        "name": "global.openai.gpt-6-astra",
+        "regions": OPENAI_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 10.0,
+        "cached_input_cost": 1.0,
+        "cache_write_cost": 12.5,
+        "output_cost": 50.0,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
     # GPT-5.6 on AWS Bedrock. Prices are for the <=272K context tier; AWS
     # applies separate long-context rates above that threshold.
     "gpt-5.6-sol-bedrock": {
         "id": "gpt-5.6-sol-bedrock",
         "name": "us.openai.gpt-5.6-sol",
         "aliases": ["gpt-5.6-bedrock"],
-        "regions": GPT_5_6_US_SOURCE_REGIONS,
+        "regions": OPENAI_US_SOURCE_REGIONS,
         "api_base": "",
         "api_key_env_var": "",
         "api_spec": "bedrock",
@@ -728,7 +769,7 @@ BEDROCK_MODELS = {
     "gpt-5.6-terra-bedrock": {
         "id": "gpt-5.6-terra-bedrock",
         "name": "us.openai.gpt-5.6-terra",
-        "regions": GPT_5_6_US_SOURCE_REGIONS,
+        "regions": OPENAI_US_SOURCE_REGIONS,
         "api_base": "",
         "api_key_env_var": "",
         "api_spec": "bedrock",
@@ -752,7 +793,7 @@ BEDROCK_MODELS = {
     "gpt-5.6-luna-bedrock": {
         "id": "gpt-5.6-luna-bedrock",
         "name": "us.openai.gpt-5.6-luna",
-        "regions": GPT_5_6_US_SOURCE_REGIONS,
+        "regions": OPENAI_US_SOURCE_REGIONS,
         "api_base": "",
         "api_key_env_var": "",
         "api_spec": "bedrock",

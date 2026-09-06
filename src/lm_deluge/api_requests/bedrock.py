@@ -65,8 +65,10 @@ def _is_claude_47_bedrock(model: APIModel) -> bool:
     )
 
 
-def _is_gpt_56_bedrock(model: APIModel) -> bool:
-    return ".openai.gpt-5.6-" in model.name
+def _uses_modern_openai_bedrock_api(model: APIModel) -> bool:
+    return ".openai.gpt-5.6-" in model.name or model.name.endswith(
+        ".openai.gpt-6-astra"
+    )
 
 
 def _is_openai_bedrock_model(model: APIModel) -> bool:
@@ -77,7 +79,7 @@ def _validate_openai_bedrock_runtime_body(request_json: dict) -> None:
     service_tier = request_json.get("service_tier")
     if service_tier not in {None, "default"}:
         raise ValueError(
-            "GPT-5.6 on bedrock-runtime supports only the Standard service "
+            "OpenAI models on bedrock-runtime support only the Standard service "
             "tier; omit service_tier or set it to 'default'"
         )
 
@@ -222,7 +224,7 @@ async def _build_openai_bedrock_request(
     region = pick_bedrock_source_region(model)
 
     endpoint = "chat/completions"
-    if _is_gpt_56_bedrock(model):
+    if _uses_modern_openai_bedrock_api(model):
         if context.use_responses_api:
             endpoint = "responses"
             # bedrock-runtime has no hosted MCP tools, so MCP servers must be

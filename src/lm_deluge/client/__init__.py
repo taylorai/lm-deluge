@@ -917,7 +917,8 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = ...,
         output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = ...,
     ) -> list[str | None]: ...
 
     @overload
@@ -931,7 +932,8 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = ...,
         output_schema: type[BaseModel] | dict | None = ...,
         cache: CachePattern | None = ...,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = ...,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = ...,
     ) -> list[APIResponse]: ...
 
     async def process_prompts_async(
@@ -944,7 +946,8 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
     ) -> list[APIResponse] | list[str | None] | dict[str, int]:
         """Process multiple prompts asynchronously using the start_nowait/wait_for_all backend.
 
@@ -1226,7 +1229,8 @@ class _LLMClient(BaseModel):
         container_id: str | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         http_session: aiohttp.ClientSession | None = None,
         max_rounds: int = 100,
@@ -1288,7 +1292,8 @@ class _LLMClient(BaseModel):
         container_id: str | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         max_rounds: int = 100,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
@@ -1315,7 +1320,8 @@ class _LLMClient(BaseModel):
         container_id: str | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         http_session: aiohttp.ClientSession | None = None,
         max_rounds: int = 100,
@@ -1442,7 +1448,8 @@ class _LLMClient(BaseModel):
         on_round_complete: AgentLoopCallback | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
         http_session: aiohttp.ClientSession | None = None,
@@ -1571,7 +1578,8 @@ class _LLMClient(BaseModel):
         on_round_complete: AgentLoopCallback | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
         http_session: aiohttp.ClientSession | None = None,
@@ -1643,7 +1651,8 @@ class _LLMClient(BaseModel):
         on_round_complete: AgentLoopCallback | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -1695,7 +1704,8 @@ class _LLMClient(BaseModel):
         on_round_complete: AgentLoopCallback | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
     ) -> tuple[Conversation, APIResponse]:
@@ -1734,7 +1744,8 @@ class _LLMClient(BaseModel):
         on_round_complete: AgentLoopCallback | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         verbose: bool = False,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Process multiple agent loops concurrently.
@@ -1850,7 +1861,8 @@ class _LLMClient(BaseModel):
         on_round_complete: AgentLoopCallback | None = None,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
-        service_tier: Literal["auto", "default", "flex", "priority"] | None = None,
+        service_tier: Literal["auto", "default", "flex", "fast", "priority"]
+        | None = None,
         verbose: bool = False,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Synchronous wrapper for :meth:`process_agent_loops_async`."""

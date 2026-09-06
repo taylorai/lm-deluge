@@ -10,6 +10,25 @@ OPENAI_MODELS = {
     #                ░███
     #                █████
     #               ░░░░░
+    "gpt-6-astra": {
+        "id": "gpt-6-astra",
+        "name": "gpt-6-astra",
+        "api_base": "https://api.openai.com/v1",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "supports_responses": True,
+        "api_spec": "openai",
+        "input_cost": 10.0,
+        "cached_input_cost": 1.0,
+        "cache_write_cost": 12.5,
+        "output_cost": 50.0,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_verbosity": True,
+        "supports_images": True,
+    },
     "gpt-5.6-sol": {
         "id": "gpt-5.6-sol",
         "name": "gpt-5.6-sol",

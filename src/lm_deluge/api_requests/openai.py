@@ -147,14 +147,18 @@ async def _build_oa_chat_request(
             "auto",
             "default",
             "flex",
+            "fast",
             "priority",
         ], f"Invalid service tier: {context.service_tier}"
         # flex is only supported for o3, o4-mini, gpt-5 models
         if context.service_tier == "flex":
-            model_supports_flex = any(x in model.id for x in ["o3", "o4-mini", "gpt-5"])
+            model_supports_flex = any(
+                x in model.id for x in ["o3", "o4-mini", "gpt-5", "gpt-6"]
+            )
             if not model_supports_flex:
                 print(
-                    f"WARNING: service_tier='flex' only supported for o3, o4-mini, gpt-5. "
+                    "WARNING: service_tier='flex' only supported for o3, o4-mini, "
+                    f"gpt-5, and gpt-6. "
                     f"Using 'auto' instead for model {model.id}."
                 )
                 request_json["service_tier"] = "auto"
@@ -450,14 +454,18 @@ async def _build_oa_responses_request(
             "auto",
             "default",
             "flex",
+            "fast",
             "priority",
         ], f"Invalid service tier: {context.service_tier}"
         # flex is only supported for o3, o4-mini, gpt-5 models
         if context.service_tier == "flex":
-            model_supports_flex = any(x in model.id for x in ["o3", "o4-mini", "gpt-5"])
+            model_supports_flex = any(
+                x in model.id for x in ["o3", "o4-mini", "gpt-5", "gpt-6"]
+            )
             if not model_supports_flex:
                 print(
-                    f"WARNING: service_tier='flex' only supported for o3, o4-mini, gpt-5. "
+                    "WARNING: service_tier='flex' only supported for o3, o4-mini, "
+                    f"gpt-5, and gpt-6. "
                     f"Model {model.id} doesn't support flex. Using 'auto' instead."
                 )
                 request_json["service_tier"] = "auto"
