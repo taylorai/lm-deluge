@@ -152,9 +152,7 @@ async def test_fable_51_bedrock_binding_controls():
         "block_binding": {"prefix_mismatch_behavior": "error"},
     }
     assert strict_body["output_config"]["effort"] == "max"
-    assert strict_body["anthropic_beta"] == [
-        "thinking-binding-controls-2026-08-01"
-    ]
+    assert strict_body["anthropic_beta"] == ["thinking-binding-controls-2026-08-01"]
     assert "temperature" not in strict_body and "top_p" not in strict_body
 
     drop_body = await _bedrock_body(

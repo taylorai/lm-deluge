@@ -66,12 +66,12 @@ async def test_incomplete_response_handling():
     # Verify that the response is marked as an error
     assert result.is_error, "Incomplete response should be marked as error"
     assert result.error_message is not None, "Error message should be set"
-    assert (
-        "incomplete" in result.error_message.lower()
-    ), f"Error message should mention 'incomplete', got: {result.error_message}"
-    assert (
-        "max_output_tokens" in result.error_message.lower()
-    ), f"Error message should mention reason, got: {result.error_message}"
+    assert "incomplete" in result.error_message.lower(), (
+        f"Error message should mention 'incomplete', got: {result.error_message}"
+    )
+    assert "max_output_tokens" in result.error_message.lower(), (
+        f"Error message should mention reason, got: {result.error_message}"
+    )
 
     print("✓ Incomplete response handling test passed")
     print(f"  Error message: {result.error_message}")
@@ -126,15 +126,15 @@ async def test_complete_response_handling():
     result = await request.handle_response(mock_http_response)
 
     # Verify that the response is NOT marked as an error
-    assert (
-        not result.is_error
-    ), f"Complete response should not be marked as error, got: {result.error_message}"
+    assert not result.is_error, (
+        f"Complete response should not be marked as error, got: {result.error_message}"
+    )
     assert result.content is not None, "Content should be set"
     # Message object has parts, get text from first Text part
     text_content = str(result.content.parts[0].text) if result.content.parts else ""
-    assert (
-        text_content == "Hello, world!"
-    ), f"Expected 'Hello, world!', got: {text_content}"
+    assert text_content == "Hello, world!", (
+        f"Expected 'Hello, world!', got: {text_content}"
+    )
     assert result.usage is not None, "Usage should be populated"
     assert result.usage.input_tokens == 100, result.usage
     assert result.usage.output_tokens == 10, result.usage

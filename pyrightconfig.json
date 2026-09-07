@@ -1,5 +1,8 @@
 {
+  "include": ["src"],
   "venv": ".venv",
   "venvPath": ".",
-  "exclude": ["tests"]
+  "exclude": ["tests", ".venv", "build", "dist"],
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
 }

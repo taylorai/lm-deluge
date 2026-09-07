@@ -97,9 +97,7 @@ def test_fable_51_binding_policy_defaults_to_error_and_can_drop():
     assert strict_body["thinking"]["block_binding"] == {
         "prefix_mismatch_behavior": "error"
     }
-    assert "thinking-binding-controls-2026-08-01" in strict_headers[
-        "anthropic-beta"
-    ]
+    assert "thinking-binding-controls-2026-08-01" in strict_headers["anthropic-beta"]
 
     drop_body, drop_headers = _build_anthropic_request(
         model,
@@ -108,9 +106,7 @@ def test_fable_51_binding_policy_defaults_to_error_and_can_drop():
     assert drop_body["thinking"]["block_binding"] == {
         "prefix_mismatch_behavior": "drop_block"
     }
-    assert "thinking-binding-controls-2026-08-01" in drop_headers[
-        "anthropic-beta"
-    ]
+    assert "thinking-binding-controls-2026-08-01" in drop_headers["anthropic-beta"]
 
 
 def test_fable_51_client_exposes_binding_policy():

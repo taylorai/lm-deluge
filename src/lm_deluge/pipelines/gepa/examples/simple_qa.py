@@ -59,10 +59,10 @@ def evaluate(
 
     # Build informative feedback for the proposer
     feedback = f"""Score: {score}
-Question: {example['question']}
-Expected answer to contain: {example['answer']}
-Model response: {answer[:200]}{'...' if len(answer) > 200 else ''}
-Result: {'CORRECT' if correct else 'INCORRECT'}"""
+Question: {example["question"]}
+Expected answer to contain: {example["answer"]}
+Model response: {answer[:200]}{"..." if len(answer) > 200 else ""}
+Result: {"CORRECT" if correct else "INCORRECT"}"""
 
     # Return full trajectory
     full_conv = conv.add(Message.ai(answer))

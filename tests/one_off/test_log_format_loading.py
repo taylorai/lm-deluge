@@ -13,7 +13,7 @@ convo.add(Message.ai("I'm doing great, thanks for asking!"))
 print("Original conversation:")
 print(f"  Messages: {len(convo.messages)}")
 for i, msg in enumerate(convo.messages):
-    print(f"  {i+1}. {msg.role}: {msg.parts[0].text if msg.parts else ''}")
+    print(f"  {i + 1}. {msg.role}: {msg.parts[0].text if msg.parts else ''}")
 
 # Convert to log format
 log_data = convo.to_log()
@@ -27,7 +27,7 @@ loaded_convo, provider = Conversation.from_unknown(log_data)
 print(f"  Detected provider: {provider}")
 print(f"  Messages loaded: {len(loaded_convo.messages)}")
 for i, msg in enumerate(loaded_convo.messages):
-    print(f"  {i+1}. {msg.role}: {msg.parts[0].text if msg.parts else ''}")
+    print(f"  {i + 1}. {msg.role}: {msg.parts[0].text if msg.parts else ''}")
 
 # Test 2: Load from OpenAI format
 print("\n--- Test 2: Load from OpenAI format ---")

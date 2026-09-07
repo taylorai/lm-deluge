@@ -101,9 +101,7 @@ async def test_fable_thinking_round_trip(model: str) -> None:
         assert first.completion and first_marker in first.completion
         assert first.content is not None
 
-        original_blocks = [
-            part.anthropic() for part in first.content.thinking_parts
-        ]
+        original_blocks = [part.anthropic() for part in first.content.thinking_parts]
         conversation.with_response(first)
         conversation.user(f"Reply with exactly: {second_marker}")
 

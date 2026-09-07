@@ -3,13 +3,13 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "lm_deluge"
-version = "0.0.149"
+version = "0.0.150"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
 requires-python = ">=3.10"
 keywords = []
-license = { text = "" }
+license = "MIT"
 classifiers = []
 dependencies = [
     "pyjson5",
@@ -50,6 +50,12 @@ dev = [
 [tool.uv]
 exclude-newer = "3 days"
 constraint-dependencies = ["h2>=4.4.1"]
+
+[tool.ty.rules]
+# Optional integrations are imported lazily and are intentionally absent from the
+# default development environment. Their availability is checked at runtime.
+unresolved-import = "ignore"
+unused-type-ignore-comment = "ignore"
 
 [project.scripts]
 deluge = "lm_deluge.cli:main"

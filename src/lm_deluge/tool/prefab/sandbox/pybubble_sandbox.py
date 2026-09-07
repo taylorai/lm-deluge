@@ -469,7 +469,7 @@ class PybubbleSandbox:
         if self.outbound_access:
             if self._host_network_fallback:
                 network_desc = (
-                    "with outbound network access " "(host-network fallback mode)"
+                    "with outbound network access (host-network fallback mode)"
                 )
             else:
                 network_desc = "with outbound network access"

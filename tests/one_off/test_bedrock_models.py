@@ -30,9 +30,9 @@ def test_bedrock_models_in_registry():
     for model_name in inference_profile_models:
         model = APIModel.from_registry(model_name)
         assert model.api_spec == "bedrock", f"{model_name} should have bedrock api_spec"
-        assert model.name.startswith(
-            "us.anthropic."
-        ), f"{model_name} should have us.anthropic. prefix for inference profile"
+        assert model.name.startswith("us.anthropic."), (
+            f"{model_name} should have us.anthropic. prefix for inference profile"
+        )
         assert model.name.endswith(":0"), f"{model_name} should end with :0"
         assert len(model.regions) > 0, f"{model_name} should have regions configured"
         print(f"✓ {model_name}: {model.name} (regions: {model.regions})")
@@ -57,12 +57,12 @@ def test_cross_region_inference_models():
     for model_name in cross_region_models:
         model = APIModel.from_registry(model_name)
         # These models should be available in multiple regions including us-east-1, us-west-2, eu-west-1
-        assert (
-            "us-east-1" in model.regions
-        ), f"{model_name} should be available in us-east-1"
-        assert (
-            "us-west-2" in model.regions
-        ), f"{model_name} should be available in us-west-2"
+        assert "us-east-1" in model.regions, (
+            f"{model_name} should be available in us-east-1"
+        )
+        assert "us-west-2" in model.regions, (
+            f"{model_name} should be available in us-west-2"
+        )
         print(f"✓ {model_name}: Available in us-east-1 and us-west-2 regions")
 
 
@@ -80,16 +80,16 @@ def test_reasoning_model_flags():
 
     for model_name in reasoning_models:
         model = APIModel.from_registry(model_name)
-        assert (
-            model.reasoning_model
-        ), f"{model_name} should be marked as reasoning model"
+        assert model.reasoning_model, (
+            f"{model_name} should be marked as reasoning model"
+        )
         print(f"✓ {model_name}: Correctly marked as reasoning model")
 
     for model_name in non_reasoning_models:
         model = APIModel.from_registry(model_name)
-        assert (
-            not model.reasoning_model
-        ), f"{model_name} should not be marked as reasoning model"
+        assert not model.reasoning_model, (
+            f"{model_name} should not be marked as reasoning model"
+        )
         print(f"✓ {model_name}: Correctly marked as non-reasoning model")
 
 
@@ -124,19 +124,19 @@ async def test_bedrock_api_calls():
 
             assert len(results) == 1, f"Should get 1 result for {model_name}"
             result = results[0]
-            assert isinstance(
-                result, APIResponse
-            ), f"Result should be APIResponse for {model_name}"
-            assert (
-                not result.is_error
-            ), f"API call failed for {model_name}: {result.error_message}"
+            assert isinstance(result, APIResponse), (
+                f"Result should be APIResponse for {model_name}"
+            )
+            assert not result.is_error, (
+                f"API call failed for {model_name}: {result.error_message}"
+            )
             assert result.completion, f"No completion received for {model_name}"
-            assert (
-                result.input_tokens and result.input_tokens > 0
-            ), f"No input tokens for {model_name}"
-            assert (
-                result.output_tokens and result.output_tokens > 0
-            ), f"No output tokens for {model_name}"
+            assert result.input_tokens and result.input_tokens > 0, (
+                f"No input tokens for {model_name}"
+            )
+            assert result.output_tokens and result.output_tokens > 0, (
+                f"No output tokens for {model_name}"
+            )
             assert result.region, f"No region info for {model_name}"
 
             print(

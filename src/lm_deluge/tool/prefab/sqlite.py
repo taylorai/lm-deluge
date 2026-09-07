@@ -96,8 +96,7 @@ class SqliteParams(BaseModel):
         ge=0,
         le=100,
         description=(
-            "When describing a table, optionally include up to this many sample "
-            "rows."
+            "When describing a table, optionally include up to this many sample rows."
         ),
     )
 
@@ -634,8 +633,7 @@ class SqliteManager:
         try:
             if params.command not in allowed_commands:
                 raise ValueError(
-                    f"The '{params.command}' command is disabled for this tool "
-                    "instance"
+                    f"The '{params.command}' command is disabled for this tool instance"
                 )
 
             if params.command == "query":

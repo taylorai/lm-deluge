@@ -307,9 +307,9 @@ def test_anthropic_automatic_cache_control_e2e():
 
     tools = request_json.get("tools")
     assert isinstance(tools, list) and tools, "Expected tools in request JSON"
-    assert (
-        "cache_control" not in tools[-1]
-    ), "automatic cache mode should not add block-level tool cache markers"
+    assert "cache_control" not in tools[-1], (
+        "automatic cache mode should not add block-level tool cache markers"
+    )
     print("Anthropic e2e automatic tool cache markers: OK")
 
 

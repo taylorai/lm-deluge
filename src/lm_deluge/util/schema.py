@@ -33,12 +33,12 @@ def is_pydantic_model(obj: Any) -> bool:
     return inspect.isclass(obj) and issubclass(obj, _BaseModel)
 
 
-def is_dict(obj: object) -> TypeGuard[dict[str, object]]:
+def is_dict(obj: object) -> TypeGuard[dict[str, Any]]:
     """Type guard for dictionaries."""
     return isinstance(obj, dict)
 
 
-def has_more_than_n_keys(obj: dict[str, object], n: int) -> bool:
+def has_more_than_n_keys(obj: dict[str, Any], n: int) -> bool:
     """Check if a dictionary has more than n keys."""
     i = 0
     for _ in obj.keys():
@@ -48,7 +48,7 @@ def has_more_than_n_keys(obj: dict[str, object], n: int) -> bool:
     return False
 
 
-def resolve_ref(*, root: dict[str, object], ref: str) -> object:
+def resolve_ref(*, root: dict[str, Any], ref: str) -> object:
     """Resolve a JSON Schema $ref pointer.
 
     Args:
@@ -144,7 +144,7 @@ def _ensure_strict_json_schema(
     json_schema: dict[str, Any],
     *,
     path: tuple[str, ...],
-    root: dict[str, object],
+    root: dict[str, Any],
 ) -> dict[str, Any]:
     """Recursively ensure a JSON schema conforms to strict mode requirements.
 

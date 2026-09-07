@@ -35,9 +35,9 @@ def test_serialization_format_structure():
     assert isinstance(sys_msg["content"], list), "Content should be a list"
     assert len(sys_msg["content"]) == 1, "System message should have one content block"
     assert sys_msg["content"][0]["type"] == "text", "Should be text type"
-    assert (
-        sys_msg["content"][0]["text"] == "You are a helpful assistant."
-    ), "Text should match"
+    assert sys_msg["content"][0]["text"] == "You are a helpful assistant.", (
+        "Text should match"
+    )
 
     # Check user message
     user_msg = messages[1]
@@ -47,9 +47,9 @@ def test_serialization_format_structure():
     # Check assistant message
     ai_msg = messages[2]
     assert ai_msg["role"] == "assistant", "Third message should be assistant"
-    assert (
-        ai_msg["content"][0]["text"] == "Hi there! How can I help?"
-    ), "AI text should match"
+    assert ai_msg["content"][0]["text"] == "Hi there! How can I help?", (
+        "AI text should match"
+    )
 
     print("✅ Serialization format structure test passed!")
 
@@ -88,15 +88,15 @@ def test_tool_call_serialization_format():
     assert found_tool_call is not None, "Should find tool call in serialized data"
     assert found_tool_call["id"] == "call_123", "Tool call ID should match"
     assert found_tool_call["name"] == "random_number", "Tool call name should match"
-    assert (
-        found_tool_call["arguments"]["max_value"] == 10
-    ), "Tool call arguments should match"
+    assert found_tool_call["arguments"]["max_value"] == 10, (
+        "Tool call arguments should match"
+    )
 
     # Verify tool result structure
     assert found_tool_result is not None, "Should find tool result in serialized data"
-    assert (
-        found_tool_result["tool_call_id"] == "call_123"
-    ), "Tool result call ID should match"
+    assert found_tool_result["tool_call_id"] == "call_123", (
+        "Tool result call ID should match"
+    )
     assert found_tool_result["result"] == "7", "Tool result should match"
 
     print("✅ Tool call serialization format test passed!")
@@ -136,9 +136,9 @@ def test_round_trip_consistency():
     assert serialized_1 == serialized_2, "Round-trip serialization should be consistent"
 
     # Verify message count
-    assert len(restored.messages) == len(
-        conversation.messages
-    ), "Message count should be preserved"
+    assert len(restored.messages) == len(conversation.messages), (
+        "Message count should be preserved"
+    )
 
     # Verify roles
     for orig, rest in zip(conversation.messages, restored.messages):
@@ -172,9 +172,9 @@ def test_json_compatibility():
 
     # Verify we can recreate conversation from JSON
     restored_from_json = Conversation.from_log(parsed_back)
-    assert (
-        len(restored_from_json.messages) == 2
-    ), "Should have 2 messages after JSON round-trip"
+    assert len(restored_from_json.messages) == 2, (
+        "Should have 2 messages after JSON round-trip"
+    )
 
     print("✅ JSON compatibility test passed!")
 

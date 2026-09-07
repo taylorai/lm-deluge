@@ -133,7 +133,7 @@ NEW_VALUE:
     print()
     print("Evolution of candidates:")
     for i, (idx, candidate, score) in enumerate(result.best_k(5)):  # type: ignore[union-attr]
-        print(f"  {i+1}. Score={score:.2%}: {candidate['system_prompt'][:60]}...")
+        print(f"  {i + 1}. Score={score:.2%}: {candidate['system_prompt'][:60]}...")
 
 
 if __name__ == "__main__":

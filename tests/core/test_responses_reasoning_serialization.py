@@ -125,15 +125,15 @@ def test_conversation_to_openai_responses_preserves_reasoning():
 
     # Find the reasoning item
     reasoning_items = [item for item in input_items if item.get("type") == "reasoning"]
-    assert (
-        len(reasoning_items) == 1
-    ), f"Expected 1 reasoning item, got {len(reasoning_items)}"
+    assert len(reasoning_items) == 1, (
+        f"Expected 1 reasoning item, got {len(reasoning_items)}"
+    )
 
     reasoning_item = reasoning_items[0]
     assert reasoning_item["type"] == "reasoning"
-    assert (
-        reasoning_item["id"] == "rs_abc123"
-    ), f"Expected id 'rs_abc123', got {reasoning_item.get('id')}"
+    assert reasoning_item["id"] == "rs_abc123", (
+        f"Expected id 'rs_abc123', got {reasoning_item.get('id')}"
+    )
     assert "summary" in reasoning_item, "Missing 'summary' field in reasoning item"
 
     print("PASS: Conversation serialization preserves reasoning items")
@@ -200,15 +200,15 @@ def test_full_tool_loop_conversation_serialization():
 
     # Check reasoning item has all required fields
     reasoning_items = [item for item in input_items if item.get("type") == "reasoning"]
-    assert (
-        len(reasoning_items) == 1
-    ), f"Expected 1 reasoning item, got {len(reasoning_items)}: {reasoning_items}"
+    assert len(reasoning_items) == 1, (
+        f"Expected 1 reasoning item, got {len(reasoning_items)}: {reasoning_items}"
+    )
 
     reasoning = reasoning_items[0]
     assert "id" in reasoning, f"Missing 'id' in reasoning: {reasoning}"
-    assert reasoning["id"].startswith(
-        "rs_"
-    ), f"ID should start with 'rs_': {reasoning['id']}"
+    assert reasoning["id"].startswith("rs_"), (
+        f"ID should start with 'rs_': {reasoning['id']}"
+    )
     assert "summary" in reasoning, f"Missing 'summary' in reasoning: {reasoning}"
 
     print("PASS: Full tool loop conversation serialization")
@@ -348,9 +348,9 @@ def test_conversation_with_empty_summary_reasoning():
     assert len(reasoning_items) == 1
 
     reasoning = reasoning_items[0]
-    assert (
-        reasoning["id"] == "rs_abc123"
-    ), f"Expected rs_abc123, got {reasoning.get('id')}"
+    assert reasoning["id"] == "rs_abc123", (
+        f"Expected rs_abc123, got {reasoning.get('id')}"
+    )
 
     print("PASS: Conversation with empty summary reasoning")
 

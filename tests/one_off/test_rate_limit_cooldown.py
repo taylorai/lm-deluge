@@ -63,9 +63,9 @@ async def _run_process_prompts_flow():
         elapsed = time.time() - start
 
     # Expect at least one cooldown pause
-    assert (
-        elapsed >= SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR - 0.5
-    ), f"Expected cooldown pause; elapsed={elapsed:.2f}s"
+    assert elapsed >= SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR - 0.5, (
+        f"Expected cooldown pause; elapsed={elapsed:.2f}s"
+    )
     # Ensure results returned
     assert len(results) == 3
 
@@ -130,9 +130,9 @@ async def _run_start_nowait_flow():
 
     client.close()
 
-    assert (
-        elapsed >= SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR - 0.5
-    ), f"Expected cooldown pause in start_nowait flow; elapsed={elapsed:.2f}s"
+    assert elapsed >= SECONDS_TO_PAUSE_AFTER_RATE_LIMIT_ERROR - 0.5, (
+        f"Expected cooldown pause in start_nowait flow; elapsed={elapsed:.2f}s"
+    )
 
 
 def test_rate_limit_cooldown_one_off():

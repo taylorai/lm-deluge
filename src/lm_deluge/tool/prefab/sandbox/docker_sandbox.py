@@ -416,6 +416,8 @@ class DockerSandbox:
             # Decode output
             if isinstance(output, bytes):
                 output = output.decode("utf-8", errors="replace")
+            elif not isinstance(output, str):
+                output = b"".join(output).decode("utf-8", errors="replace")
 
             # Truncate if needed
             if len(output) > 5000:
@@ -428,12 +430,13 @@ class DockerSandbox:
             return output if output else "(no output)"
         else:
             # Background execution
-            exec_id = await asyncio.to_thread(
+            exec_info = await asyncio.to_thread(
                 self.client.api.exec_create,
                 self.container.id,
                 ["sh", "-c", command],
                 workdir=self.working_dir,
             )
+            exec_id = exec_info["Id"]
             await asyncio.to_thread(
                 self.client.api.exec_start,
                 exec_id,

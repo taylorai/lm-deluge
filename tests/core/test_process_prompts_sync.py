@@ -34,6 +34,6 @@ def test_process_prompts_sync_forwards_output_schema(monkeypatch=None):
 
     assert result == ["ok"], "Fake async result should be propagated"
     assert captured is not None, "process_prompts_async should have been invoked"
-    assert (
-        captured.get("output_schema") == schema
-    ), "output_schema must pass through the sync helper"
+    assert captured.get("output_schema") == schema, (
+        "output_schema must pass through the sync helper"
+    )

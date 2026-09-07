@@ -154,24 +154,24 @@ async def test_npx_resolution_uses_root_dir():
         with (
             patch(
                 "shutil.which",
-                side_effect=lambda name: None
-                if name == "just-bash"
-                else "/usr/bin/npx",
+                side_effect=lambda name: (
+                    None if name == "just-bash" else "/usr/bin/npx"
+                ),
             ),
             patch("subprocess.run", side_effect=patched_run),
         ):
             sandbox = JustBashSandbox(root_dir=root)
             result = sandbox._resolve_runner_command()
 
-        assert (
-            len(probe_calls) == 1
-        ), f"Expected 1 npx probe call, got {len(probe_calls)}"
+        assert len(probe_calls) == 1, (
+            f"Expected 1 npx probe call, got {len(probe_calls)}"
+        )
         # Resolve both sides to handle macOS /var -> /private/var symlinks
         expected_cwd = str(root.resolve())
         actual_cwd = str(Path(probe_calls[0]["cwd"]).resolve())
-        assert (
-            actual_cwd == expected_cwd
-        ), f"npx probe should run with cwd=root_dir ({expected_cwd}), got {actual_cwd}"
+        assert actual_cwd == expected_cwd, (
+            f"npx probe should run with cwd=root_dir ({expected_cwd}), got {actual_cwd}"
+        )
         assert result == ["/usr/bin/npx", "--no-install", "just-bash"]
 
 
@@ -200,9 +200,9 @@ async def test_auto_install_fallback():
         with (
             patch(
                 "shutil.which",
-                side_effect=lambda name: None
-                if name == "just-bash"
-                else "/usr/bin/npx",
+                side_effect=lambda name: (
+                    None if name == "just-bash" else "/usr/bin/npx"
+                ),
             ),
             patch("subprocess.run", side_effect=fake_run),
         ):
@@ -223,9 +223,9 @@ async def test_auto_install_false_raises_with_hint():
         with (
             patch(
                 "shutil.which",
-                side_effect=lambda name: None
-                if name == "just-bash"
-                else "/usr/bin/npx",
+                side_effect=lambda name: (
+                    None if name == "just-bash" else "/usr/bin/npx"
+                ),
             ),
             patch("subprocess.run", side_effect=fake_run),
         ):

@@ -122,8 +122,9 @@ def test_rich_display_refreshes_capacity_while_idle():
         async def _fake_sleep(_: float):
             return None
 
-        with patch("lm_deluge.tracker.Live", _FakeLive), patch(
-            "lm_deluge.tracker.asyncio.sleep", _fake_sleep
+        with (
+            patch("lm_deluge.tracker.Live", _FakeLive),
+            patch("lm_deluge.tracker.asyncio.sleep", _fake_sleep),
         ):
             await tracker._rich_display_updater()
 

@@ -70,8 +70,9 @@ def test_read_range_returns_html_table():
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
     # Mock the Google Sheets API
-    with patch("googleapiclient.discovery.build") as mock_build, patch(
-        "google.oauth2.service_account.Credentials.from_service_account_info"
+    with (
+        patch("googleapiclient.discovery.build") as mock_build,
+        patch("google.oauth2.service_account.Credentials.from_service_account_info"),
     ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
@@ -107,8 +108,9 @@ def test_read_range_empty_response():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch("googleapiclient.discovery.build") as mock_build, patch(
-        "google.oauth2.service_account.Credentials.from_service_account_info"
+    with (
+        patch("googleapiclient.discovery.build") as mock_build,
+        patch("google.oauth2.service_account.Credentials.from_service_account_info"),
     ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
@@ -131,8 +133,9 @@ def test_read_range_error_handling():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch("googleapiclient.discovery.build") as mock_build, patch(
-        "google.oauth2.service_account.Credentials.from_service_account_info"
+    with (
+        patch("googleapiclient.discovery.build") as mock_build,
+        patch("google.oauth2.service_account.Credentials.from_service_account_info"),
     ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
@@ -155,8 +158,9 @@ def test_update_cell_success():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch("googleapiclient.discovery.build") as mock_build, patch(
-        "google.oauth2.service_account.Credentials.from_service_account_info"
+    with (
+        patch("googleapiclient.discovery.build") as mock_build,
+        patch("google.oauth2.service_account.Credentials.from_service_account_info"),
     ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service
@@ -190,8 +194,9 @@ def test_update_cell_error_handling():
     credentials = {"type": "service_account", "project_id": "test"}
     manager = SheetsManager(sheet_id="test-sheet-id", credentials_json=credentials)
 
-    with patch("googleapiclient.discovery.build") as mock_build, patch(
-        "google.oauth2.service_account.Credentials.from_service_account_info"
+    with (
+        patch("googleapiclient.discovery.build") as mock_build,
+        patch("google.oauth2.service_account.Credentials.from_service_account_info"),
     ):
         mock_service, mock_spreadsheets = _mock_sheets_service()
         mock_build.return_value = mock_service

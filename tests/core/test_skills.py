@@ -149,9 +149,9 @@ def test_skills_with_existing_code_execution_tool():
         for t in request_json["tools"]
         if t.get("type", "").startswith("code_execution")
     )
-    assert (
-        code_exec_count == 1
-    ), f"Expected 1 code_execution tool, got {code_exec_count}"
+    assert code_exec_count == 1, (
+        f"Expected 1 code_execution tool, got {code_exec_count}"
+    )
 
     print("Skills with existing code_execution test passed!")
 

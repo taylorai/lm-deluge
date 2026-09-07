@@ -21,19 +21,19 @@ def test_gpt_oss_bedrock_models_in_registry():
     for model_name, expected_bedrock_id in gpt_oss_models:
         model = APIModel.from_registry(model_name)
         assert model.api_spec == "bedrock", f"{model_name} should have bedrock api_spec"
-        assert (
-            model.name == expected_bedrock_id
-        ), f"{model_name} should have correct Bedrock model ID"
-        assert (
-            "us-west-2" in model.regions
-        ), f"{model_name} should be available in us-west-2"
-        assert (
-            not model.supports_json
-        ), f"{model_name} should not support JSON mode via response_format parameter"
+        assert model.name == expected_bedrock_id, (
+            f"{model_name} should have correct Bedrock model ID"
+        )
+        assert "us-west-2" in model.regions, (
+            f"{model_name} should be available in us-west-2"
+        )
+        assert not model.supports_json, (
+            f"{model_name} should not support JSON mode via response_format parameter"
+        )
         assert not model.supports_logprobs, f"{model_name} should not support logprobs"
-        assert (
-            not model.reasoning_model
-        ), f"{model_name} should not be a reasoning model"
+        assert not model.reasoning_model, (
+            f"{model_name} should not be a reasoning model"
+        )
 
         print(f"✓ {model_name}: {model.name} (regions: {model.regions})")
 
@@ -60,9 +60,9 @@ def test_bedrock_request_handles_openai_models():
 
     request = BedrockRequest(context)
     assert request.is_openai_model, "Should detect this as an OpenAI model"
-    assert request.model.name.startswith(
-        "openai."
-    ), "Model name should start with openai."
+    assert request.model.name.startswith("openai."), (
+        "Model name should start with openai."
+    )
 
     print(f"✓ BedrockRequest correctly identifies {model_name} as OpenAI model")
 
@@ -97,19 +97,19 @@ async def test_gpt_oss_bedrock_api_call():
 
             assert len(results) == 1, f"Should get 1 result for {model_name}"
             result = results[0]
-            assert isinstance(
-                result, APIResponse
-            ), f"Result should be APIResponse for {model_name}"
-            assert (
-                not result.is_error
-            ), f"API call failed for {model_name}: {result.error_message}"
+            assert isinstance(result, APIResponse), (
+                f"Result should be APIResponse for {model_name}"
+            )
+            assert not result.is_error, (
+                f"API call failed for {model_name}: {result.error_message}"
+            )
             assert result.completion, f"No completion received for {model_name}"
-            assert (
-                result.input_tokens and result.input_tokens > 0
-            ), f"No input tokens for {model_name}"
-            assert (
-                result.output_tokens and result.output_tokens > 0
-            ), f"No output tokens for {model_name}"
+            assert result.input_tokens and result.input_tokens > 0, (
+                f"No input tokens for {model_name}"
+            )
+            assert result.output_tokens and result.output_tokens > 0, (
+                f"No output tokens for {model_name}"
+            )
 
             print(f"✓ {model_name}: {result.completion[:50]}...")
             print(

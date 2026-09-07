@@ -66,31 +66,31 @@ def test_tool_with_defs():
 
     # Verify $defs objects have additionalProperties: false (strict mode requirement)
     search_call = params["$defs"]["SearchCall"]
-    assert (
-        search_call["additionalProperties"] is False
-    ), "SearchCall should have additionalProperties: false"
+    assert search_call["additionalProperties"] is False, (
+        "SearchCall should have additionalProperties: false"
+    )
     assert search_call["type"] == "object"
     assert "index" in search_call["properties"]
     assert "queries" in search_call["properties"]
     assert "limit" in search_call["properties"]
 
     fetch_call = params["$defs"]["FetchCall"]
-    assert (
-        fetch_call["additionalProperties"] is False
-    ), "FetchCall should have additionalProperties: false"
+    assert fetch_call["additionalProperties"] is False, (
+        "FetchCall should have additionalProperties: false"
+    )
     assert fetch_call["type"] == "object"
     assert "index" in fetch_call["properties"]
     assert "document_ids" in fetch_call["properties"]
 
     # Verify default value was removed from limit in strict mode
-    assert (
-        "default" not in search_call["properties"]["limit"]
-    ), "default should be removed in strict mode"
+    assert "default" not in search_call["properties"]["limit"], (
+        "default should be removed in strict mode"
+    )
 
     # Verify limit was added to required (all properties must be required in strict mode)
-    assert (
-        "limit" in search_call["required"]
-    ), "limit should be in required array in strict mode"
+    assert "limit" in search_call["required"], (
+        "limit should be in required array in strict mode"
+    )
     assert set(search_call["required"]) == {
         "index",
         "queries",
@@ -154,9 +154,9 @@ def test_tool_google_strips_additional_properties():
     )
 
     google_format = tool.for_google()
-    assert not _has_additional_properties(
-        google_format["parameters"]
-    ), "Google schema should not include additionalProperties"
+    assert not _has_additional_properties(google_format["parameters"]), (
+        "Google schema should not include additionalProperties"
+    )
 
     print("✅ Google tool schema strips additionalProperties.")
 

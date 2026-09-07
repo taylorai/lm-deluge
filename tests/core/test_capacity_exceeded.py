@@ -56,9 +56,9 @@ def test_request_within_budget_does_not_raise():
         # Expected - no API key, connection error, etc. That's fine.
         pass
 
-    assert (
-        not raised_value_error
-    ), "Should not raise capacity ValueError for requests within budget"
+    assert not raised_value_error, (
+        "Should not raise capacity ValueError for requests within budget"
+    )
     print("PASSED: request within budget does not raise capacity error")
 
 

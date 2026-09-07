@@ -25,9 +25,9 @@ async def test_basic_command():
         bash = tools[0]
 
         result = await bash.run(command="echo 'hello world'")
-        assert (
-            "hello world" in result
-        ), f"Expected 'hello world' in result, got: {result}"
+        assert "hello world" in result, (
+            f"Expected 'hello world' in result, got: {result}"
+        )
         print(f"  Result: {result}")
     print("  PASSED")
 
@@ -56,9 +56,9 @@ async def test_workspace_write():
 
             # Should NOT be able to write outside workspace (e.g., /etc)
             result = await bash.run(command="echo 'bad' > /etc/test_seatbelt_fail 2>&1")
-            assert (
-                "not permitted" in result.lower() or "exit code" in result.lower()
-            ), f"Expected permission denied, got: {result}"
+            assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+                f"Expected permission denied, got: {result}"
+            )
             print(f"  Write to /etc blocked: {result[:80]}...")
 
     print("  PASSED")
@@ -84,30 +84,30 @@ async def test_workspace_read_only_mode():
 
             # Should be able to read files in workspace
             result = await bash.run(command="cat allowed.txt")
-            assert (
-                "allowed content" in result
-            ), f"Expected 'allowed content', got: {result}"
+            assert "allowed content" in result, (
+                f"Expected 'allowed content', got: {result}"
+            )
             print(f"  Read workspace file: {result}")
 
             # Should NOT be able to read user files outside workspace
             result = await bash.run(command="cat /Users/benjamin/.zshrc 2>&1")
-            assert (
-                "not permitted" in result.lower() or "exit code" in result.lower()
-            ), f"Expected permission denied for ~/.zshrc, got: {result}"
+            assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+                f"Expected permission denied for ~/.zshrc, got: {result}"
+            )
             print(f"  Read ~/.zshrc blocked: {result[:60]}...")
 
             # System files like /etc/hosts are still readable (not user data)
             result = await bash.run(command="cat /etc/hosts | head -1")
-            assert (
-                "Host" in result or "#" in result
-            ), f"Expected /etc/hosts content, got: {result}"
+            assert "Host" in result or "#" in result, (
+                f"Expected /etc/hosts content, got: {result}"
+            )
             print(f"  Read /etc/hosts allowed (system file): {result[:40]}...")
 
             # Should NOT be able to write anywhere
             result = await bash.run(command="echo test > test.txt 2>&1")
-            assert (
-                "not permitted" in result.lower() or "exit code" in result.lower()
-            ), f"Expected permission denied for write, got: {result}"
+            assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+                f"Expected permission denied for write, got: {result}"
+            )
             print(f"  Write blocked: {result[:60]}...")
 
     print("  PASSED")
@@ -137,16 +137,16 @@ async def test_workspace_read_write_mode():
 
             # Should NOT be able to read user files outside workspace
             result = await bash.run(command="cat /Users/benjamin/.zshrc 2>&1")
-            assert (
-                "not permitted" in result.lower() or "exit code" in result.lower()
-            ), f"Expected permission denied for ~/.zshrc, got: {result}"
+            assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+                f"Expected permission denied for ~/.zshrc, got: {result}"
+            )
             print(f"  Read ~/.zshrc blocked: {result[:60]}...")
 
             # Should NOT be able to write outside workspace
             result = await bash.run(command="echo bad > /tmp/bad.txt 2>&1")
-            assert (
-                "not permitted" in result.lower() or "exit code" in result.lower()
-            ), f"Expected permission denied for /tmp write, got: {result}"
+            assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+                f"Expected permission denied for /tmp write, got: {result}"
+            )
             print(f"  Write to /tmp blocked: {result[:60]}...")
 
     print("  PASSED")
@@ -162,18 +162,18 @@ async def test_read_only_mode():
 
         # Should be able to read
         result = await bash.run(command="ls /")
-        assert (
-            "usr" in result or "Users" in result
-        ), f"Expected filesystem listing, got: {result}"
+        assert "usr" in result or "Users" in result, (
+            f"Expected filesystem listing, got: {result}"
+        )
         print(f"  Read /: {result[:60]}...")
 
         # Should NOT be able to write anywhere (even workspace)
         result = await bash.run(
             command=f"echo 'test' > {sandbox.working_dir}/test.txt 2>&1"
         )
-        assert (
-            "not permitted" in result.lower() or "exit code" in result.lower()
-        ), f"Expected permission denied, got: {result}"
+        assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+            f"Expected permission denied, got: {result}"
+        )
         print(f"  Write blocked: {result[:80]}...")
 
     print("  PASSED")
@@ -243,9 +243,9 @@ async def test_protected_subpaths():
 
             # Should NOT be able to write to .git
             result = await bash.run(command="echo 'pwned' > .git/hooks/pre-commit 2>&1")
-            assert (
-                "not permitted" in result.lower() or "exit code" in result.lower()
-            ), f"Expected permission denied for .git, got: {result}"
+            assert "not permitted" in result.lower() or "exit code" in result.lower(), (
+                f"Expected permission denied for .git, got: {result}"
+            )
             print(f"  .git protected: {result[:80]}...")
 
     print("  PASSED")
@@ -278,9 +278,9 @@ async def test_background_process():
         await asyncio.sleep(3)
 
         result = await list_processes.run(name="sleeper")
-        assert (
-            "completed" in result or "exit" in result
-        ), f"Expected completed, got: {result}"
+        assert "completed" in result or "exit" in result, (
+            f"Expected completed, got: {result}"
+        )
         print(f"  After completion: {result}")
 
     print("  PASSED")
@@ -312,9 +312,9 @@ async def test_python_execution():
 
         # Run Python code
         result = await bash.run(command='python3 -c "import sys; print(sys.version)"')
-        assert (
-            "python" in result.lower() or "3." in result
-        ), f"Expected Python version, got: {result}"
+        assert "python" in result.lower() or "3." in result, (
+            f"Expected Python version, got: {result}"
+        )
         print(f"  Python version: {result[:60]}...")
 
         # Python with file I/O

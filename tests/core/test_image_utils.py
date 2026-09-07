@@ -25,9 +25,9 @@ def test_fingerprint_manual_caching():
 
     # First access should compute and cache the fingerprint
     fingerprint1 = img.fingerprint
-    assert (
-        img._fingerprint_cache is not None
-    ), "Cache should be populated after first access"
+    assert img._fingerprint_cache is not None, (
+        "Cache should be populated after first access"
+    )
     assert img._fingerprint_cache == fingerprint1, "Cache should match returned value"
 
     # Second access should use cached value (we can't directly test that computation is skipped,
