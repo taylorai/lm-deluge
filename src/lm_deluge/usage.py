@@ -57,6 +57,9 @@ class Usage:
         Supports both OpenAI response formats:
         - Chat Completions API: prompt_tokens/completion_tokens and prompt_tokens_details
         - Responses API: input_tokens/output_tokens and input_tokens_details
+
+        Input totals include cache reads and writes. Missing/null cache counts
+        are treated as zero for older models and OpenAI-compatible providers.
         """
 
         # Responses API uses input/output tokens, while Chat Completions uses
@@ -75,14 +78,16 @@ class Usage:
             input_tokens_details = usage_data.get("prompt_tokens_details", {})
 
         cached_tokens = 0
+        cache_write_tokens = 0
         if isinstance(input_tokens_details, dict):
             cached_tokens = input_tokens_details.get("cached_tokens") or 0
+            cache_write_tokens = input_tokens_details.get("cache_write_tokens") or 0
 
         return cls(
             input_tokens=input_tokens or 0,
             output_tokens=output_tokens or 0,
             cache_read_tokens=cached_tokens,
-            cache_write_tokens=0,  # OpenAI doesn't charge separately for cache writes
+            cache_write_tokens=cache_write_tokens,
         )
 
     @classmethod

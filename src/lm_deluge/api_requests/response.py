@@ -94,16 +94,25 @@ class APIResponse:
         ):
             # Calculate input cost, accounting for cached vs non-cached tokens
             # Different providers report tokens differently:
-            # - Anthropic/Bedrock: input_tokens is ONLY non-cached, cache_read_tokens is separate
-            # - OpenAI/Gemini: input_tokens INCLUDES cached, cache_read_tokens is a subset
+            # - Anthropic (including Bedrock): input_tokens excludes cache tokens.
+            # - OpenAI (including Bedrock)/Gemini: input_tokens includes cache tokens.
             cache_read_tokens = self.usage.cache_read_tokens or 0
+            cache_write_tokens = self.usage.cache_write_tokens or 0
+            is_openai_bedrock = api_model.api_spec == "bedrock" and (
+                api_model.name.startswith("openai.") or ".openai." in api_model.name
+            )
+            inclusive_input = (
+                api_model.api_spec not in ("anthropic", "bedrock") or is_openai_bedrock
+            )
 
-            if api_model.api_spec in ("anthropic", "bedrock"):
+            if not inclusive_input:
                 # For Anthropic: input_tokens already excludes cache, so use directly
                 non_cached_input_tokens = self.usage.input_tokens
             else:
-                # For OpenAI/Gemini: input_tokens includes cache, so subtract it
-                non_cached_input_tokens = self.usage.input_tokens - cache_read_tokens
+                # OpenAI-style input totals include both cache reads and writes.
+                non_cached_input_tokens = (
+                    self.usage.input_tokens - cache_read_tokens - cache_write_tokens
+                )
 
             self.cost = (
                 non_cached_input_tokens * api_model.input_cost / 1e6
@@ -114,15 +123,13 @@ class APIResponse:
             if cache_read_tokens > 0 and api_model.cached_input_cost is not None:
                 self.cost += cache_read_tokens * api_model.cached_input_cost / 1e6
 
-            # Add cost for cache write tokens (only for Anthropic)
-            if (
-                self.usage.cache_write_tokens
-                and self.usage.cache_write_tokens > 0
-                and api_model.cache_write_cost is not None
-            ):
-                self.cost += (
-                    self.usage.cache_write_tokens * api_model.cache_write_cost / 1e6
-                )
+            # Registry defaults of zero/None mean no separate write rate. For
+            # inclusive usage, those tokens still incur the ordinary input cost.
+            write_cost = api_model.cache_write_cost
+            if inclusive_input and not write_cost:
+                write_cost = api_model.input_cost
+            if cache_write_tokens > 0 and write_cost is not None:
+                self.cost += cache_write_tokens * write_cost / 1e6
         elif self.content is not None and self.completion is not None:
             pass
             # print(

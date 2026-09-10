@@ -7,6 +7,7 @@ LM Deluge iterates quickly. This page calls out the highlights from the most rec
 
 ## 0.0.151 · 2026-09-09
 
+- **OpenAI cache-write accounting**: Parse optional cache-write counts from Chat Completions and Responses usage, including OpenAI on Bedrock. Charge the configured write rate without double-counting input tokens, falling back to the input rate when no separate write rate is configured. Older compatible responses remain supported.
 - **GPT-5.6 Luna and Terra price cuts**: Native OpenAI `gpt-5.6-luna` now prices at $0.20 input / $0.02 cached / $1.20 output per million tokens, and `gpt-5.6-terra` at $2.00 / $0.20 / $12.00, matching OpenAI's September 2026 rates; cache-write costs keep the 1.25x input ratio. Bedrock profiles are unchanged.
 
 ## 0.0.150 · 2026-09-07
