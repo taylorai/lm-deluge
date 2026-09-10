@@ -13,8 +13,8 @@ from lm_deluge.models import APIModel
 
 GPT_56_MODELS = {
     "gpt-5.6-sol": (5.0, 0.5, 6.25, 30.0),
-    "gpt-5.6-terra": (2.5, 0.25, 3.125, 15.0),
-    "gpt-5.6-luna": (1.0, 0.1, 1.25, 6.0),
+    "gpt-5.6-terra": (2.0, 0.2, 2.5, 12.0),
+    "gpt-5.6-luna": (0.2, 0.02, 0.25, 1.2),
 }
 
 

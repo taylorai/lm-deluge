@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## Unreleased
+
+- **GPT-5.6 Luna and Terra price cuts**: Native OpenAI `gpt-5.6-luna` now prices at $0.20 input / $0.02 cached / $1.20 output per million tokens, and `gpt-5.6-terra` at $2.00 / $0.20 / $12.00, matching OpenAI's September 2026 rates; cache-write costs keep the 1.25x input ratio. Bedrock profiles are unchanged.
+
 ## 0.0.150 · 2026-09-07
 
 - **GPT-6 Astra**: Added native OpenAI `gpt-6-astra` plus the advertised `gpt-6-astra-bedrock` US and `gpt-6-astra-bedrock-global` Runtime profiles. Astra supports Chat Completions and Responses, image input, `low` through `max` reasoning (with unsupported `none` normalized to `low`), and native OpenAI Flex/Fast processing. Native OpenAI passed live validation on both API shapes; the strict Bedrock smoke test is included, but this AWS project still returns an invalid-model error while Astra access rolls out (`f11779f`).
