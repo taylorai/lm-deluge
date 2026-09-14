@@ -1,4 +1,16 @@
 OPENROUTER_MODELS = {
+    "mercury-2.5-openrouter": {
+        "id": "mercury-2.5-openrouter",
+        "name": "inception/mercury-2.5",
+        "api_base": "https://openrouter.ai/api/v1",
+        "api_key_env_var": "OPENROUTER_API_KEY",
+        "supports_json": True,
+        "api_spec": "openai",
+        "reasoning_model": True,
+        "input_cost": 0.04,
+        "cached_input_cost": 0.004,
+        "output_cost": 0.15,
+    },
     "deepseek-v4-flash-0731": {
         "name": "deepseek/deepseek-v4-flash-0731",
         "api_base": "https://openrouter.ai/api/v1",
