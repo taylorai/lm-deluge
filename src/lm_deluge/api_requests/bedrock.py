@@ -16,10 +16,10 @@ from lm_deluge.warnings import maybe_warn
 
 from ..models import APIModel
 from .anthropic import (
-    _apply_fable_51_binding_controls,
+    _apply_thinking_binding_controls,
     _is_claude_47,
+    _validate_always_on_thinking_context,
     _validate_anthropic_request_config,
-    _validate_fable_context,
     apply_anthropic_reasoning_config,
 )
 from .anthropic_utils import (
@@ -66,9 +66,7 @@ def _is_claude_47_bedrock(model: APIModel) -> bool:
 
 
 def _uses_modern_openai_bedrock_api(model: APIModel) -> bool:
-    return ".openai.gpt-5.6-" in model.name or model.name.endswith(
-        ".openai.gpt-6-astra"
-    )
+    return ".openai.gpt-5.6-" in model.name or ".openai.gpt-6-" in model.name
 
 
 def _is_openai_bedrock_model(model: APIModel) -> bool:
@@ -111,7 +109,7 @@ async def _build_anthropic_bedrock_request(
     cache_pattern = context.cache
     tools = context.tools
     sampling_params = context.sampling_params
-    _validate_fable_context(model, context)
+    _validate_always_on_thinking_context(model, context)
     if cache_pattern == "automatic":
         maybe_warn(
             "WARN_CACHING_UNSUPPORTED",
@@ -208,7 +206,7 @@ async def _build_anthropic_bedrock_request(
         if len(mcp_servers) > 0:
             request_json["mcp_servers"] = mcp_servers
 
-    if _apply_fable_51_binding_controls(model, context, request_json):
+    if _apply_thinking_binding_controls(model, context, request_json, bedrock=True):
         _add_beta(request_json, "thinking-binding-controls-2026-08-01")
 
     _validate_anthropic_request_config(model, context, request_json)

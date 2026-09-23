@@ -36,8 +36,15 @@ def _is_claude_5_sonnet(model: APIModel) -> bool:
     return model.id == "claude-5-sonnet" or "claude-sonnet-5" in model.name
 
 
+def _is_claude_5_5_opus(model: APIModel) -> bool:
+    return model.id == "claude-5.5-opus" or "claude-opus-5-5" in model.name
+
+
 def _is_claude_5_opus(model: APIModel) -> bool:
-    return model.id == "claude-5-opus" or "claude-opus-5" in model.name
+    # "claude-opus-5" is a prefix of "claude-opus-5-5", so exclude 5.5.
+    return (
+        model.id == "claude-5-opus" or "claude-opus-5" in model.name
+    ) and not _is_claude_5_5_opus(model)
 
 
 def _is_claude_fable(model: APIModel) -> bool:
@@ -46,6 +53,24 @@ def _is_claude_fable(model: APIModel) -> bool:
 
 def _is_claude_fable_51(model: APIModel) -> bool:
     return model.id == "claude-fable-5.1" or "claude-fable-5-1" in model.name
+
+
+def _always_on_thinking_label(model: APIModel) -> str | None:
+    """Display name for models whose thinking cannot be disabled, else None."""
+    if _is_claude_fable(model):
+        return "Claude Fable"
+    if _is_claude_5_5_opus(model):
+        return "Claude Opus 5.5"
+    return None
+
+
+def _forced_tool_choice_label(model: APIModel) -> str | None:
+    """Display name for models that reject tool_choice any/tool, else None."""
+    if _is_claude_fable_51(model):
+        return "Claude Fable 5.1"
+    if _is_claude_5_5_opus(model):
+        return "Claude Opus 5.5"
+    return None
 
 
 def _is_claude_47(model: APIModel) -> bool:
@@ -162,34 +187,42 @@ def _validate_anthropic_request_config(
                 "or lower, or keep thinking enabled."
             )
 
-    if _is_claude_fable(model):
-        if isinstance(thinking, dict) and thinking.get("type") == "disabled":
-            raise ValueError(
-                f"Invalid config for model '{context.model_name}': Claude Fable "
-                "thinking is always on and cannot be disabled."
-            )
+    always_on_label = _always_on_thinking_label(model)
+    if (
+        always_on_label is not None
+        and isinstance(thinking, dict)
+        and thinking.get("type") == "disabled"
+    ):
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': "
+            f"{always_on_label} thinking is always on and cannot be disabled."
+        )
 
-        tool_choice = request_json.get("tool_choice")
-        if (
-            _is_claude_fable_51(model)
-            and isinstance(tool_choice, dict)
-            and tool_choice.get("type") in {"any", "tool"}
-        ):
-            raise ValueError(
-                f"Invalid config for model '{context.model_name}': Claude Fable "
-                "5.1 does not support forced tool use. Use tool_choice type "
-                "'auto' or 'none'."
-            )
+    forced_tool_label = _forced_tool_choice_label(model)
+    tool_choice = request_json.get("tool_choice")
+    if (
+        forced_tool_label is not None
+        and isinstance(tool_choice, dict)
+        and tool_choice.get("type") in {"any", "tool"}
+    ):
+        raise ValueError(
+            f"Invalid config for model '{context.model_name}': "
+            f"{forced_tool_label} does not support forced tool use. Use "
+            "tool_choice type 'auto' or 'none'."
+        )
 
 
-def _validate_fable_context(model: APIModel, context: RequestContext) -> None:
-    if not _is_claude_fable(model):
+def _validate_always_on_thinking_context(
+    model: APIModel, context: RequestContext
+) -> None:
+    label = _always_on_thinking_label(model)
+    if label is None:
         return
 
     sampling_params = context.sampling_params
     if sampling_params.reasoning_effort == "none":
         raise ValueError(
-            f"Invalid config for model '{context.model_name}': Claude Fable "
+            f"Invalid config for model '{context.model_name}': {label} "
             "thinking is always on; reasoning_effort='none' cannot be honored. "
             "Use reasoning_effort='low' for the least reasoning."
         )
@@ -198,7 +231,7 @@ def _validate_fable_context(model: APIModel, context: RequestContext) -> None:
         and sampling_params.thinking_budget <= 0
     ):
         raise ValueError(
-            f"Invalid config for model '{context.model_name}': Claude Fable "
+            f"Invalid config for model '{context.model_name}': {label} "
             "thinking is always on; a non-positive thinking_budget cannot be "
             "honored. Use reasoning_effort='low' for the least reasoning."
         )
@@ -206,17 +239,21 @@ def _validate_fable_context(model: APIModel, context: RequestContext) -> None:
     requested_output_effort = _requested_output_effort(sampling_params)
     if requested_output_effort == "none":
         raise ValueError(
-            f"Invalid config for model '{context.model_name}': Claude Fable "
+            f"Invalid config for model '{context.model_name}': {label} "
             "does not support output effort 'none'. Use 'low' instead."
         )
 
 
-def _apply_fable_51_binding_controls(
+def _apply_thinking_binding_controls(
     model: APIModel,
     context: RequestContext,
     request_json: dict,
+    *,
+    bedrock: bool = False,
 ) -> bool:
-    if not _is_claude_fable_51(model):
+    # Opus 5.5 binding controls are not yet verified on Bedrock, where the
+    # beta header is rejected until AWS enables it per model.
+    if not (_is_claude_fable_51(model) or (_is_claude_5_5_opus(model) and not bedrock)):
         return False
 
     behavior = context.thinking_prefix_mismatch
@@ -228,8 +265,8 @@ def _apply_fable_51_binding_controls(
     thinking = request_json.get("thinking")
     if not isinstance(thinking, dict) or thinking.get("type") != "adaptive":
         raise ValueError(
-            f"Invalid config for model '{context.model_name}': Claude Fable 5.1 "
-            "requires adaptive thinking."
+            f"Invalid config for model '{context.model_name}': "
+            f"{_always_on_thinking_label(model)} requires adaptive thinking."
         )
 
     thinking["block_binding"] = {"prefix_mismatch_behavior": behavior}
@@ -390,7 +427,7 @@ def _build_anthropic_request(
     cache_pattern = context.cache
     tools = context.tools
     sampling_params = context.sampling_params
-    _validate_fable_context(model, context)
+    _validate_always_on_thinking_context(model, context)
     system_message, messages = prompt.to_anthropic(cache_pattern=cache_pattern)
     # if not system_message:
     #     print("WARNING: system_message is None")
@@ -612,7 +649,7 @@ def _build_anthropic_request(
                 continue
             request_json[key] = value
 
-    if _apply_fable_51_binding_controls(model, context, request_json):
+    if _apply_thinking_binding_controls(model, context, request_json):
         _add_beta(base_headers, "thinking-binding-controls-2026-08-01")
 
     # Passthrough fields may have changed thinking or output_config.effort.

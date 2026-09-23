@@ -10,6 +10,23 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-5.5-opus": {
+        "id": "claude-5.5-opus",
+        "name": "claude-opus-5-5",
+        "aliases": ["claude-opus-5-5", "claude-opus-5.5", "claude-5-5-opus"],
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        "input_cost": 4.0,
+        "cached_input_cost": 0.20,
+        "cache_write_cost": 5.0,
+        "output_cost": 20.0,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
     "claude-5-opus": {
         "id": "claude-5-opus",
         "name": "claude-opus-5",
