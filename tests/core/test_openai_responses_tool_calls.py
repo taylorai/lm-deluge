@@ -357,28 +357,27 @@ async def test_non_loop_start_emits_assistant_once():
         assert response.loop_stop_reason is None
 
 
-async def test_responses_agent_loop_guards_still_raise():
+async def test_responses_agent_loop_uses_shared_engine():
     client = LLMClient("gpt-4.1-mini", use_responses_api=True, progress="manual")
     prompt = Conversation().user("Hello")
+    assistant = Message("assistant", [Text("Hello")])
+    requests = []
 
-    try:
-        await client.run_agent_loop(prompt)
-    except NotImplementedError:
-        pass
-    else:
-        raise AssertionError("run_agent_loop guard did not raise")
-    try:
-        client.start_agent_loop_nowait(prompt)
-    except NotImplementedError:
-        pass
-    else:
-        raise AssertionError("start_agent_loop_nowait guard did not raise")
-    try:
-        await client._run_agent_loop_internal(0, prompt)
-    except NotImplementedError:
-        pass
-    else:
-        raise AssertionError("_run_agent_loop_internal guard did not raise")
+    async def fake(self, context):
+        requests.append(context)
+        return _response(context, assistant)
+
+    with _mock_run_context_single(client, fake):
+        conversation, response = await client.run_agent_loop(prompt)
+        task_id = client.start_agent_loop_nowait(prompt)
+        queued_conversation, queued_response = await client.wait_for_agent_loop(task_id)
+
+    assert len(requests) == 2
+    assert conversation.messages[-1] is assistant
+    assert queued_conversation.messages[-1] is assistant
+    assert (
+        response.loop_stop_reason == queued_response.loop_stop_reason == "no_tool_calls"
+    )
 
 
 async def test_agent_loop_streaming():
@@ -390,7 +389,7 @@ async def test_agent_loop_streaming():
     await test_responses_tool_loop_callback_exception_propagates()
     await test_on_message_none_populates_metadata_only_on_loop_path()
     await test_non_loop_start_emits_assistant_once()
-    await test_responses_agent_loop_guards_still_raise()
+    await test_responses_agent_loop_uses_shared_engine()
 
 
 def main():

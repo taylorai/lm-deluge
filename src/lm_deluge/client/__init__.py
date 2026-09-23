@@ -1130,6 +1130,10 @@ class _LLMClient(BaseModel):
         context: RequestContext,
         max_rounds: int,
         on_message: Callable[[Message], Awaitable[None]] | None,
+        *,
+        on_round_complete: AgentLoopCallback | None = None,
+        verbose: bool = False,
+        final_round_warning: bool = False,
     ) -> APIResponse:
         expanded_tools = await self._expand_executable_tools(context.tools)
 
@@ -1154,12 +1158,32 @@ class _LLMClient(BaseModel):
             if round_num > 0 and context.status_tracker is not None:
                 context.status_tracker.add_to_total(1)
 
+            request_prompt = working
+            if final_round_warning and round_num == max_rounds - 1 and round_num > 0:
+                request_prompt = Conversation(
+                    list(working.messages), model_used=working.model_used
+                ).with_message(
+                    Message.user(
+                        "[SYSTEM] This is your FINAL turn. You cannot call any more "
+                        "tools. You MUST provide your final text response now."
+                    )
+                )
             round_context = context.copy(
-                prompt=working,
+                prompt=request_prompt,
                 container_id=current_container_id,
             )
             response = await self._run_context_single(round_context)
             last_response = response
+            if (
+                response.model_internal in self.models
+                and response.model_internal != context.model_name
+            ):
+                context = context.copy(
+                    model_name=response.model_internal,
+                    sampling_params=self.sampling_params[
+                        self.models.index(response.model_internal)
+                    ],
+                )
 
             if response.container_id:
                 current_container_id = response.container_id
@@ -1173,16 +1197,30 @@ class _LLMClient(BaseModel):
             )
             if on_message is not None:
                 await on_message(response.content)
+            if on_round_complete is not None:
+                await on_round_complete(working, response, round_num)
 
             tool_calls = response.content.tool_calls_to_execute
             if not tool_calls:
+                if verbose and response.completion:
+                    print(
+                        f"[Round {round_num + 1}] Assistant: {_truncate(response.completion, 500)}"
+                    )
                 break
+            if verbose:
+                calls_str = ", ".join(_format_tool_call(tc) for tc in tool_calls)
+                print(f"[Round {round_num + 1}] Tool calls: {calls_str}")
             if round_num == max_rounds - 1:
                 loop_stop_reason = "max_rounds"
                 break
 
             results = await execute_tool_calls(tool_calls, expanded_tools)
             by_id = {tc.id: tc for tc in tool_calls}
+            if verbose:
+                for call_id, result in results:
+                    call = by_id.get(call_id)
+                    name = call.name if call else "unknown"
+                    print(f"  → {name}: {_format_tool_result(result)}")
             tool_parts: list[Part] = []
             for call_id, result in results:
                 call = by_id.get(call_id)
@@ -1446,6 +1484,8 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
+        final_round_warning: bool = True,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1454,117 +1494,43 @@ class _LLMClient(BaseModel):
         verbose: bool = False,
         http_session: aiohttp.ClientSession | None = None,
     ) -> AgentLoopResponse:
-        """Internal method to run agent loop and return wrapped result."""
-        if self.use_responses_api:
-            raise NotImplementedError(
-                "Agent loops are not available when use_responses_api=True. "
-                "Use start()/process_prompts_async() instead."
-            )
-
-        # Expand MCPServer objects to their constituent tools for tool execution
-        expanded_tools: list[Tool] = []
-        if tools:
-            for tool in tools:
-                if isinstance(tool, Tool):
-                    expanded_tools.append(tool)
-                elif isinstance(tool, MCPServer):
-                    if self.force_local_mcp:
-                        mcp_tools = await tool.to_tools()
-                        expanded_tools.extend(mcp_tools)
-
-        response: APIResponse | None = None
-        # Track container ID for reuse across rounds (Anthropic skills)
-        container_id: str | None = None
-        # Track model used for stickiness across rounds
-        model_for_round: str | None = prefer_model
-
-        for round_num in range(max_rounds):
-            # On the final round, inject a warning so the model knows it must
-            # return a text response and cannot call any more tools.
-            if round_num == max_rounds - 1 and round_num > 0:
-                conversation = conversation.with_message(
-                    Message.user(
-                        "[SYSTEM] This is your FINAL turn. You cannot call any more "
-                        "tools. You MUST provide your final text response now."
-                    )
-                )
-
-            response = await self._start_once(
-                conversation,
-                tools=tools,
-                skills=skills,
-                container_id=container_id,
-                output_schema=output_schema,
-                cache=cache,
-                service_tier=service_tier,
-                prefer_model=model_for_round,
-                http_session=http_session,
-            )
-            # After first round, stick to the model that was used
-            if response and response.model_internal:
-                model_for_round = response.model_internal
-
-            # Capture container_id from response for reuse in next round
-            if response and response.container_id:
-                container_id = response.container_id
-
-            if response is None or response.content is None:
-                break
-
-            conversation = conversation.with_message(
-                response.content, model_used=response.model_internal
-            )
-
-            # Call the callback after adding the assistant message
-            if on_round_complete is not None:
-                await on_round_complete(conversation, response, round_num)
-
-            tool_calls_to_execute = response.content.tool_calls_to_execute
-            if not tool_calls_to_execute:
-                # Print final text response if verbose
-                if verbose and response.completion:
-                    print(
-                        f"[Round {round_num + 1}] Assistant: {_truncate(response.completion, 500)}"
-                    )
-                break
-
-            # Print tool calls if verbose
-            if verbose:
-                calls_str = ", ".join(
-                    _format_tool_call(tc) for tc in tool_calls_to_execute
-                )
-                print(f"[Round {round_num + 1}] Tool calls: {calls_str}")
-
-            results = await execute_tool_calls(tool_calls_to_execute, expanded_tools)
-            by_id = {tc.id: tc for tc in tool_calls_to_execute}
-            tool_parts: list[Part] = []
-            for call_id, result in results:
-                call = by_id.get(call_id)
-                if call is None:
-                    tool_parts.append(ToolResult(tool_call_id=call_id, result=result))
-                    continue
-                tool_parts.append(
-                    ToolResult(
-                        tool_call_id=call_id,
-                        result=result,
-                        built_in=call.built_in,
-                        built_in_type=call.built_in_type,
-                    )
-                )
-
-            # Print tool results if verbose
-            if verbose:
-                for call_id, result in results:
-                    call = by_id.get(call_id)
-                    name = call.name if call else "unknown"
-                    print(f"  → {name}: {_format_tool_result(result)}")
-
-            conversation = conversation.with_message(Message("tool", tool_parts))
-
-        if response is None:
-            raise RuntimeError("model did not return a response")
-
-        result = AgentLoopResponse(conversation=conversation, final_response=response)
+        """Run the shared provider-agnostic loop and wrap its result."""
+        model, sampling_params = self._resolve_model(prefer_model, conversation)
+        context = RequestContext(
+            task_id=task_id,
+            model_name=model,
+            prompt=conversation,
+            sampling_params=sampling_params,
+            attempts_left=self.max_attempts,
+            request_timeout=self.request_timeout,
+            tools=tools,
+            skills=skills,
+            output_schema=output_schema,
+            cache=cache,
+            use_responses_api=self.use_responses_api,
+            stateless_responses=self.stateless_responses,
+            background=self.background,
+            service_tier=service_tier,
+            extra_headers=self.extra_headers,
+            extra_body=self.extra_body,
+            thinking_prefix_mismatch=self.thinking_prefix_mismatch,
+            force_local_mcp=self.force_local_mcp,
+            http_session=http_session,
+        )
+        context.validate_request_config()
+        tracker = self._get_tracker()
+        context.status_tracker = tracker
+        tracker.add_to_total(1)
+        response = await self._run_context_with_tool_loop(
+            context,
+            max_rounds,
+            on_message,
+            on_round_complete=on_round_complete,
+            verbose=verbose,
+            final_round_warning=final_round_warning,
+        )
+        assert response.trajectory is not None
+        result = AgentLoopResponse(response.trajectory, response)
         self._results[task_id] = result
         return result
 
@@ -1576,6 +1542,8 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
+        final_round_warning: bool = True,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1588,11 +1556,8 @@ class _LLMClient(BaseModel):
 
         Returns a task_id that can be used with wait_for_agent_loop().
         """
-        if self.use_responses_api:
-            raise NotImplementedError(
-                "start_agent_loop_nowait is not available when use_responses_api=True. "
-                "Use start_nowait() instead."
-            )
+        if max_rounds < 1:
+            raise ValueError("max_rounds must be at least 1")
         if not isinstance(conversation, Conversation):
             conversation = prompts_to_conversations([conversation])[0]
             assert isinstance(conversation, Conversation)
@@ -1608,6 +1573,8 @@ class _LLMClient(BaseModel):
                 skills=skills,
                 max_rounds=max_rounds,
                 on_round_complete=on_round_complete,
+                on_message=on_message,
+                final_round_warning=final_round_warning,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
@@ -1649,6 +1616,8 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
+        final_round_warning: bool = True,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1674,17 +1643,14 @@ class _LLMClient(BaseModel):
             prefer_model: Model to prefer. Use "last" to use conversation.model_used.
             verbose: If True, print each tool call and result to stdout.
         """
-        if self.use_responses_api:
-            raise NotImplementedError(
-                "run_agent_loop is not available when use_responses_api=True. "
-                "Use start()/process_prompts_async() instead."
-            )
         task_id = self.start_agent_loop_nowait(
             conversation,
             tools=tools,
             skills=skills,
             max_rounds=max_rounds,
             on_round_complete=on_round_complete,
+            on_message=on_message,
+            final_round_warning=final_round_warning,
             output_schema=output_schema,
             cache=cache,
             service_tier=service_tier,
@@ -1702,6 +1668,8 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
+        final_round_warning: bool = True,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1710,12 +1678,6 @@ class _LLMClient(BaseModel):
         verbose: bool = False,
     ) -> tuple[Conversation, APIResponse]:
         """Synchronous wrapper for :meth:`run_agent_loop`."""
-        if self.use_responses_api:
-            raise NotImplementedError(
-                "run_agent_loop_sync is not available when use_responses_api=True. "
-                "Use process_prompts_sync()/start() instead."
-            )
-
         return asyncio.run(
             self.run_agent_loop(
                 conversation,
@@ -1724,6 +1686,8 @@ class _LLMClient(BaseModel):
                 max_rounds=max_rounds,
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
+                on_message=on_message,
+                final_round_warning=final_round_warning,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
@@ -1742,6 +1706,8 @@ class _LLMClient(BaseModel):
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
+        final_round_warning: bool = True,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1772,11 +1738,8 @@ class _LLMClient(BaseModel):
             List of (Conversation, APIResponse) tuples in the same order as
             the input prompts.
         """
-        if self.use_responses_api:
-            raise NotImplementedError(
-                "process_agent_loops_async is not available when use_responses_api=True. "
-                "Use process_prompts_async() instead."
-            )
+        if max_rounds < 1:
+            raise ValueError("max_rounds must be at least 1")
         # Convert prompts to Conversations
         conversations = prompts_to_conversations(list(prompts))
 
@@ -1806,6 +1769,8 @@ class _LLMClient(BaseModel):
                         skills=skills,
                         max_rounds=max_rounds,
                         on_round_complete=on_round_complete,
+                        on_message=on_message,
+                        final_round_warning=final_round_warning,
                         output_schema=output_schema,
                         cache=cache,
                         service_tier=service_tier,
@@ -1859,6 +1824,8 @@ class _LLMClient(BaseModel):
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
+        on_message: Callable[[Message], Awaitable[None]] | None = None,
+        final_round_warning: bool = True,
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1866,11 +1833,6 @@ class _LLMClient(BaseModel):
         verbose: bool = False,
     ) -> list[tuple[Conversation, APIResponse]]:
         """Synchronous wrapper for :meth:`process_agent_loops_async`."""
-        if self.use_responses_api:
-            raise NotImplementedError(
-                "process_agent_loops_sync is not available when use_responses_api=True. "
-                "Use process_prompts_sync() instead."
-            )
         return asyncio.run(
             self.process_agent_loops_async(
                 prompts,
@@ -1880,6 +1842,8 @@ class _LLMClient(BaseModel):
                 max_concurrent_agents=max_concurrent_agents,
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
+                on_message=on_message,
+                final_round_warning=final_round_warning,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,

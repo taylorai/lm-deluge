@@ -19,6 +19,8 @@ This makes agents ideal for complex, multi-step tasks where you don't know in ad
 
 The simplest way to create an agent is with `run_agent_loop()`:
 
+The same method works with Anthropic, Bedrock, OpenAI Responses, and other supported providers. Pass `on_message` to persist each new assistant message before its tools run and the combined tool-result message after they finish. The returned response includes `trajectory` (the full conversation) and `loop_stop_reason` (`"no_tool_calls"`, `"max_rounds"`, or `"error"`). `on_round_complete` still runs after each assistant message. By default, the last request after the first round includes a final-turn warning visible only to the model; pass `final_round_warning=False` to disable it. Pending tools on the last round are left unexecuted.
+
 ```python
 import asyncio
 from lm_deluge import LLMClient, Tool, Conversation

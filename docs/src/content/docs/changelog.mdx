@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.153 · unreleased
+
+- **Unified agent loops**: `run_agent_loop`, its queued and synchronous variants, and batch agent loops now work with the Responses API as well as other providers. They share the same loop engine as the Responses `start()` auto-loop, accept `on_message` for each appended assistant and tool message, and return `APIResponse.trajectory` and `loop_stop_reason`. The existing `on_round_complete` callback remains available. `run_agent_loop` keeps its five-round default; `start()` keeps its 100-round default and unchanged auto-loop behavior.
+- **Final-round behavior**: `run_agent_loop` still sends its final-turn warning by default on the last request after the first round, but the warning is request-only and absent from the returned conversation, trajectory, and callbacks. Pass `final_round_warning=False` to disable it. Responses `start()` auto-loops do not send this warning. If the last allowed response requests local tools, those tools are no longer executed; the stop reason is `"max_rounds"`.
+
 ## 0.0.152 · 2026-09-23
 
 - **Claude Opus 5.5**: Added native Anthropic `claude-5.5-opus` (`claude-opus-5-5`) plus `claude-5.5-opus-bedrock` US and `claude-5.5-opus-bedrock-global` profiles at $4 input / $0.20 cache read / $5 cache write / $20 output per million tokens, with adaptive summarized thinking and `xhigh`/`max` effort. Opus 5.5's thinking is always on, so `reasoning_effort="none"`, zero thinking budgets, and disabled thinking now fail fast, as does forced `tool_choice`. The direct API sends the same thinking-binding controls as Fable 5.1; Bedrock omits them until AWS enables them for this model. Opus 5 name checks no longer match Opus 5.5. Native and Bedrock live runs passed, including exact thinking replay across turns (`9860f88`).

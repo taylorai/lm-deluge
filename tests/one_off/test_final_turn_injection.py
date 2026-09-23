@@ -1,15 +1,15 @@
 """Test that injecting a user message after tool results on the final turn
 doesn't violate the API contract for OpenAI or Anthropic.
 
-The agent loop now injects a "[SYSTEM] This is your FINAL turn..." user
-message before the last LLM call.  This message lands right after tool
-results, which some providers could reject.  These tests confirm that both
+The agent loop sends a request-only "[SYSTEM] This is your FINAL turn..."
+user message before the last LLM call. This message lands right after tool
+results, which some providers could reject. These tests confirm that both
 major providers accept the sequence and still return a valid text response.
 
 We set max_rounds=2 and give a task that requires exactly one tool call,
 so the model MUST hit the final-turn injection path:
   round 0  →  model calls tool  →  tool result added
-  round 1  →  injected user msg + LLM call (final turn)
+  round 1  →  request-only user msg + LLM call (final turn)
 """
 
 import asyncio
@@ -56,11 +56,11 @@ async def test_final_turn_injection_openai():
         f"Expected hash {expected_hash} in response: {resp.completion}"
     )
 
-    # Verify the injected message is in the conversation
+    # Verify the request-only warning is absent from the returned conversation
     user_msgs = [m for m in conv.messages if m.role == "user"]
     final_turn_msgs = [m for m in user_msgs if "FINAL turn" in (m.completion or "")]
-    assert len(final_turn_msgs) == 1, (
-        "Injected final-turn message not found in conversation"
+    assert len(final_turn_msgs) == 0, (
+        "Request-only final-turn warning leaked into conversation"
     )
 
     print(f"OpenAI final-turn injection test passed (rounds: {rounds_seen})")
@@ -94,11 +94,11 @@ async def test_final_turn_injection_anthropic():
         f"Expected hash {expected_hash} in response: {resp.completion}"
     )
 
-    # Verify the injected message is in the conversation
+    # Verify the request-only warning is absent from the returned conversation
     user_msgs = [m for m in conv.messages if m.role == "user"]
     final_turn_msgs = [m for m in user_msgs if "FINAL turn" in (m.completion or "")]
-    assert len(final_turn_msgs) == 1, (
-        "Injected final-turn message not found in conversation"
+    assert len(final_turn_msgs) == 0, (
+        "Request-only final-turn warning leaked into conversation"
     )
 
     print(f"Anthropic final-turn injection test passed (rounds: {rounds_seen})")
