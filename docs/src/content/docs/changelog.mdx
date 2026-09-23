@@ -5,10 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
-## 0.0.153 · unreleased
+## 0.0.153 · 2026-09-23
 
 - **Unified agent loops**: `run_agent_loop`, its queued and synchronous variants, and batch agent loops now work with the Responses API as well as other providers. They share the same loop engine as the Responses `start()` auto-loop, accept `on_message` for each appended assistant and tool message, and return `APIResponse.trajectory` and `loop_stop_reason`. The existing `on_round_complete` callback remains available. `run_agent_loop` keeps its five-round default; `start()` keeps its 100-round default and unchanged auto-loop behavior.
-- **Final-round behavior**: `run_agent_loop` still sends its final-turn warning by default on the last request after the first round, but the warning is request-only and absent from the returned conversation, trajectory, and callbacks. Pass `final_round_warning=False` to disable it. Responses `start()` auto-loops do not send this warning. If the last allowed response requests local tools, those tools are no longer executed; the stop reason is `"max_rounds"`.
+- **Explicit turn-limit warnings**: Agent loops default to `max_turns_warning="omit"` and inject no final-turn message. Choose `"retain"` to send the warning and preserve it in the conversation, trajectory, and `on_message` callbacks, or `"ephemeral"` to send it only in the last request. Ephemeral warnings fail fast for Claude Opus 5.5 and Fable 5.1, including Bedrock and mixed-model clients, because dropping the warning breaks signed-thinking replay. Responses `start()` auto-loops continue to omit warnings. If the last allowed response requests local tools, those tools remain unexecuted; the stop reason is `"max_rounds"`.
 
 ## 0.0.152 · 2026-09-23
 

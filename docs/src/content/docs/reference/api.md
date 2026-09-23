@@ -62,8 +62,8 @@ Key parameters:
 | `wait_for(task_id)` / `wait_for_all(task_ids=None)` | Await one or many tasks. |
 | `as_completed(task_ids=None)` | Async generator yielding `(task_id, APIResponse)` pairs as soon as tasks finish. |
 | `stream(prompt, *, tools=None)` | Streams chunks to stdout and resolves to the final `APIResponse` (see `stream_chat` for a generator). |
-| `run_agent_loop(conversation, *, tools=None, max_rounds=5, prefer_model=None, on_message=None, on_round_complete=None, final_round_warning=True, ...)` | Provider-agnostic tool loop returning `(Conversation, APIResponse)`. `on_message` receives appended assistant and tool messages; the response contains `trajectory` and `loop_stop_reason`. Use `prefer_model="last"` for multi-turn stickiness. |
-| `start_agent_loop_nowait(conversation, *, tools=None, max_rounds=5, on_message=None, final_round_warning=True, ...)` | Start the same agent loop without waiting. Returns a task ID for `wait_for_agent_loop()`. |
+| `run_agent_loop(conversation, *, tools=None, max_rounds=5, prefer_model=None, on_message=None, on_round_complete=None, max_turns_warning="omit", ...)` | Provider-agnostic tool loop returning `(Conversation, APIResponse)`. `on_message` receives appended assistant/tool messages and retained warning user messages; the response contains `trajectory` and `loop_stop_reason`. Warning modes: `"omit"` (default), `"ephemeral"` (request only), `"retain"` (preserve in history). Ephemeral mode rejects configured models with known bound-thinking requirements. Use `prefer_model="last"` for multi-turn stickiness. |
+| `start_agent_loop_nowait(conversation, *, tools=None, max_rounds=5, on_message=None, max_turns_warning="omit", ...)` | Start the same agent loop without waiting. Returns a task ID for `wait_for_agent_loop()`. |
 | `wait_for_agent_loop(task_id)` | Wait for an agent loop task to complete. Returns `(Conversation, APIResponse)`. |
 | `run_agent_loop_sync(...)` | Synchronous wrapper with the same loop options. |
 | `submit_batch_job(prompts, *, tools=None, cache=None, batch_size=50_000)` | Submit prompts through OpenAI or Anthropic batch APIs. |

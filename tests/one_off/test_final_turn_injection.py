@@ -45,6 +45,7 @@ async def test_final_turn_injection_openai():
         conv,
         tools=[hash_tool],
         max_rounds=2,
+        max_turns_warning="ephemeral",
         on_round_complete=track,
     )
 
@@ -83,6 +84,7 @@ async def test_final_turn_injection_anthropic():
         conv,
         tools=[hash_tool],
         max_rounds=2,
+        max_turns_warning="ephemeral",
         on_round_complete=track,
     )
 

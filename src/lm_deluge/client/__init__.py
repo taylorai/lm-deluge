@@ -21,6 +21,7 @@ import yaml
 from pydantic import BaseModel, PrivateAttr
 from pydantic.functional_validators import model_validator
 
+from lm_deluge.api_requests.anthropic import _is_claude_5_5_opus, _is_claude_fable_51
 from lm_deluge.api_requests.openai import stream_chat
 from lm_deluge.batches import (
     submit_batches_anthropic,
@@ -56,6 +57,7 @@ class AgentLoopResponse:
 
 # Type alias for agent loop callbacks
 AgentLoopCallback = Callable[[Conversation, APIResponse, int], Awaitable[None]]
+MaxTurnsWarning = Literal["omit", "ephemeral", "retain"]
 
 
 def _truncate(s: str, max_len: int = 200) -> str:
@@ -1125,6 +1127,22 @@ class _LLMClient(BaseModel):
                 return response
             current = await retry_queue.get()
 
+    def _validate_max_turns_warning(self, mode: MaxTurnsWarning) -> None:
+        if mode not in {"omit", "ephemeral", "retain"}:
+            raise ValueError(
+                "max_turns_warning must be 'omit', 'ephemeral', or 'retain'"
+            )
+        if mode == "ephemeral":
+            # Check every configured model because retries can switch models.
+            for model_name in self.models:
+                model = APIModel.from_registry(model_name)
+                if _is_claude_5_5_opus(model) or _is_claude_fable_51(model):
+                    raise ValueError(
+                        f"max_turns_warning='ephemeral' is incompatible with "
+                        f"'{model_name}': thinking blocks are bound to the exact "
+                        "conversation prefix. Use 'omit' or 'retain'."
+                    )
+
     async def _run_context_with_tool_loop(
         self,
         context: RequestContext,
@@ -1133,8 +1151,9 @@ class _LLMClient(BaseModel):
         *,
         on_round_complete: AgentLoopCallback | None = None,
         verbose: bool = False,
-        final_round_warning: bool = False,
+        max_turns_warning: MaxTurnsWarning = "omit",
     ) -> APIResponse:
+        self._validate_max_turns_warning(max_turns_warning)
         expanded_tools = await self._expand_executable_tools(context.tools)
 
         working = Conversation(
@@ -1159,15 +1178,23 @@ class _LLMClient(BaseModel):
                 context.status_tracker.add_to_total(1)
 
             request_prompt = working
-            if final_round_warning and round_num == max_rounds - 1 and round_num > 0:
-                request_prompt = Conversation(
-                    list(working.messages), model_used=working.model_used
-                ).with_message(
-                    Message.user(
-                        "[SYSTEM] This is your FINAL turn. You cannot call any more "
-                        "tools. You MUST provide your final text response now."
-                    )
+            if (
+                max_turns_warning != "omit"
+                and round_num == max_rounds - 1
+                and round_num > 0
+            ):
+                warning = Message.user(
+                    "[SYSTEM] This is your FINAL turn. You cannot call any more "
+                    "tools. You MUST provide your final text response now."
                 )
+                if max_turns_warning == "retain":
+                    working.with_message(warning)
+                    if on_message is not None:
+                        await on_message(warning)
+                else:
+                    request_prompt = Conversation(
+                        list(working.messages), model_used=working.model_used
+                    ).with_message(warning)
             round_context = context.copy(
                 prompt=request_prompt,
                 container_id=current_container_id,
@@ -1485,7 +1512,7 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
-        final_round_warning: bool = True,
+        max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1527,7 +1554,7 @@ class _LLMClient(BaseModel):
             on_message,
             on_round_complete=on_round_complete,
             verbose=verbose,
-            final_round_warning=final_round_warning,
+            max_turns_warning=max_turns_warning,
         )
         assert response.trajectory is not None
         result = AgentLoopResponse(response.trajectory, response)
@@ -1543,7 +1570,7 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
-        final_round_warning: bool = True,
+        max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1556,6 +1583,7 @@ class _LLMClient(BaseModel):
 
         Returns a task_id that can be used with wait_for_agent_loop().
         """
+        self._validate_max_turns_warning(max_turns_warning)
         if max_rounds < 1:
             raise ValueError("max_rounds must be at least 1")
         if not isinstance(conversation, Conversation):
@@ -1574,7 +1602,7 @@ class _LLMClient(BaseModel):
                 max_rounds=max_rounds,
                 on_round_complete=on_round_complete,
                 on_message=on_message,
-                final_round_warning=final_round_warning,
+                max_turns_warning=max_turns_warning,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
@@ -1617,7 +1645,7 @@ class _LLMClient(BaseModel):
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
-        final_round_warning: bool = True,
+        max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1640,6 +1668,11 @@ class _LLMClient(BaseModel):
             on_round_complete: Optional async callback called after each round.
                 Receives (conversation, response, round_number). Called after the
                 assistant message is added but before tool execution.
+            on_message: Called for each appended assistant/tool message, plus
+                the warning user message when max_turns_warning='retain'.
+            max_turns_warning: 'omit' (default) sends no warning. 'ephemeral'
+                sends it only in the final request; 'retain' also keeps it in
+                the conversation and callbacks. Warnings require max_rounds > 1.
             prefer_model: Model to prefer. Use "last" to use conversation.model_used.
             verbose: If True, print each tool call and result to stdout.
         """
@@ -1650,7 +1683,7 @@ class _LLMClient(BaseModel):
             max_rounds=max_rounds,
             on_round_complete=on_round_complete,
             on_message=on_message,
-            final_round_warning=final_round_warning,
+            max_turns_warning=max_turns_warning,
             output_schema=output_schema,
             cache=cache,
             service_tier=service_tier,
@@ -1669,7 +1702,7 @@ class _LLMClient(BaseModel):
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
-        final_round_warning: bool = True,
+        max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1687,7 +1720,7 @@ class _LLMClient(BaseModel):
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
                 on_message=on_message,
-                final_round_warning=final_round_warning,
+                max_turns_warning=max_turns_warning,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
@@ -1707,7 +1740,7 @@ class _LLMClient(BaseModel):
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
-        final_round_warning: bool = True,
+        max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1732,12 +1765,16 @@ class _LLMClient(BaseModel):
             show_progress: Whether to show progress bar for LLM requests.
             on_round_complete: Optional async callback called after each round
                 of each agent loop.
+            on_message: Called for each appended message, including retained warnings.
+            max_turns_warning: Final-request warning policy: 'omit' (default),
+                'ephemeral' (request only), or 'retain' (preserve in history).
             verbose: If True, print each tool call and result to stdout.
 
         Returns:
             List of (Conversation, APIResponse) tuples in the same order as
             the input prompts.
         """
+        self._validate_max_turns_warning(max_turns_warning)
         if max_rounds < 1:
             raise ValueError("max_rounds must be at least 1")
         # Convert prompts to Conversations
@@ -1770,7 +1807,7 @@ class _LLMClient(BaseModel):
                         max_rounds=max_rounds,
                         on_round_complete=on_round_complete,
                         on_message=on_message,
-                        final_round_warning=final_round_warning,
+                        max_turns_warning=max_turns_warning,
                         output_schema=output_schema,
                         cache=cache,
                         service_tier=service_tier,
@@ -1825,7 +1862,7 @@ class _LLMClient(BaseModel):
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
-        final_round_warning: bool = True,
+        max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
         cache: CachePattern | None = None,
         service_tier: Literal["auto", "default", "flex", "fast", "priority"]
@@ -1843,7 +1880,7 @@ class _LLMClient(BaseModel):
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
                 on_message=on_message,
-                final_round_warning=final_round_warning,
+                max_turns_warning=max_turns_warning,
                 output_schema=output_schema,
                 cache=cache,
                 service_tier=service_tier,
