@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.152 · 2026-09-23
+
+- **Claude Opus 5.5**: Added native Anthropic `claude-5.5-opus` (`claude-opus-5-5`) plus `claude-5.5-opus-bedrock` US and `claude-5.5-opus-bedrock-global` profiles at $4 input / $0.20 cache read / $5 cache write / $20 output per million tokens, with adaptive summarized thinking and `xhigh`/`max` effort. Opus 5.5's thinking is always on, so `reasoning_effort="none"`, zero thinking budgets, and disabled thinking now fail fast, as does forced `tool_choice`. The direct API sends the same thinking-binding controls as Fable 5.1; Bedrock omits them until AWS enables them for this model. Opus 5 name checks no longer match Opus 5.5. Native and Bedrock live runs passed, including exact thinking replay across turns (`9860f88`).
+- **GPT-6 Sol and Luna**: Added native OpenAI `gpt-6-sol` (alias `gpt-6`, $2 / $0.20 cached / $10) and `gpt-6-luna` ($0.10 / $0.01 / $0.50), plus US (`gpt-6-sol-bedrock`, `gpt-6-luna-bedrock`) and Global (`-bedrock-global`) Bedrock profiles over both Chat Completions and Responses. Both support `none` through `max` reasoning, verbosity, and image input. Bedrock US pricing carries AWS's 10% regional uplift over OpenAI's rates; AWS had not published price SKUs yet. Every native and Bedrock profile passed live validation on both API shapes, including the Global profiles (`9860f88`).
+- **Mercury 2.5 on OpenRouter**: Added `mercury-2.5-openrouter` for Inception's `inception/mercury-2.5`, with structured output, reasoning, and $0.04 / $0.004 cached / $0.15 pricing (`4f2f126`).
+
 ## 0.0.151 · 2026-09-09
 
 - **OpenAI cache-write accounting**: Parse optional cache-write counts from Chat Completions and Responses usage, including OpenAI on Bedrock. Charge the configured write rate without double-counting input tokens, falling back to the input rate when no separate write rate is configured. Older compatible responses remain supported.
