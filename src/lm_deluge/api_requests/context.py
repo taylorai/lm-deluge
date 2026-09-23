@@ -98,15 +98,30 @@ class RequestContext:
             and model.reasoning_model
             and model.supports_responses
             and not self.use_responses_api
-            and self.tools
-            and model.id.startswith(("gpt-5.4", "gpt-5.5", "gpt-5.6"))
+            and (self.extra_body or {}).get("tools", self.tools)
         ):
-            raise ValueError(
-                f"Invalid config for model '{self.model_name}': OpenAI chat "
-                "completions does not support function tools together with "
-                "reasoning_effort for this model. Set use_responses_api=True "
-                "or remove tools/reasoning."
-            )
+            if model.id in {"gpt-6-sol", "gpt-6-luna"}:
+                # Chat Completions permits tools only with reasoning disabled.
+                # Match the builder's minimal -> none normalization and its
+                # final passthrough override; omitted effort defaults to low.
+                effort = self.sampling_params.reasoning_effort
+                if effort == "minimal":
+                    effort = "none"
+                effort = (self.extra_body or {}).get("reasoning_effort", effort)
+                if effort != "none":
+                    raise ValueError(
+                        f"Invalid config for model '{self.model_name}': OpenAI chat "
+                        "completions does not support function tools with reasoning "
+                        "enabled. Set use_responses_api=True or explicitly set "
+                        "reasoning_effort='none'."
+                    )
+            elif model.id.startswith(("gpt-5.4", "gpt-5.5", "gpt-5.6")):
+                raise ValueError(
+                    f"Invalid config for model '{self.model_name}': OpenAI chat "
+                    "completions does not support function tools together with "
+                    "reasoning_effort for this model. Set use_responses_api=True "
+                    "or remove tools/reasoning."
+                )
 
     def maybe_callback(self, response, tracker):
         if not self.callback:
