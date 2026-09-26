@@ -200,14 +200,15 @@ async def _build_gemini_request(
     if sampling_params.json_mode and model.supports_json:
         generation_config["responseMimeType"] = "application/json"
 
-    # Handle media_resolution for Gemini 3 (requires v1alpha)
+    # Handle global media resolution for Gemini 3.
     if sampling_params.media_resolution is not None:
         is_gemini_3 = "gemini-3" in model.name.lower()
         if is_gemini_3:
-            # Add global media resolution to generationConfig
-            generation_config["mediaResolution"] = {
-                "level": sampling_params.media_resolution
-            }
+            # generationConfig.mediaResolution is a scalar enum. The lowercase
+            # library values map directly to Gemini's uppercase enum names.
+            generation_config["mediaResolution"] = (
+                sampling_params.media_resolution.upper()
+            )
         else:
             # Warn if trying to use media_resolution on non-Gemini-3 models
             maybe_warn(

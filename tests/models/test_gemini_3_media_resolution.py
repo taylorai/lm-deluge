@@ -22,7 +22,7 @@ def test_gemini_3_media_resolution_high():
 
     media_res = request["generationConfig"].get("mediaResolution")
     assert media_res is not None
-    assert media_res["level"] == "media_resolution_high"
+    assert media_res == "MEDIA_RESOLUTION_HIGH"
 
 
 def test_gemini_3_media_resolution_medium():
@@ -41,7 +41,7 @@ def test_gemini_3_media_resolution_medium():
 
     media_res = request["generationConfig"].get("mediaResolution")
     assert media_res is not None
-    assert media_res["level"] == "media_resolution_medium"
+    assert media_res == "MEDIA_RESOLUTION_MEDIUM"
 
 
 def test_gemini_3_media_resolution_low():
@@ -60,7 +60,7 @@ def test_gemini_3_media_resolution_low():
 
     media_res = request["generationConfig"].get("mediaResolution")
     assert media_res is not None
-    assert media_res["level"] == "media_resolution_low"
+    assert media_res == "MEDIA_RESOLUTION_LOW"
 
 
 def test_gemini_3_no_media_resolution():
@@ -121,8 +121,7 @@ def test_gemini_3_combined_params():
     gen_config = request["generationConfig"]
 
     # Media resolution
-    assert "mediaResolution" in gen_config
-    assert gen_config["mediaResolution"]["level"] == "media_resolution_high"
+    assert gen_config["mediaResolution"] == "MEDIA_RESOLUTION_HIGH"
 
     # Thinking level
     assert "thinkingConfig" in gen_config
