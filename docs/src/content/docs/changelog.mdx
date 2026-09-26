@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.154 · 2026-09-26
+
+- **Gemini media resolution**: Send global `media_resolution` as the uppercase enum required by Gemini's `generationConfig.mediaResolution`, fixing requests that set this option. Added a live image test that passed against Gemini 3.8 Flash with `media_resolution_high`.
+
 ## 0.0.153 · 2026-09-23
 
 - **Unified agent loops**: `run_agent_loop`, its queued and synchronous variants, and batch agent loops now work with the Responses API as well as other providers. They share the same loop engine as the Responses `start()` auto-loop, accept `on_message` for each appended assistant and tool message, and return `APIResponse.trajectory` and `loop_stop_reason`. The existing `on_round_complete` callback remains available. `run_agent_loop` keeps its five-round default; `start()` keeps its 100-round default and unchanged auto-loop behavior.
