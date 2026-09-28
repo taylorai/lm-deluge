@@ -21,6 +21,7 @@ LLMClient(
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    fallback_models: list[str] | None = None,
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
@@ -45,6 +46,7 @@ Key parameters:
 
 - `sampling_params`: list of `SamplingParams` to apply per model. If omitted, defaults derived from `temperature`, `top_p`, and `max_new_tokens` are used.
 - `model_weights`: provide explicit floats or `'uniform'` for equal sampling. The `'dynamic'` literal is reserved for a future auto-balancing mode and currently raises `NotImplementedError` if selected.
+- `fallback_models`: models used only after a primary fails. They are appended to `model_names` with zero weight, so they are chosen only when a retry switches models or every weighted model is blocklisted. Zero-weight entries in `model_weights` behave the same way; at least one weight must be positive.
 - `cache`: any object exposing `get(prompt: Conversation) -> APIResponse | None` and `put(prompt, response) -> None`.
 - `use_responses_api`: switch OpenAI models to `/responses` (required for computer-use and Codex models).
 - `background`: only valid with `use_responses_api=True`; polls background jobs until completion.

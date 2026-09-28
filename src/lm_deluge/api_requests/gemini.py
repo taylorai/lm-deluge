@@ -362,7 +362,19 @@ class GeminiRequest(APIRequestBase):
             error_message = text
 
         # Handle special kinds of errors
-        retry_with_different_model = status_code in [529, 429, 400, 401, 403, 404, 413]
+        retry_with_different_model = status_code in [
+            529,
+            429,
+            400,
+            401,
+            403,
+            404,
+            413,
+            500,
+            502,
+            503,
+            504,
+        ]
         # Auth errors (401, 403) and model not found (404) are unrecoverable - blocklist this model
         give_up_if_no_other_models = status_code in [401, 403, 404]
         if is_error and error_message is not None:

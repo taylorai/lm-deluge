@@ -132,6 +132,10 @@ class _LLMClient(BaseModel):
     max_concurrent_requests: int = 225
     sampling_params: list[SamplingParams] = []
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform"
+    # Appended to model_names with zero weight: never chosen for a first
+    # attempt, only when a retry switches models or every weighted model is
+    # blocklisted.
+    fallback_models: list[str] = []
     max_attempts: int = 5
     request_timeout: int = 30
     cache: Any = None
@@ -263,9 +267,15 @@ class _LLMClient(BaseModel):
                 and None not in per_model_efforts
             ):
                 self.reasoning_effort = next(iter(unique_efforts))
-        self.model_names = normalized
+        fallbacks = [m for m in self.fallback_models if m not in normalized]
+        self.model_names = normalized + fallbacks
         self._align_sampling_params(per_model_efforts)
-        self._reset_model_weights()
+        if fallbacks:
+            self.model_weights = [1 / len(normalized) for _ in normalized] + [
+                0.0 for _ in fallbacks
+            ]
+        else:
+            self._reset_model_weights()
 
     def _normalize_model_names(
         self, models: list[str]
@@ -525,6 +535,38 @@ class _LLMClient(BaseModel):
                 processed_models.append(processed_model)
             data["model_names"] = processed_models
 
+        fallback_models = data.get("fallback_models") or []
+        if isinstance(fallback_models, str):
+            fallback_models = [fallback_models]
+        if fallback_models:
+            primary_models = list(
+                data.get("model_names", cls.model_fields["model_names"].default)
+            )
+            fallbacks: list[str] = []
+            for model_name in fallback_models:
+                processed_model = cls._preprocess_model_name(model_name)
+                processed_model, _ = cls._strip_reasoning_suffix_if_registered(
+                    processed_model
+                )
+                if processed_model not in primary_models + fallbacks:
+                    fallbacks.append(processed_model)
+            data["fallback_models"] = fallbacks
+            data["model_names"] = primary_models + fallbacks
+            weights = data.get("model_weights", "uniform")
+            if weights == "uniform":
+                weights = [1.0 for _ in primary_models]
+            if isinstance(weights, list) and len(weights) == len(primary_models):
+                data["model_weights"] = list(weights) + [0.0 for _ in fallbacks]
+            sampling_params = data.get("sampling_params")
+            if (
+                isinstance(sampling_params, list)
+                and len(sampling_params) > 1
+                and len(sampling_params) == len(primary_models)
+            ):
+                data["sampling_params"] = sampling_params + [
+                    sampling_params[0].model_copy(deep=True) for _ in fallbacks
+                ]
+
         if not isinstance(data.get("sampling_params", []), list):
             data["sampling_params"] = [data["sampling_params"]]
         if "sampling_params" not in data or len(data.get("sampling_params", [])) == 0:
@@ -585,6 +627,8 @@ class _LLMClient(BaseModel):
             self.model_weights = [1 / len(self.model_names) for _ in self.model_names]
         elif self.model_weights == "dynamic":
             raise NotImplementedError("dynamic model weights not implemented yet")
+        if self.model_weights and not any(w > 0 for w in self.model_weights):
+            raise ValueError("at least one model must have a positive weight")
         # normalize weights
         self.model_weights = [w / sum(self.model_weights) for w in self.model_weights]
 
@@ -630,8 +674,11 @@ class _LLMClient(BaseModel):
 
         # Auto-generate name if not provided
         if self.name is None:
-            if len(self.model_names) == 1:
-                self.name = self.model_names[0]
+            weighted_models = [
+                m for m, w in zip(self.model_names, self.model_weights) if w > 0
+            ]
+            if len(weighted_models) == 1:
+                self.name = weighted_models[0]
             else:
                 self.name = "LLMClient"
 
@@ -692,9 +739,18 @@ class _LLMClient(BaseModel):
                 f"Blocklisted: {self._blocklisted_models}"
             )
 
-        weights = [self.model_weights[i] for i in available_indices]
-        chosen_idx = random.choices(available_indices, weights=weights)[0]
+        chosen_idx = self._choose_model_index(available_indices)
         return self.models[chosen_idx], self.sampling_params[chosen_idx]
+
+    def _choose_model_index(self, indices: list[int]) -> int:
+        """Pick by weight, using zero-weight (fallback) models only when no
+        weighted model is among the candidates."""
+        assert isinstance(self.model_weights, list)
+        weighted = [i for i in indices if self.model_weights[i] > 0]
+        if not weighted:
+            return random.choice(indices)
+        weights = [self.model_weights[i] for i in weighted]
+        return random.choices(weighted, weights=weights)[0]
 
     def _select_different_model(self, current_model: str):
         """Select a model different from the provided one, excluding blocklisted models."""
@@ -714,15 +770,9 @@ class _LLMClient(BaseModel):
                 f"Blocklisted: {self._blocklisted_models}"
             )
 
-        # Get weights for other models
-        assert isinstance(self.model_weights, list)
         other_indices = [self.models.index(m) for m in other_models]
-        weights = [self.model_weights[idx] for idx in other_indices]
-
-        model_idx = random.choices(range(len(other_models)), weights=weights)[0]
-        chosen_model = other_models[model_idx]
-        chosen_sp = self.sampling_params[self.models.index(chosen_model)]
-        return chosen_model, chosen_sp
+        chosen_idx = self._choose_model_index(other_indices)
+        return self.models[chosen_idx], self.sampling_params[chosen_idx]
 
     def _resolve_model(
         self, prefer_model: str | None, prompt: Prompt
@@ -1955,6 +2005,7 @@ def LLMClient(
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    fallback_models: list[str] | None = None,
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
@@ -1997,6 +2048,7 @@ def LLMClient(
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    fallback_models: list[str] | None = None,
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
@@ -2038,6 +2090,7 @@ def LLMClient(
     max_concurrent_requests: int = 225,
     sampling_params: list[SamplingParams] | None = None,
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform",
+    fallback_models: list[str] | None = None,
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
@@ -2091,6 +2144,7 @@ def LLMClient(
         max_concurrent_requests=max_concurrent_requests,
         sampling_params=sampling_params,
         model_weights=model_weights,
+        fallback_models=fallback_models or [],
         max_attempts=max_attempts,
         request_timeout=request_timeout,
         cache=cache,

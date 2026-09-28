@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.155 · 2026-09-28
+
+- **Fallback-only models**: `LLMClient(..., fallback_models=[...])` appends models with zero weight. They never take first-attempt traffic and are used only when a retry switches models or every weighted model is blocklisted. Explicit zero weights no longer crash retries with `ValueError: Total of weights must be greater than zero`, and all-zero weights now fail at construction.
+- **Gemini 5xx failover**: Gemini 500, 502, 503, and 504 responses now set `retry_with_different_model`, matching the other providers, so multi-model clients fail over instead of retrying the same model.
+
 ## 0.0.154 · 2026-09-26
 
 - **Gemini media resolution**: Send global `media_resolution` as the uppercase enum required by Gemini's `generationConfig.mediaResolution`, fixing requests that set this option. Added a live image test that passed against Gemini 3.8 Flash with `media_resolution_high`.

@@ -9,13 +9,33 @@ When building production applications, you often need resilience against model f
 
 | Pattern | Use Case | Key Configuration |
 |---------|----------|-------------------|
-| **Primary + Fallback** | Always try your preferred model first, fall back only on failure | `prefer_model="model-name"` |
+| **Primary + Fallback** | Always try your preferred model first, fall back only on failure | `fallback_models=["model-name"]` |
 | **Load Balancing** | Spread traffic across models by weight, with automatic failover | `model_weights=[0.6, 0.2, 0.2]` |
 | **Multi-turn Stickiness** | Keep the same model throughout a conversation | `prefer_model="last"` |
 
 ## Pattern 1: Primary Model with Fallback
 
 Use this when you have a preferred model but want automatic failover if it's unavailable (rate limited, down, deprecated, etc.).
+
+```python
+from lm_deluge import LLMClient
+
+client = LLMClient(
+    "claude-5.5-opus-bedrock",
+    fallback_models=["claude-5-sonnet-bedrock"],
+    max_new_tokens=1024,
+)
+
+# Every request starts on Opus 5.5. Sonnet 5 is only used when a retry
+# switches models (e.g. a 5xx or overloaded error) or Opus 5.5 is blocklisted.
+responses = await client.process_prompts_async(prompts)
+```
+
+Fallback models are appended to `model_names` with zero weight, so they never receive first-attempt traffic, and this works with every entry point, including `process_prompts_async`. Retries alternate between the primary and the fallback until `max_attempts` is used up. A fallback that is also a primary model is ignored. If you list several primaries, a retry prefers another primary and uses a fallback only when no other primary is available. The same zero-weight behaviour applies to explicit weights such as `model_weights=[1.0, 0.0]`.
+
+### Preferring a model per request
+
+`prefer_model` picks the first model for a single `start()` or `run_agent_loop()` call:
 
 ```python
 from lm_deluge import LLMClient, Conversation
