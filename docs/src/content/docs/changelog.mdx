@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.156 · 2026-09-29
+
+- **Claude Sonnet 5.5**: Added native Anthropic `claude-5.5-sonnet` (`claude-sonnet-5-5`) and the `claude-5.5-sonnet-bedrock-global` profile at $2 input / $0.20 cache read / $2.50 cache write / $10 output per million tokens, with `xhigh`/`max` effort. AWS offers only the Global profile; `us.anthropic.claude-sonnet-5-5` is rejected as an invalid identifier. Sonnet 5.5 rejects disabled thinking, so `reasoning_effort="none"` and zero thinking budgets are sent as `between_tools` (effort `high` or below; `xhigh`/`max` fail fast). Forced `tool_choice` now fails fast, as does `max_turns_warning="ephemeral"`. The direct API sends thinking-binding controls when thinking is adaptive, and `task_budget` is supported. Sonnet 5 name checks no longer match Sonnet 5.5. Native and Bedrock Global live runs passed, including thinking replay across turns and a tool loop (`6fb666f`).
+- **GPT-6.1 Sol**: Added native OpenAI `gpt-6.1-sol` (alias `gpt-6.1`, $2 / $0.10 cached / $2.50 cache write / $10) plus `gpt-6.1-sol-bedrock` US and `gpt-6.1-sol-bedrock-global` profiles over Chat Completions and Responses. It supports `low` through `max` reasoning; `none` is mapped to `low` with a warning. Chat Completions with function tools fails fast, so use `use_responses_api=True`. Bedrock US pricing carries AWS's 10% regional uplift; AWS had not published price SKUs yet. Every native and Bedrock profile passed live validation (`6fb666f`).
+- **Claude Sonnet 5 pricing**: Lowered to $2 / $0.20 cache read / $2.50 cache write / $10 on the direct API and Bedrock (`6fb666f`).
+
 ## 0.0.155 · 2026-09-28
 
 - **Fallback-only models**: `LLMClient(..., fallback_models=[...])` appends models with zero weight. They never take first-attempt traffic and are used only when a retry switches models or every weighted model is blocklisted. Explicit zero weights no longer crash retries with `ValueError: Total of weights must be greater than zero`, and all-zero weights now fail at construction.
