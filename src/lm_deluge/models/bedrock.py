@@ -218,6 +218,11 @@ CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS = [
 CLAUDE_5_5_OPUS_US_SOURCE_REGIONS = CLAUDE_5_OPUS_US_SOURCE_REGIONS
 CLAUDE_5_5_OPUS_GLOBAL_SOURCE_REGIONS = CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS
 
+# Claude Sonnet 5.5 Global CRIS source regions; reuses the live-verified Opus 5
+# list. AWS offers only the Global profile (us.anthropic.claude-sonnet-5-5 is
+# rejected as an invalid model identifier, verified live).
+CLAUDE_5_5_SONNET_GLOBAL_SOURCE_REGIONS = CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS
+
 # Source regions for global cross-region profiles as documented by AWS Bedrock.
 # Global profile routing and supported regions can evolve over time.
 CLAUDE_GLOBAL_SOURCE_REGIONS_V45 = [
@@ -353,6 +358,27 @@ BEDROCK_MODELS = {
     #  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
     #  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
     # ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
+    "claude-5.5-sonnet-bedrock-global": {
+        "id": "claude-5.5-sonnet-bedrock-global",
+        "name": "global.anthropic.claude-sonnet-5-5",
+        "aliases": [
+            "claude-sonnet-5-5-bedrock-global",
+            "claude-sonnet-5.5-bedrock-global",
+        ],
+        "regions": CLAUDE_5_5_SONNET_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 2.0,
+        "cached_input_cost": 0.20,
+        "cache_write_cost": 2.5,
+        "output_cost": 10.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
     "claude-5.5-opus-bedrock": {
         "id": "claude-5.5-opus-bedrock",
         "name": "us.anthropic.claude-opus-5-5",
@@ -429,8 +455,10 @@ BEDROCK_MODELS = {
         "api_base": "",
         "api_key_env_var": "",
         "api_spec": "bedrock",
-        "input_cost": 3.0,
-        "output_cost": 15.0,
+        "input_cost": 2.0,
+        "cached_input_cost": 0.20,
+        "cache_write_cost": 2.5,
+        "output_cost": 10.0,
         "supports_json": True,
         "reasoning_model": True,
         "supports_images": True,
@@ -442,8 +470,10 @@ BEDROCK_MODELS = {
         "api_base": "",
         "api_key_env_var": "",
         "api_spec": "bedrock",
-        "input_cost": 3.0,
-        "output_cost": 15.0,
+        "input_cost": 2.0,
+        "cached_input_cost": 0.20,
+        "cache_write_cost": 2.5,
+        "output_cost": 10.0,
         "supports_json": True,
         "reasoning_model": True,
         "supports_images": True,
@@ -774,6 +804,48 @@ BEDROCK_MODELS = {
         "cached_input_cost": 1.0,
         "cache_write_cost": 12.5,
         "output_cost": 50.0,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
+    # GPT-6.1 Sol on AWS Bedrock. AWS has not published a price SKU yet; these
+    # follow the GPT-6 Sol pattern (Global = OpenAI Standard, US Geo CRIS =
+    # +10%). Prices are for the <=272K context tier. No reasoning_effort='none'.
+    "gpt-6.1-sol-bedrock": {
+        "id": "gpt-6.1-sol-bedrock",
+        "name": "us.openai.gpt-6.1-sol",
+        "aliases": ["gpt-6.1-bedrock"],
+        "regions": OPENAI_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 2.2,
+        "cached_input_cost": 0.11,
+        "cache_write_cost": 2.75,
+        "output_cost": 11.0,
+        "supports_images": True,
+        "supports_responses": True,
+        "reasoning_model": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+        "supports_verbosity": True,
+        "omit_default_sampling_params": True,
+    },
+    "gpt-6.1-sol-bedrock-global": {
+        "id": "gpt-6.1-sol-bedrock-global",
+        "name": "global.openai.gpt-6.1-sol",
+        "regions": OPENAI_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 2.0,
+        "cached_input_cost": 0.1,
+        "cache_write_cost": 2.5,
+        "output_cost": 10.0,
         "supports_images": True,
         "supports_responses": True,
         "reasoning_model": True,

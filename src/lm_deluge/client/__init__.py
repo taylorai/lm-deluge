@@ -21,7 +21,11 @@ import yaml
 from pydantic import BaseModel, PrivateAttr
 from pydantic.functional_validators import model_validator
 
-from lm_deluge.api_requests.anthropic import _is_claude_5_5_opus, _is_claude_fable_51
+from lm_deluge.api_requests.anthropic import (
+    _is_claude_5_5_opus,
+    _is_claude_5_5_sonnet,
+    _is_claude_fable_51,
+)
 from lm_deluge.api_requests.openai import stream_chat
 from lm_deluge.batches import (
     submit_batches_anthropic,
@@ -1186,7 +1190,11 @@ class _LLMClient(BaseModel):
             # Check every configured model because retries can switch models.
             for model_name in self.models:
                 model = APIModel.from_registry(model_name)
-                if _is_claude_5_5_opus(model) or _is_claude_fable_51(model):
+                if (
+                    _is_claude_5_5_opus(model)
+                    or _is_claude_5_5_sonnet(model)
+                    or _is_claude_fable_51(model)
+                ):
                     raise ValueError(
                         f"max_turns_warning='ephemeral' is incompatible with "
                         f"'{model_name}': thinking blocks are bound to the exact "

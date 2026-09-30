@@ -32,8 +32,19 @@ def _is_claude_46(model: APIModel) -> bool:
     return model.id in {"claude-4.6-opus", "claude-4.6-sonnet"} or "4-6" in model.name
 
 
+def _is_claude_5_5_sonnet(model: APIModel) -> bool:
+    return model.id == "claude-5.5-sonnet" or "claude-sonnet-5-5" in model.name
+
+
 def _is_claude_5_sonnet(model: APIModel) -> bool:
-    return model.id == "claude-5-sonnet" or "claude-sonnet-5" in model.name
+    # "claude-sonnet-5" is a prefix of "claude-sonnet-5-5", so exclude 5.5.
+    return (
+        model.id == "claude-5-sonnet" or "claude-sonnet-5" in model.name
+    ) and not _is_claude_5_5_sonnet(model)
+
+
+def _is_claude_5_sonnet_family(model: APIModel) -> bool:
+    return _is_claude_5_sonnet(model) or _is_claude_5_5_sonnet(model)
 
 
 def _is_claude_5_5_opus(model: APIModel) -> bool:
@@ -70,7 +81,16 @@ def _forced_tool_choice_label(model: APIModel) -> str | None:
         return "Claude Fable 5.1"
     if _is_claude_5_5_opus(model):
         return "Claude Opus 5.5"
+    if _is_claude_5_5_sonnet(model):
+        return "Claude Sonnet 5.5"
     return None
+
+
+def _disabled_thinking_config(model: APIModel) -> dict:
+    # Sonnet 5.5 rejects type "disabled"; "between_tools" is its lowest setting.
+    if _is_claude_5_5_sonnet(model):
+        return {"type": "between_tools"}
+    return {"type": "disabled"}
 
 
 def _is_claude_47(model: APIModel) -> bool:
@@ -89,11 +109,15 @@ def _is_claude_47(model: APIModel) -> bool:
 
 
 def _is_claude_46_or_newer(model: APIModel) -> bool:
-    return _is_claude_46(model) or _is_claude_47(model) or _is_claude_5_sonnet(model)
+    return (
+        _is_claude_46(model)
+        or _is_claude_47(model)
+        or _is_claude_5_sonnet_family(model)
+    )
 
 
 def _removes_manual_thinking_budget(model: APIModel) -> bool:
-    return _is_claude_47(model) or _is_claude_5_sonnet(model)
+    return _is_claude_47(model) or _is_claude_5_sonnet_family(model)
 
 
 def _adaptive_thinking_config(model: APIModel) -> dict:
@@ -187,6 +211,24 @@ def _validate_anthropic_request_config(
                 "or lower, or keep thinking enabled."
             )
 
+    if _is_claude_5_5_sonnet(model) and isinstance(thinking, dict):
+        output_config = request_json.get("output_config")
+        effort = (
+            output_config.get("effort") if isinstance(output_config, dict) else None
+        )
+        if thinking.get("type") == "disabled":
+            raise ValueError(
+                f"Invalid config for model '{context.model_name}': Claude Sonnet "
+                "5.5 does not accept thinking type 'disabled'. Use "
+                "reasoning_effort='none' (sent as 'between_tools') instead."
+            )
+        if thinking.get("type") == "between_tools" and effort in {"xhigh", "max"}:
+            raise ValueError(
+                f"Invalid config for model '{context.model_name}': Claude Sonnet "
+                f"5.5 cannot turn thinking off at effort '{effort}'. Use "
+                "effort='high' or lower, or keep thinking enabled."
+            )
+
     always_on_label = _always_on_thinking_label(model)
     if (
         always_on_label is not None
@@ -251,9 +293,22 @@ def _apply_thinking_binding_controls(
     *,
     bedrock: bool = False,
 ) -> bool:
-    # Opus 5.5 binding controls are not yet verified on Bedrock, where the
-    # beta header is rejected until AWS enables it per model.
-    if not (_is_claude_fable_51(model) or (_is_claude_5_5_opus(model) and not bedrock)):
+    # Opus 5.5 / Sonnet 5.5 binding controls are not yet verified on Bedrock,
+    # where the beta header is rejected until AWS enables it per model.
+    if not (
+        _is_claude_fable_51(model)
+        or (_is_claude_5_5_opus(model) and not bedrock)
+        or (_is_claude_5_5_sonnet(model) and not bedrock)
+    ):
+        return False
+
+    # Sonnet 5.5 rejects block_binding alongside between_tools thinking.
+    thinking = request_json.get("thinking")
+    if (
+        _is_claude_5_5_sonnet(model)
+        and isinstance(thinking, dict)
+        and thinking.get("type") == "between_tools"
+    ):
         return False
 
     behavior = context.thinking_prefix_mismatch
@@ -262,11 +317,11 @@ def _apply_thinking_binding_controls(
             "thinking_prefix_mismatch must be either 'error' or 'drop_block'"
         )
 
-    thinking = request_json.get("thinking")
     if not isinstance(thinking, dict) or thinking.get("type") != "adaptive":
+        label = _always_on_thinking_label(model) or "Claude Sonnet 5.5"
         raise ValueError(
             f"Invalid config for model '{context.model_name}': "
-            f"{_always_on_thinking_label(model)} requires adaptive thinking."
+            f"{label} thinking binding controls require adaptive thinking."
         )
 
     thinking["block_binding"] = {"prefix_mismatch_behavior": behavior}
@@ -309,7 +364,7 @@ def apply_anthropic_reasoning_config(
                 # Models with always-on thinking are rejected by the Fable
                 # validation above. Opus 5 needs an explicit wire value.
                 if not _is_claude_47(model) or _is_claude_5_opus(model):
-                    request_json["thinking"] = {"type": "disabled"}
+                    request_json["thinking"] = _disabled_thinking_config(model)
             else:
                 request_json["thinking"] = _adaptive_thinking_config(model)
                 # Map reasoning_effort to output_config.effort for newer Claude models.
@@ -354,7 +409,7 @@ def apply_anthropic_reasoning_config(
             elif not _is_claude_47(model) or _is_claude_5_opus(model):
                 # Opus 5 defaults thinking on, so a zero budget must send an
                 # explicit disabled value (omission would enable thinking).
-                request_json["thinking"] = {"type": "disabled"}
+                request_json["thinking"] = _disabled_thinking_config(model)
         elif sampling_params.thinking_budget is not None:
             if _is_claude_46(model):
                 maybe_warn("WARN_CLAUDE_46_BUDGET_TOKENS_DEPRECATED")
@@ -489,17 +544,17 @@ def _build_anthropic_request(
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
 
-    # Claude Sonnet 5 rejects non-default sampling parameters. Because lm-deluge
-    # always materializes defaults, omit them entirely.
-    if _is_claude_5_sonnet(model):
+    # Claude Sonnet 5/5.5 reject non-default sampling parameters. Because
+    # lm-deluge always materializes defaults, omit them entirely.
+    if _is_claude_5_sonnet_family(model):
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
 
     _validate_anthropic_request_config(model, context, request_json)
 
-    # task_budget is Opus 4.7+ only (beta).
+    # task_budget is Opus 4.7+ / Sonnet 5.5 only (beta).
     if sampling_params.task_budget is not None:
-        if _is_claude_47(model):
+        if _is_claude_47(model) or _is_claude_5_5_sonnet(model):
             _add_beta(base_headers, "task-budgets-2026-03-13")
             output_config_tb: dict = request_json.get("output_config") or {}  # type: ignore[assignment]
             output_config_tb["task_budget"] = {

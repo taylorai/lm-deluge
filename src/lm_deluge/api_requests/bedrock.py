@@ -66,7 +66,10 @@ def _is_claude_47_bedrock(model: APIModel) -> bool:
 
 
 def _uses_modern_openai_bedrock_api(model: APIModel) -> bool:
-    return ".openai.gpt-5.6-" in model.name or ".openai.gpt-6-" in model.name
+    return any(
+        marker in model.name
+        for marker in (".openai.gpt-5.6-", ".openai.gpt-6-", ".openai.gpt-6.1-")
+    )
 
 
 def _is_openai_bedrock_model(model: APIModel) -> bool:

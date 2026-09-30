@@ -29,8 +29,10 @@ def test_sonnet_5_registered():
     m = APIModel.from_registry("claude-5-sonnet")
     assert m.id == "claude-5-sonnet"
     assert m.name == "claude-sonnet-5"
-    assert m.input_cost == 3.0
-    assert m.output_cost == 15.0
+    assert m.input_cost == 2.0
+    assert m.cached_input_cost == 0.20
+    assert m.cache_write_cost == 2.5
+    assert m.output_cost == 10.0
     assert m.reasoning_model
     assert m.supports_json
     assert m.supports_images
