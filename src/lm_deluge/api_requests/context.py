@@ -92,15 +92,17 @@ class RequestContext:
                 "background=True is incompatible with stateless Responses requests"
             )
 
+        # OpenAI models hosted on Azure AI Foundry share the same Chat Completions
+        # restriction, so match on the deployed model name rather than the registry id.
         if (
-            model.provider == "openai"
+            model.provider in {"openai", "azure"}
             and model.api_spec == "openai"
             and model.reasoning_model
             and model.supports_responses
             and not self.use_responses_api
             and (self.extra_body or {}).get("tools", self.tools)
         ):
-            if model.id in {"gpt-6-sol", "gpt-6-luna"}:
+            if model.name in {"gpt-6-sol", "gpt-6-luna"}:
                 # Chat Completions permits tools only with reasoning disabled.
                 # Match the builder's minimal -> none normalization and its
                 # final passthrough override; omitted effort defaults to low.
@@ -115,7 +117,7 @@ class RequestContext:
                         "enabled. Set use_responses_api=True or explicitly set "
                         "reasoning_effort='none'."
                     )
-            elif model.id.startswith(("gpt-5.4", "gpt-5.5", "gpt-5.6", "gpt-6.1")):
+            elif model.name.startswith(("gpt-5.4", "gpt-5.5", "gpt-5.6", "gpt-6.1")):
                 raise ValueError(
                     f"Invalid config for model '{self.model_name}': OpenAI chat "
                     "completions does not support function tools together with "
