@@ -284,7 +284,7 @@ client = LLMClient("gpt-4o")
 client = LLMClient("claude-4-sonnet")
 
 # Google
-client = LLMClient("gemini-2.0-flash")
+client = LLMClient("gemini-2.5-flash-lite")
 
 # Meta Model API
 client = LLMClient("muse-spark-1.2", use_responses_api=True)

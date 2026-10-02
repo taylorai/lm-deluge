@@ -182,7 +182,7 @@ def test_skills_not_supported_by_gemini():
 
     context = RequestContext(
         task_id=1,
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash-lite",
         prompt=Conversation().user("Hello"),
         sampling_params=SamplingParams(max_new_tokens=1024),
         skills=[Skill(type="anthropic", skill_id="xlsx", version="latest")],

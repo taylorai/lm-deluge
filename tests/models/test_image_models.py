@@ -29,8 +29,8 @@ models_to_test = [
     # gemini via AI studio
     "gemini-2.5-pro",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
+    "gemini-2.5-flash-lite",
+    "gemini-3.5-flash-lite",
     # together ai
     "qwen-2.5-vl-together",
     "llama-4-maverick-together",
@@ -38,8 +38,6 @@ models_to_test = [
     # native gemini
     "gemini-2.5-pro-gemini",
     "gemini-2.5-flash-gemini",
-    "gemini-2.0-flash-gemini",
-    "gemini-2.0-flash-lite-gemini",
 ]
 
 

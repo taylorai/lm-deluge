@@ -5,6 +5,13 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.159 · 2026-10-02
+
+- **Gemini on Vertex AI**: New `-vertex` models send Gemini requests to Vertex AI under Google Cloud terms instead of the Gemini Developer API. Auth is a Google Cloud API key in `VERTEX_API_KEY`, sent in the `x-goog-api-key` header; Vertex derives the project from the key. `VERTEX_LOCATION` picks the endpoint: `global` (default), `us`/`eu` multi-region (`aiplatform.{loc}.rep.googleapis.com`), or a region such as `us-central1`. Request building and response parsing are shared with the native Gemini path. Files uploaded to the Gemini Files API are rejected, since Vertex can't read them; inline files work. Variants: 2.5 Pro/Flash/Flash-Lite, 3 Flash preview, 3.1 Pro preview, 3.1 Flash-Lite, 3.5 Flash/Flash-Lite, and 3.6/3.7/3.8 Flash. Not every model is served everywhere: the `us` endpoint lacks the 2.5 models, `gemini-3-flash-preview`, and `gemini-3.1-pro-preview`. Live text, image, PDF, and JSON-mode checks passed on `global` and `us` (`tests/one_off/test_vertex_live.py`).
+- **New Gemini models**: Added `gemini-3.1-pro-preview` ($2 / $0.20 cached / $12 under 200k tokens) and `gemini-3.5-flash-lite` ($0.30 / $0.03 cached / $2.50), plus `gemini-3.5-flash-lite-compat`. 3.1 Pro now sends `reasoning_effort="medium"` as `thinkingLevel: medium`; it was previously raised to `high`.
+- **Retired Gemini models removed**: `gemini-2.0-flash`, `gemini-2.0-flash-lite` (and their `-compat` entries), and `gemini-3-pro-preview` now return 404 from Google and have been removed. Tests and docs now use `gemini-2.5-flash-lite` and `gemini-3.1-pro-preview`.
+- **Gemini cached-input prices**: Corrected to Google's published rates: 2.5 Pro $0.125 (was $0.31), 2.5 Flash $0.03 (was $0.075), 2.5 Flash-Lite $0.01 (was $0.025), 3 Flash preview $0.05 (was an estimated $0.125).
+
 ## 0.0.158 · 2026-10-01
 
 - **Claude Sonnet 5.5 on Bedrock US**: Added `claude-5.5-sonnet-bedrock` (`us.anthropic.claude-sonnet-5-5`), which AWS now offers alongside the Global profile, at the same $2 / $0.20 / $2.50 / $10 pricing. Live runs passed in all six US source regions (`ca-central-1`, `ca-west-1`, `us-east-1`, `us-east-2`, `us-west-1`, `us-west-2`), including thinking replay, `between_tools`, and a tool loop.

@@ -8,7 +8,7 @@ from lm_deluge.prompt import Conversation
 
 def test_gemini_3_thinking_level_high():
     """Gemini 3 should use thinkingLevel=high for reasoning_effort=high."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
@@ -27,7 +27,7 @@ def test_gemini_3_thinking_level_high():
 
 def test_gemini_3_thinking_level_low():
     """Gemini 3 should use thinkingLevel=low for reasoning_effort=low/minimal."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Hello")
 
     # Test low
@@ -58,8 +58,8 @@ def test_gemini_3_thinking_level_low():
 
 
 def test_gemini_3_thinking_level_medium():
-    """Gemini 3 should map medium effort to high until medium is supported."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    """Gemini 3.1 Pro supports thinkingLevel=medium."""
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
@@ -71,12 +71,12 @@ def test_gemini_3_thinking_level_medium():
     )
     thinking_config = request["generationConfig"].get("thinkingConfig")
     assert thinking_config is not None
-    assert thinking_config.get("thinkingLevel") == "high"
+    assert thinking_config.get("thinkingLevel") == "medium"
 
 
 def test_gemini_3_thinking_level_none():
     """Gemini 3 should use thinkingLevel=low for reasoning_effort='none'."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(
@@ -93,7 +93,7 @@ def test_gemini_3_thinking_level_none():
 
 def test_gemini_3_default_thinking_level():
     """Gemini 3 should default to low thinking level when reasoning_effort is None."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Hello")
     request = asyncio.run(
         _build_gemini_request(

@@ -1,16 +1,17 @@
 import json
 import os
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, cast
 
 from aiohttp import ClientResponse
 
 from lm_deluge.api_requests.context import RequestContext
-from lm_deluge.tool import Tool
 from lm_deluge.warnings import maybe_warn
 
 from ..config import SamplingParams
 from ..models import APIModel
 from ..prompt import Conversation, Message, Text, Thinking, ThoughtSignature, ToolCall
+from ..prompt.file import File
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse, parse_retry_after
 
@@ -18,7 +19,7 @@ from .base import APIRequestBase, APIResponse, parse_retry_after
 async def _build_gemini_request(
     model: APIModel,
     prompt: Conversation,
-    tools: list[Tool] | None,
+    tools: Sequence[Any] | None,
     sampling_params: SamplingParams,
 ) -> dict:
     system_message, messages = prompt.to_gemini()
@@ -97,12 +98,12 @@ async def _build_gemini_request(
                     "high": "high",
                 }
             else:
-                # Pro only supports low, high
+                # Pro (3.1) supports low, medium, and high (no minimal)
                 level_map = {
                     "none": "low",
                     "minimal": "low",
                     "low": "low",
-                    "medium": "high",
+                    "medium": "medium",
                     "high": "high",
                 }
             effort = level_map[effort_key]
@@ -185,7 +186,7 @@ async def _build_gemini_request(
                 request_tools.append(cu_tool)
             elif hasattr(tool, "dump_for"):
                 # Regular Tool object
-                function_declarations.append(tool.dump_for("google"))
+                function_declarations.append(cast(Any, tool).dump_for("google"))
             elif isinstance(tool, dict):
                 # Raw dict tool - assume it's a function declaration
                 function_declarations.append(tool)
@@ -403,4 +404,47 @@ class GeminiRequest(APIRequestBase):
             raw_response=data,
             retry_with_different_model=retry_with_different_model,
             give_up_if_no_other_models=give_up_if_no_other_models,
+        )
+
+
+class VertexGeminiRequest(GeminiRequest):
+    async def build_request(self):
+        location = os.getenv("VERTEX_LOCATION", "global").lower()
+        if location == "global":
+            base = "https://aiplatform.googleapis.com"
+        elif location in {"us", "eu"}:
+            base = f"https://aiplatform.{location}.rep.googleapis.com"
+        else:
+            base = f"https://{location}-aiplatform.googleapis.com"
+        # API-key requests omit the project (Vertex derives it from the key).
+        # Live-verified for "global" and "us"; regional endpoints are untested.
+        self.url = (
+            f"{base}/v1beta1/publishers/google/models/{self.model.name}:generateContent"
+        )
+        api_key = os.getenv(self.model.api_key_env_var)
+        if not api_key:
+            raise ValueError(
+                f"API key environment variable {self.model.api_key_env_var} not set"
+            )
+        self.request_header = self.merge_headers(
+            {"Content-Type": "application/json"},
+            exclude_patterns=["anthropic", "openai", "mistral", "x-goog-api-key"],
+        )
+        self.request_header["x-goog-api-key"] = api_key
+        for message in self.context.prompt.messages:
+            for part in message.parts:
+                if (
+                    isinstance(part, File)
+                    and part.is_remote
+                    and part.remote_provider == "google"
+                ):
+                    raise ValueError(
+                        "Gemini Files API uploads cannot be used with Vertex AI; "
+                        "provide the file as local bytes or a path for inline data."
+                    )
+        self.request_json = await _build_gemini_request(
+            self.model,
+            self.context.prompt,
+            self.context.tools,
+            self.context.sampling_params,
         )

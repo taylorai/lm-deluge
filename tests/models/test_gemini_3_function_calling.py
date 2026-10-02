@@ -8,7 +8,7 @@ from lm_deluge.prompt import Conversation, Message, Text, ToolCall, ToolResult
 
 def test_gemini_3_missing_signature_gets_dummy():
     """Test that missing thought signatures in function calls get dummy signature injected."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
 
     # Create conversation with a function call WITHOUT signature
     convo = Conversation(
@@ -51,7 +51,7 @@ def test_gemini_3_missing_signature_gets_dummy():
 
 def test_gemini_3_existing_signature_preserved():
     """Test that existing thought signatures in function calls are preserved."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
 
     # Create conversation with a function call WITH signature
     convo = Conversation(
@@ -90,7 +90,7 @@ def test_gemini_3_existing_signature_preserved():
 
 def test_gemini_3_multi_step_function_calling():
     """Test multi-step sequential function calling with accumulated signatures."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
 
     # Simulate multi-step: user -> assistant (tool call 1) -> user (result) ->
     # assistant (tool call 2)
@@ -146,7 +146,7 @@ def test_gemini_3_multi_step_function_calling():
 
 def test_gemini_3_parallel_function_calling():
     """Test parallel function calls - only first should have signature."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
 
     # Parallel calls: both in same assistant message
     convo = Conversation(

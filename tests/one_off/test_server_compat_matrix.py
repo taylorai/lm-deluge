@@ -232,7 +232,7 @@ def test_openai_gemini_files_images():
     file_payload = _b64(b"%PDF-1.4\n%fake\n", "application/pdf")
 
     request_body = {
-        "model": "gemini-2.0-flash",
+        "model": "gemini-2.5-flash-lite",
         "messages": [
             {
                 "role": "user",
@@ -254,10 +254,10 @@ def test_openai_gemini_files_images():
         response = client.post("/v1/chat/completions", json=request_body)
 
     assert response.status_code == 200
-    assert response.json()["model"] == "gemini-2.0-flash"
+    assert response.json()["model"] == "gemini-2.5-flash-lite"
 
     context = capture[0]
-    assert context.model_name == "gemini-2.0-flash"
+    assert context.model_name == "gemini-2.5-flash-lite"
     user_msg = next(msg for msg in context.prompt.messages if msg.role == "user")
     assert any(isinstance(part, Image) for part in user_msg.parts)
     assert any(isinstance(part, File) for part in user_msg.parts)
@@ -372,7 +372,7 @@ def test_anthropic_gemini_accepts_images():
     image_payload = _b64(_PNG_BYTES, "image/png")
 
     request_body = {
-        "model": "gemini-2.0-flash",
+        "model": "gemini-2.5-flash-lite",
         "max_tokens": 5,
         "messages": [
             {
@@ -397,10 +397,10 @@ def test_anthropic_gemini_accepts_images():
         response = client.post("/v1/messages", json=request_body)
 
     assert response.status_code == 200
-    assert response.json()["model"] == "gemini-2.0-flash"
+    assert response.json()["model"] == "gemini-2.5-flash-lite"
 
     context = capture[0]
-    assert context.model_name == "gemini-2.0-flash"
+    assert context.model_name == "gemini-2.5-flash-lite"
     user_msg = next(msg for msg in context.prompt.messages if msg.role == "user")
     assert any(isinstance(part, Image) for part in user_msg.parts)
 
@@ -435,7 +435,7 @@ def test_cache_pattern_applies_only_anthropic_models():
             response = client.post(
                 "/v1/chat/completions",
                 json={
-                    "model": "gemini-2.0-flash",
+                    "model": "gemini-2.5-flash-lite",
                     "messages": [{"role": "user", "content": "Hello"}],
                     "max_tokens": 5,
                 },
@@ -445,7 +445,7 @@ def test_cache_pattern_applies_only_anthropic_models():
     cache_by_model = {ctx.model_name: ctx.cache for ctx in capture}
     assert cache_by_model["claude-4-sonnet"] == "tools_only"
     assert cache_by_model["gpt-4.1"] is None
-    assert cache_by_model["gemini-2.0-flash"] is None
+    assert cache_by_model["gemini-2.5-flash-lite"] is None
 
 
 def test_policy_force_default_overrides_request_model():

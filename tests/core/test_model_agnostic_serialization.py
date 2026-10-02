@@ -363,7 +363,7 @@ async def test_three_way_model_switching():
     conversation_3 = Conversation.from_log(serialized_2)
     conversation_3.add(Message.user("Finally, what about the capital of Italy?"))
 
-    gemini_client = LLMClient("gemini-2.0-flash")
+    gemini_client = LLMClient("gemini-2.5-flash-lite")
     gemini_responses = await gemini_client.process_prompts_async(
         [conversation_3], return_completions_only=False
     )
@@ -389,7 +389,7 @@ async def test_gemini_tool_calls_cross_model():
     print("🧪 Testing tool calls with Gemini cross-model compatibility...")
 
     # Step 1: Start with Gemini and tool
-    gemini_client = LLMClient("gemini-2.0-flash")
+    gemini_client = LLMClient("gemini-2.5-flash-lite")
     conversation = Conversation().system(
         "You are a helpful assistant with access to tools."
     )
@@ -500,7 +500,7 @@ async def test_round_robin_all_models():
     models = [
         ("claude-3-haiku", LLMClient("claude-3-haiku")),
         ("gpt-4.1-mini", LLMClient("gpt-4.1-mini")),
-        ("gemini-2.0-flash", LLMClient("gemini-2.0-flash")),
+        ("gemini-2.5-flash-lite", LLMClient("gemini-2.5-flash-lite")),
     ]
 
     conversation = Conversation().system(

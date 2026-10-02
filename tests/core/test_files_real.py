@@ -7,7 +7,7 @@ from lm_deluge.prompt import File
 
 async def main():
     # Models that support file uploads
-    models = ["gemini-2.0-flash", "gpt-4.1-mini", "claude-4-sonnet"]
+    models = ["gemini-2.5-flash-lite", "gpt-4.1-mini", "claude-4-sonnet"]
 
     # Create file object from sample PDF
     pdf_file = File("tests/sample.pdf")

@@ -397,7 +397,7 @@ async def test_google_llm_call_with_uploaded_file():
         conv = Conversation([msg])
 
         # Make the LLM call using a Gemini model
-        client = LLMClient("gemini-2.0-flash")
+        client = LLMClient("gemini-2.5-flash-lite")
         results = await client.process_prompts_async(prompts=[conv])
 
         if not results or len(results) == 0:

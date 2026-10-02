@@ -11,7 +11,7 @@ from lm_deluge.prompt import Thinking, ThoughtSignature
 from lm_deluge.tool.prefab import RandomTools
 
 
-GEMINI_MODEL = os.getenv("GEMINI_THOUGHT_SIGNATURE_MODEL", "gemini-3-pro-preview")
+GEMINI_MODEL = os.getenv("GEMINI_THOUGHT_SIGNATURE_MODEL", "gemini-3.1-pro-preview")
 ANTHROPIC_MODEL = os.getenv("ANTHROPIC_THOUGHT_SIGNATURE_MODEL", "claude-4.5-sonnet")
 THINKING_BUDGET = int(os.getenv("ANTHROPIC_THINKING_BUDGET", "1024"))
 MAX_TOKENS = int(os.getenv("ANTHROPIC_MAX_TOKENS", "128"))

@@ -14,20 +14,19 @@ async def main():
 
     print("Testing native Gemini API support...")
 
-    # Test the new  model
-    client = LLMClient("gemini-2.0-flash")
+    client = LLMClient("gemini-2.5-flash-lite")
     client.max_attempts = 2
     client.request_timeout = 30
 
-    try:
-        res = await client.process_prompts_async(
-            [Conversation().user("What is the capital of France? Answer briefly.")],
-            show_progress=False,
-        )
-        assert res[0]
-        print(f"✓ Gemini native API test passed: {res[0].completion}")
-    except Exception as e:
-        print(f"✗ Exception: {e}")
+    res = await client.process_prompts_async(
+        [Conversation().user("What is the capital of France? Answer briefly.")],
+        show_progress=False,
+    )
+    response = res[0]
+    assert response is not None
+    assert not response.is_error, response.error_message
+    assert response.completion and "Paris" in response.completion
+    print(f"✓ Gemini native API test passed: {response.completion}")
 
 
 if __name__ == "__main__":

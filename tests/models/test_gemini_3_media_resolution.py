@@ -8,7 +8,7 @@ from lm_deluge.prompt import Conversation
 
 def test_gemini_3_media_resolution_high():
     """Test that Gemini 3 accepts media_resolution_high parameter."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Analyze this image")
 
     request = asyncio.run(
@@ -27,7 +27,7 @@ def test_gemini_3_media_resolution_high():
 
 def test_gemini_3_media_resolution_medium():
     """Test that Gemini 3 accepts media_resolution_medium parameter."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Analyze this image")
 
     request = asyncio.run(
@@ -46,7 +46,7 @@ def test_gemini_3_media_resolution_medium():
 
 def test_gemini_3_media_resolution_low():
     """Test that Gemini 3 accepts media_resolution_low parameter."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Analyze this image")
 
     request = asyncio.run(
@@ -65,7 +65,7 @@ def test_gemini_3_media_resolution_low():
 
 def test_gemini_3_no_media_resolution():
     """Test that Gemini 3 works without media_resolution (default behavior)."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Hello")
 
     request = asyncio.run(
@@ -101,7 +101,7 @@ def test_gemini_25_ignores_media_resolution():
 
 def test_gemini_3_combined_params():
     """Test that Gemini 3 can combine media_resolution with other parameters."""
-    model = APIModel.from_registry("gemini-3-pro-preview")
+    model = APIModel.from_registry("gemini-3.1-pro-preview")
     convo = Conversation().user("Analyze this image and reason about it")
 
     request = asyncio.run(

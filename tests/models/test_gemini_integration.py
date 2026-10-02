@@ -15,7 +15,7 @@ def test_gemini_basic_text():
         return
 
     client = LLMClient(
-        ["gemini-2.0-flash-gemini"],
+        ["gemini-2.5-flash-lite"],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
     )
@@ -49,7 +49,7 @@ def test_gemini_with_image():
         return
 
     client = LLMClient(
-        ["gemini-2.0-flash-gemini"],
+        ["gemini-2.5-flash-lite"],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
     )
@@ -84,7 +84,7 @@ def test_gemini_with_pdf():
         return
 
     client = LLMClient(
-        ["gemini-2.0-flash-gemini"],
+        ["gemini-2.5-flash-lite"],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
     )
@@ -120,7 +120,7 @@ def test_gemini_with_tools():
     weather_tool = Tool.from_function(get_weather)
 
     client = LLMClient(
-        ["gemini-2.0-flash-gemini"],
+        ["gemini-2.5-flash-lite"],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
     )
@@ -161,7 +161,7 @@ def test_gemini_json_mode():
     from lm_deluge.config import SamplingParams
 
     client = LLMClient(
-        ["gemini-2.0-flash-gemini"],
+        ["gemini-2.5-flash-lite"],
         sampling_params=[SamplingParams(json_mode=True)],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
@@ -204,7 +204,7 @@ def test_gemini_reasoning_model():
     from lm_deluge.config import SamplingParams
 
     client = LLMClient(
-        ["gemini-2.5-pro-gemini"],  # reasoning model
+        ["gemini-2.5-pro"],  # reasoning model
         sampling_params=[SamplingParams(reasoning_effort="medium")],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,

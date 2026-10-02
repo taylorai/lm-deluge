@@ -19,7 +19,7 @@ def test_gemini_3_basic_reasoning():
         return
 
     client = LLMClient(
-        ["gemini-3-pro-preview"],
+        ["gemini-3.1-pro-preview"],
         sampling_params=[SamplingParams(reasoning_effort="high")],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
@@ -61,7 +61,7 @@ def test_gemini_3_thinking_levels():
 
     for effort in ["low", "high"]:
         client = LLMClient(
-            ["gemini-3-pro-preview"],
+            ["gemini-3.1-pro-preview"],
             sampling_params=[SamplingParams(reasoning_effort=effort)],
             max_requests_per_minute=10,
             max_tokens_per_minute=100_000,
@@ -100,7 +100,7 @@ def test_gemini_3_with_function_calling():
     time_tool = Tool.from_function(get_time)
 
     client = LLMClient(
-        ["gemini-3-pro-preview"],
+        ["gemini-3.1-pro-preview"],
         sampling_params=[SamplingParams(reasoning_effort="high")],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
@@ -155,7 +155,7 @@ def test_gemini_3_media_resolution():
         return
 
     client = LLMClient(
-        ["gemini-3-pro-preview"],
+        ["gemini-3.1-pro-preview"],
         sampling_params=[
             SamplingParams(
                 reasoning_effort="high",
@@ -196,7 +196,7 @@ def test_gemini_3_json_mode():
         return
 
     client = LLMClient(
-        ["gemini-3-pro-preview"],
+        ["gemini-3.1-pro-preview"],
         sampling_params=[
             SamplingParams(
                 reasoning_effort="high",
@@ -252,7 +252,7 @@ def test_gemini_3_thought_signature_preservation():
     calc_tool = Tool.from_function(calculate)
 
     client = LLMClient(
-        ["gemini-3-pro-preview"],
+        ["gemini-3.1-pro-preview"],
         sampling_params=[SamplingParams(reasoning_effort="high")],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,
@@ -293,7 +293,7 @@ def test_gemini_3_complex_reasoning():
         return
 
     client = LLMClient(
-        ["gemini-3-pro-preview"],
+        ["gemini-3.1-pro-preview"],
         sampling_params=[SamplingParams(reasoning_effort="high")],
         max_requests_per_minute=10,
         max_tokens_per_minute=100_000,

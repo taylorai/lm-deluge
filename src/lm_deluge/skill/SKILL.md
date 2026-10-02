@@ -36,7 +36,7 @@ Use short names. Full list in `src/lm_deluge/models/`.
 |------------|----------|
 | `claude-4.5-opus`, `claude-4.5-sonnet`, `claude-4.5-haiku` | Anthropic |
 | `gpt-4.1-mini`, `gpt-4-turbo`, `o1`, `o3-mini` | OpenAI |
-| `gemini-2.0-flash`, `gemini-1.5-pro` | Google |
+| `gemini-3.8-flash`, `gemini-3.5-flash-lite` | Google |
 
 OpenAI reasoning models accept suffix: `o3-mini-high` (sets reasoning effort).
 

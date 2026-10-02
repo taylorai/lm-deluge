@@ -293,7 +293,7 @@ def test_live_openai_endpoint_with_gemini_model_image_file():
         client,
         "/v1/chat/completions",
         {
-            "model": "gemini-2.0-flash",
+            "model": "gemini-2.5-flash-lite",
             "messages": [
                 {
                     "role": "user",
@@ -330,7 +330,7 @@ def test_live_openai_endpoint_with_gemini_model_image_file():
 
     _assert_ok(response)
     data = response.json()
-    assert data["model"] == "gemini-2.0-flash"
+    assert data["model"] == "gemini-2.5-flash-lite"
     message = data["choices"][0]["message"]
     assert message.get("content") or message.get("tool_calls")
 
@@ -346,7 +346,7 @@ def test_live_anthropic_endpoint_with_gemini_model():
         client,
         "/v1/messages",
         {
-            "model": "gemini-2.0-flash",
+            "model": "gemini-2.5-flash-lite",
             "max_tokens": 24,
             "messages": [
                 {
@@ -369,7 +369,7 @@ def test_live_anthropic_endpoint_with_gemini_model():
 
     _assert_ok(response)
     data = response.json()
-    assert data["model"] == "gemini-2.0-flash"
+    assert data["model"] == "gemini-2.5-flash-lite"
     assert data["content"]
 
 

@@ -2,7 +2,7 @@ from .anthropic import AnthropicRequest
 from .bedrock import BedrockRequest
 from .bedrock_nova import BedrockNovaRequest
 from .cloudflare import CloudflareMoondreamRequest, CloudflareRequest
-from .gemini import GeminiRequest
+from .gemini import GeminiRequest, VertexGeminiRequest
 from .mistral import MistralRequest
 from .moondream import MoondreamRequest
 from .nvidia import NVIDIARequest
@@ -18,6 +18,7 @@ CLASSES = {
     "bedrock": BedrockRequest,
     "bedrock-nova": BedrockNovaRequest,
     "gemini": GeminiRequest,
+    "vertex": VertexGeminiRequest,
     "nvidia": NVIDIARequest,
     "moondream": MoondreamRequest,
 }
