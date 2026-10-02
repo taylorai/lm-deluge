@@ -21,6 +21,7 @@ os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "test-secret-key")
 
 SONNET_55_MODELS = {
     "claude-5.5-sonnet": "claude-sonnet-5-5",
+    "claude-5.5-sonnet-bedrock": "us.anthropic.claude-sonnet-5-5",
     "claude-5.5-sonnet-bedrock-global": "global.anthropic.claude-sonnet-5-5",
 }
 
@@ -60,6 +61,8 @@ def test_registry_and_aliases():
 
     for alias in ("claude-sonnet-5-5", "claude-sonnet-5.5", "claude-5-5-sonnet"):
         assert APIModel.from_registry(alias).id == "claude-5.5-sonnet"
+    for alias in ("claude-sonnet-5-5-bedrock", "claude-sonnet-5.5-bedrock"):
+        assert APIModel.from_registry(alias).id == "claude-5.5-sonnet-bedrock"
     assert APIModel.from_registry("claude-sonnet-5-5-bedrock-global").id == (
         "claude-5.5-sonnet-bedrock-global"
     )
@@ -153,7 +156,7 @@ def test_sampling_params_omitted_and_task_budget_beta():
 
 
 async def test_bedrock_request():
-    for model_id in ("claude-5.5-sonnet-bedrock-global",):
+    for model_id in ("claude-5.5-sonnet-bedrock", "claude-5.5-sonnet-bedrock-global"):
         model = APIModel.from_registry(model_id)
         body, _, _, url, region = await _build_anthropic_bedrock_request(
             model, _ctx(model_id, reasoning_effort="xhigh", temperature=0.3)

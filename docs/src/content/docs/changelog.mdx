@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.158 · 2026-10-01
+
+- **Claude Sonnet 5.5 on Bedrock US**: Added `claude-5.5-sonnet-bedrock` (`us.anthropic.claude-sonnet-5-5`), which AWS now offers alongside the Global profile, at the same $2 / $0.20 / $2.50 / $10 pricing. Live runs passed in all six US source regions (`ca-central-1`, `ca-west-1`, `us-east-1`, `us-east-2`, `us-west-1`, `us-west-2`), including thinking replay, `between_tools`, and a tool loop.
+
 ## 0.0.157 · 2026-10-01
 
 - **Azure AI Foundry models**: Added `-azure` entries for GPT-6.1 Sol, GPT-6 Sol/Luna/Astra, GPT-5.6 Sol/Luna/Terra, `gpt-chat-latest`, Grok 4.6 and 4.3, DeepSeek V4 Pro and Flash, Kimi K2.6 and K2.7 Code, Cohere Command A+ (`command-a-plus-azure`), and MAI-Thinking-1. Each expects a deployment named after the model on your `AZURE_URL` resource. Prices are Azure's global standard-context rates; Azure publishes no separate GPT-6.1 Sol or GPT-5.6 meters, so those use OpenAI's direct prices, which match Azure for GPT-6. Azure's DeepSeek V4 Flash is priced above DeepSeek's own API. Cohere Command A+ on Azure currently returns raw `<|START_TEXT|>` markers around its output. Every model passed a live check (`tests/one_off/test_azure_foundry_models.py`).

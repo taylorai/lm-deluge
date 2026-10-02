@@ -30,7 +30,10 @@ BUNDLES = {
         "gpt-6.1-sol-bedrock",
         "gpt-6.1-sol-bedrock-global",
     ),
-    "ant-bedrock": ("claude-5.5-sonnet-bedrock-global",),
+    "ant-bedrock": (
+        "claude-5.5-sonnet-bedrock",
+        "claude-5.5-sonnet-bedrock-global",
+    ),
 }
 
 
