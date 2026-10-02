@@ -20,12 +20,14 @@
   },
   "pnpm": {
     "overrides": {
+      "devalue": "5.9.3",
       "js-yaml": "4.3.2",
       "nanoid": "3.3.18",
       "postcss": "8.5.23",
       "sharp": "0.35.4",
       "smol-toml": "1.7.2",
-      "svgo": "4.1.0"
+      "svgo": "4.1.0",
+      "undici": "8.10.2"
     }
   }
 }

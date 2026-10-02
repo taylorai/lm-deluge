@@ -11,6 +11,7 @@ LM Deluge iterates quickly. This page calls out the highlights from the most rec
 - **New Gemini models**: Added `gemini-3.1-pro-preview` ($2 / $0.20 cached / $12 under 200k tokens) and `gemini-3.5-flash-lite` ($0.30 / $0.03 cached / $2.50), plus `gemini-3.5-flash-lite-compat`. 3.1 Pro now sends `reasoning_effort="medium"` as `thinkingLevel: medium`; it was previously raised to `high`.
 - **Retired Gemini models removed**: `gemini-2.0-flash`, `gemini-2.0-flash-lite` (and their `-compat` entries), and `gemini-3-pro-preview` now return 404 from Google and have been removed. Tests and docs now use `gemini-2.5-flash-lite` and `gemini-3.1-pro-preview`.
 - **Gemini cached-input prices**: Corrected to Google's published rates: 2.5 Pro $0.125 (was $0.31), 2.5 Flash $0.03 (was $0.075), 2.5 Flash-Lite $0.01 (was $0.025), 3 Flash preview $0.05 (was an estimated $0.125).
+- **Dependency security updates**: The `aws`, `docker`, and `sandbox` extras now require `urllib3>=2.8.0` (chunked-read memory, HTTPS-proxy TLS, and deflate-loop advisories), and the lockfile moves `anyio` to 4.14.2 (TLS host-name encoding advisory). The docs site pins `devalue` 5.9.3 and `undici` 8.10.2, and the Cloudflare sandbox worker pins `undici` 7.29.1.
 
 ## 0.0.158 · 2026-10-01
 
