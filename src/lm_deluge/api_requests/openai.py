@@ -911,7 +911,11 @@ async def stream_chat(
     request_json["stream"] = True
 
     async with aiohttp.ClientSession() as s:
-        async with s.post(url, headers=request_header, json=request_json) as r:
+        async with s.post(
+            url, headers=request_header, json=request_json, allow_redirects=False
+        ) as r:
+            if 300 <= r.status < 400:
+                raise RuntimeError("unexpected redirect from provider")
             r.raise_for_status()  # bail on 4xx/5xx
             content = ""
             buf = ""

@@ -400,7 +400,9 @@ async def _decide_one(
             timeout = aiohttp.ClientTimeout(total=request_timeout)
             async with (
                 aiohttp.ClientSession(timeout=timeout) as session,
-                session.post(url, json=payload, headers=headers) as response,
+                session.post(
+                    url, json=payload, headers=headers, allow_redirects=False
+                ) as response,
             ):
                 status = response.status
                 if status == 200:

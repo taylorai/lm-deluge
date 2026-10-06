@@ -6,6 +6,7 @@ from pathlib import Path
 import aiohttp
 
 from lm_deluge.prompt import ToolResult
+from lm_deluge.util.http import download_without_leaking_credentials
 
 
 async def download_anthropic_file(
@@ -46,13 +47,13 @@ async def download_anthropic_file(
     }
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise RuntimeError(
-                    f"Failed to download file {file_id}: {response.status} - {error_text}"
-                )
-            return await response.read()
+        status, body = await download_without_leaking_credentials(session, url, headers)
+    if status != 200:
+        error_text = body.decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Failed to download file {file_id}: {status} - {error_text}"
+        )
+    return body
 
 
 async def get_anthropic_file_metadata(
@@ -84,7 +85,7 @@ async def get_anthropic_file_metadata(
     }
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
+        async with session.get(url, headers=headers, allow_redirects=False) as response:
             if response.status != 200:
                 error_text = await response.text()
                 raise RuntimeError(

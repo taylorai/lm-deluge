@@ -365,6 +365,7 @@ class BedrockRequest(APIRequestBase):
                     headers=final_headers,
                     data=payload,
                     timeout=timeout,
+                    allow_redirects=False,
                 ) as http_response:
                     response: APIResponse = await self.handle_response(http_response)
             return response

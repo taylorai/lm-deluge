@@ -17,6 +17,7 @@ from lm_deluge.api_requests.gemini import _build_gemini_request
 from lm_deluge.api_requests.openai import _build_oa_chat_request
 from lm_deluge.config import SamplingParams
 from lm_deluge.models import APIModel, registry
+from lm_deluge.util.http import download_without_leaking_credentials
 from lm_deluge.prompt import (
     CachePattern,
     Conversation,
@@ -114,7 +115,9 @@ async def submit_batch_oa(file_path: str):
                 content_type="application/json",
             )
 
-            async with session.post(url, data=data, headers=headers) as response:
+            async with session.post(
+                url, data=data, headers=headers, allow_redirects=False
+            ) as response:
                 if response.status != 200:
                     text = await response.text()
                     raise ValueError(f"Error uploading file: {text}")
@@ -131,7 +134,9 @@ async def submit_batch_oa(file_path: str):
             "completion_window": "24h",
         }
 
-        async with session.post(url, json=batch_data, headers=headers) as response:
+        async with session.post(
+            url, json=batch_data, headers=headers, allow_redirects=False
+        ) as response:
             if response.status != 200:
                 text = await response.text()
                 raise ValueError(f"Error starting batch job: {text}")
@@ -151,7 +156,9 @@ async def _submit_anthropic_batch(requests: list[dict], headers: dict, model: st
         url = f"{registry[model].api_base}/messages/batches"
         payload = {"requests": requests}
 
-        async with session.post(url, json=payload, headers=headers) as response:
+        async with session.post(
+            url, json=payload, headers=headers, allow_redirects=False
+        ) as response:
             if response.status != 200:
                 text = await response.text()
                 raise ValueError(f"Error creating batch: {text}")
@@ -454,7 +461,9 @@ async def _upload_gemini_file(
     }
     init_body = {"file": {"display_name": display_name}}
 
-    async with session.post(init_url, headers=init_headers, json=init_body) as response:
+    async with session.post(
+        init_url, headers=init_headers, json=init_body, allow_redirects=False
+    ) as response:
         if response.status != 200:
             text = await response.text()
             raise ValueError(f"Error initiating Gemini file upload: {text}")
@@ -473,7 +482,7 @@ async def _upload_gemini_file(
     }
 
     async with session.post(
-        upload_url, headers=upload_headers, data=file_data
+        upload_url, headers=upload_headers, data=file_data, allow_redirects=False
     ) as response:
         if response.status != 200:
             text = await response.text()
@@ -521,7 +530,9 @@ async def _submit_gemini_batch(
     async with aiohttp.ClientSession() as session:
         if payload_size <= INLINE_LIMIT:
             # Inline submission
-            async with session.post(url, json=inline_payload, headers=headers) as resp:
+            async with session.post(
+                url, json=inline_payload, headers=headers, allow_redirects=False
+            ) as resp:
                 if resp.status != 200:
                     text = await resp.text()
                     raise ValueError(f"Error creating Gemini batch: {text}")
@@ -557,7 +568,9 @@ async def _submit_gemini_batch(
                 }
             }
 
-            async with session.post(url, json=file_payload, headers=headers) as resp:
+            async with session.post(
+                url, json=file_payload, headers=headers, allow_redirects=False
+            ) as resp:
                 if resp.status != 200:
                     text = await resp.text()
                     raise ValueError(f"Error creating Gemini batch: {text}")
@@ -680,7 +693,9 @@ async def _wait_for_gemini_batch_completion_async(
     try:
         async with aiohttp.ClientSession() as session:
             while True:
-                async with session.get(url, headers=headers) as response:
+                async with session.get(
+                    url, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status != 200:
                         text = await response.text()
                         raise ValueError(f"Error checking Gemini batch status: {text}")
@@ -750,20 +765,21 @@ async def _retrieve_gemini_batch_results_async(
     download_url = f"https://generativelanguage.googleapis.com/download/v1beta/{file_name}:download?alt=media"
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(download_url, headers=headers) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise ValueError(f"Error downloading Gemini batch results: {text}")
+        status, body = await download_without_leaking_credentials(
+            session, download_url, headers
+        )
+    text = body.decode("utf-8", errors="replace")
+    if status != 200:
+        raise ValueError(f"Error downloading Gemini batch results: {text}")
 
-            text = await response.text()
-            results = []
-            for line in text.strip().split("\n"):
-                if line:
-                    results.append(json.loads(line))
+    results = []
+    for line in text.strip().split("\n"):
+        if line:
+            results.append(json.loads(line))
 
-            # Sort by key to maintain order
-            results.sort(key=lambda x: int(x.get("key", 0)))
-            return results
+    # Sort by key to maintain order
+    results.sort(key=lambda x: int(x.get("key", 0)))
+    return results
 
 
 async def wait_for_batch_completion_async(
@@ -841,7 +857,9 @@ async def _wait_for_anthropic_batch_completion_async(
     try:
         async with aiohttp.ClientSession() as session:
             while True:
-                async with session.get(url, headers=headers) as response:
+                async with session.get(
+                    url, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status != 200:
                         text = await response.text()
                         raise ValueError(f"Error checking batch status: {text}")
@@ -873,6 +891,8 @@ async def _wait_for_anthropic_batch_completion_async(
 async def _retrieve_anthropic_batch_results_async(batch_id: str):
     """Retrieve results from completed Anthropic batch asynchronously."""
     api_key = os.getenv("ANTHROPIC_API_KEY")
+    if api_key is None:
+        raise ValueError("ANTHROPIC_API_KEY environment variable must be set.")
     headers = {
         "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
@@ -881,23 +901,22 @@ async def _retrieve_anthropic_batch_results_async(batch_id: str):
     url = f"https://api.anthropic.com/v1/messages/batches/{batch_id}/results"
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, headers=headers) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise ValueError(f"Error retrieving batch results: {text}")
+        status, body = await download_without_leaking_credentials(session, url, headers)
+    text = body.decode("utf-8", errors="replace")
+    if status != 200:
+        raise ValueError(f"Error retrieving batch results: {text}")
 
-            # Parse JSONL results
-            results = []
-            text = await response.text()
-            for line in text.strip().split("\n"):
-                if line:
-                    result = json.loads(line)
-                    results.append(result)
+    # Parse JSONL results
+    results = []
+    for line in text.strip().split("\n"):
+        if line:
+            result = json.loads(line)
+            results.append(result)
 
-            # Sort by custom_id to maintain order
-            results.sort(key=lambda x: int(x["custom_id"]))
+    # Sort by custom_id to maintain order
+    results.sort(key=lambda x: int(x["custom_id"]))
 
-            return results
+    return results
 
 
 async def _retrieve_openai_batch_results_async(batch_id: str):
@@ -914,7 +933,7 @@ async def _retrieve_openai_batch_results_async(batch_id: str):
     async with aiohttp.ClientSession() as session:
         # Get batch info
         url = f"https://api.openai.com/v1/batches/{batch_id}"
-        async with session.get(url, headers=headers) as response:
+        async with session.get(url, headers=headers, allow_redirects=False) as response:
             if response.status != 200:
                 text = await response.text()
                 raise ValueError(f"Error retrieving batch: {text}")
@@ -932,23 +951,22 @@ async def _retrieve_openai_batch_results_async(batch_id: str):
                 raise ValueError(f"No output file available for batch {batch_id}")
 
         url = f"https://api.openai.com/v1/files/{output_file_id}/content"
-        async with session.get(url, headers=headers) as response:
-            if response.status != 200:
-                text = await response.text()
-                raise ValueError(f"Error retrieving batch results: {text}")
+        status, body = await download_without_leaking_credentials(session, url, headers)
+    text = body.decode("utf-8", errors="replace")
+    if status != 200:
+        raise ValueError(f"Error retrieving batch results: {text}")
 
-            # Parse JSONL results
-            results = []
-            text = await response.text()
-            for line in text.strip().split("\n"):
-                if line:
-                    result = json.loads(line)
-                    results.append(result)
+    # Parse JSONL results
+    results = []
+    for line in text.strip().split("\n"):
+        if line:
+            result = json.loads(line)
+            results.append(result)
 
-            # Sort by custom_id to maintain order
-            results.sort(key=lambda x: int(x["custom_id"]))
+    # Sort by custom_id to maintain order
+    results.sort(key=lambda x: int(x["custom_id"]))
 
-            return results
+    return results
 
 
 async def _wait_for_openai_batch_completion_async(
@@ -993,7 +1011,9 @@ async def _wait_for_openai_batch_completion_async(
     try:
         async with aiohttp.ClientSession() as session:
             while True:
-                async with session.get(url, headers=headers) as response:
+                async with session.get(
+                    url, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status != 200:
                         text = await response.text()
                         raise ValueError(f"Error checking batch status: {text}")

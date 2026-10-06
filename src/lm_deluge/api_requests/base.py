@@ -187,7 +187,10 @@ class APIRequestBase(ABC):
                     async with session.post(
                         url=cancel_url,
                         headers=self.request_header,
+                        allow_redirects=False,
                     ) as cancel_response:
+                        if 300 <= cancel_response.status < 400:
+                            raise RuntimeError("unexpected redirect from provider")
                         cancel_response.raise_for_status()
                     print(f"Background req {response_id} cancelled: {reason}")
                 except (
@@ -204,7 +207,10 @@ class APIRequestBase(ABC):
                     url=self.url,
                     headers=self.request_header,
                     json=self.request_json,
+                    allow_redirects=False,
                 ) as http_response:
+                    if 300 <= http_response.status < 400:
+                        raise RuntimeError("unexpected redirect from provider")
                     # Log error response body for debugging 400 errors
                     if http_response.status >= 400:
                         error_text = await http_response.text()
@@ -241,7 +247,10 @@ class APIRequestBase(ABC):
                     async with session.get(
                         url=f"{self.url}/{response_id}",
                         headers=self.request_header,
+                        allow_redirects=False,
                     ) as http_response:
+                        if 300 <= http_response.status < 400:
+                            raise RuntimeError("unexpected redirect from provider")
                         http_response.raise_for_status()
                         data = await http_response.json()
 
@@ -325,7 +334,10 @@ class APIRequestBase(ABC):
                     headers=self.request_header,
                     json=self.request_json,
                     timeout=timeout,
+                    allow_redirects=False,
                 ) as http_response:
+                    if 300 <= http_response.status < 400:
+                        raise RuntimeError("unexpected redirect from provider")
                     response: APIResponse = await self.handle_response(http_response)
             return response
 

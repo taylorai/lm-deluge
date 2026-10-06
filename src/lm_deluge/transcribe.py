@@ -679,7 +679,9 @@ async def _transcribe_chunk(
                 request_kwargs = {"data": form, "headers": headers}
             timeout = aiohttp.ClientTimeout(total=request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(url, **request_kwargs) as response:
+                async with session.post(
+                    url, **request_kwargs, allow_redirects=False
+                ) as response:
                     if response.status == 200:
                         result = await response.json()
                         text, lang, duration, segments, words = _parse_response(

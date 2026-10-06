@@ -127,7 +127,11 @@ class RerankingRequest:
             async with aiohttp.ClientSession() as session:
                 timeout = aiohttp.ClientTimeout(total=self.request_timeout)
                 async with session.post(
-                    url, headers=headers, json=data, timeout=timeout
+                    url,
+                    headers=headers,
+                    json=data,
+                    timeout=timeout,
+                    allow_redirects=False,
                 ) as response:
                     # print("got response!!")
                     response_obj: RerankingResponse = await self.handle_response(

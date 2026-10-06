@@ -168,7 +168,9 @@ class File:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, data=data) as response:
+                async with session.post(
+                    url, headers=headers, data=data, allow_redirects=False
+                ) as response:
                     if response.status != 200:
                         text = await response.text()
                         raise RuntimeError(f"Failed to upload file to OpenAI: {text}")
@@ -218,7 +220,9 @@ class File:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, data=data) as response:
+                async with session.post(
+                    url, headers=headers, data=data, allow_redirects=False
+                ) as response:
                     if response.status != 200:
                         text = await response.text()
                         raise RuntimeError(
@@ -250,8 +254,7 @@ class File:
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable must be set")
 
-        # Google uses a different URL structure with the API key as a parameter
-        url = f"https://generativelanguage.googleapis.com/upload/v1beta/files?key={api_key}"
+        url = "https://generativelanguage.googleapis.com/upload/v1beta/files"
 
         # Get file bytes and metadata
         file_bytes = self._bytes()
@@ -261,6 +264,7 @@ class File:
         # Google expects a multipart request with metadata and file data
         # Using the resumable upload protocol
         headers = {
+            "x-goog-api-key": api_key,
             "X-Goog-Upload-Protocol": "multipart",
         }
 
@@ -285,7 +289,9 @@ class File:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, data=data) as response:
+                async with session.post(
+                    url, headers=headers, data=data, allow_redirects=False
+                ) as response:
                     if response.status not in [200, 201]:
                         text = await response.text()
                         raise RuntimeError(f"Failed to upload file to Google: {text}")
@@ -352,7 +358,9 @@ class File:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.delete(url, headers=headers) as response:
+                async with session.delete(
+                    url, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status == 200:
                         return True
                     else:
@@ -378,7 +386,9 @@ class File:
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.delete(url, headers=headers) as response:
+                async with session.delete(
+                    url, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status == 200:
                         return True
                     else:
@@ -406,11 +416,14 @@ class File:
         else:
             file_name = self.file_id
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/{file_name}?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/{file_name}"
+        headers = {"x-goog-api-key": api_key}
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.delete(url) as response:
+                async with session.delete(
+                    url, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status in [200, 204]:
                         return True
                     else:

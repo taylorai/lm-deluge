@@ -217,7 +217,9 @@ async def _embed_batch(
         try:
             timeout = aiohttp.ClientTimeout(total=request_timeout)
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(url, json=payload, headers=headers) as response:
+                async with session.post(
+                    url, json=payload, headers=headers, allow_redirects=False
+                ) as response:
                     if response.status == 200:
                         result = await response.json()
                         embeddings, tokens = _parse_response(provider, result)

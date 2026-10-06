@@ -243,20 +243,15 @@ class GeminiRequest(APIRequestBase):
 
     async def build_request(self):
         self.url = f"{self.model.api_base}/models/{self.model.name}:generateContent"
-        base_headers = {
-            "Content-Type": "application/json",
-        }
-        self.request_header = self.merge_headers(
-            base_headers, exclude_patterns=["anthropic", "openai", "mistral"]
-        )
-
-        # Add API key as query parameter for Gemini
         api_key = os.getenv(self.model.api_key_env_var)
         if not api_key:
             raise ValueError(
                 f"API key environment variable {self.model.api_key_env_var} not set"
             )
-        self.url += f"?key={api_key}"
+        self.request_header = self.merge_headers(
+            {"Content-Type": "application/json", "x-goog-api-key": api_key},
+            exclude_patterns=["anthropic", "openai", "mistral", "x-goog-api-key"],
+        )
 
         self.request_json = await _build_gemini_request(
             self.model,
