@@ -15,6 +15,7 @@ from lm_deluge.decide import (
     ChoiceAnswer,
     Noul,
     NoulAnswer,
+    Predicate,
     Score,
     ScoreAnswer,
     _build_request,
@@ -64,6 +65,47 @@ def fake_answers(questions: dict) -> dict:
     return answers
 
 
+def fake_openai_answers(questions: list) -> list:
+    answers = []
+    for q in questions:
+        if q["type"] == "predicate":
+            answers.append(
+                {"type": "predicate", "name": q["name"], "probability": 0.92}
+            )
+        elif q["type"] == "choice":
+            first = q["choices"][0]["value"]
+            answers.append(
+                {
+                    "type": "choice",
+                    "name": q["name"],
+                    "choice": first,
+                    "probabilities": [
+                        {"value": c["value"], "probability": 1.0 if i == 0 else 0.0}
+                        for i, c in enumerate(q["choices"])
+                    ],
+                    "confidence": 0.93,
+                }
+            )
+        else:
+            answers.append(
+                {
+                    "type": "score",
+                    "name": q["name"],
+                    "score": 1.1,
+                    "probabilities": [
+                        {
+                            "value": i,
+                            "label": lvl["label"],
+                            "probability": [0.1, 0.7, 0.2][i],
+                        }
+                        for i, lvl in enumerate(q["levels"])
+                    ],
+                    "confidence": 0.55,
+                }
+            )
+    return answers
+
+
 class FakeServer:
     """Fake decision endpoint. `script` is a list of statuses to return in order
     (then 200 forever)."""
@@ -89,10 +131,14 @@ class FakeServer:
                     text=f"error {status}",
                     headers={"retry-after": "0"} if status == 429 else {},
                 )
+        if isinstance(body["questions"], list):
+            answers = fake_openai_answers(body["questions"])
+        else:
+            answers = fake_answers(body["questions"])
         return web.json_response(
             {
                 "model": body["model"] + "-20260917",
-                "answers": fake_answers(body["questions"]),
+                "answers": answers,
                 "usage": {"input_tokens": 1_000_000, "output_tokens": 40},
             }
         )
@@ -100,12 +146,14 @@ class FakeServer:
     async def start(self) -> str:
         app = web.Application()
         app.router.add_post("/v1/decide", self.handle)
+        app.router.add_post("/v1/decisions", self.handle)
         self.runner = web.AppRunner(app)
         await self.runner.setup()
         site = web.TCPSite(self.runner, "127.0.0.1", 0)
         await site.start()
         port = site._server.sockets[0].getsockname()[1]  # type: ignore
-        return f"http://127.0.0.1:{port}/v1"
+        self.base = f"http://127.0.0.1:{port}/v1"
+        return self.base
 
     async def stop(self):
         await self.runner.cleanup()
@@ -153,6 +201,42 @@ def test_build_request():
     url, _, payload = _build_request("jev-1.13-openrouter", "x", qs, {})
     assert url == "https://openrouter.ai/api/alpha/decisions"
     assert payload["model"] == "typesafe/jev-1.13"
+
+    os.environ["OPENAI_API_KEY"] = "oa-key"
+    qs = serialize_questions(
+        {
+            **QUESTIONS,
+            "damaged": Predicate("Is it damaged?", true="Crack or dent"),
+            "raw": {"type": "predicate", "instructions": "Raw predicate?"},
+        }
+    )
+    url, headers, payload = _build_request("gpt-6-luna", {"ticket": "hi"}, qs, {})
+    assert url == "https://api.openai.com/v1/decisions"
+    assert headers["Authorization"] == "Bearer oa-key"
+    assert payload["model"] == "gpt-6-luna"
+    assert payload["input"] == '{"ticket": "hi"}'
+    assert "state" not in payload
+    by_name = {q["name"]: q for q in payload["questions"]}
+    assert by_name["is_urgent"] == {
+        "type": "predicate",
+        "name": "is_urgent",
+        "instructions": "Does this convey urgency?",
+    }
+    assert (
+        by_name["damaged"]["instructions"] == "Is it damaged?\nTrue if: Crack or dent"
+    )
+    assert by_name["raw"]["type"] == "predicate"
+    assert by_name["department"]["choices"][0] == {
+        "value": "billing",
+        "description": "Payments",
+    }
+    assert by_name["frustration"]["levels"][2] == {
+        "label": "Very angry",
+        "description": "Very angry",
+    }
+    messages = [{"role": "user", "content": [{"type": "input_text", "text": "x"}]}]
+    _, _, payload = _build_request("gpt-6-luna", messages, qs, {})
+    assert payload["input"] == messages
     print("PASSED: request building")
 
 
@@ -212,6 +296,42 @@ def test_end_to_end_parsing():
 
     asyncio.run(with_fake([], run))
     print("PASSED: end-to-end parsing")
+
+
+def test_openai_format_parsing():
+    async def run(server: FakeServer):
+        register_decision_provider(
+            "fake-openai", server.base, "FAKE_DECISION_KEY", format="openai"
+        )
+        register_decision_model("luna-fake", "fake-openai", "gpt-6-luna", 0.10)
+        try:
+            resp = await decide("Charged twice", QUESTIONS, model="luna-fake")
+        finally:
+            REGISTRY.pop("luna-fake", None)
+            PROVIDERS.pop("fake-openai", None)
+        assert not resp.is_error, resp.error_message
+        body = server.requests[0]
+        assert body["input"] == "Charged twice" and isinstance(body["questions"], list)
+        urgent = resp.answers["is_urgent"]
+        assert isinstance(urgent, NoulAnswer) and urgent.noul == 0.92
+        dept = resp.answers["department"]
+        assert isinstance(dept, ChoiceAnswer) and dept.choice == "billing"
+        assert dept.probabilities["billing"] == 1.0 and dept.confidence == 0.93
+        frus = resp.answers["frustration"]
+        assert isinstance(frus, ScoreAnswer)
+        assert frus.score == 1.1 and frus.level == "Frustrated"
+        assert frus.probabilities == {"0": 0.1, "1": 0.7, "2": 0.2}
+        assert resp.cost is not None and abs(resp.cost - 0.10) < 1e-9
+
+    asyncio.run(with_fake([], run))
+
+    try:
+        register_decision_provider("bad", "https://x", "K", format="nope")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected unknown format error")
+    print("PASSED: OpenAI format parsing")
 
 
 def test_parallel_order_and_per_state_questions():
@@ -281,6 +401,7 @@ if __name__ == "__main__":
     test_question_validation()
     test_missing_key_fails_fast()
     test_end_to_end_parsing()
+    test_openai_format_parsing()
     test_parallel_order_and_per_state_questions()
     test_retries()
     test_non_retryable_and_exhaustion()

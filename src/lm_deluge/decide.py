@@ -1,10 +1,11 @@
-"""Parallel client for "decision" APIs (TypeSafe Jev and compatible providers).
+"""Parallel client for "decision" APIs (TypeSafe Jev, OpenAI Decisions, and compatible providers).
 
 Decision models take a ``state`` (text or JSON) plus a map of typed
 ``questions`` and return typed ``answers`` (a choice, a score, or a yes/no
-probability) instead of generated text. The wire format is the same across
-providers; only the endpoint, auth env var, and model name differ, so adding a
-provider is a registry entry rather than a new request class.
+probability) instead of generated text. Questions are written once in the
+SystemOne shape below; providers with a different wire format (OpenAI's
+``/v1/decisions``) are translated to and from it, so callers get the same
+answer types whichever model they pick.
 
     from lm_deluge.decide import Choice, Noul, Score, decide
 
@@ -35,20 +36,31 @@ from .api_requests.base import parse_retry_after
 from .embed import _CostTracker, _wait_for_capacity
 from .tracker import StatusTracker
 
-# Providers that speak the decision wire format. The request URL is
+# Providers that implement a decision API. The request URL is
 # ``api_base + path``; the key is read from ``api_key_env_var`` at request time.
+# ``format`` is the wire format: "systemone" (TypeSafe's state + question map)
+# or "openai" (OpenAI's input + named question list).
 PROVIDERS: dict[str, dict[str, str]] = {
     "typesafe": {
         "api_base": "https://api.typesafe.ai/v1",
         "path": "/systemone",
         "api_key_env_var": "TYPESAFE_API_KEY",
+        "format": "systemone",
     },
     "openrouter": {
         "api_base": "https://openrouter.ai/api/alpha",
         "path": "/decisions",
         "api_key_env_var": "OPENROUTER_API_KEY",
+        "format": "systemone",
+    },
+    "openai": {
+        "api_base": "https://api.openai.com/v1",
+        "path": "/decisions",
+        "api_key_env_var": "OPENAI_API_KEY",
+        "format": "openai",
     },
 }
+FORMATS = ("systemone", "openai")
 
 # Short model id -> provider + upstream model name. Output tokens are free on
 # every provider so far, so only input cost is tracked (USD per 1M tokens).
@@ -68,6 +80,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "name": "typesafe/jev-1.13",
         "input_cost": 0.042,
     },
+    "gpt-6-luna": {
+        "provider": "openai",
+        "name": "gpt-6-luna",
+        "input_cost": 0.10,
+    },
 }
 
 MAX_CHOICE_OPTIONS = 255
@@ -83,12 +100,16 @@ def register_decision_provider(
     api_base: str,
     api_key_env_var: str,
     path: str = "/decisions",
+    format: str = "systemone",
 ):
     """Add (or replace) a provider that implements the decision API."""
+    if format not in FORMATS:
+        raise ValueError(f"Unknown decision format {format!r} (expected {FORMATS})")
     PROVIDERS[name] = {
         "api_base": api_base.rstrip("/"),
         "path": path,
         "api_key_env_var": api_key_env_var,
+        "format": format,
     }
 
 
@@ -160,6 +181,9 @@ class Score:
         }
 
 
+# OpenAI's name for a yes/no question.
+Predicate = Noul
+
 Question = Noul | Choice | Score | dict[str, Any]
 
 
@@ -170,7 +194,9 @@ def _serialize_question(key: str, question: Question) -> dict[str, Any]:
     qtype = q.get("type")
     if "instructions" not in q:
         raise ValueError(f"Question '{key}' is missing 'instructions'")
-    if qtype == "noul":
+    if qtype == "predicate":
+        q = {**q, "type": "noul"}
+    elif qtype == "noul":
         pass
     elif qtype == "choice":
         criteria = q.get("criteria")
@@ -193,7 +219,7 @@ def _serialize_question(key: str, question: Question) -> dict[str, Any]:
     else:
         raise ValueError(
             f"Question '{key}' has unknown type {qtype!r} "
-            "(expected 'noul', 'choice', or 'score')"
+            "(expected 'noul'/'predicate', 'choice', or 'score')"
         )
     return q
 
@@ -202,6 +228,52 @@ def serialize_questions(questions: dict[str, Question]) -> dict[str, dict[str, A
     if not questions:
         raise ValueError("At least one question is required")
     return {k: _serialize_question(k, q) for k, q in questions.items()}
+
+
+def _as_text(value: Any) -> str:
+    return value if isinstance(value, str) else json.dumps(value)
+
+
+def _to_openai_question(name: str, q: dict[str, Any]) -> dict[str, Any]:
+    """Translate a serialized (SystemOne-shaped) question to OpenAI's format."""
+    out: dict[str, Any] = {"name": name, "instructions": _as_text(q["instructions"])}
+    if q["type"] == "noul":
+        # OpenAI predicates have no true/false criteria; fold them into the text.
+        criteria = q.get("criteria") or {}
+        lines = [out["instructions"]]
+        if criteria.get("true"):
+            lines.append(f"True if: {_as_text(criteria['true'])}")
+        if criteria.get("false"):
+            lines.append(f"False if: {_as_text(criteria['false'])}")
+        out["instructions"] = "\n".join(lines)
+        return {"type": "predicate", **out}
+    if q["type"] == "choice":
+        out["choices"] = [
+            {"value": k, "description": _as_text(v)} for k, v in q["criteria"].items()
+        ]
+        return {"type": "choice", **out}
+    levels = []
+    for level in q["criteria"]:
+        if isinstance(level, dict) and "label" in level:
+            levels.append(level)
+        else:
+            text = _as_text(level)
+            levels.append({"label": text, "description": text})
+    out["levels"] = levels
+    return {"type": "score", **out}
+
+
+def _to_openai_input(state: Any) -> Any:
+    """Text and user-message lists pass through; other JSON is sent as text."""
+    if isinstance(state, str):
+        return state
+    if (
+        isinstance(state, list)
+        and state
+        and all(isinstance(m, dict) and "role" in m for m in state)
+    ):
+        return state
+    return json.dumps(state)
 
 
 # ---------------------------------------------------------------------------
@@ -245,6 +317,29 @@ class ScoreAnswer:
 
 
 Answer = NoulAnswer | ChoiceAnswer | ScoreAnswer
+
+
+def _parse_openai_answer(raw: dict[str, Any]) -> Answer:
+    atype = raw.get("type")
+    if atype == "predicate":
+        return NoulAnswer(noul=raw["probability"])
+    if atype == "choice":
+        return ChoiceAnswer(
+            choice=raw["choice"],
+            probabilities={
+                p["value"]: p["probability"] for p in raw.get("probabilities") or []
+            },
+            confidence=raw.get("confidence"),
+        )
+    if atype == "score":
+        probs = raw.get("probabilities") or []
+        return ScoreAnswer(
+            score=raw["score"],
+            probabilities={str(p["value"]): p["probability"] for p in probs},
+            legend={str(p["value"]): p.get("label") for p in probs},
+            confidence=raw.get("confidence"),
+        )
+    raise ValueError(f"Unknown answer type {atype!r}")
 
 
 def _parse_answer(raw: dict[str, Any]) -> Answer:
@@ -308,18 +403,34 @@ def _build_request(
             f"{provider['api_key_env_var']} is not set (needed for model '{model}')"
         )
     headers = {"Authorization": f"Bearer {api_key}"}
-    payload = {
-        "model": info["name"],
-        "state": state,
-        "questions": questions,
-        **extra_params,
-    }
+    if provider.get("format") == "openai":
+        payload = {
+            "model": info["name"],
+            "input": _to_openai_input(state),
+            "questions": [_to_openai_question(k, q) for k, q in questions.items()],
+            **extra_params,
+        }
+    else:
+        payload = {
+            "model": info["name"],
+            "state": state,
+            "questions": questions,
+            **extra_params,
+        }
     return url, headers, payload
 
 
 def _parse_response(
-    task_id: int, state: Any, result: dict[str, Any], input_cost: float | None
+    task_id: int,
+    state: Any,
+    result: dict[str, Any],
+    input_cost: float | None,
+    format: str = "systemone",
 ) -> DecisionResponse:
+    if format == "openai":
+        answers = {a["name"]: _parse_openai_answer(a) for a in result["answers"]}
+    else:
+        answers = {k: _parse_answer(v) for k, v in result["answers"].items()}
     usage = result.get("usage") or {}
     input_tokens = usage.get("input_tokens", 0) or 0
     return DecisionResponse(
@@ -329,7 +440,7 @@ def _parse_response(
         error_message=None,
         state=state,
         model=result.get("model"),
-        answers={k: _parse_answer(v) for k, v in result["answers"].items()},
+        answers=answers,
         input_tokens=input_tokens,
         output_tokens=usage.get("output_tokens", 0) or 0,
         cost=(
@@ -374,6 +485,7 @@ async def _decide_one(
 
     url, headers, payload = _build_request(model, state, questions, extra_params)
     input_cost = REGISTRY[model]["input_cost"]
+    format = _get_model_info(model)[1].get("format", "systemone")
     # Cap so an oversized input can't wait forever on TPM capacity; the API
     # will reject it if it's genuinely too long.
     estimated_tokens = min(
@@ -408,7 +520,9 @@ async def _decide_one(
                 if status == 200:
                     try:
                         result = await response.json(content_type=None)
-                        parsed = _parse_response(task_id, state, result, input_cost)
+                        parsed = _parse_response(
+                            task_id, state, result, input_cost, format
+                        )
                     except (AttributeError, KeyError, TypeError, ValueError) as e:
                         status_tracker.num_tasks_in_progress -= 1
                         return error(
