@@ -5,9 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
-## Unreleased
+## 0.0.160 · 2026-10-07
 
 - **OpenAI Decisions (`gpt-6-luna`)**: `lm_deluge.decide` now supports OpenAI's beta `POST /v1/decisions` endpoint as model `gpt-6-luna` (`OPENAI_API_KEY`, $0.10 per million input tokens, no output charge). Questions are still written with `Noul`/`Choice`/`Score` and translated to OpenAI's format: a named `questions` list with `predicate`, `choices` (`value`/`description`) and `levels` (`label`/`description`). Answers come back as the same `NoulAnswer`/`ChoiceAnswer`/`ScoreAnswer` types, so code works unchanged across Jev and Luna. Text states are sent as `input` unchanged, a list of user messages passes through (use this for `input_image` data URLs), and other JSON is sent as a string. OpenAI predicates have no true/false criteria, so `Noul(true=..., false=...)` criteria are appended to the instructions. `Predicate` is an alias of `Noul`, and raw dicts may use `"type": "predicate"`. `register_decision_provider()` takes a new `format` argument (`"systemone"` or `"openai"`). Passed a live check (`tests/one_off/test_decide_live.py gpt-6-luna`).
+- **Credentials no longer follow provider redirects**: Provider requests (completions, background polling and cancellation, streaming, batches, file uploads and deletes, embeddings, rerank, transcription, and decisions) no longer follow redirects, so an unexpected 3xx can't forward API keys to another host; it now raises `unexpected redirect from provider` instead. Downloads that legitimately redirect to signed storage URLs (Anthropic, OpenAI, and Gemini batch results; Anthropic file downloads) still follow up to 5 hops, but drop every header, API keys included, once the redirect leaves the provider's origin, and refuse HTTPS-to-HTTP downgrades. The Gemini API key is now sent in the `x-goog-api-key` header for generation and file upload/delete instead of a `?key=` query parameter, so it no longer appears in URLs or logs (`tests/core/test_provider_redirects.py`).
 
 ## 0.0.159 · 2026-10-02
 
