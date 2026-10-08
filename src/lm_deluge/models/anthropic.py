@@ -10,6 +10,24 @@ ANTHROPIC_MODELS = {
     #                                                                   ░███
     #                                                                   █████
     #
+    "claude-5.5-haiku": {
+        "id": "claude-5.5-haiku",
+        "name": "claude-haiku-5-5",
+        "aliases": ["claude-haiku-5-5", "claude-haiku-5.5", "claude-5-5-haiku"],
+        "api_base": "https://api.anthropic.com/v1",
+        "api_key_env_var": "ANTHROPIC_API_KEY",
+        "supports_json": True,
+        "api_spec": "anthropic",
+        # Prices are for prompts up to 100k tokens; longer prompts cost 5x.
+        "input_cost": 0.10,
+        "cached_input_cost": 0.01,
+        "cache_write_cost": 0.125,
+        "output_cost": 0.50,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
     "claude-5.5-sonnet": {
         "id": "claude-5.5-sonnet",
         "name": "claude-sonnet-5-5",

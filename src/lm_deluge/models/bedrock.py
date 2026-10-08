@@ -222,6 +222,10 @@ CLAUDE_5_5_OPUS_GLOBAL_SOURCE_REGIONS = CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS
 CLAUDE_5_5_SONNET_US_SOURCE_REGIONS = CLAUDE_5_OPUS_US_SOURCE_REGIONS
 CLAUDE_5_5_SONNET_GLOBAL_SOURCE_REGIONS = CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS
 
+# Claude Haiku 5.5 CRIS source regions; reuses the live-verified Opus 5 lists.
+CLAUDE_5_5_HAIKU_US_SOURCE_REGIONS = CLAUDE_5_OPUS_US_SOURCE_REGIONS
+CLAUDE_5_5_HAIKU_GLOBAL_SOURCE_REGIONS = CLAUDE_5_OPUS_GLOBAL_SOURCE_REGIONS
+
 # Source regions for global cross-region profiles as documented by AWS Bedrock.
 # Global profile routing and supported regions can evolve over time.
 CLAUDE_GLOBAL_SOURCE_REGIONS_V45 = [
@@ -357,6 +361,50 @@ BEDROCK_MODELS = {
     #  ░███    ░███░███░░░  ░███ ░███  ░███     ░███ ░███░███  ███ ░███░░███
     #  ███████████ ░░██████ ░░████████ █████    ░░██████ ░░██████  ████ █████
     # ░░░░░░░░░░░   ░░░░░░   ░░░░░░░░ ░░░░░      ░░░░░░   ░░░░░░  ░░░░ ░░░░░
+    "claude-5.5-haiku-bedrock": {
+        "id": "claude-5.5-haiku-bedrock",
+        "name": "us.anthropic.claude-haiku-5-5",
+        "aliases": [
+            "claude-haiku-5-5-bedrock",
+            "claude-haiku-5.5-bedrock",
+        ],
+        "regions": CLAUDE_5_5_HAIKU_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        # Prices are for prompts up to 100k tokens; longer prompts cost 5x.
+        "input_cost": 0.10,
+        "cached_input_cost": 0.01,
+        "cache_write_cost": 0.125,
+        "output_cost": 0.50,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
+    "claude-5.5-haiku-bedrock-global": {
+        "id": "claude-5.5-haiku-bedrock-global",
+        "name": "global.anthropic.claude-haiku-5-5",
+        "aliases": [
+            "claude-haiku-5-5-bedrock-global",
+            "claude-haiku-5.5-bedrock-global",
+        ],
+        "regions": CLAUDE_5_5_HAIKU_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        # Prices are for prompts up to 100k tokens; longer prompts cost 5x.
+        "input_cost": 0.10,
+        "cached_input_cost": 0.01,
+        "cache_write_cost": 0.125,
+        "output_cost": 0.50,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
     "claude-5.5-sonnet-bedrock": {
         "id": "claude-5.5-sonnet-bedrock",
         "name": "us.anthropic.claude-sonnet-5-5",

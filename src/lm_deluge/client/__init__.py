@@ -22,6 +22,7 @@ from pydantic import BaseModel, PrivateAttr
 from pydantic.functional_validators import model_validator
 
 from lm_deluge.api_requests.anthropic import (
+    _is_claude_5_5_haiku,
     _is_claude_5_5_opus,
     _is_claude_5_5_sonnet,
     _is_claude_fable_51,
@@ -1193,6 +1194,7 @@ class _LLMClient(BaseModel):
                 if (
                     _is_claude_5_5_opus(model)
                     or _is_claude_5_5_sonnet(model)
+                    or _is_claude_5_5_haiku(model)
                     or _is_claude_fable_51(model)
                 ):
                     raise ValueError(

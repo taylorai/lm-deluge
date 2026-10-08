@@ -47,6 +47,10 @@ def _is_claude_5_sonnet_family(model: APIModel) -> bool:
     return _is_claude_5_sonnet(model) or _is_claude_5_5_sonnet(model)
 
 
+def _is_claude_5_5_haiku(model: APIModel) -> bool:
+    return model.id == "claude-5.5-haiku" or "claude-haiku-5-5" in model.name
+
+
 def _is_claude_5_5_opus(model: APIModel) -> bool:
     return model.id == "claude-5.5-opus" or "claude-opus-5-5" in model.name
 
@@ -113,11 +117,16 @@ def _is_claude_46_or_newer(model: APIModel) -> bool:
         _is_claude_46(model)
         or _is_claude_47(model)
         or _is_claude_5_sonnet_family(model)
+        or _is_claude_5_5_haiku(model)
     )
 
 
 def _removes_manual_thinking_budget(model: APIModel) -> bool:
-    return _is_claude_47(model) or _is_claude_5_sonnet_family(model)
+    return (
+        _is_claude_47(model)
+        or _is_claude_5_sonnet_family(model)
+        or _is_claude_5_5_haiku(model)
+    )
 
 
 def _adaptive_thinking_config(model: APIModel) -> dict:
@@ -199,16 +208,23 @@ def _validate_anthropic_request_config(
             "or disable thinking with reasoning_effort='none'."
         )
 
-    if _is_claude_5_opus(model) and isinstance(thinking, dict):
+    disable_limited_label = (
+        "Claude Opus 5"
+        if _is_claude_5_opus(model)
+        else "Claude Haiku 5.5"
+        if _is_claude_5_5_haiku(model)
+        else None
+    )
+    if disable_limited_label is not None and isinstance(thinking, dict):
         output_config = request_json.get("output_config")
         effort = (
             output_config.get("effort") if isinstance(output_config, dict) else None
         )
         if thinking.get("type") == "disabled" and effort in {"xhigh", "max"}:
             raise ValueError(
-                f"Invalid config for model '{context.model_name}': Claude Opus 5 "
-                f"cannot disable thinking at effort '{effort}'. Use effort='high' "
-                "or lower, or keep thinking enabled."
+                f"Invalid config for model '{context.model_name}': "
+                f"{disable_limited_label} cannot disable thinking at effort "
+                f"'{effort}'. Use effort='high' or lower, or keep thinking enabled."
             )
 
     if _is_claude_5_5_sonnet(model) and isinstance(thinking, dict):
@@ -544,9 +560,9 @@ def _build_anthropic_request(
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
 
-    # Claude Sonnet 5/5.5 reject non-default sampling parameters. Because
-    # lm-deluge always materializes defaults, omit them entirely.
-    if _is_claude_5_sonnet_family(model):
+    # Claude Sonnet 5/5.5 and Haiku 5.5 reject non-default sampling parameters.
+    # Because lm-deluge always materializes defaults, omit them entirely.
+    if _is_claude_5_sonnet_family(model) or _is_claude_5_5_haiku(model):
         request_json.pop("top_p", None)
         request_json.pop("temperature", None)
 
