@@ -319,8 +319,8 @@ def test_bedrock_claude_sonnet_5_registered():
         "us-west-1",
         "us-west-2",
     ]
-    assert model.input_cost == 3.0
-    assert model.output_cost == 15.0
+    assert model.input_cost == 2.0
+    assert model.output_cost == 10.0
     assert model.reasoning_model
     assert model.supports_json
     assert model.supports_images
@@ -331,8 +331,8 @@ def test_bedrock_claude_sonnet_5_registered():
     assert "ca-west-1" in global_model.regions
     assert "me-south-1" not in global_model.regions
     assert len(global_model.regions) == 30
-    assert global_model.input_cost == 3.0
-    assert global_model.output_cost == 15.0
+    assert global_model.input_cost == 2.0
+    assert global_model.output_cost == 10.0
     assert global_model.reasoning_model
     assert global_model.supports_json
     assert global_model.supports_images

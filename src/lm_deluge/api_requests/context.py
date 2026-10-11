@@ -31,6 +31,10 @@ class RequestContext:
     # Request configuration
     attempts_left: int = 5
     request_timeout: int = 30
+    # Immutable per-request retry state; copied independently for concurrent tasks.
+    fallback_chain: tuple[str, ...] = ()
+    fallback_position: int = 0
+    fallback_attempted: frozenset[str] = frozenset()
 
     # Infrastructure
     status_tracker: StatusTracker | None = None
@@ -140,6 +144,9 @@ class RequestContext:
             "sampling_params": self.sampling_params,
             "attempts_left": self.attempts_left,
             "request_timeout": self.request_timeout,
+            "fallback_chain": self.fallback_chain,
+            "fallback_position": self.fallback_position,
+            "fallback_attempted": self.fallback_attempted,
             "status_tracker": self.status_tracker,
             "results_arr": self.results_arr,
             "callback": self.callback,

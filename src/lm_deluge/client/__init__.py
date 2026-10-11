@@ -137,9 +137,7 @@ class _LLMClient(BaseModel):
     max_concurrent_requests: int = 225
     sampling_params: list[SamplingParams] = []
     model_weights: list[float] | Literal["uniform", "dynamic"] = "uniform"
-    # Appended to model_names with zero weight: never chosen for a first
-    # attempt, only when a retry switches models or every weighted model is
-    # blocklisted.
+    # Ordered retry chain, appended to model_names with zero initial weight.
     fallback_models: list[str] = []
     max_attempts: int = 5
     request_timeout: int = 30
@@ -553,15 +551,16 @@ class _LLMClient(BaseModel):
                 processed_model, _ = cls._strip_reasoning_suffix_if_registered(
                     processed_model
                 )
-                if processed_model not in primary_models + fallbacks:
+                if processed_model not in fallbacks:
                     fallbacks.append(processed_model)
             data["fallback_models"] = fallbacks
-            data["model_names"] = primary_models + fallbacks
+            added_fallbacks = [m for m in fallbacks if m not in primary_models]
+            data["model_names"] = primary_models + added_fallbacks
             weights = data.get("model_weights", "uniform")
             if weights == "uniform":
                 weights = [1.0 for _ in primary_models]
             if isinstance(weights, list) and len(weights) == len(primary_models):
-                data["model_weights"] = list(weights) + [0.0 for _ in fallbacks]
+                data["model_weights"] = list(weights) + [0.0 for _ in added_fallbacks]
             sampling_params = data.get("sampling_params")
             if (
                 isinstance(sampling_params, list)
@@ -569,7 +568,7 @@ class _LLMClient(BaseModel):
                 and len(sampling_params) == len(primary_models)
             ):
                 data["sampling_params"] = sampling_params + [
-                    sampling_params[0].model_copy(deep=True) for _ in fallbacks
+                    sampling_params[0].model_copy(deep=True) for _ in added_fallbacks
                 ]
 
         if not isinstance(data.get("sampling_params", []), list):
@@ -779,6 +778,60 @@ class _LLMClient(BaseModel):
         chosen_idx = self._choose_model_index(other_indices)
         return self.models[chosen_idx], self.sampling_params[chosen_idx]
 
+    def _initialize_fallback_chain(self, context: RequestContext) -> RequestContext:
+        if not self.fallback_models or context.fallback_chain:
+            return context
+        chain = (context.model_name,) + tuple(
+            m for m in self.fallback_models if m != context.model_name
+        )
+        return context.copy(
+            fallback_chain=chain,
+            attempts_left=max(context.attempts_left, len(chain)),
+            use_responses_api=self._fallback_uses_responses(
+                context.model_name, context
+            ),
+        )
+
+    def _fallback_uses_responses(
+        self, model_name: str, context: RequestContext
+    ) -> bool:
+        model = APIModel.from_registry(model_name)
+        # Fallback reasoning models with tools need Responses even when the
+        # primary (e.g. Claude) was configured with use_responses_api=False.
+        return self.use_responses_api or bool(
+            model_name in self.fallback_models
+            and model.supports_responses
+            and model.reasoning_model
+            and context.tools
+        )
+
+    def _fallback_retry_context(
+        self, context: RequestContext, switch: bool
+    ) -> RequestContext | None:
+        attempted = context.fallback_attempted | {context.model_name}
+        untried = set(context.fallback_chain) - attempted - self._blocklisted_models
+        # Reserve one remaining attempt for each untried model. This is the only
+        # case where a same-model error advances, rather than exhausting the budget.
+        switch = switch or context.attempts_left - 1 <= len(untried)
+        position = context.fallback_position
+        if switch:
+            for offset in range(1, len(context.fallback_chain) + 1):
+                candidate = (position + offset) % len(context.fallback_chain)
+                if context.fallback_chain[candidate] not in self._blocklisted_models:
+                    position = candidate
+                    break
+            else:
+                return None
+        model_name = context.fallback_chain[position]
+        return context.copy(
+            model_name=model_name,
+            sampling_params=self.sampling_params[self.models.index(model_name)],
+            attempts_left=context.attempts_left - 1,
+            fallback_position=position,
+            fallback_attempted=frozenset(attempted),
+            use_responses_api=self._fallback_uses_responses(model_name, context),
+        )
+
     def _resolve_model(
         self, prefer_model: str | None, prompt: Prompt
     ) -> tuple[str, SamplingParams]:
@@ -855,6 +908,8 @@ class _LLMClient(BaseModel):
     ) -> APIResponse:
         """Handle caching and single HTTP call for a request. Failed requests go to retry queue."""
 
+        context = self._initialize_fallback_chain(context)
+
         # Check cache first
         def _maybe_postprocess(response: APIResponse):
             if self.postprocess:
@@ -879,6 +934,7 @@ class _LLMClient(BaseModel):
         context.status_tracker.update_pbar()
         model_obj = APIModel.from_registry(context.model_name)
         request = model_obj.make_request(context)
+        attempts_before_execution = context.attempts_left
         response = await request.execute_once()
 
         # Handle successful response
@@ -898,9 +954,29 @@ class _LLMClient(BaseModel):
         if response.give_up_if_no_other_models:
             self._blocklisted_models.add(context.model_name)
 
+        # Providers can set attempts_left=0 for a permanent, model-specific
+        # error. Still try untried fallbacks, using the original bounded budget.
+        force_fallback = bool(
+            context.fallback_chain
+            and context.attempts_left <= 0
+            and set(context.fallback_chain)
+            - context.fallback_attempted
+            - {context.model_name}
+            - self._blocklisted_models
+        )
+        if force_fallback:
+            context.attempts_left = attempts_before_execution
+
         if retry_queue and context.attempts_left > 1:
             # Decide whether to retry with a different model
-            if response.retry_with_different_model and len(self.models) > 1:
+            if context.fallback_chain:
+                retry_context = self._fallback_retry_context(
+                    context,
+                    bool(response.retry_with_different_model)
+                    or force_fallback
+                    or context.model_name in self._blocklisted_models,
+                )
+            elif response.retry_with_different_model and len(self.models) > 1:
                 # Switch to different model for retry
                 try:
                     new_model, new_sp = self._select_different_model(context.model_name)
@@ -940,7 +1016,12 @@ class _LLMClient(BaseModel):
                 )
                 if response.status_code:
                     error_msg += f" Code: {response.status_code},"
-                error_msg += f" Message: {response.error_message}. Retrying..."
+                retry_text = (
+                    f"Retrying with {retry_context.model_name}..."
+                    if retry_context.model_name != context.model_name
+                    else "Retrying..."
+                )
+                error_msg += f" Message: {response.error_message}. {retry_text}"
                 print(error_msg)
 
                 # Add to retry queue for later processing
@@ -1262,7 +1343,8 @@ class _LLMClient(BaseModel):
             response = await self._run_context_single(round_context)
             last_response = response
             if (
-                response.model_internal in self.models
+                not self.fallback_models
+                and response.model_internal in self.models
                 and response.model_internal != context.model_name
             ):
                 context = context.copy(
@@ -1390,6 +1472,7 @@ class _LLMClient(BaseModel):
             force_local_mcp=self.force_local_mcp,
             http_session=http_session,
         )
+        context = self._initialize_fallback_chain(context)
         context.validate_request_config()
         tracker = self._get_tracker()
         context.status_tracker = tracker
@@ -1604,6 +1687,7 @@ class _LLMClient(BaseModel):
             force_local_mcp=self.force_local_mcp,
             http_session=http_session,
         )
+        context = self._initialize_fallback_chain(context)
         context.validate_request_config()
         tracker = self._get_tracker()
         context.status_tracker = tracker
@@ -2136,6 +2220,19 @@ def LLMClient(
 
     Args:
         model_names: Model name(s) to use - can be a single string or list of strings
+        fallback_models: Ordered retry models. Each request starts its chain at
+            the selected primary, followed by these models (excluding duplicates
+            of that primary); other weighted primaries are not inserted. Agent
+            rounds restart at that primary. Different-model errors advance and
+            wrap around, skipping blocklisted models. Same-model errors stay put
+            unless remaining attempts must be reserved for untried fallbacks.
+            The budget is max(max_attempts, chain length), so each non-blocklisted
+            fallback is attempted before failure, without extending that budget.
+            Success stops immediately. Provider errors that disable retries
+            still advance through remaining untried fallbacks, then stop.
+            Reasoning fallbacks with tools use Responses when
+            supported, regardless of the primary's use_responses_api setting.
+            Without fallbacks, existing random multi-model retries are unchanged.
         **kwargs: All other LLMClient configuration options (keyword-only)
 
     Returns:

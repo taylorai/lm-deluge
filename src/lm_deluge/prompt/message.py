@@ -672,9 +672,17 @@ class Message:
             raise ValueError("Anthropic keeps system outside message list")
         content: list[dict] = []
         for part in self.parts:
-            if isinstance(part, Thinking) and part.raw_payload is None:
-                signature = signature_for_provider(part.thought_signature, "anthropic")
-                if signature is None:
+            if isinstance(part, Thinking):
+                if part.raw_payload is not None:
+                    # OpenAI reasoning payloads are not Anthropic content blocks.
+                    if part.raw_payload.get("type") not in {
+                        "thinking",
+                        "redacted_thinking",
+                    }:
+                        continue
+                elif (
+                    signature_for_provider(part.thought_signature, "anthropic") is None
+                ):
                     continue
             content.append(part.anthropic())
         if not content:
