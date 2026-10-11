@@ -193,6 +193,38 @@ async def test_agent_round_reset_and_transport():
     assert not result.is_error and conv.model_used == PRIMARY
 
 
+async def test_agent_round_skips_blocklisted_primary():
+    client = LLMClient(
+        PRIMARY, fallback_models=[SONNET], max_attempts=2, progress="manual"
+    )
+    seen = []
+
+    async def echo(value: str):
+        return value
+
+    async def execute(request):
+        context = request.context
+        seen.append(context.model_name)
+        if context.model_name == PRIMARY:
+            return response(context, block=True)
+        if len(context.prompt.messages) < 3:
+            return response(
+                context,
+                content=Message(
+                    "assistant",
+                    [ToolCall(id="call_1", name="echo", arguments={"value": "ok"})],
+                ),
+            )
+        return response(context, content=Message.ai("done"))
+
+    with fake_requests(execute):
+        _, result = await client.run_agent_loop(
+            Conversation().user("hi"), tools=[Tool.from_function(echo)], max_rounds=3
+        )
+    assert seen == [PRIMARY, SONNET, SONNET]
+    assert not result.is_error
+
+
 def test_foreign_reasoning_filtered():
     message = Message(
         "assistant",
@@ -325,6 +357,7 @@ async def main():
     await test_legacy_selection_and_blocklist()
     await test_concurrent_positions()
     await test_agent_round_reset_and_transport()
+    await test_agent_round_skips_blocklisted_primary()
     test_foreign_reasoning_filtered()
     await test_history_translation_and_starting_fallback()
     await test_terminal_provider_error_cannot_starve_fallbacks()

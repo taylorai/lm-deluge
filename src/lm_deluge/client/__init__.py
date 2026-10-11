@@ -792,9 +792,35 @@ class _LLMClient(BaseModel):
             ),
         )
 
+    def _skip_blocklisted_fallback(self, context: RequestContext) -> RequestContext:
+        # Agent rounds restart at the primary, which may have been blocklisted
+        # by an earlier round or a concurrent request. Moving past it doesn't
+        # consume an attempt.
+        if (
+            not context.fallback_chain
+            or context.model_name not in self._blocklisted_models
+        ):
+            return context
+        chain = context.fallback_chain
+        for offset in range(1, len(chain)):
+            position = (context.fallback_position + offset) % len(chain)
+            model_name = chain[position]
+            if model_name not in self._blocklisted_models:
+                return context.copy(
+                    model_name=model_name,
+                    sampling_params=self.sampling_params[self.models.index(model_name)],
+                    fallback_position=position,
+                    use_responses_api=self._fallback_uses_responses(
+                        model_name, context
+                    ),
+                )
+        return context
+
     def _fallback_uses_responses(
         self, model_name: str, context: RequestContext
     ) -> bool:
+        # TODO: start from context.use_responses_api rather than the client
+        # setting, so a hand-built context's transport choice is preserved.
         model = APIModel.from_registry(model_name)
         # Fallback reasoning models with tools need Responses even when the
         # primary (e.g. Claude) was configured with use_responses_api=False.
@@ -825,6 +851,8 @@ class _LLMClient(BaseModel):
         model_name = context.fallback_chain[position]
         return context.copy(
             model_name=model_name,
+            # TODO: keep context.sampling_params when staying on the same model;
+            # a name lookup picks the first entry when a model is listed twice.
             sampling_params=self.sampling_params[self.models.index(model_name)],
             attempts_left=context.attempts_left - 1,
             fallback_position=position,
@@ -908,7 +936,9 @@ class _LLMClient(BaseModel):
     ) -> APIResponse:
         """Handle caching and single HTTP call for a request. Failed requests go to retry queue."""
 
-        context = self._initialize_fallback_chain(context)
+        context = self._skip_blocklisted_fallback(
+            self._initialize_fallback_chain(context)
+        )
 
         # Check cache first
         def _maybe_postprocess(response: APIResponse):
