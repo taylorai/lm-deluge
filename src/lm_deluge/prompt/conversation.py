@@ -930,7 +930,22 @@ class Conversation:
             ),
             None,
         )
-        other = [m.gemini() for m in self.messages if m.role != "system"]
+        call_names = {}
+        other = []
+        for message in self.messages:
+            if message.role == "system":
+                continue
+            for part in message.tool_calls:
+                call_names[part.id] = part.name
+            converted = message.gemini()
+            for part in converted["parts"]:
+                if "functionResponse" in part:
+                    response = part["functionResponse"]
+                    response["name"] = call_names.get(
+                        response["name"], response["name"]
+                    )
+            if converted["parts"]:
+                other.append(converted)
         return system_msg, other
 
     def to_mistral(self) -> list[dict]:

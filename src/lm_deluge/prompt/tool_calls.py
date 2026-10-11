@@ -241,7 +241,8 @@ class ToolResult:
     def gemini(self) -> dict:
         # Build the function response
         func_response: dict = {
-            "name": self.tool_call_id,  # Gemini uses name field for ID
+            # Conversation.to_gemini resolves the call ID to its function name.
+            "name": self.tool_call_id,
         }
 
         # Handle different result types
@@ -267,8 +268,35 @@ class ToolResult:
             else:
                 func_response["response"] = self.result
         elif isinstance(self.result, list):
-            # Handle content blocks (images, etc.) - not yet implemented
-            raise ValueError("can't handle content blocks for gemini yet")
+            text_blocks = []
+            media_parts = []
+            for block in self.result:
+                if isinstance(block, Text):
+                    text_blocks.append(block.text)
+                elif isinstance(block, Image):
+                    media_parts.append(block.gemini())
+                elif isinstance(block, dict):
+                    # Also accept raw MCP blocks from custom tool runners.
+                    if block.get("type") == "text":
+                        text_blocks.append(str(block.get("text", "")))
+                    elif block.get("type") == "image" and "data" in block:
+                        media_parts.append(
+                            {
+                                "inlineData": {
+                                    "mimeType": block.get("mimeType", "image/png"),
+                                    "data": block["data"],
+                                }
+                            }
+                        )
+                    elif "inlineData" in block or "fileData" in block:
+                        media_parts.append(block)
+                    else:
+                        text_blocks.append(json.dumps(block, default=str))
+                else:
+                    text_blocks.append(json.dumps(block, default=str))
+            func_response["response"] = {"result": "\n\n---\n\n".join(text_blocks)}
+            if media_parts:
+                func_response["parts"] = media_parts
         else:
             func_response["response"] = {"result": str(self.result)}
 

@@ -136,7 +136,7 @@ def _has_additional_properties(schema) -> bool:
     return False
 
 
-def test_tool_google_strips_additional_properties():
+def test_tool_google_preserves_json_schema():
     tool = Tool(
         name="google_tool",
         description="Tool with dict-like fields",
@@ -154,11 +154,12 @@ def test_tool_google_strips_additional_properties():
     )
 
     google_format = tool.for_google()
-    assert not _has_additional_properties(google_format["parameters"]), (
-        "Google schema should not include additionalProperties"
+    assert "parameters" not in google_format
+    assert _has_additional_properties(google_format["parametersJsonSchema"]), (
+        "Google JSON Schema should preserve dictionary value constraints"
     )
 
-    print("✅ Google tool schema strips additionalProperties.")
+    print("✅ Google tool JSON Schema preserves additionalProperties.")
 
 
 if __name__ == "__main__":
@@ -166,5 +167,5 @@ if __name__ == "__main__":
     print()
     test_tool_without_defs_backward_compat()
     print()
-    test_tool_google_strips_additional_properties()
+    test_tool_google_preserves_json_schema()
     print("\n🎉 All $defs tests passed!")

@@ -1078,24 +1078,15 @@ class Tool(BaseModel):
 
     def for_google(self) -> dict[str, Any]:
         """
-        Shape used by google.genai docs.
+        Use Gemini's JSON Schema field rather than its restricted OpenAPI Schema.
+
+        This preserves MCP discriminators (const), references, defaults, and
+        dictionary schemas without leaking unsupported fields into parameters.
         """
-
-        def _strip_additional_properties(schema: Any) -> Any:
-            if isinstance(schema, dict):
-                return {
-                    key: _strip_additional_properties(value)
-                    for key, value in schema.items()
-                    if key != "additionalProperties"
-                }
-            if isinstance(schema, list):
-                return [_strip_additional_properties(item) for item in schema]
-            return schema
-
         return {
             "name": self.name,
             "description": self.description,
-            "parameters": _strip_additional_properties(self._json_schema()),
+            "parametersJsonSchema": self._json_schema(),
         }
 
     def for_mistral(self) -> dict[str, Any]:

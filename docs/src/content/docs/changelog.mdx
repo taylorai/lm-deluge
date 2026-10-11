@@ -5,6 +5,12 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.163 · 2026-10-11
+
+- **Gemini tool schemas use `parametersJsonSchema`**: Gemini and Vertex tools are now sent as full JSON Schema instead of Google's restricted OpenAPI `parameters`, so MCP discriminators (`const`), `$ref`s, defaults and dictionary schemas are preserved. Previously Vertex rejected any tool whose schema used `const` with a 400, and integer enums were rejected too.
+- **Gemini handles list tool results**: Tool results that are lists of content blocks (the shape MCP tools return) no longer raise `can't handle content blocks for gemini yet`. Text blocks are joined into the function response, images are sent as `functionResponse.parts`, and unknown blocks fall back to JSON text.
+- **Gemini tool-loop fixes**: Tool-result messages are now sent with role `user` (they were sent as `model`), `functionResponse.name` is the called function's name rather than the tool call ID, and empty text parts are dropped. Together with the list-result fix, a Claude or OpenAI agent loop can now fall back to Gemini mid-conversation with MCP tool history. Live runs passed on `gemini-3.8-flash-vertex` with real MCP tool schemas, including a reasoning Opus round followed by a Vertex round (`tests/one_off/test_gemini_mcp_tools_live.py`, `tests/core/test_gemini_mcp_translation.py`).
+
 ## 0.0.162 · 2026-10-11
 
 - **Ordered fallback chains**: `fallback_models` is now an ordered chain. Each request tries its primary model, then each fallback in the order given. A different-model error (e.g. a Bedrock 503) advances one step and never bounces back to the primary until every fallback has been tried; after the last fallback the chain wraps to the primary and continues round-robin. Same-model errors (timeouts, throttles that rotate Bedrock regions) stay on the current model unless the remaining attempts are needed for untried fallbacks. Blocklisted models are skipped. The attempt budget is `max(max_attempts, chain length)`, so every fallback gets at least one attempt, and provider errors that disable retries still move on to untried fallbacks. Chain position is tracked per request, so concurrent requests are independent. Retry logs name the model being switched to. Clients without `fallback_models` keep the existing random multi-model retry behavior.

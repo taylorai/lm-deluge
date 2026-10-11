@@ -1238,7 +1238,7 @@ wheels = [
 
 [[package]]
 name = "lm-deluge"
-version = "0.0.162"
+version = "0.0.163"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },

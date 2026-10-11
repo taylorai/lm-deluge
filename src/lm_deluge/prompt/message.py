@@ -694,8 +694,9 @@ class Message:
 
     def gemini(self) -> dict:
         parts = [p.gemini() for p in self.parts]
-        # Shortcut: single text becomes a bare string
-        role = "user" if self.role == "user" else "model"
+        # Empty text without a signature is not a valid Gemini part.
+        parts = [p for p in parts if p.get("text") != "" or "thoughtSignature" in p]
+        role = "user" if self.role in {"user", "tool"} else "model"
         return {"role": role, "parts": parts}
 
     def mistral(self) -> dict:
