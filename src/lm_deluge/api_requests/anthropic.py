@@ -18,6 +18,7 @@ from .anthropic_utils import (
     parse_anthropic_response_content,
 )
 from .base import APIRequestBase, APIResponse, parse_retry_after
+from .streaming import apply_cache_ttl, read_anthropic_stream
 
 
 def _add_beta(headers: dict, beta: str):
@@ -727,6 +728,7 @@ def _build_anthropic_request(
     _validate_anthropic_request_config(model, context, request_json)
 
     # print("request json:", request_json)
+    apply_cache_ttl(request_json, context.cache_ttl)
     return request_json, base_headers
 
 
@@ -745,6 +747,8 @@ class AnthropicRequest(APIRequestBase):
         self.request_json, base_headers = _build_anthropic_request(
             self.model, self.context
         )
+        if self.context.on_text_delta is not None:
+            self.request_json["stream"] = True
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["openai", "gemini", "mistral"]
         )
@@ -772,6 +776,10 @@ class AnthropicRequest(APIRequestBase):
             "anthropic-ratelimit-tokens-reset",
         ]:
             rate_limits[header] = http_response.headers.get(header, None)
+        if 200 <= status_code < 300 and self.context.on_text_delta is not None:
+            http_response = await read_anthropic_stream(http_response, self.context)
+            status_code = http_response.status
+            mimetype = http_response.headers.get("Content-Type")
         if status_code >= 200 and status_code < 300:
             try:
                 data = await http_response.json()
@@ -780,6 +788,12 @@ class AnthropicRequest(APIRequestBase):
                     summarized_thinking=_is_claude_47(self.model),
                 )
                 usage = Usage.from_anthropic_usage(data["usage"])
+                if (
+                    self.context.cache_ttl == "1h"
+                    and "cache_creation" not in data["usage"]
+                    and "ephemeral_1h_input_tokens" not in data["usage"]
+                ):
+                    usage.cache_write_1h_tokens = usage.cache_write_tokens
                 finish_reason = data.get("stop_reason")
                 input_transformations = data.get("input_transformations")
                 if input_transformations:

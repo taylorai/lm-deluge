@@ -8,6 +8,7 @@ import aiohttp
 from ..config import SamplingParams
 from ..prompt import CachePattern, Conversation
 from ..tracker import StatusTracker
+from .streaming import TextDeltaCallback
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -48,6 +49,9 @@ class RequestContext:
     container_id: str | None = None  # Anthropic container ID for skills reuse
     output_schema: "type[BaseModel] | dict | None" = None
     cache: CachePattern | None = None
+    cache_ttl: Literal["5m", "1h"] | None = None
+    on_text_delta: TextDeltaCallback | None = None
+    stream_round: int = 0
     use_responses_api: bool = False
     stateless_responses: bool | None = None
     background: bool = False
@@ -77,6 +81,9 @@ class RequestContext:
             raise ValueError(
                 "stateless_responses is only valid when use_responses_api=True"
             )
+
+        if self.cache_ttl not in {None, "5m", "1h"}:
+            raise ValueError("cache_ttl must be 5m, 1h, or None")
 
         effective_stateless = (
             self.stateless_responses
@@ -155,6 +162,9 @@ class RequestContext:
             "container_id": self.container_id,
             "output_schema": self.output_schema,
             "cache": self.cache,
+            "cache_ttl": self.cache_ttl,
+            "on_text_delta": self.on_text_delta,
+            "stream_round": self.stream_round,
             "use_responses_api": self.use_responses_api,
             "stateless_responses": self.stateless_responses,
             "background": self.background,

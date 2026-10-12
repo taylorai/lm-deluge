@@ -129,7 +129,15 @@ class APIResponse:
             if inclusive_input and not write_cost:
                 write_cost = api_model.input_cost
             if cache_write_tokens > 0 and write_cost is not None:
-                self.cost += cache_write_tokens * write_cost / 1e6
+                one_hour_tokens = (
+                    min(cache_write_tokens, self.usage.cache_write_1h_tokens)
+                    if not inclusive_input
+                    else 0
+                )
+                self.cost += (
+                    (cache_write_tokens - one_hour_tokens) * write_cost
+                    + one_hour_tokens * api_model.input_cost * 2
+                ) / 1e6
         elif self.content is not None and self.completion is not None:
             pass
             # print(

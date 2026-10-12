@@ -14,6 +14,8 @@ class Usage:
     output_tokens: int = 0
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
+    cache_write_1h_tokens: int = 0
+    reasoning_tokens: int = 0
 
     @property
     def total_input_tokens(self) -> int:
@@ -48,6 +50,10 @@ class Usage:
             output_tokens=usage_data.get("output_tokens", 0),
             cache_read_tokens=usage_data.get("cache_read_input_tokens", 0),
             cache_write_tokens=usage_data.get("cache_creation_input_tokens", 0),
+            cache_write_1h_tokens=(usage_data.get("cache_creation") or {}).get(
+                "ephemeral_1h_input_tokens",
+                usage_data.get("ephemeral_1h_input_tokens", 0),
+            ),
         )
 
     @classmethod
@@ -88,6 +94,12 @@ class Usage:
             output_tokens=output_tokens or 0,
             cache_read_tokens=cached_tokens,
             cache_write_tokens=cache_write_tokens,
+            reasoning_tokens=(
+                usage_data.get("output_tokens_details")
+                or usage_data.get("completion_tokens_details")
+                or {}
+            ).get("reasoning_tokens", 0)
+            or 0,
         )
 
     @classmethod
@@ -113,6 +125,7 @@ class Usage:
             output_tokens=usage_data.get("candidatesTokenCount", 0),
             cache_read_tokens=cached_tokens if cached_tokens > 0 else 0,
             cache_write_tokens=0,  # Gemini doesn't charge separately for cache writes
+            reasoning_tokens=usage_data.get("thoughtsTokenCount", 0) or 0,
         )
 
     def to_dict(self) -> dict:
@@ -122,6 +135,8 @@ class Usage:
             "output_tokens": self.output_tokens,
             "cache_read_tokens": self.cache_read_tokens,
             "cache_write_tokens": self.cache_write_tokens,
+            "cache_write_1h_tokens": self.cache_write_1h_tokens,
+            "reasoning_tokens": self.reasoning_tokens,
             "total_input_tokens": self.total_input_tokens,
             "total_tokens": self.total_tokens,
             "has_cache_hit": self.has_cache_hit,
@@ -136,11 +151,16 @@ class Usage:
             output_tokens=data.get("output_tokens", 0),
             cache_read_tokens=data.get("cache_read_tokens", 0),
             cache_write_tokens=data.get("cache_write_tokens", 0),
+            cache_write_1h_tokens=data.get("cache_write_1h_tokens", 0),
+            reasoning_tokens=data.get("reasoning_tokens", 0),
         )
 
     def __add__(self, other: "Usage") -> "Usage":
         """Add two Usage objects together."""
         return Usage(
+            reasoning_tokens=self.reasoning_tokens + other.reasoning_tokens,
+            cache_write_1h_tokens=self.cache_write_1h_tokens
+            + other.cache_write_1h_tokens,
             input_tokens=self.input_tokens + other.input_tokens,
             output_tokens=self.output_tokens + other.output_tokens,
             cache_read_tokens=(

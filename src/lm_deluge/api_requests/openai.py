@@ -19,6 +19,7 @@ from ..models import APIModel
 from ..prompt import CachePattern, Conversation, Message, Part, Text, Thinking, ToolCall
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse, parse_retry_after
+from .streaming import read_provider_stream
 
 
 def _message_contents_to_string(messages: list[dict]):
@@ -308,8 +309,19 @@ class OpenAIRequest(APIRequestBase):
         )
 
         self.request_json = await _build_oa_chat_request(self.model, self.context)
+        if self.context.on_text_delta is not None:
+            self.request_json["stream"] = True
+            self.request_json["stream_options"] = {"include_usage": True}
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
+        if (
+            self.context.on_text_delta is not None
+            and 200 <= http_response.status < 300
+            and "text/event-stream" in http_response.headers.get("Content-Type", "")
+        ):
+            http_response = await read_provider_stream(
+                http_response, self.context, "openai-chat"
+            )
         is_error = False
         error_message = None
         thinking = None
@@ -780,8 +792,18 @@ class OpenAIResponsesRequest(APIRequestBase):
         }
 
         self.request_json = await _build_oa_responses_request(self.model, self.context)
+        if self.context.on_text_delta is not None:
+            self.request_json["stream"] = True
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
+        if (
+            self.context.on_text_delta is not None
+            and 200 <= http_response.status < 300
+            and "text/event-stream" in http_response.headers.get("Content-Type", "")
+        ):
+            http_response = await read_provider_stream(
+                http_response, self.context, "openai-responses"
+            )
         is_error = False
         error_message = None
         thinking = None
@@ -864,6 +886,7 @@ class OpenAIResponsesRequest(APIRequestBase):
             sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
+            finish_reason=data.get("status") if data else None,
             retry_with_different_model=retry_with_different_model,
             give_up_if_no_other_models=give_up_if_no_other_models,
         )

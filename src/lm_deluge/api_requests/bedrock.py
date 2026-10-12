@@ -1,6 +1,7 @@
 import asyncio
 import json
 
+import aiohttp
 from aiohttp import ClientResponse
 
 from lm_deluge.api_requests.context import RequestContext
@@ -26,7 +27,7 @@ from .anthropic_utils import (
     is_anthropic_thinking_prefix_mismatch,
     parse_anthropic_response_content,
 )
-from .base import APIRequestBase, APIResponse, parse_retry_after
+from .base import APIRequestBase, APIResponse, _get_session, parse_retry_after
 from .bedrock_auth import get_bedrock_auth
 from .bedrock_regions import (
     bedrock_region_count,
@@ -40,6 +41,12 @@ from .openai import (
     _build_oa_chat_request,
     _build_oa_responses_request,
     parse_openai_responses_data,
+)
+from .streaming import (
+    TextDeltaCallbackError,
+    apply_cache_ttl,
+    read_anthropic_stream,
+    read_provider_stream,
 )
 
 
@@ -215,6 +222,7 @@ async def _build_anthropic_bedrock_request(
 
     _validate_anthropic_request_config(model, context, request_json)
 
+    apply_cache_ttl(request_json, context.cache_ttl)
     return request_json, base_headers, auth, url, region
 
 
@@ -270,6 +278,10 @@ async def _build_openai_bedrock_request(
             request_json["tools"] = request_tools
 
     url = f"https://bedrock-runtime.{region}.amazonaws.com/openai/v1/{endpoint}"
+    if context.on_text_delta is not None:
+        request_json["stream"] = True
+        if endpoint == "chat/completions":
+            request_json["stream_options"] = {"include_usage": True}
 
     # Authenticate (Bearer token or SigV4)
     auth, auth_headers = get_bedrock_auth(region)
@@ -323,6 +335,8 @@ class BedrockRequest(APIRequestBase):
                 self.region,
             ) = await _build_anthropic_bedrock_request(self.model, self.context)
 
+        if self.context.on_text_delta is not None and not self.is_openai_model:
+            self.url = self.url.removesuffix("/invoke") + "/invoke-with-response-stream"
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["anthropic", "openai", "gemini", "mistral"]
         )
@@ -330,14 +344,19 @@ class BedrockRequest(APIRequestBase):
     async def execute_once(self) -> APIResponse:
         """Override execute_once to handle Bedrock auth (API key or SigV4)."""
         await self.build_request()
-        import aiohttp
-
-        from .base import _get_session
 
         assert self.context.status_tracker
 
         self.context.status_tracker.total_requests += 1
-        timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
+        timeout = (
+            aiohttp.ClientTimeout(
+                total=None,
+                sock_connect=self.context.request_timeout,
+                sock_read=self.context.request_timeout,
+            )
+            if self.context.on_text_delta is not None
+            else aiohttp.ClientTimeout(total=self.context.request_timeout)
+        )
 
         # Prepare the request data
         payload = json.dumps(self.request_json, separators=(",", ":")).encode("utf-8")
@@ -368,6 +387,14 @@ class BedrockRequest(APIRequestBase):
                     timeout=timeout,
                     allow_redirects=False,
                 ) as http_response:
+                    if (
+                        self.context.on_text_delta is not None
+                        and not self.is_openai_model
+                        and 200 <= http_response.status < 300
+                    ):
+                        http_response = await read_anthropic_stream(
+                            http_response, self.context, bedrock=True
+                        )
                     response: APIResponse = await self.handle_response(http_response)
             return response
 
@@ -384,6 +411,8 @@ class BedrockRequest(APIRequestBase):
                 usage=None,
             )
 
+        except TextDeltaCallbackError as e:
+            raise e.original from None
         except Exception as e:
             from ..errors import raise_if_modal_exception
 
@@ -401,6 +430,17 @@ class BedrockRequest(APIRequestBase):
             )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
+        if (
+            self.is_openai_model
+            and self.context.on_text_delta is not None
+            and 200 <= http_response.status < 300
+            and "text/event-stream" in http_response.headers.get("Content-Type", "")
+        ):
+            http_response = await read_provider_stream(
+                http_response,
+                self.context,
+                "openai-responses" if self.context.use_responses_api else "openai-chat",
+            )
         is_error = False
         error_message = None
         thinking = None
@@ -458,6 +498,12 @@ class BedrockRequest(APIRequestBase):
                         summarized_thinking=_is_claude_47(self.model),
                     )
                     usage = Usage.from_anthropic_usage(data["usage"])
+                    if (
+                        self.context.cache_ttl == "1h"
+                        and "cache_creation" not in data["usage"]
+                        and "ephemeral_1h_input_tokens" not in data["usage"]
+                    ):
+                        usage.cache_write_1h_tokens = usage.cache_write_tokens
                     finish_reason = data.get("stop_reason")
                     input_transformations = data.get("input_transformations")
                     if input_transformations:

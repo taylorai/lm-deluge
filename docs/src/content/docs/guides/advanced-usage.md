@@ -23,6 +23,65 @@ asyncio.run(stream_once())
 
 Need fine-grained access to each streamed chunk? Call `lm_deluge.api_requests.openai.stream_chat()` directly—it's an async generator that yields every delta string followed by the final `APIResponse` object.
 
+### Streaming agent loops
+
+Pass an async `on_text_delta` callback to `run_agent_loop()` to receive visible
+assistant text from Anthropic, OpenAI Chat Completions, OpenAI Responses, and
+Gemini (including their Bedrock and Vertex routes) while each round runs:
+
+```python
+from lm_deluge import Conversation, LLMClient, TextDeltaEvent
+
+partial_text = {}
+
+async def show_delta(event: TextDeltaEvent):
+    if event.kind == "reset":
+        partial_text[event.round] = ""
+    else:
+        partial_text[event.round] = partial_text.get(event.round, "") + event.text
+        print(event.text, end="", flush=True)
+
+client = LLMClient("claude-5.5-sonnet-bedrock", global_effort="high")
+conversation, response = await client.run_agent_loop(
+    Conversation().user("Explain this carefully"),
+    on_text_delta=show_delta,
+)
+```
+
+Events carry `kind` (`"text"` or `"reset"`), `text`, the zero-based `round`, and
+`model` (the registry name of the current attempt). A failed attempt sends a reset
+event before its retry or fallback begins, so replace that round's partial text.
+Thinking remains in the assembled message with its replayable signatures and is
+not sent to the callback. Tools, `on_message`, and `on_round_complete` operate on
+the completed response as usual. Concatenated deltas cover all text parts;
+`response.completion` retains its existing behavior of returning the first text part.
+
+Other providers use ordinary requests and emit no text deltas. Omitting the
+callback keeps the ordinary request path. OpenAI Responses retains the complete
+terminal response, including encrypted reasoning for replay. Gemini thought
+parts are retained as thinking and are excluded from visible deltas; signed text
+and tool calls keep their thought signatures. `response.usage.reasoning_tokens`
+tracks the provider's reasoning count separately (a subset of output tokens for
+OpenAI; Gemini reports thoughts separately from its candidate token count).
+Streaming `request_timeout` limits connection establishment and time without
+network data, including waiting for the response headers, rather than total
+response duration. Keep callbacks quick so they do not delay stream consumption.
+
+### One-hour Anthropic prompt caching
+
+Set `LLMClient(..., cache_ttl="1h")` and use the usual request `cache` pattern,
+for example `cache="last_2_user_messages"`. Every emitted Anthropic message,
+tool-definition, or automatic cache breakpoint uses that TTL. Direct Anthropic
+and supported Claude models on Bedrock accept it without a beta flag. Bedrock's
+existing restriction on `cache="automatic"` still applies. `None` (the default)
+preserves existing behavior; `"5m"` explicitly selects five minutes. Other providers
+ignore `cache_ttl`.
+
+`response.usage.cache_write_tokens` remains the total cache-write count;
+`cache_write_1h_tokens` is its one-hour subset. Cost calculation charges that
+subset at twice the model's base input rate and other writes at the registry's
+existing five-minute rate. The usage breakdown survives serialization and addition.
+
 ## Starting Tasks Manually
 
 Use `start_nowait()` to push prompts into the scheduler without waiting for results immediately. Later, call `wait_for(task_id)`, `wait_for_all()`, or iterate over `as_completed()` to consume results in real time:

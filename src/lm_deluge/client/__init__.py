@@ -47,6 +47,7 @@ from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
 
 from ..api_requests.base import APIResponse
 from ..api_requests.context import RequestContext, ThinkingPrefixMismatchBehavior
+from ..api_requests.streaming import TextDeltaCallback, TextDeltaEvent
 from ..config import SamplingParams
 from ..models import APIModel, register_model, registry
 from ..tracker import StatusTracker
@@ -142,6 +143,7 @@ class _LLMClient(BaseModel):
     max_attempts: int = 5
     request_timeout: int = 30
     cache: Any = None
+    cache_ttl: Literal["5m", "1h"] | None = None
     extra_headers: dict[str, str] | None = None
     extra_body: dict[str, Any] | None = None
     thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error"
@@ -966,6 +968,10 @@ class _LLMClient(BaseModel):
         request = model_obj.make_request(context)
         attempts_before_execution = context.attempts_left
         response = await request.execute_once()
+        if response.is_error and context.on_text_delta is not None:
+            await context.on_text_delta(
+                TextDeltaEvent("reset", context.stream_round, context.model_name)
+            )
 
         # Handle successful response
         if not response.is_error:
@@ -1321,6 +1327,7 @@ class _LLMClient(BaseModel):
         on_message: Callable[[Message], Awaitable[None]] | None,
         *,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         verbose: bool = False,
         max_turns_warning: MaxTurnsWarning = "omit",
     ) -> APIResponse:
@@ -1369,6 +1376,8 @@ class _LLMClient(BaseModel):
             round_context = context.copy(
                 prompt=request_prompt,
                 container_id=current_container_id,
+                on_text_delta=on_text_delta,
+                stream_round=round_num,
             )
             response = await self._run_context_single(round_context)
             last_response = response
@@ -1487,6 +1496,7 @@ class _LLMClient(BaseModel):
             sampling_params=sampling_params,
             attempts_left=self.max_attempts,
             request_timeout=self.request_timeout,
+            cache_ttl=self.cache_ttl,
             tools=tools,
             skills=skills,
             container_id=container_id,
@@ -1684,6 +1694,7 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
         max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
@@ -1703,6 +1714,7 @@ class _LLMClient(BaseModel):
             sampling_params=sampling_params,
             attempts_left=self.max_attempts,
             request_timeout=self.request_timeout,
+            cache_ttl=self.cache_ttl,
             tools=tools,
             skills=skills,
             output_schema=output_schema,
@@ -1727,6 +1739,7 @@ class _LLMClient(BaseModel):
             max_rounds,
             on_message,
             on_round_complete=on_round_complete,
+            on_text_delta=on_text_delta,
             verbose=verbose,
             max_turns_warning=max_turns_warning,
         )
@@ -1743,6 +1756,7 @@ class _LLMClient(BaseModel):
         skills: Sequence[Skill] | None = None,
         max_rounds: int = 5,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
         max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
@@ -1775,6 +1789,7 @@ class _LLMClient(BaseModel):
                 skills=skills,
                 max_rounds=max_rounds,
                 on_round_complete=on_round_complete,
+                on_text_delta=on_text_delta,
                 on_message=on_message,
                 max_turns_warning=max_turns_warning,
                 output_schema=output_schema,
@@ -1818,6 +1833,7 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
         max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
@@ -1842,6 +1858,14 @@ class _LLMClient(BaseModel):
             on_round_complete: Optional async callback called after each round.
                 Receives (conversation, response, round_number). Called after the
                 assistant message is added but before tool execution.
+            on_text_delta: Async callback receiving TextDeltaEvent for visible text.
+                Anthropic (direct and Bedrock), OpenAI Chat Completions and
+                Responses (direct and Bedrock), and Gemini (native and Vertex)
+                stream; other providers use ordinary requests. Reset events
+                discard partial text on failed attempts. Streaming
+                request_timeout bounds network inactivity, not total generation
+                time. Exceptions raised by the callback propagate out of the
+                loop instead of being retried. Callbacks should return promptly.
             on_message: Called for each appended assistant/tool message, plus
                 the warning user message when max_turns_warning='retain'.
             max_turns_warning: 'omit' (default) sends no warning. 'ephemeral'
@@ -1856,6 +1880,7 @@ class _LLMClient(BaseModel):
             skills=skills,
             max_rounds=max_rounds,
             on_round_complete=on_round_complete,
+            on_text_delta=on_text_delta,
             on_message=on_message,
             max_turns_warning=max_turns_warning,
             output_schema=output_schema,
@@ -1875,6 +1900,7 @@ class _LLMClient(BaseModel):
         max_rounds: int = 5,
         show_progress: bool = False,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
         max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
@@ -1893,6 +1919,7 @@ class _LLMClient(BaseModel):
                 max_rounds=max_rounds,
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
+                on_text_delta=on_text_delta,
                 on_message=on_message,
                 max_turns_warning=max_turns_warning,
                 output_schema=output_schema,
@@ -1913,6 +1940,7 @@ class _LLMClient(BaseModel):
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
         max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
@@ -1980,6 +2008,7 @@ class _LLMClient(BaseModel):
                         skills=skills,
                         max_rounds=max_rounds,
                         on_round_complete=on_round_complete,
+                        on_text_delta=on_text_delta,
                         on_message=on_message,
                         max_turns_warning=max_turns_warning,
                         output_schema=output_schema,
@@ -2035,6 +2064,7 @@ class _LLMClient(BaseModel):
         max_concurrent_agents: int = 10,
         show_progress: bool = True,
         on_round_complete: AgentLoopCallback | None = None,
+        on_text_delta: TextDeltaCallback | None = None,
         on_message: Callable[[Message], Awaitable[None]] | None = None,
         max_turns_warning: MaxTurnsWarning = "omit",
         output_schema: type[BaseModel] | dict | None = None,
@@ -2053,6 +2083,7 @@ class _LLMClient(BaseModel):
                 max_concurrent_agents=max_concurrent_agents,
                 show_progress=show_progress,
                 on_round_complete=on_round_complete,
+                on_text_delta=on_text_delta,
                 on_message=on_message,
                 max_turns_warning=max_turns_warning,
                 output_schema=output_schema,
@@ -2133,6 +2164,7 @@ def LLMClient(
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
+    cache_ttl: Literal["5m", "1h"] | None = None,
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
     thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error",
@@ -2176,6 +2208,7 @@ def LLMClient(
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
+    cache_ttl: Literal["5m", "1h"] | None = None,
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
     thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error",
@@ -2218,6 +2251,7 @@ def LLMClient(
     max_attempts: int = 5,
     request_timeout: int = 30,
     cache: Any = None,
+    cache_ttl: Literal["5m", "1h"] | None = None,
     extra_headers: dict[str, str] | None = None,
     extra_body: dict[str, Any] | None = None,
     thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error",
@@ -2263,6 +2297,9 @@ def LLMClient(
             Reasoning fallbacks with tools use Responses when
             supported, regardless of the primary's use_responses_api setting.
             Without fallbacks, existing random multi-model retries are unchanged.
+        cache_ttl: Anthropic prompt-cache duration ("5m" or "1h"). None
+            preserves provider defaults. Applies to emitted message, tool, and
+            automatic cache breakpoints; ignored by other providers.
         **kwargs: All other LLMClient configuration options (keyword-only)
 
     Returns:
@@ -2285,6 +2322,7 @@ def LLMClient(
         max_attempts=max_attempts,
         request_timeout=request_timeout,
         cache=cache,
+        cache_ttl=cache_ttl,
         extra_headers=extra_headers,
         extra_body=extra_body,
         thinking_prefix_mismatch=thinking_prefix_mismatch,

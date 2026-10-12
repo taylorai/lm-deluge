@@ -15,6 +15,7 @@ from ..errors import raise_if_modal_exception
 from ..models.openai import OPENAI_MODELS
 from ..tracker import MAX_COOLDOWN_SECONDS
 from .response import APIResponse
+from .streaming import TextDeltaCallbackError
 
 
 @asynccontextmanager
@@ -326,7 +327,19 @@ class APIRequestBase(ABC):
 
         try:
             self.context.status_tracker.total_requests += 1
-            timeout = aiohttp.ClientTimeout(total=self.context.request_timeout)
+            timeout = (
+                aiohttp.ClientTimeout(
+                    total=None,
+                    sock_connect=self.context.request_timeout,
+                    sock_read=self.context.request_timeout,
+                )
+                if self.context.on_text_delta is not None
+                and (
+                    (self.request_json or {}).get("stream")
+                    or "streamGenerateContent" in (self.url or "")
+                )
+                else aiohttp.ClientTimeout(total=self.context.request_timeout)
+            )
             async with _get_session(self.context, timeout=timeout) as session:
                 assert self.url is not None, "URL is not set"
                 async with session.post(
@@ -393,6 +406,10 @@ class APIRequestBase(ABC):
                 usage=None,
             )
 
+        except TextDeltaCallbackError as e:
+            # The caller's callback failed (e.g. the turn was cancelled); that
+            # is not a provider error, so surface it instead of retrying.
+            raise e.original from None
         except Exception as e:
             raise_if_modal_exception(e)
             tb = traceback.format_exc()

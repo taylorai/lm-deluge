@@ -1,5 +1,6 @@
 import json
 import os
+import uuid
 from collections.abc import Sequence
 from typing import Any, cast
 
@@ -14,6 +15,7 @@ from ..prompt import Conversation, Message, Text, Thinking, ThoughtSignature, To
 from ..prompt.file import File
 from ..usage import Usage
 from .base import APIRequestBase, APIResponse, parse_retry_after
+from .streaming import read_provider_stream
 
 
 async def _build_gemini_request(
@@ -243,6 +245,11 @@ class GeminiRequest(APIRequestBase):
 
     async def build_request(self):
         self.url = f"{self.model.api_base}/models/{self.model.name}:generateContent"
+        if self.context.on_text_delta is not None:
+            self.url = (
+                self.url.removesuffix(":generateContent")
+                + ":streamGenerateContent?alt=sse"
+            )
         api_key = os.getenv(self.model.api_key_env_var)
         if not api_key:
             raise ValueError(
@@ -261,6 +268,14 @@ class GeminiRequest(APIRequestBase):
         )
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
+        if (
+            self.context.on_text_delta is not None
+            and 200 <= http_response.status < 300
+            and "text/event-stream" in http_response.headers.get("Content-Type", "")
+        ):
+            http_response = await read_provider_stream(
+                http_response, self.context, "gemini"
+            )
         is_error = False
         error_message = None
         thinking = None
@@ -298,7 +313,14 @@ class GeminiRequest(APIRequestBase):
                                     else None
                                 )
 
-                                if "text" in part:
+                                if part.get("thought") and "text" in part:
+                                    parts.append(
+                                        Thinking(
+                                            content=part["text"],
+                                            thought_signature=thought_sig,
+                                        )
+                                    )
+                                elif "text" in part:
                                     parts.append(
                                         Text(
                                             part["text"],
@@ -316,9 +338,10 @@ class GeminiRequest(APIRequestBase):
                                 elif "functionCall" in part:
                                     func_call = part["functionCall"]
                                     # Generate a unique ID since Gemini doesn't provide one
-                                    import uuid
-
-                                    tool_id = f"call_{uuid.uuid4().hex[:8]}"
+                                    tool_id = (
+                                        func_call.get("id")
+                                        or f"call_{uuid.uuid4().hex[:8]}"
+                                    )
                                     parts.append(
                                         ToolCall(
                                             id=tool_id,
@@ -397,6 +420,9 @@ class GeminiRequest(APIRequestBase):
             sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
+            finish_reason=(data.get("candidates") or [{}])[0].get("finishReason")
+            if data
+            else None,
             retry_with_different_model=retry_with_different_model,
             give_up_if_no_other_models=give_up_if_no_other_models,
         )
@@ -416,6 +442,11 @@ class VertexGeminiRequest(GeminiRequest):
         self.url = (
             f"{base}/v1beta1/publishers/google/models/{self.model.name}:generateContent"
         )
+        if self.context.on_text_delta is not None:
+            self.url = (
+                self.url.removesuffix(":generateContent")
+                + ":streamGenerateContent?alt=sse"
+            )
         api_key = os.getenv(self.model.api_key_env_var)
         if not api_key:
             raise ValueError(
