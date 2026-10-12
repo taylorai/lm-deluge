@@ -6,6 +6,7 @@ import traceback
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from email.utils import parsedate_to_datetime
+from typing import cast
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -15,7 +16,15 @@ from ..errors import raise_if_modal_exception
 from ..models.openai import OPENAI_MODELS
 from ..tracker import MAX_COOLDOWN_SECONDS
 from .response import APIResponse
-from .streaming import TextDeltaCallbackError
+from .streaming import (
+    OpenAIResponsesStreamAssembler,
+    TextDeltaCallbackError,
+    TextDeltaEvent,
+    _JSONResponse,
+    _stream_error,
+    emit_text_delta,
+    iter_sse,
+)
 
 
 @asynccontextmanager
@@ -168,7 +177,7 @@ class APIRequestBase(ABC):
     async def _execute_once_background_mode(self) -> APIResponse:
         """
         ONLY for OpenAI responses API. Implement the
-        start -> poll -> result style of request.
+        start -> poll -> result or resumable streaming style of request.
         """
         assert self.context.status_tracker, "no status tracker"
         poll_interval = 5.0
@@ -204,6 +213,130 @@ class APIRequestBase(ABC):
             try:
                 self.context.status_tracker.total_requests += 1
                 assert self.url is not None, "URL is not set"
+                if (self.request_json or {}).get("stream"):
+                    assembler = OpenAIResponsesStreamAssembler()
+                    cursor = -1
+
+                    async def consume_stream(http_response):
+                        nonlocal response_id, cursor
+                        if 300 <= http_response.status < 400:
+                            raise RuntimeError("unexpected redirect from provider")
+                        if http_response.status >= 400:
+                            error_text = await http_response.text()
+                            print(
+                                f"\n{'=' * 60}\nHTTP {http_response.status} ERROR\n{'=' * 60}"
+                            )
+                            print(f"Response body:\n{error_text}\n{'=' * 60}\n")
+                        http_response.raise_for_status()
+                        try:
+                            async for payload in iter_sse(http_response):
+                                if payload == "[DONE]":
+                                    break
+                                event = json.loads(payload)
+                                if response_id is None:
+                                    response_id = event.get("response", {}).get("id")
+                                sequence = event.get("sequence_number")
+                                if sequence is not None:
+                                    # A resumed stream may replay previously seen events.
+                                    if sequence <= cursor:
+                                        continue
+                                    cursor = sequence
+                                error = _stream_error(http_response, event)
+                                if error is not None:
+                                    return await self.handle_response(error)
+                                text = assembler.feed(event)
+                                if text and self.context.on_text_delta is not None:
+                                    await emit_text_delta(
+                                        self.context,
+                                        TextDeltaEvent(
+                                            "text",
+                                            self.context.stream_round,
+                                            self.context.model_name,
+                                            text,
+                                        ),
+                                    )
+                                if event.get("type") in {
+                                    "response.completed",
+                                    "response.incomplete",
+                                }:
+                                    return await self.handle_response(
+                                        cast(
+                                            ClientResponse,
+                                            _JSONResponse(
+                                                http_response, assembler.finish()
+                                            ),
+                                        )
+                                    )
+                        except (
+                            aiohttp.ClientPayloadError,
+                            aiohttp.ClientConnectionError,
+                            asyncio.TimeoutError,
+                        ):
+                            if response_id is None:
+                                raise
+                        if response_id is None:
+                            raise ValueError(
+                                "Background stream ended without a response id"
+                            )
+                        return None
+
+                    url = self.url
+
+                    async def run_stream():
+                        async with session.post(
+                            url=url,
+                            headers=self.request_header,
+                            json=self.request_json,
+                            allow_redirects=False,
+                        ) as http_response:
+                            result = await consume_stream(http_response)
+                        no_progress = 0
+                        while result is None:
+                            previous_cursor = cursor
+                            try:
+                                async with session.get(
+                                    url=f"{url}/{response_id}",
+                                    params={"stream": "true", "starting_after": cursor},
+                                    headers=self.request_header,
+                                    allow_redirects=False,
+                                ) as http_response:
+                                    result = await consume_stream(http_response)
+                            except (
+                                aiohttp.ClientPayloadError,
+                                aiohttp.ClientConnectionError,
+                                asyncio.TimeoutError,
+                            ):
+                                pass
+                            no_progress = (
+                                no_progress + 1 if cursor == previous_cursor else 0
+                            )
+                            if result is None and no_progress >= 3:
+                                raise ValueError(
+                                    "Background stream failed to make progress after 3 resume attempts"
+                                )
+                        return result
+
+                    try:
+                        # One deadline covers the POST, all reads, and all resumes.
+                        # (asyncio.timeout needs 3.11; we support 3.10.)
+                        return await asyncio.wait_for(
+                            run_stream(), max(deadline - time.monotonic(), 0)
+                        )
+                    except asyncio.TimeoutError:
+                        await cancel_response(
+                            f"timed out after {time.monotonic() - attempt_start:.1f}s"
+                        )
+                        return APIResponse(
+                            id=self.context.task_id,
+                            model_internal=self.context.model_name,
+                            prompt=self.context.prompt,
+                            sampling_params=self.context.sampling_params,
+                            status_code=None,
+                            is_error=True,
+                            error_message="Request timed out (terminated by client).",
+                            content=None,
+                            usage=None,
+                        )
                 async with session.post(
                     url=self.url,
                     headers=self.request_header,
@@ -262,6 +395,10 @@ class APIRequestBase(ABC):
                             last_status = data["status"]
                         if last_status not in ["queued", "in_progress"]:
                             return await self.handle_response(http_response)
+
+            except TextDeltaCallbackError as e:
+                await cancel_response("text callback failed")
+                raise e.original from None
 
             except (aiohttp.ClientConnectorDNSError, aiohttp.ClientConnectorError) as e:
                 if response_id:

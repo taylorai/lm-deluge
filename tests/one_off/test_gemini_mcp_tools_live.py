@@ -1,6 +1,6 @@
 """Sequential Vertex MCP compatibility tests.
 
-Run: bop run --environment ci52dbovvf5haguktv2klydx4u -- .venv/bin/python tests/one_off/test_gemini_mcp_tools_live.py
+Run: bop run --environment [env] -- .venv/bin/python tests/one_off/test_gemini_mcp_tools_live.py
 Use --probe-schemas to compare native Schema with parametersJsonSchema.
 """
 

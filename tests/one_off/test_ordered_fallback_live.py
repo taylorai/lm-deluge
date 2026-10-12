@@ -1,6 +1,6 @@
 """Live Opus -> fallback -> Opus tool loops and injected Bedrock-wide 503s.
 
-Run: bop run --environment ci52dbovvf5haguktv2klydx4u -- .venv/bin/python tests/one_off/test_ordered_fallback_live.py
+Run: bop run --environment [env] -- .venv/bin/python tests/one_off/test_ordered_fallback_live.py
 Only the injected 503s are mocked; all successful rounds call real providers.
 """
 

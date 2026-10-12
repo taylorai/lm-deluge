@@ -57,7 +57,11 @@ class Thinking:
         return result
 
     def gemini(self) -> dict:
-        result = {"text": f"[Thinking: {self.content}]"}
+        # Gemini expects prior turns back as received: thought parts keep
+        # thought=true (and their signature) rather than becoming visible text.
+        # Redacted Anthropic thinking holds an opaque blob, not readable text.
+        redacted = (self.raw_payload or {}).get("type") == "redacted_thinking"
+        result: dict = {"text": "" if redacted else self.content, "thought": True}
         signature = signature_for_provider(self.thought_signature, "gemini")
         if signature is not None:
             result["thoughtSignature"] = signature

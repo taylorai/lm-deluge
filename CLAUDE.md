@@ -1,5 +1,9 @@
 # lm-deluge
 
+## Public Repository
+
+This is a public repository. Do not put any content that shouldn't be shared with the entire world in any file in this repo that is not .gitignore'd.
+
 ## Development Environment
 
 - Use **uv** for package management. `pip` will fail.

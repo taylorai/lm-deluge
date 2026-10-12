@@ -1,6 +1,6 @@
 """Sequential live streaming, fallback, and 1h cache verification.
 
-bop run --environment ci52dbovvf5haguktv2klydx4u -- .venv/bin/python tests/one_off/test_agent_streaming_live.py
+bop run --environment [env] -- .venv/bin/python tests/one_off/test_agent_streaming_live.py
 """
 
 import asyncio

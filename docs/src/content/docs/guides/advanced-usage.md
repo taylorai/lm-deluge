@@ -27,7 +27,9 @@ Need fine-grained access to each streamed chunk? Call `lm_deluge.api_requests.op
 
 Pass an async `on_text_delta` callback to `run_agent_loop()` to receive visible
 assistant text from Anthropic, OpenAI Chat Completions, OpenAI Responses, and
-Gemini (including their Bedrock and Vertex routes) while each round runs:
+Gemini (including their Bedrock and Vertex routes) while each round runs.
+OpenAI-compatible providers (OpenRouter, Groq, Together, and so on) are not
+streamed yet:
 
 ```python
 from lm_deluge import Conversation, LLMClient, TextDeltaEvent

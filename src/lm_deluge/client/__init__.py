@@ -1860,8 +1860,9 @@ class _LLMClient(BaseModel):
                 assistant message is added but before tool execution.
             on_text_delta: Async callback receiving TextDeltaEvent for visible text.
                 Anthropic (direct and Bedrock), OpenAI Chat Completions and
-                Responses (direct and Bedrock), and Gemini (native and Vertex)
-                stream; other providers use ordinary requests. Reset events
+                Responses (OpenAI and Bedrock), and Gemini (native and Vertex)
+                stream; other providers, including OpenAI-compatible ones,
+                use ordinary requests. Reset events
                 discard partial text on failed attempts. Streaming
                 request_timeout bounds network inactivity, not total generation
                 time. Exceptions raised by the callback propagate out of the

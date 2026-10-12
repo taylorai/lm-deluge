@@ -1,6 +1,6 @@
 """Sequential Bedrock Chat/Responses, Vertex, and cross-provider streaming probes.
 
-bop run --environment ci52dbovvf5haguktv2klydx4u -- .venv/bin/python tests/one_off/test_provider_streaming_live.py
+bop run --environment [env] -- .venv/bin/python tests/one_off/test_provider_streaming_live.py
 """
 
 import asyncio

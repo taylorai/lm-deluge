@@ -166,7 +166,12 @@ class AnthropicStreamAssembler:
         elif kind == "content_block_stop":
             index = event["index"]
             if index in self.inputs:
-                self.blocks[index]["input"] = json.loads(self.inputs.pop(index))
+                # No-argument tools stream only empty partial_json fragments.
+                raw_input = self.inputs.pop(index)
+                if raw_input.strip():
+                    self.blocks[index]["input"] = json.loads(raw_input)
+                else:
+                    self.blocks[index].setdefault("input", {})
         elif kind == "message_delta":
             self.message.update(event.get("delta", {}))
             self.message.setdefault("usage", {}).update(event.get("usage", {}))

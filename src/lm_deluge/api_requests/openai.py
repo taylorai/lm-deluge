@@ -22,6 +22,12 @@ from .base import APIRequestBase, APIResponse, parse_retry_after
 from .streaming import read_provider_stream
 
 
+def _streams_text(model: APIModel, context: RequestContext) -> bool:
+    # OpenAI-compatible providers vary in their stream formats, so only
+    # OpenAI itself streams until each provider is tested.
+    return context.on_text_delta is not None and model.provider == "openai"
+
+
 def _message_contents_to_string(messages: list[dict]):
     messages = messages.copy()
 
@@ -309,13 +315,13 @@ class OpenAIRequest(APIRequestBase):
         )
 
         self.request_json = await _build_oa_chat_request(self.model, self.context)
-        if self.context.on_text_delta is not None:
+        if _streams_text(self.model, self.context):
             self.request_json["stream"] = True
             self.request_json["stream_options"] = {"include_usage": True}
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         if (
-            self.context.on_text_delta is not None
+            _streams_text(self.model, self.context)
             and 200 <= http_response.status < 300
             and "text/event-stream" in http_response.headers.get("Content-Type", "")
         ):
@@ -792,12 +798,12 @@ class OpenAIResponsesRequest(APIRequestBase):
         }
 
         self.request_json = await _build_oa_responses_request(self.model, self.context)
-        if self.context.on_text_delta is not None:
+        if _streams_text(self.model, self.context):
             self.request_json["stream"] = True
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         if (
-            self.context.on_text_delta is not None
+            _streams_text(self.model, self.context)
             and 200 <= http_response.status < 300
             and "text/event-stream" in http_response.headers.get("Content-Type", "")
         ):

@@ -296,7 +296,7 @@ async def test_history_translation_and_starting_fallback():
         APIModel.from_registry(GEMINI), prompt, None, SamplingParams()
     )
     parts = gemini["contents"][1]["parts"]
-    assert parts[0] == {"text": "[Thinking: signed thought]"}
+    assert parts[0] == {"text": "signed thought", "thought": True}
     assert parts[1]["thoughtSignature"] == "context_engineering_is_the_way_to_go"
     assert parts[1]["functionCall"]["name"] == "echo"
 

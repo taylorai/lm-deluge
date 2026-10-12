@@ -23,7 +23,8 @@ def test_thinking_signature_serialization():
     result = thinking.gemini()
     assert "thoughtSignature" in result
     assert result["thoughtSignature"] == "test_signature_123"
-    assert result["text"] == "[Thinking: Let me think about this...]"
+    assert result["text"] == "Let me think about this..."
+    assert result["thought"] is True
 
 
 def test_text_signature_serialization():
@@ -41,7 +42,8 @@ def test_thinking_without_signature():
 
     result = thinking.gemini()
     assert "thoughtSignature" not in result
-    assert result["text"] == "[Thinking: Let me think about this...]"
+    assert result["text"] == "Let me think about this..."
+    assert result["thought"] is True
 
 
 def test_toolcall_signature_serialization():
