@@ -671,6 +671,8 @@ def parse_openai_responses_data(
                 first_summary = summary_list[0]
                 if isinstance(first_summary, dict):
                     summary_text = first_summary.get("text", "")
+            if summary_text:
+                thinking = summary_text
             parts.append(
                 Thinking(
                     content=summary_text or "[reasoning]",
@@ -761,16 +763,9 @@ def parse_openai_responses_data(
                 )
             )
 
-    response_reasoning = data.get("reasoning")
-    response_summary = (
-        response_reasoning.get("summary")
-        if isinstance(response_reasoning, dict)
-        else None
-    )
-    if isinstance(response_summary, str) and response_summary:
-        thinking = response_summary
-        if not any(isinstance(part, Thinking) for part in parts):
-            parts.append(Thinking(thinking))
+    # The top-level `reasoning` object echoes the request's settings (e.g.
+    # {"effort": "high", "summary": "detailed"}), not reasoning text, so it
+    # never becomes a Thinking part; summaries come from reasoning items above.
 
     content = Message("assistant", parts)
     if message_phase is not None:
