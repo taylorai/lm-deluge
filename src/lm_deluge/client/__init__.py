@@ -952,6 +952,9 @@ class _LLMClient(BaseModel):
             # print(f"DEBUG: Checking cache for prompt with {len(context.prompt.messages)} messages")
             cached = self.cache.get(context.prompt)
             if cached:
+                # TODO: cache hits skip on_text_delta, so a callback-driven UI
+                # shows nothing for this round; consider emitting the cached
+                # completion as a single text event.
                 # print(f"DEBUG: Cache HIT! Returning cached response")
                 cached.local_cache_hit = True
                 if context.status_tracker:
