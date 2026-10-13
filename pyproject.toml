@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 
 [project]
 name = "lm_deluge"
-version = "0.0.166"
+version = "0.0.167"
 authors = [{ name = "Benjamin Anderson", email = "ben@trytaylor.ai" }]
 description = "Python utility for using LLM API models."
 readme = "README.md"
@@ -19,7 +19,7 @@ dependencies = [
     "xxhash==3.6.0",
     "tqdm",
     "pydantic",
-    "markdownify-rs==0.1.5",
+    "markdownify-rs>=0.1.5,<0.3",
     "pillow>=12.3.0",
     "pygments>=2.20.0",
     "rich",
