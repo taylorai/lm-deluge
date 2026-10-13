@@ -460,8 +460,10 @@ async def _build_oa_responses_request(
         "input": openai_responses_format["input"],
         "temperature": sampling_params.temperature,
         "top_p": sampling_params.top_p,
-        "background": context.background or False,
     }
+    # Only send background when enabled; xAI rejects the field entirely.
+    if context.background:
+        request_json["background"] = True
     if model.omit_default_sampling_params:
         if sampling_params.temperature == 1.0:
             del request_json["temperature"]

@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.166 · 2026-10-13
+
+- **New first-party xAI Grok models**: Added `grok-4.7`, `grok-4.6`, `grok-4.5`, `grok-4.3`, `grok-4.20-reasoning`, `grok-4.20-non-reasoning` and `grok-build-0.1` on `api.x.ai` (`GROK_API_KEY`). Grok 4.3–4.7 send `reasoning_effort` and support `xhigh`; only `grok-4.3` accepts `none`. Grok 4.20 and Build 0.1 reject `reasoning_effort`, so it is never sent. Prices use xAI's under-200k-token tier. Live runs passed on all seven via Chat Completions and Responses (`tests/one_off/test_grok_4_x_live.py`, `tests/models/test_grok_4_x.py`).
+- **Responses requests omit `background` unless enabled**: The Responses request builder always sent `"background": false`, which xAI rejects with a 400. The field is now sent only when `background=True`; OpenAI behavior is unchanged.
+
 ## 0.0.165 · 2026-10-12
 
 - **Responses settings are no longer parsed as reasoning**: The top-level `reasoning` object in an OpenAI Responses reply echoes the request settings (e.g. `{"effort": "high", "summary": "detailed"}`), but the parser turned its `summary` value into a `Thinking` part whenever a round had no reasoning item. Streamed Luna tool rounds on Bedrock hit this, so apps showed "detailed" as the model's reasoning. Reasoning now comes only from reasoning output items, and `APIResponse.thinking` carries their summary text (`tests/core/test_responses_reasoning_settings.py`).
