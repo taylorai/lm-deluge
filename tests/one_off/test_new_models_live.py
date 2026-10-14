@@ -16,11 +16,8 @@ from lm_deluge import Conversation, LLMClient
 
 GEMINI_MODELS = (
     "gemini-3.6-flash",
-    "gemini-3.6-flash-compat",
     "gemini-3.7-flash",
-    "gemini-3.7-flash-compat",
     "gemini-3.8-flash",
-    "gemini-3.8-flash-compat",
 )
 MUSE_MODELS = (
     "muse-spark-1.3",

@@ -117,15 +117,20 @@ class Usage:
         """Create Usage from Gemini API response usage data.
 
         Gemini supports context caching - cached tokens appear in cachedContentTokenCount.
+        candidatesTokenCount excludes thinking, which Gemini reports separately in
+        thoughtsTokenCount and bills as output, so output_tokens includes both (the
+        same convention as OpenAI and Anthropic).
         """
         cached_tokens = usage_data.get("cachedContentTokenCount", 0)
+        reasoning_tokens = usage_data.get("thoughtsTokenCount", 0) or 0
 
         return cls(
             input_tokens=usage_data.get("promptTokenCount", 0),
-            output_tokens=usage_data.get("candidatesTokenCount", 0),
+            output_tokens=(usage_data.get("candidatesTokenCount", 0) or 0)
+            + reasoning_tokens,
             cache_read_tokens=cached_tokens if cached_tokens > 0 else 0,
             cache_write_tokens=0,  # Gemini doesn't charge separately for cache writes
-            reasoning_tokens=usage_data.get("thoughtsTokenCount", 0) or 0,
+            reasoning_tokens=reasoning_tokens,
         )
 
     def to_dict(self) -> dict:

@@ -8,114 +8,6 @@ GOOGLE_MODELS = {
     #  `Y8bood8P'   `Y8bod8P' `Y8bod8P' `8oooooo.  o888o `Y8bod8P' o88o     o8888o o888o
     #                                   d"     YD
     #                                   "Y88888P'
-    # these are through AI studio rather than Vertex, and using the OpenAI-compatible endpoints
-    "gemini-2.5-pro-compat": {
-        "id": "gemini-2.5-pro-compat",
-        "name": "gemini-2.5-pro",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "openai",
-        "input_cost": 1.25,
-        "cached_input_cost": 0.125,
-        "output_cost": 10.0,
-        "reasoning_model": True,
-        "supports_images": True,
-    },
-    "gemini-2.5-flash-compat": {
-        "id": "gemini-2.5-flash-compat",
-        "name": "gemini-2.5-flash",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "openai",
-        "input_cost": 0.3,
-        "cached_input_cost": 0.03,
-        "output_cost": 2.5,
-        "reasoning_model": True,
-        "supports_images": True,
-    },
-    "gemini-2.5-flash-lite-compat": {
-        "id": "gemini-2.5-flash-lite-compat",
-        "name": "gemini-2.5-flash-lite",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "openai",
-        "input_cost": 0.1,
-        "cached_input_cost": 0.01,
-        "output_cost": 0.4,
-        "reasoning_model": True,
-        "supports_images": True,
-    },
-    "gemini-3.1-flash-lite-compat": {
-        "id": "gemini-3.1-flash-lite-compat",
-        "name": "gemini-3.1-flash-lite",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "openai",
-        "input_cost": 0.25,
-        "cached_input_cost": 0.025,
-        "output_cost": 1.5,
-        "reasoning_model": True,
-        "supports_images": True,
-    },
-    "gemini-3.5-flash-compat": {
-        "id": "gemini-3.5-flash-compat",
-        "name": "gemini-3.5-flash",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "openai",
-        "input_cost": 1.5,
-        "cached_input_cost": 0.15,
-        "output_cost": 9.0,
-        "reasoning_model": True,
-        "supports_images": True,
-    },
-    "gemini-3.5-flash-lite-compat": {
-        "id": "gemini-3.5-flash-lite-compat",
-        "name": "gemini-3.5-flash-lite",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "openai",
-        "input_cost": 0.3,
-        "cached_input_cost": 0.03,
-        "output_cost": 2.5,
-        "reasoning_model": True,
-        "supports_images": True,
-    },
-    **{
-        f"{model_name}-compat": {
-            "id": f"{model_name}-compat",
-            "name": model_name,
-            "api_base": "https://generativelanguage.googleapis.com/v1beta/openai",
-            "api_key_env_var": "GEMINI_API_KEY",
-            "supports_json": True,
-            "supports_logprobs": False,
-            "api_spec": "openai",
-            "input_cost": 0.75,
-            "cached_input_cost": 0.075,
-            "output_cost": 3.75,
-            "reasoning_model": True,
-            "supports_images": True,
-            "omit_default_reasoning_effort": True,
-            "omit_default_sampling_params": True,
-        }
-        for model_name in (
-            "gemini-3.6-flash",
-            "gemini-3.7-flash",
-            "gemini-3.8-flash",
-        )
-    },
     # Native Gemini API versions with file support
     "gemini-2.5-pro": {
         "id": "gemini-2.5-pro",
@@ -210,6 +102,23 @@ GOOGLE_MODELS = {
             "gemini-3.8-flash",
         )
     },
+    # Gemini 4 Argon launch pricing runs through 2026-11-30; standard pricing
+    # after that is $4/$20 per million with cached input at $0.20.
+    "gemini-4-argon": {
+        "id": "gemini-4-argon",
+        "name": "gemini-4-argon",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 2.0,
+        "cached_input_cost": 0.1,
+        "output_cost": 10.0,
+        "reasoning_model": True,
+        "supports_images": True,
+        "omit_default_sampling_params": True,
+    },
     "gemini-3.1-pro-preview": {
         "id": "gemini-3.1-pro-preview",
         "name": "gemini-3.1-pro-preview",
@@ -288,6 +197,8 @@ GOOGLE_MODELS = {
 # Models confirmed to answer on Vertex (global endpoint) with an API key, 2026-10-02.
 # Not every model is served from every location: e.g. the "us" multi-region
 # endpoint lacks gemini-2.5-*, gemini-3-flash-preview, and gemini-3.1-pro-preview.
+# gemini-4-argon answers on the "us" and "eu" endpoints but returns 404 on
+# "global" as of 2026-10-13, even though Google's docs list it there.
 VERTEX_GEMINI_MODELS = (
     "gemini-2.5-pro",
     "gemini-2.5-flash",
@@ -300,6 +211,7 @@ VERTEX_GEMINI_MODELS = (
     "gemini-3.6-flash",
     "gemini-3.7-flash",
     "gemini-3.8-flash",
+    "gemini-4-argon",
 )
 
 GOOGLE_MODELS.update(

@@ -18,6 +18,13 @@ from .base import APIRequestBase, APIResponse, parse_retry_after
 from .streaming import read_provider_stream
 
 
+def _is_gemini_3_or_later(model_name: str) -> bool:
+    # Gemini 4 keeps the Gemini 3 thinking levels, thought signatures, and
+    # media resolution controls.
+    name = model_name.lower()
+    return "gemini-3" in name or "gemini-4" in name
+
+
 async def _build_gemini_request(
     model: APIModel,
     prompt: Conversation,
@@ -27,7 +34,7 @@ async def _build_gemini_request(
     system_message, messages = prompt.to_gemini()
 
     # For Gemini 3, inject dummy signatures when missing for function calls
-    is_gemini_3 = "gemini-3" in model.name.lower()
+    is_gemini_3 = _is_gemini_3_or_later(model.name)
     if is_gemini_3:
         dummy_sig = "context_engineering_is_the_way_to_go"
         for msg in messages:
@@ -57,7 +64,7 @@ async def _build_gemini_request(
         request_json["systemInstruction"] = {"parts": [{"text": system_message}]}
 
     # Handle reasoning models (thinking)
-    is_gemini_3 = "gemini-3" in model.name.lower()
+    is_gemini_3 = _is_gemini_3_or_later(model.name)
     is_gemini_3_flash = "flash" in model.name.lower()
     if is_gemini_3:
         # gemini3 MUST think
@@ -67,6 +74,7 @@ async def _build_gemini_request(
                 "gemini-3.6-flash",
                 "gemini-3.7-flash",
                 "gemini-3.8-flash",
+                "gemini-4-argon",
             }:
                 effort = "medium"
             else:
@@ -205,7 +213,7 @@ async def _build_gemini_request(
 
     # Handle global media resolution for Gemini 3.
     if sampling_params.media_resolution is not None:
-        is_gemini_3 = "gemini-3" in model.name.lower()
+        is_gemini_3 = _is_gemini_3_or_later(model.name)
         if is_gemini_3:
             # generationConfig.mediaResolution is a scalar enum. The lowercase
             # library values map directly to Gemini's uppercase enum names.

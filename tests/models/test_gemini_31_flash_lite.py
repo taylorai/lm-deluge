@@ -17,19 +17,6 @@ async def test_native_basic():
     print(f"  cost: ${res[0].cost:.6f}")
 
 
-async def test_compat_basic():
-    """Basic completion via OpenAI-compatible endpoint."""
-    client = LLMClient("gemini-3.1-flash-lite-compat", max_new_tokens=64)
-    res = await client.process_prompts_async(
-        ["What is 2+2? Reply with just the number."]
-    )
-    assert not res[0].is_error, f"Compat basic failed: {res[0].error_message}"
-    assert res[0].completion is not None
-    assert "4" in res[0].completion
-    print(f"  compat basic: {res[0].completion!r}")
-    print(f"  cost: ${res[0].cost:.6f}")
-
-
 async def test_native_tool_use():
     """Tool calling via native Gemini API."""
 
@@ -51,12 +38,6 @@ async def main():
     print("Testing gemini-3.1-flash-lite (native)...")
     await test_native_basic()
     await test_native_tool_use()
-
-    print("Testing gemini-3.1-flash-lite-compat (OpenAI-compat)...")
-    await test_compat_basic()
-    # NOTE: compat tool use skipped — Gemini 3.x OpenAI-compat endpoint
-    # requires thought signatures which the OpenAI format can't carry.
-    # Use the native gemini-3.1-flash-lite for tool calling.
 
     print("All tests passed!")
 

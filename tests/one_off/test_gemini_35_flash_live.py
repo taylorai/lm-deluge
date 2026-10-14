@@ -159,40 +159,6 @@ async def test_native_json_mode():
     print(f"native json mode: {data!r}")
 
 
-async def test_compat_basic():
-    client = LLMClient(
-        "gemini-3.5-flash-compat",
-        max_new_tokens=512,
-        request_timeout=120,
-    )
-    responses = await client.process_prompts_async(
-        ["What is 2+2? Reply with just the number."],
-        show_progress=False,
-    )
-    response = responses[0]
-    completion = assert_successful_completion(response, "compat basic")
-    assert "4" in completion
-    print(f"compat basic: {completion!r}")
-
-
-async def test_compat_reasoning_level():
-    client = LLMClient(
-        "gemini-3.5-flash-compat",
-        max_new_tokens=512,
-        request_timeout=120,
-        reasoning_effort="medium",
-    )
-    responses = await client.process_prompts_async(
-        ["Answer with only the word ok."],
-        show_progress=False,
-    )
-    completion = assert_successful_completion(
-        response=responses[0], label="compat medium"
-    )
-    assert "ok" in completion.lower()
-    print(f"compat reasoning_effort=medium: {completion!r}")
-
-
 async def main():
     await test_native_basic()
     await test_native_reasoning_levels()
@@ -200,8 +166,6 @@ async def main():
     await test_native_tool_call_roundtrip()
     await test_native_roundtrip_conversation()
     await test_native_json_mode()
-    await test_compat_basic()
-    await test_compat_reasoning_level()
     print("All live Gemini 3.5 Flash smoke tests passed!")
 
 
