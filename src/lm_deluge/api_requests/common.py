@@ -1,7 +1,11 @@
 from .anthropic import AnthropicRequest
 from .bedrock import BedrockRequest
 from .bedrock_nova import BedrockNovaRequest
-from .cloudflare import CloudflareMoondreamRequest, CloudflareRequest
+from .cloudflare import (
+    CloudflareClefRequest,
+    CloudflareMoondreamRequest,
+    CloudflareRequest,
+)
 from .gemini import GeminiRequest, VertexGeminiRequest
 from .mistral import MistralRequest
 from .moondream import MoondreamRequest
@@ -14,6 +18,7 @@ CLASSES = {
     "anthropic": AnthropicRequest,
     "cloudflare": CloudflareRequest,
     "cloudflare-moondream": CloudflareMoondreamRequest,
+    "cloudflare-clef": CloudflareClefRequest,
     "mistral": MistralRequest,
     "bedrock": BedrockRequest,
     "bedrock-nova": BedrockNovaRequest,

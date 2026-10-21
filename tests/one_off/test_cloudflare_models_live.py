@@ -15,6 +15,7 @@ from lm_deluge import Conversation, LLMClient
 from lm_deluge.prompt import Image
 
 MODEL_IDS = [
+    "deepseek-v4.1-flash-1017-cf",
     "glm-5.3-flash-cf",
     "qwen3.8-27b-cf",
     "deepseek-v4-pro-0813-cf",
@@ -39,7 +40,7 @@ def _require_credentials() -> None:
 
 
 def _prompt_for(model_id: str) -> Conversation:
-    if model_id == "moondream3.1-9b-a2b-cf":
+    if model_id in {"moondream3.1-9b-a2b-cf", "deepseek-v4.1-flash-1017-cf"}:
         return Conversation().user(
             "Briefly describe this image.",
             image=Image("tests/image.jpg"),
@@ -52,7 +53,7 @@ def _prompt_for(model_id: str) -> Conversation:
 async def _get_completion(model_id: str) -> str:
     client = LLMClient(
         model_names=model_id,
-        max_new_tokens=512,
+        max_new_tokens=2048,
         max_attempts=1,
         request_timeout=180,
     )
