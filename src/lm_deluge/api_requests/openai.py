@@ -199,6 +199,10 @@ async def _build_oa_chat_request(
                 sampling_params.reasoning_effort,
                 model_name=context.model_name,
             )
+        # OpenAI only accepts 'max' on the Responses API, not chat completions
+        if effort == "max" and "api.openai.com" in model.api_base:
+            maybe_warn("WARN_MAX_TO_XHIGH_CHAT", model_name=context.model_name)
+            effort = "xhigh"
         # GPT-5.2+ and gpt-5.1-codex-max don't support temperature/top_p when reasoning is enabled
         if model.supports_xhigh and effort not in {None, "none"}:
             request_json.pop("temperature", None)

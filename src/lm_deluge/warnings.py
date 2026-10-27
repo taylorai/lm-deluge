@@ -15,6 +15,7 @@ WARNINGS: dict[str, str] = {
     "WARN_MINIMAL_TO_NONE": "'minimal' reasoning effort is not supported for {model_name}. Converting to 'none'.",
     "WARN_XHIGH_TO_HIGH": "'xhigh' reasoning effort is not supported for {model_name}. Using 'high'.",
     "WARN_MAX_TO_XHIGH": "'max' reasoning effort is not supported for {model_name}. Using 'xhigh'.",
+    "WARN_MAX_TO_XHIGH_CHAT": "'max' reasoning effort is only supported on the Responses API for {model_name}. Using 'xhigh'.",
     "WARN_MAX_TO_HIGH": "'max' reasoning effort is not supported for {model_name}. Using 'high'.",
     "WARN_NONE_TO_LOW": "'none' reasoning effort is not supported for {model_name}. Using 'low'.",
     "WARN_MEDIA_RESOLUTION_UNSUPPORTED": "media_resolution parameter is only supported for Gemini 3 models, ignoring for {model_name}.",

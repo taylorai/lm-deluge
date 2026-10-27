@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.170 · 2026-10-27
+
+- **GPT-6.1 Terra**: Added `gpt-6.1-terra` at $1.00 input / $0.05 cached / $5.00 output per million tokens, with vision, JSON, verbosity and reasoning efforts `none` through `max`. Prompts over 272K input tokens are billed at a higher rate by OpenAI; that surcharge is not reflected in `response.cost`. Live runs passed on chat and Responses at every effort plus a tool round-trip (`tests/one_off/test_gpt_61_terra_live.py`).
+- **`max` effort on OpenAI chat completions**: OpenAI accepts `reasoning_effort="max"` only on the Responses API, and chat completions rejected it with a 400 on every GPT-6 and GPT-5.6 model. Chat requests to `api.openai.com` now send `xhigh` instead and warn; the Responses API still sends `max`.
+
 ## 0.0.169 · 2026-10-20
 
 - **Cloudflare Clef decision models**: Added `clef-cf`, `clef-omni-cf` and `clef-flash-cf` (`@cf/cloudflare/clef*`), Cloudflare's decision models that score a state against typed questions instead of generating text. Pass the questions in `extra_body["questions"]` (`noul` yes/no, `choice` and `score` types, as in Cloudflare's docs). The state is the conversation text, or `extra_body["state"]` for structured data. Images in the conversation are sent as embedded data URLs, and clef-omni takes audio via `extra_body["audio"]`. `response.completion` is the `answers` object as JSON and `raw_response` holds the full result. Input is billed at $0.24 / $0.15 / $0.038 per million tokens and output is free. Live runs passed on all three for text and image questions, plus audio on clef-omni (`tests/one_off/test_cloudflare_clef_live.py`).
