@@ -5,7 +5,7 @@ description: How to install and set up LM Deluge
 
 ## Installation
 
-Install LM Deluge using pip (Python 3.10+):
+Install LM Deluge using pip (Python 3.11+):
 
 ```bash
 python -m pip install -U lm-deluge

@@ -14,20 +14,24 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.41.4",
-    "astro": "^7.2.8",
-    "sharp": "^0.35.4"
+    "@astrojs/starlight": "^0.42.7",
+    "astro": "^7.4.2",
+    "sharp": "^0.35.5"
   },
   "pnpm": {
     "overrides": {
       "devalue": "5.9.3",
+      "http-cache-semantics": "4.3.0",
       "js-yaml": "4.3.2",
       "nanoid": "3.3.18",
       "postcss": "8.5.23",
-      "sharp": "0.35.4",
-      "smol-toml": "1.7.2",
+      "postcss-selector-parser@6": "6.1.5",
+      "sharp": "0.35.5",
+      "smol-toml": "1.9.0",
+      "source-map-js": "1.2.2",
       "svgo": "4.1.0",
-      "undici": "8.10.2"
+      "undici": "8.12.2",
+      "zod": "4.6.7"
     }
   }
 }
