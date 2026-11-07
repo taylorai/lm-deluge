@@ -30,6 +30,7 @@ from .nvidia import NVIDIA_MODELS
 from .openai import OPENAI_MODELS
 from .openrouter import OPENROUTER_MODELS
 from .perceptron import PERCEPTRON_MODELS
+from .tinker import TINKER_MODELS
 from .together import TOGETHER_MODELS
 from .zai import ZAI_MODELS
 
@@ -56,6 +57,7 @@ class APIModel:
     supports_xhigh: bool = False
     supports_max_reasoning: bool = False
     supports_reasoning_none: bool = False
+    supports_float_reasoning_effort: bool = False
     supports_verbosity: bool = False
     omit_default_sampling_params: bool = False
     omit_default_reasoning_effort: bool = False
@@ -100,8 +102,21 @@ class APIModel:
                 return value
         return None
 
+    def check_reasoning_effort(self, effort: object) -> None:
+        """Reject numeric reasoning effort for models that only take named levels."""
+        if (
+            isinstance(effort, (int, float))
+            and not self.supports_float_reasoning_effort
+        ):
+            raise ValueError(
+                f"Model '{self.id}' does not support numeric reasoning_effort "
+                f"({effort!r}); use a named level like 'low' or 'high'."
+            )
+
     def make_request(self, context: RequestContext):
         from ..api_requests.common import CLASSES
+
+        self.check_reasoning_effort(context.sampling_params.reasoning_effort)
 
         api_spec = self.api_spec
         if (
@@ -140,6 +155,7 @@ def register_model(
     supports_xhigh: bool = False,
     supports_max_reasoning: bool = False,
     supports_reasoning_none: bool = False,
+    supports_float_reasoning_effort: bool = False,
     supports_verbosity: bool = False,
     omit_default_sampling_params: bool = False,
     omit_default_reasoning_effort: bool = False,
@@ -179,6 +195,7 @@ def register_model(
         supports_xhigh=supports_xhigh,
         supports_max_reasoning=supports_max_reasoning,
         supports_reasoning_none=supports_reasoning_none,
+        supports_float_reasoning_effort=supports_float_reasoning_effort,
         supports_verbosity=supports_verbosity,
         omit_default_sampling_params=omit_default_sampling_params,
         omit_default_reasoning_effort=omit_default_reasoning_effort,
@@ -231,6 +248,7 @@ _PROVIDER_MODELS = [
     (OPENAI_MODELS, "openai"),
     (OPENROUTER_MODELS, "openrouter"),
     (PERCEPTRON_MODELS, "perceptron"),
+    (TINKER_MODELS, "tinker"),
     (TOGETHER_MODELS, "together"),
     (GROQ_MODELS, "groq"),
     (INCEPTION_MODELS, "inception"),

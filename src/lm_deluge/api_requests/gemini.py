@@ -9,7 +9,7 @@ from aiohttp import ClientResponse
 from lm_deluge.api_requests.context import RequestContext
 from lm_deluge.warnings import maybe_warn
 
-from ..config import SamplingParams
+from ..config import SamplingParams, named_reasoning_effort
 from ..models import APIModel
 from ..prompt import Conversation, Message, Text, Thinking, ThoughtSignature, ToolCall
 from ..prompt.file import File
@@ -81,7 +81,7 @@ async def _build_gemini_request(
                 maybe_warn("WARN_GEMINI3_NO_REASONING")
                 effort = "low"
         else:
-            effort_key = sampling_params.reasoning_effort
+            effort_key = named_reasoning_effort(sampling_params.reasoning_effort)
             if effort_key == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
                 effort_key = "high"
@@ -139,7 +139,7 @@ async def _build_gemini_request(
             # dynamic thinking
             thinking_config = {"includeThoughts": True, "thinkingBudget": -1}
         elif sampling_params.reasoning_effort not in [None, "none"]:
-            effort_key = sampling_params.reasoning_effort
+            effort_key = named_reasoning_effort(sampling_params.reasoning_effort)
             if effort_key == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
                 effort_key = "high"

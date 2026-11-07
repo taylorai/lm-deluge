@@ -1,10 +1,36 @@
-from typing import Literal, TypeAlias
+from typing import Annotated, Literal, TypeAlias, overload
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 ReasoningEffort: TypeAlias = Literal[
     "none", "minimal", "low", "medium", "high", "xhigh", "max"
 ]
+# Numeric effort is only accepted by providers that support it (Tinker).
+FloatReasoningEffort: TypeAlias = Annotated[float, Field(ge=0.0, le=0.99)]
+ReasoningEffortValue: TypeAlias = ReasoningEffort | FloatReasoningEffort
+
+
+@overload
+def named_reasoning_effort(effort: ReasoningEffortValue) -> ReasoningEffort: ...
+@overload
+def named_reasoning_effort(effort: None) -> None: ...
+@overload
+def named_reasoning_effort(
+    effort: ReasoningEffortValue | None,
+) -> ReasoningEffort | None: ...
+def named_reasoning_effort(
+    effort: ReasoningEffortValue | None,
+) -> ReasoningEffort | None:
+    """Narrow to a named effort level for providers that only accept those.
+
+    APIModel.make_request already rejects numeric effort for such models; this
+    keeps provider code type-safe and fails loudly if that gate is bypassed.
+    """
+    if isinstance(effort, (int, float)):
+        raise TypeError(f"numeric reasoning_effort {effort!r} is not supported here")
+    return effort
+
+
 GlobalEffort: TypeAlias = Literal[
     "none", "minimal", "low", "medium", "high", "xhigh", "max"
 ]
@@ -20,7 +46,7 @@ class SamplingParams(BaseModel):
     max_new_tokens: int = 2_048
     global_effort: GlobalEffort | None = None
     verbosity: GlobalEffort | None = None
-    reasoning_effort: ReasoningEffort | None = None
+    reasoning_effort: ReasoningEffortValue | None = None
     thinking_budget: int | None = None
     logprobs: bool = False
     top_logprobs: int | None = None

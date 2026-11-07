@@ -48,8 +48,9 @@ from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
 from ..api_requests.base import APIResponse
 from ..api_requests.context import RequestContext, ThinkingPrefixMismatchBehavior
 from ..api_requests.streaming import TextDeltaCallback, TextDeltaEvent
-from ..config import SamplingParams
+from ..config import ReasoningEffortValue, SamplingParams
 from ..models import APIModel, register_model, registry
+from ..models.tinker import TINKER_API_BASE, TINKER_API_KEY_ENV_VAR
 from ..tracker import StatusTracker
 
 
@@ -156,9 +157,7 @@ class _LLMClient(BaseModel):
     top_p: float = 1.0
     json_mode: bool = False
     max_new_tokens: int = 512
-    reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
-    ] = None
+    reasoning_effort: ReasoningEffortValue | None = None
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None
@@ -281,6 +280,11 @@ class _LLMClient(BaseModel):
             ]
         else:
             self._reset_model_weights()
+        self._check_reasoning_efforts()
+
+    def _check_reasoning_efforts(self) -> None:
+        for model_name, sp in zip(self.model_names, self.sampling_params):
+            registry[model_name].check_reasoning_effort(sp.reasoning_effort)
 
     def _normalize_model_names(
         self, models: list[str]
@@ -411,10 +415,21 @@ class _LLMClient(BaseModel):
                 register_model(
                     id=model_name,
                     name=model_name,
-                    api_base="https://tinker.thinkingmachines.dev/services/tinker-prod/oai/api/v1",
-                    api_key_env_var="TINKER_API_KEY",
+                    api_base=TINKER_API_BASE,
+                    api_key_env_var=TINKER_API_KEY_ENV_VAR,
                     api_spec="openai",
-                    supports_json=True,
+                    provider="tinker",
+                    supports_json=False,  # Tinker ignores response_format
+                    # Effort support depends on the checkpoint's base model
+                    # (Inkling: named or float; Qwen: bool only), so only
+                    # send it when the caller asks and keep their temperature.
+                    reasoning_model=True,
+                    omit_default_reasoning_effort=True,
+                    omit_default_sampling_params=True,
+                    supports_reasoning_none=True,
+                    supports_minimal_reasoning=True,
+                    supports_xhigh=True,
+                    supports_float_reasoning_effort=True,
                     supports_logprobs=False,
                     supports_responses=False,
                     input_cost=0,  # Unknown costs for arbitrary tinker models
@@ -637,6 +652,8 @@ class _LLMClient(BaseModel):
             raise ValueError("at least one model must have a positive weight")
         # normalize weights
         self.model_weights = [w / sum(self.model_weights) for w in self.model_weights]
+
+        self._check_reasoning_efforts()
 
         # background mode only allowed for responses api
         if self.background:
@@ -2179,9 +2196,7 @@ def LLMClient(
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
-    reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
-    ] = None,
+    reasoning_effort: ReasoningEffortValue | None = None,
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
@@ -2223,9 +2238,7 @@ def LLMClient(
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
-    reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
-    ] = None,
+    reasoning_effort: ReasoningEffortValue | None = None,
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,
@@ -2266,9 +2279,7 @@ def LLMClient(
     top_p: float = 1.0,
     json_mode: bool = False,
     max_new_tokens: int = 512,
-    reasoning_effort: Literal[
-        "low", "medium", "high", "xhigh", "minimal", "none", "max", None
-    ] = None,
+    reasoning_effort: ReasoningEffortValue | None = None,
     global_effort: Literal[
         "low", "medium", "high", "xhigh", "minimal", "none", "max", None
     ] = None,

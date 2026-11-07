@@ -12,6 +12,7 @@ from lm_deluge.util.schema import (
 )
 from lm_deluge.warnings import maybe_warn
 
+from ..config import named_reasoning_effort
 from ..models import APIModel
 from .anthropic_utils import (
     is_anthropic_thinking_prefix_mismatch,
@@ -387,7 +388,8 @@ def apply_anthropic_reasoning_config(
                 # Map reasoning_effort to output_config.effort for newer Claude models.
                 if sampling_params.reasoning_effort is not None:
                     mapped = _anthropic_effort(
-                        sampling_params.reasoning_effort, model=model
+                        named_reasoning_effort(sampling_params.reasoning_effort),
+                        model=model,
                     )
                     if mapped is not None:
                         if "output_config" not in request_json:
@@ -447,7 +449,7 @@ def apply_anthropic_reasoning_config(
                 if "kimi" in model.id and "thinking" in model.id:
                     maybe_warn("WARN_KIMI_THINKING_NO_REASONING")
         elif sampling_params.reasoning_effort is not None:
-            effort = sampling_params.reasoning_effort
+            effort = named_reasoning_effort(sampling_params.reasoning_effort)
             if effort == "xhigh":
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=context.model_name)
                 effort = "high"

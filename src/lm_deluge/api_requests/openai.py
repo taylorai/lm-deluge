@@ -28,24 +28,6 @@ def _streams_text(model: APIModel, context: RequestContext) -> bool:
     return context.on_text_delta is not None and model.provider == "openai"
 
 
-def _message_contents_to_string(messages: list[dict]):
-    messages = messages.copy()
-
-    for msg in messages:
-        content = msg.get("content")
-        assert content
-        if isinstance(content, list):
-            new_content = ""
-            for part in content:
-                assert "text" in part, "Invalid text part: " + str(part)
-                new_content += part["text"]
-                new_content += "\n"
-
-            msg["content"] = new_content.strip()
-
-    return messages
-
-
 def _normalize_openai_verbosity(
     model: APIModel,
     requested: str | None,
@@ -86,13 +68,16 @@ def _normalize_openai_verbosity(
 
 def _normalize_openai_reasoning_effort(
     model: APIModel,
-    requested: str | None,
+    requested: str | float | None,
     *,
     model_name: str,
-) -> str:
+) -> str | float:
     effort = requested
     if effort is None:
         return "low"
+    if isinstance(effort, (int, float)):
+        # Numeric effort (Tinker); APIModel.make_request gates support
+        return float(effort)
 
     if effort == "none" and not model.supports_reasoning_none:
         maybe_warn("WARN_NONE_TO_LOW", model_name=model_name)
@@ -164,12 +149,6 @@ async def _build_oa_chat_request(
                 request_json["service_tier"] = context.service_tier
         else:
             request_json["service_tier"] = context.service_tier
-    # if tinker, for now hack to mush into 1 string
-    if "tinker" in model.name:
-        messages = request_json["messages"]
-        assert isinstance(messages, list)
-        request_json["messages"] = _message_contents_to_string(messages)
-
     # set max_tokens or max_completion_tokens dep. on provider
     # Some providers (Cohere, Mistral) use max_tokens instead of max_completion_tokens
     if "cohere" in model.api_base or "mistral" in model.name.lower():
@@ -355,9 +334,9 @@ class OpenAIRequest(APIRequestBase):
                     finish_reason = data["choices"][0]["finish_reason"]
 
                     # Add thinking content if present (reasoning models)
-                    if "reasoning_content" in message:
-                        thinking = message["reasoning_content"]
-                        parts.append(Thinking(thinking))
+                    # Some providers (e.g. Tinker) send reasoning_content: null
+                    if message.get("reasoning_content"):
+                        parts.append(Thinking(message["reasoning_content"]))
 
                     # Together AI returns reasoning in a "reasoning"
                     # field which is not correct but whatever
