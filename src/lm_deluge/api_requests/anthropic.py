@@ -72,6 +72,15 @@ def _is_claude_fable_51(model: APIModel) -> bool:
     return model.id == "claude-fable-5.1" or "claude-fable-5-1" in model.name
 
 
+def _is_claude_fable_52(model: APIModel) -> bool:
+    return model.id == "claude-fable-5.2" or "claude-fable-5-2" in model.name
+
+
+def _is_claude_fable_51_or_newer(model: APIModel) -> bool:
+    """Fable models that bind thinking blocks and reject forced tool use."""
+    return _is_claude_fable_51(model) or _is_claude_fable_52(model)
+
+
 def _always_on_thinking_label(model: APIModel) -> str | None:
     """Display name for models whose thinking cannot be disabled, else None."""
     if _is_claude_fable(model):
@@ -85,6 +94,8 @@ def _forced_tool_choice_label(model: APIModel) -> str | None:
     """Display name for models that reject tool_choice any/tool, else None."""
     if _is_claude_fable_51(model):
         return "Claude Fable 5.1"
+    if _is_claude_fable_52(model):
+        return "Claude Fable 5.2"
     if _is_claude_5_5_opus(model):
         return "Claude Opus 5.5"
     if _is_claude_5_5_sonnet(model):
@@ -314,7 +325,7 @@ def _apply_thinking_binding_controls(
     # Opus 5.5 / Sonnet 5.5 binding controls are not yet verified on Bedrock,
     # where the beta header is rejected until AWS enables it per model.
     if not (
-        _is_claude_fable_51(model)
+        _is_claude_fable_51_or_newer(model)
         or (_is_claude_5_5_opus(model) and not bedrock)
         or (_is_claude_5_5_sonnet(model) and not bedrock)
     ):

@@ -164,6 +164,30 @@ async def test_fable_51_bedrock_binding_controls():
     }
 
 
+async def test_fable_52_bedrock_binding_controls():
+    strict_body = await _bedrock_body(
+        "claude-fable-5.2-bedrock",
+        max_new_tokens=8_192,
+        reasoning_effort="max",
+    )
+    assert strict_body["thinking"] == {
+        "type": "adaptive",
+        "display": "summarized",
+        "block_binding": {"prefix_mismatch_behavior": "error"},
+    }
+    assert strict_body["output_config"]["effort"] == "max"
+    assert strict_body["anthropic_beta"] == ["thinking-binding-controls-2026-08-01"]
+    assert "temperature" not in strict_body and "top_p" not in strict_body
+
+    drop_body = await _bedrock_body(
+        "claude-fable-5.2-bedrock-global",
+        thinking_prefix_mismatch="drop_block",
+    )
+    assert drop_body["thinking"]["block_binding"] == {
+        "prefix_mismatch_behavior": "drop_block"
+    }
+
+
 async def test_non_reasoning_model_omits_thinking():
     body = await _bedrock_body("claude-3-haiku-bedrock", max_new_tokens=1_024)
     assert "thinking" not in body, body.get("thinking")
@@ -228,6 +252,7 @@ async def main():
     await test_46_reasoning_effort_none_disables_thinking()
     await test_fable_5_bedrock_adaptive_by_default()
     await test_fable_51_bedrock_binding_controls()
+    await test_fable_52_bedrock_binding_controls()
     await test_non_reasoning_model_omits_thinking()
     await test_summarized_bedrock_thinking_roundtrips_exactly()
     print("all bedrock reasoning-forwarding tests passed")

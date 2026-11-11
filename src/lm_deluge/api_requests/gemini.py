@@ -75,6 +75,7 @@ async def _build_gemini_request(
                 "gemini-3.7-flash",
                 "gemini-3.8-flash",
                 "gemini-4-argon",
+                "gemini-4-carbon",
             }:
                 effort = "medium"
             else:

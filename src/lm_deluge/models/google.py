@@ -102,22 +102,29 @@ GOOGLE_MODELS = {
             "gemini-3.8-flash",
         )
     },
-    # Gemini 4 Argon launch pricing runs through 2026-11-30; standard pricing
-    # after that is $4/$20 per million with cached input at $0.20.
-    "gemini-4-argon": {
-        "id": "gemini-4-argon",
-        "name": "gemini-4-argon",
-        "api_base": "https://generativelanguage.googleapis.com/v1beta",
-        "api_key_env_var": "GEMINI_API_KEY",
-        "supports_json": True,
-        "supports_logprobs": False,
-        "api_spec": "gemini",
-        "input_cost": 2.0,
-        "cached_input_cost": 0.1,
-        "output_cost": 10.0,
-        "reasoning_model": True,
-        "supports_images": True,
-        "omit_default_sampling_params": True,
+    # Gemini 4 Carbon and Argon share launch pricing through 2026-11-30;
+    # standard pricing after that is $4/$20 per million with cached input at
+    # $0.20.
+    **{
+        model_name: {
+            "id": model_name,
+            "name": model_name,
+            "api_base": "https://generativelanguage.googleapis.com/v1beta",
+            "api_key_env_var": "GEMINI_API_KEY",
+            "supports_json": True,
+            "supports_logprobs": False,
+            "api_spec": "gemini",
+            "input_cost": 2.0,
+            "cached_input_cost": 0.1,
+            "output_cost": 10.0,
+            "reasoning_model": True,
+            "supports_images": True,
+            "omit_default_sampling_params": True,
+        }
+        for model_name in (
+            "gemini-4-carbon",
+            "gemini-4-argon",
+        )
     },
     "gemini-3.1-pro-preview": {
         "id": "gemini-3.1-pro-preview",
@@ -199,6 +206,7 @@ GOOGLE_MODELS = {
 # endpoint lacks gemini-2.5-*, gemini-3-flash-preview, and gemini-3.1-pro-preview.
 # gemini-4-argon answers on the "us" and "eu" endpoints but returns 404 on
 # "global" as of 2026-10-13, even though Google's docs list it there.
+# gemini-4-carbon behaves the same way as of 2026-11-10.
 VERTEX_GEMINI_MODELS = (
     "gemini-2.5-pro",
     "gemini-2.5-flash",
@@ -212,6 +220,7 @@ VERTEX_GEMINI_MODELS = (
     "gemini-3.7-flash",
     "gemini-3.8-flash",
     "gemini-4-argon",
+    "gemini-4-carbon",
 )
 
 GOOGLE_MODELS.update(

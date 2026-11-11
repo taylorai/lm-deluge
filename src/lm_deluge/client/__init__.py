@@ -25,7 +25,7 @@ from lm_deluge.api_requests.anthropic import (
     _is_claude_5_5_haiku,
     _is_claude_5_5_opus,
     _is_claude_5_5_sonnet,
-    _is_claude_fable_51,
+    _is_claude_fable_51_or_newer,
 )
 from lm_deluge.api_requests.openai import stream_chat
 from lm_deluge.batches import (
@@ -1332,7 +1332,7 @@ class _LLMClient(BaseModel):
                     _is_claude_5_5_opus(model)
                     or _is_claude_5_5_sonnet(model)
                     or _is_claude_5_5_haiku(model)
-                    or _is_claude_fable_51(model)
+                    or _is_claude_fable_51_or_newer(model)
                 ):
                     raise ValueError(
                         f"max_turns_warning='ephemeral' is incompatible with "

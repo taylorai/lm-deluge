@@ -109,6 +109,61 @@ def test_fable_51_binding_policy_defaults_to_error_and_can_drop():
     assert "thinking-binding-controls-2026-08-01" in drop_headers["anthropic-beta"]
 
 
+def test_fable_52_registered_with_lower_prices():
+    model = APIModel.from_registry("claude-fable-5.2")
+
+    assert model.name == "claude-fable-5-2"
+    assert model.input_cost == 8.0
+    assert model.cached_input_cost == 0.20
+    assert model.cache_write_cost == 10.0
+    assert model.output_cost == 40.0
+    assert model.reasoning_model
+    assert model.supports_json
+    assert model.supports_images
+    assert model.supports_xhigh
+    assert model.supports_max_reasoning
+    for alias in ("claude-fable-5-2", "claude-5.2-fable", "claude-5-2-fable"):
+        assert APIModel.from_registry(alias) is model
+
+
+def test_fable_52_request_matches_fable_51_shape():
+    model = APIModel.from_registry("claude-fable-5.2")
+
+    body, headers = _build_anthropic_request(
+        model,
+        _ctx("claude-fable-5.2", reasoning_effort="max", temperature=0.5, top_p=0.9),
+    )
+    assert body["model"] == "claude-fable-5-2"
+    assert body["thinking"] == {
+        "type": "adaptive",
+        "display": "summarized",
+        "block_binding": {"prefix_mismatch_behavior": "error"},
+    }
+    assert body["output_config"]["effort"] == "max"
+    assert "temperature" not in body
+    assert "top_p" not in body
+    assert "thinking-binding-controls-2026-08-01" in headers["anthropic-beta"]
+
+    default_body, _ = _build_anthropic_request(model, _ctx("claude-fable-5.2"))
+    assert default_body["output_config"]["effort"] == "high"
+
+    drop_body, _ = _build_anthropic_request(
+        model,
+        _ctx("claude-fable-5.2", thinking_prefix_mismatch="drop_block"),
+    )
+    assert drop_body["thinking"]["block_binding"] == {
+        "prefix_mismatch_behavior": "drop_block"
+    }
+
+
+def test_fable_52_rejects_ephemeral_max_turns_warning():
+    try:
+        LLMClient("claude-fable-5.2")._validate_max_turns_warning("ephemeral")
+        raise AssertionError("Expected ephemeral max_turns_warning to fail")
+    except ValueError as exc:
+        assert "thinking blocks are bound" in str(exc)
+
+
 def test_fable_51_client_exposes_binding_policy():
     client = LLMClient(
         "claude-fable-5.1",
@@ -124,7 +179,7 @@ def test_fable_51_client_exposes_binding_policy():
 
 
 def test_fable_rejects_impossible_thinking_controls():
-    for model_name in ("claude-fable-5", "claude-fable-5.1"):
+    for model_name in ("claude-fable-5", "claude-fable-5.1", "claude-fable-5.2"):
         model = APIModel.from_registry(model_name)
         for kwargs in (
             {"reasoning_effort": "none"},
@@ -139,16 +194,17 @@ def test_fable_rejects_impossible_thinking_controls():
 
 
 def test_fable_51_rejects_forced_tool_choice():
-    model = APIModel.from_registry("claude-fable-5.1")
-    for tool_choice in ({"type": "any"}, {"type": "tool", "name": "lookup"}):
-        try:
-            _build_anthropic_request(
-                model,
-                _ctx(model.id, extra_body={"tool_choice": tool_choice}),
-            )
-            raise AssertionError(f"Expected tool choice {tool_choice!r} to fail")
-        except ValueError as exc:
-            assert "does not support forced tool use" in str(exc)
+    for model_name in ("claude-fable-5.1", "claude-fable-5.2"):
+        model = APIModel.from_registry(model_name)
+        for tool_choice in ({"type": "any"}, {"type": "tool", "name": "lookup"}):
+            try:
+                _build_anthropic_request(
+                    model,
+                    _ctx(model.id, extra_body={"tool_choice": tool_choice}),
+                )
+                raise AssertionError(f"Expected tool choice {tool_choice!r} to fail")
+            except ValueError as exc:
+                assert "does not support forced tool use" in str(exc)
 
 
 def _response_context() -> RequestContext:
@@ -276,6 +332,9 @@ if __name__ == "__main__":
     test_fable_51_registered_with_reduced_cache_read_cost()
     test_fable_51_uses_adaptive_thinking_and_supports_max_effort()
     test_fable_51_binding_policy_defaults_to_error_and_can_drop()
+    test_fable_52_registered_with_lower_prices()
+    test_fable_52_request_matches_fable_51_shape()
+    test_fable_52_rejects_ephemeral_max_turns_warning()
     test_fable_51_client_exposes_binding_policy()
     test_fable_rejects_impossible_thinking_controls()
     test_fable_51_rejects_forced_tool_choice()

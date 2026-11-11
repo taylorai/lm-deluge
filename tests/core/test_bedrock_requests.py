@@ -291,6 +291,8 @@ def test_bedrock_claude_47_request_omits_temperature_and_top_p():
         "claude-fable-5-bedrock-global",
         "claude-fable-5.1-bedrock",
         "claude-fable-5.1-bedrock-global",
+        "claude-fable-5.2-bedrock",
+        "claude-fable-5.2-bedrock-global",
     ):
         context = RequestContext(
             task_id=1,
@@ -488,6 +490,49 @@ def test_bedrock_claude_fable_51_registered():
         "claude-fable-5-1-bedrock-global",
         "claude-5.1-fable-bedrock-global",
         "claude-5-1-fable-bedrock-global",
+    ):
+        assert APIModel.from_registry(alias) is global_model
+
+
+def test_bedrock_claude_fable_52_registered():
+    model = APIModel.from_registry("claude-fable-5.2-bedrock")
+    assert model.name == "us.anthropic.claude-fable-5-2"
+    assert model.regions == [
+        "ca-central-1",
+        "ca-west-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2",
+    ]
+    assert model.input_cost == 8.0
+    assert model.cached_input_cost == 0.20
+    assert model.cache_write_cost == 10.0
+    assert model.output_cost == 40.0
+    assert model.reasoning_model
+    assert model.supports_xhigh
+    assert model.supports_max_reasoning
+    assert model.supports_json
+    assert model.supports_images
+    for alias in (
+        "claude-fable-5-2-bedrock",
+        "claude-5.2-fable-bedrock",
+        "claude-5-2-fable-bedrock",
+    ):
+        assert APIModel.from_registry(alias) is model
+
+    global_model = APIModel.from_registry("claude-fable-5.2-bedrock-global")
+    assert global_model.name == "global.anthropic.claude-fable-5-2"
+    assert isinstance(global_model.regions, list)
+    assert "ca-west-1" in global_model.regions
+    assert len(global_model.regions) == 30
+    assert global_model.input_cost == 8.0
+    assert global_model.cached_input_cost == 0.20
+    assert global_model.output_cost == 40.0
+    for alias in (
+        "claude-fable-5-2-bedrock-global",
+        "claude-5.2-fable-bedrock-global",
+        "claude-5-2-fable-bedrock-global",
     ):
         assert APIModel.from_registry(alias) is global_model
 
@@ -781,6 +826,7 @@ if __name__ == "__main__":
     test_bedrock_claude_opus_5_reasoning_policy()
     test_bedrock_claude_fable_5_registered()
     test_bedrock_claude_fable_51_registered()
+    test_bedrock_claude_fable_52_registered()
     test_bedrock_claude_47_registered()
     test_bedrock_claude_48_registered()
     test_bedrock_invalid_security_token_is_region_scoped()

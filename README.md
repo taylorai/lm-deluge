@@ -57,11 +57,11 @@ The `muse-spark-1.2-contributor` and `muse-spark-1.3-contributor` variants may u
 prompts and completions to train future Meta models. Use a non-contributor variant
 when that data use is unsuitable.
 
-Claude Fable 5.1 binds returned thinking blocks to the exact system prompt, tool
+Claude Fable 5.1 and 5.2 bind returned thinking blocks to the exact system prompt, tool
 definitions, and preceding messages that produced them. LM Deluge treats a mismatch
 as an error by default. For workflows that intentionally edit or compact earlier
 history, opt into provider-side recovery with
-`LLMClient("claude-fable-5.1", thinking_prefix_mismatch="drop_block")`. Anthropic
+`LLMClient("claude-fable-5.2", thinking_prefix_mismatch="drop_block")`. Anthropic
 will drop invalidated thinking blocks and report the changes through
 `response.input_transformations`. Keep strict mode when loss of reasoning continuity
 should stop the request.

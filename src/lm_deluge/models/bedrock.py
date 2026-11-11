@@ -59,6 +59,9 @@ CLAUDE_FABLE_5_1_US_SOURCE_REGIONS = [
     "us-west-1",
     "us-west-2",
 ]
+# Claude Fable 5.2 US Geo CRIS source regions per the AWS model card; same
+# set as the live-verified Fable 5.1 list.
+CLAUDE_FABLE_5_2_US_SOURCE_REGIONS = CLAUDE_FABLE_5_1_US_SOURCE_REGIONS
 CLAUDE_5_SONNET_US_SOURCE_REGIONS = CLAUDE_4_8_US_SOURCE_REGIONS
 
 # Claude Opus 5 US cross-region profile source regions, verified live.
@@ -175,6 +178,10 @@ CLAUDE_FABLE_5_1_GLOBAL_SOURCE_REGIONS = [
     "us-west-1",
     "us-west-2",
 ]
+# Claude Fable 5.2 Global CRIS source regions; reuses the live-verified Fable
+# 5.1 list (the AWS model card also lists me-central-1, me-south-1, and
+# ap-southeast-6, which that list omits).
+CLAUDE_FABLE_5_2_GLOBAL_SOURCE_REGIONS = CLAUDE_FABLE_5_1_GLOBAL_SOURCE_REGIONS
 CLAUDE_5_SONNET_GLOBAL_SOURCE_REGIONS = CLAUDE_GLOBAL_SOURCE_REGIONS_V48
 
 # Claude Opus 5 global cross-region profile source regions, verified live.
@@ -609,6 +616,50 @@ BEDROCK_MODELS = {
         "cached_input_cost": 0.25,
         "cache_write_cost": 12.5,
         "output_cost": 50.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
+    "claude-fable-5.2-bedrock": {
+        "id": "claude-fable-5.2-bedrock",
+        "name": "us.anthropic.claude-fable-5-2",
+        "aliases": [
+            "claude-fable-5-2-bedrock",
+            "claude-5.2-fable-bedrock",
+            "claude-5-2-fable-bedrock",
+        ],
+        "regions": CLAUDE_FABLE_5_2_US_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 8.0,
+        "cached_input_cost": 0.20,
+        "cache_write_cost": 10.0,
+        "output_cost": 40.0,
+        "supports_json": True,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "supports_max_reasoning": True,
+    },
+    "claude-fable-5.2-bedrock-global": {
+        "id": "claude-fable-5.2-bedrock-global",
+        "name": "global.anthropic.claude-fable-5-2",
+        "aliases": [
+            "claude-fable-5-2-bedrock-global",
+            "claude-5.2-fable-bedrock-global",
+            "claude-5-2-fable-bedrock-global",
+        ],
+        "regions": CLAUDE_FABLE_5_2_GLOBAL_SOURCE_REGIONS,
+        "api_base": "",
+        "api_key_env_var": "",
+        "api_spec": "bedrock",
+        "input_cost": 8.0,
+        "cached_input_cost": 0.20,
+        "cache_write_cost": 10.0,
+        "output_cost": 40.0,
         "supports_json": True,
         "reasoning_model": True,
         "supports_images": True,

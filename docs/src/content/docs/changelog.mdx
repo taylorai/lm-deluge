@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.172 · 2026-11-10
+
+- **Claude Fable 5.2**: Added native Anthropic `claude-fable-5.2` (`claude-fable-5-2`) plus `claude-fable-5.2-bedrock` US and `claude-fable-5.2-bedrock-global` profiles at $8 input / $0.20 cache read / $10 cache write / $40 output per million tokens. It behaves like Fable 5.1: adaptive thinking is always on, efforts run `low` through `max`, forced tool choice is rejected, and thinking blocks are bound to the conversation prefix (`thinking_prefix_mismatch="drop_block"` to recover, `max_turns_warning="ephemeral"` is rejected). The Bedrock profiles reuse the verified Fable 5.1 source regions. Live runs passed on all three, including thinking replay and a tool loop (`tests/one_off/test_fable_52_gemini_4_carbon_live.py`).
+- **Gemini 4 Carbon**: Added `gemini-4-carbon` (Gemini API) and `gemini-4-carbon-vertex`, priced like Argon at the launch rate of $2 input / $0.10 cached / $10 output per million tokens through 2026-11-30 (standard pricing after that is $4 / $0.20 / $20). Carbon takes the `low`, `medium` and `high` thinking levels and defaults to `medium`; `none`/`minimal` map to `low` and `xhigh`/`max` to `high`. Temperature and top-p are not sent. On Vertex it answers on the `us` and `eu` endpoints but returns 404 on `global`, the same as Argon.
+
 ## 0.0.171 · 2026-11-07
 
 - **Thinking Machines Inkling models via Tinker**: Added `inkling-2-small`, `inkling-small` and `inkling`, served by Tinker's OpenAI-compatible API (`TINKER_API_KEY`). They support vision, tool calls, logprobs and reasoning efforts `none` through `xhigh` (`max` maps to `xhigh`). Prices follow Tinker's sampling rates: $0.30 / $0.03 cached / $1.00 for Inkling 2 Small, $0.58 / $0.116 / $1.44 for Inkling-Small and $1.87 / $0.374 / $4.68 for Inkling, per million tokens. Tinker accepts `response_format` but does not enforce it, so JSON mode and structured outputs are marked unsupported and lm-deluge warns instead of sending them. Live runs passed on all three for reasoning, images and a tool loop (`tests/one_off/test_tinker_inkling_live.py`).
