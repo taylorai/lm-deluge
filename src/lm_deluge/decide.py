@@ -1,10 +1,10 @@
-"""Parallel client for "decision" APIs (TypeSafe Jev, OpenAI Decisions, and compatible providers).
+"""Parallel client for "decision" APIs (TypeSafe Jev, OpenAI Decisions, Gemini Decisions, and compatible providers).
 
 Decision models take a ``state`` (text or JSON) plus a map of typed
 ``questions`` and return typed ``answers`` (a choice, a score, or a yes/no
 probability) instead of generated text. Questions are written once in the
 SystemOne shape below; providers with a different wire format (OpenAI's
-``/v1/decisions``) are translated to and from it, so callers get the same
+``/v1/decisions``, Gemini's ``/v1beta/decisions``) are translated to and from it, so callers get the same
 answer types whichever model they pick.
 
     from lm_deluge.decide import Choice, Noul, Score, decide
@@ -38,8 +38,9 @@ from .tracker import StatusTracker
 
 # Providers that implement a decision API. The request URL is
 # ``api_base + path``; the key is read from ``api_key_env_var`` at request time.
-# ``format`` is the wire format: "systemone" (TypeSafe's state + question map)
-# or "openai" (OpenAI's input + named question list).
+# ``format`` is the wire format: "systemone" (TypeSafe's state + question map),
+# "openai" (OpenAI's input + named question list), or "gemini" (Google's input +
+# question map, with x-goog-api-key auth).
 PROVIDERS: dict[str, dict[str, str]] = {
     "typesafe": {
         "api_base": "https://api.typesafe.ai/v1",
@@ -59,8 +60,14 @@ PROVIDERS: dict[str, dict[str, str]] = {
         "api_key_env_var": "OPENAI_API_KEY",
         "format": "openai",
     },
+    "gemini": {
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "path": "/decisions",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "format": "gemini",
+    },
 }
-FORMATS = ("systemone", "openai")
+FORMATS = ("systemone", "openai", "gemini")
 
 # Short model id -> provider + upstream model name. Output tokens are free on
 # every provider so far, so only input cost is tracked (USD per 1M tokens).
@@ -83,6 +90,11 @@ REGISTRY: dict[str, dict[str, Any]] = {
     "gpt-6-luna": {
         "provider": "openai",
         "name": "gpt-6-luna",
+        "input_cost": 0.10,
+    },
+    "gemini-decision-1": {
+        "provider": "gemini",
+        "name": "gemini-decision-1",
         "input_cost": 0.10,
     },
 }
@@ -263,6 +275,39 @@ def _to_openai_question(name: str, q: dict[str, Any]) -> dict[str, Any]:
     return {"type": "score", **out}
 
 
+def _to_gemini_question(q: dict[str, Any]) -> dict[str, Any]:
+    """Translate a serialized question to Gemini's format. Only noul criteria
+    differ: Gemini names them ``true_description`` / ``false_description``."""
+    if q["type"] != "noul" or not q.get("criteria"):
+        return q
+    criteria = q["criteria"]
+    out = {
+        f"{k}_description": _as_text(criteria[k])
+        for k in ("true", "false")
+        if criteria.get(k)
+    }
+    # Already-Gemini-shaped criteria (raw dicts) pass through.
+    for k in ("true_description", "false_description"):
+        if criteria.get(k):
+            out[k] = criteria[k]
+    return {**q, "criteria": out}
+
+
+def _to_gemini_input(state: Any) -> Any:
+    """Text and content blocks pass through; other JSON is sent as text."""
+    if isinstance(state, str):
+        return state
+    if isinstance(state, dict) and "type" in state:
+        return state
+    if (
+        isinstance(state, list)
+        and state
+        and all(isinstance(b, dict) and "type" in b for b in state)
+    ):
+        return state
+    return json.dumps(state)
+
+
 def _to_openai_input(state: Any) -> Any:
     """Text and user-message lists pass through; other JSON is sent as text."""
     if isinstance(state, str):
@@ -402,6 +447,16 @@ def _build_request(
         raise ValueError(
             f"{provider['api_key_env_var']} is not set (needed for model '{model}')"
         )
+    if provider.get("format") == "gemini":
+        headers = {"x-goog-api-key": api_key}
+        # Gemini rejects unknown top-level fields, so only model/input/questions.
+        payload = {
+            "model": info["name"],
+            "input": _to_gemini_input(state),
+            "questions": {k: _to_gemini_question(q) for k, q in questions.items()},
+            **extra_params,
+        }
+        return url, headers, payload
     headers = {"Authorization": f"Bearer {api_key}"}
     if provider.get("format") == "openai":
         payload = {
@@ -429,10 +484,41 @@ def _parse_response(
 ) -> DecisionResponse:
     if format == "openai":
         answers = {a["name"]: _parse_openai_answer(a) for a in result["answers"]}
+    elif format == "gemini":
+        answers = {
+            k: _parse_answer(v) for k, v in (result.get("answers") or {}).items()
+        }
     else:
         answers = {k: _parse_answer(v) for k, v in result["answers"].items()}
     usage = result.get("usage") or {}
-    input_tokens = usage.get("input_tokens", 0) or 0
+    if format == "gemini":
+        input_tokens = usage.get("total_input_tokens", 0) or 0
+        output_tokens = usage.get("total_output_tokens", 0) or 0
+        # A safety block returns 200 with empty answers and prompt_feedback.
+        feedback = result.get("prompt_feedback") or {}
+        if feedback.get("block_reason") and not answers:
+            return DecisionResponse(
+                id=task_id,
+                status_code=200,
+                is_error=True,
+                error_message=(
+                    f"Blocked ({feedback['block_reason']}): "
+                    f"{feedback.get('block_reason_message') or ''}"
+                ).rstrip(": "),
+                state=state,
+                model=result.get("model"),
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost=(
+                    input_tokens * input_cost / 1_000_000
+                    if input_cost is not None
+                    else None
+                ),
+                raw=result,
+            )
+    else:
+        input_tokens = usage.get("input_tokens", 0) or 0
+        output_tokens = usage.get("output_tokens", 0) or 0
     return DecisionResponse(
         id=task_id,
         status_code=200,
@@ -442,7 +528,7 @@ def _parse_response(
         model=result.get("model"),
         answers=answers,
         input_tokens=input_tokens,
-        output_tokens=usage.get("output_tokens", 0) or 0,
+        output_tokens=output_tokens,
         cost=(
             input_tokens * input_cost / 1_000_000 if input_cost is not None else None
         ),
@@ -529,6 +615,13 @@ async def _decide_one(
                             200, f"Malformed response: {type(e).__name__}: {e}"
                         )
                     await cost_tracker.record(parsed.input_tokens)
+                    if parsed.is_error:
+                        # Blocked by a safety filter: billed, but not retryable.
+                        status_tracker.num_tasks_in_progress -= 1
+                        status_tracker.num_tasks_failed += 1
+                        if pbar:
+                            pbar.update(1)
+                        return parsed
                     status_tracker.task_succeeded(task_id)
                     if pbar:
                         pbar.update(1)

@@ -303,4 +303,4 @@ The `lm_deluge.pipelines` module exposes a few helper functions that combine LLM
 
 Experimental embeddings (`embed.embed_parallel_async`) and document reranking (`rerank.rerank_parallel_async`) clients are also provided.
 
-Decision models (TypeSafe's Jev, OpenAI's `gpt-6-luna` Decisions API), which return typed choices, scores, and yes/no probabilities instead of text, are supported via `decide.decide` / `decide.decide_parallel_async`. Other providers that implement either wire format can be added with `decide.register_decision_provider` and `decide.register_decision_model`.
+Decision models (TypeSafe's Jev, OpenAI's `gpt-6-luna` Decisions API, Google's `gemini-decision-1` Decisions API), which return typed choices, scores, and yes/no probabilities instead of text, are supported via `decide.decide` / `decide.decide_parallel_async`. Other providers that implement one of these wire formats (`systemone`, `openai`, or `gemini`) can be added with `decide.register_decision_provider` and `decide.register_decision_model`.

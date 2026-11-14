@@ -24,9 +24,22 @@ GEMINI_4_MODELS = ("gemini-4-argon", "gemini-4-carbon")
 def test_gemini_4_registry():
     for model_name in GEMINI_4_MODELS:
         _check_registry(model_name)
+    _check_registry(HYDROGEN, pricing=_assert_hydrogen_pricing)
+    for name in (HYDROGEN, f"{HYDROGEN}-vertex"):
+        assert APIModel.from_registry(name).supports_xhigh, name
+    assert not APIModel.from_registry("gemini-4-argon").supports_xhigh
 
 
-def _check_registry(model_name):
+HYDROGEN = "gemini-4-hydrogen"
+
+
+def _assert_hydrogen_pricing(model):
+    assert model.input_cost == 1.5
+    assert model.cached_input_cost == 0.075
+    assert model.output_cost == 7.5
+
+
+def _check_registry(model_name, pricing=_assert_launch_pricing):
     native = APIModel.from_registry(model_name)
     assert native.name == model_name
     assert native.api_base == "https://generativelanguage.googleapis.com/v1beta"
@@ -35,14 +48,14 @@ def _check_registry(model_name):
     assert native.reasoning_model
     assert native.supports_images
     assert native.omit_default_sampling_params
-    _assert_launch_pricing(native)
+    pricing(native)
 
     vertex = APIModel.from_registry(f"{model_name}-vertex")
     assert vertex.name == model_name
     assert vertex.api_base == "https://aiplatform.googleapis.com/v1beta1"
     assert vertex.api_spec == "vertex"
     assert vertex.api_key_env_var == "VERTEX_API_KEY"
-    _assert_launch_pricing(vertex)
+    pricing(vertex)
 
 
 def _native_request(sampling_params, prompt=None, model_name="gemini-4-argon"):
@@ -68,6 +81,32 @@ def test_gemini_4_defaults_to_medium_without_sampling_params():
         assert "topP" not in generation_config
 
 
+def test_gemini_4_hydrogen_thinking_levels():
+    request = _native_request(
+        SamplingParams(temperature=0.2, top_p=0.8), model_name=HYDROGEN
+    )
+    generation_config = request["generationConfig"]
+    assert generation_config["thinkingConfig"] == {"thinkingLevel": "high"}
+    assert "temperature" not in generation_config
+    assert "topP" not in generation_config
+    # Hydrogen accepts low, medium, high, and xhigh; minimal is a 400.
+    expected: dict[ReasoningEffort, str] = {
+        "none": "low",
+        "minimal": "low",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "max": "xhigh",
+    }
+    for effort, level in expected.items():
+        request = _native_request(
+            SamplingParams(reasoning_effort=effort), model_name=HYDROGEN
+        )
+        thinking_config = request["generationConfig"]["thinkingConfig"]
+        assert thinking_config == {"thinkingLevel": level}, effort
+
+
 def test_gemini_4_maps_unsupported_levels():
     # Gemini 4 accepts only low, medium, and high; minimal is a 400.
     expected: dict[ReasoningEffort, str] = {
@@ -89,7 +128,7 @@ def test_gemini_4_maps_unsupported_levels():
 
 
 def test_gemini_4_gets_thought_signature_and_media_resolution():
-    for model_name in GEMINI_4_MODELS:
+    for model_name in (*GEMINI_4_MODELS, HYDROGEN):
         _check_thought_signature_and_media_resolution(model_name)
 
 
@@ -116,7 +155,7 @@ def _check_thought_signature_and_media_resolution(model_name):
 
 
 def test_gemini_4_vertex_url():
-    for model_name in GEMINI_4_MODELS:
+    for model_name in (*GEMINI_4_MODELS, HYDROGEN):
         _check_vertex_url(model_name)
 
 
@@ -143,6 +182,7 @@ if __name__ == "__main__":
     test_gemini_4_registry()
     test_gemini_4_defaults_to_medium_without_sampling_params()
     test_gemini_4_maps_unsupported_levels()
+    test_gemini_4_hydrogen_thinking_levels()
     test_gemini_4_gets_thought_signature_and_media_resolution()
     test_gemini_4_vertex_url()
     print("All tests passed!")

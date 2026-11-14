@@ -1,6 +1,7 @@
 """Live smoke test for decision models. Requires the provider's API key, e.g.
 TYPESAFE_API_KEY=... python tests/one_off/test_decide_live.py [model]
-or OPENAI_API_KEY=... python tests/one_off/test_decide_live.py gpt-6-luna"""
+or OPENAI_API_KEY=... python tests/one_off/test_decide_live.py gpt-6-luna
+or GEMINI_API_KEY=... python tests/one_off/test_decide_live.py gemini-decision-1"""
 
 import asyncio
 import os

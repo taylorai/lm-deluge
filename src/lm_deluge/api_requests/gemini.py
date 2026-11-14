@@ -78,18 +78,35 @@ async def _build_gemini_request(
                 "gemini-4-carbon",
             }:
                 effort = "medium"
+            elif model.name == "gemini-4-hydrogen":
+                effort = "high"
             else:
                 maybe_warn("WARN_GEMINI3_NO_REASONING")
                 effort = "low"
         else:
             effort_key = named_reasoning_effort(sampling_params.reasoning_effort)
-            if effort_key == "xhigh":
+            supports_xhigh = model.supports_xhigh
+            if effort_key == "max":
+                if supports_xhigh:
+                    maybe_warn("WARN_MAX_TO_XHIGH", model_name=model.name)
+                    effort_key = "xhigh"
+                else:
+                    maybe_warn("WARN_MAX_TO_HIGH", model_name=model.name)
+                    effort_key = "high"
+            elif effort_key == "xhigh" and not supports_xhigh:
                 maybe_warn("WARN_XHIGH_TO_HIGH", model_name=model.name)
                 effort_key = "high"
-            elif effort_key == "max":
-                maybe_warn("WARN_MAX_TO_HIGH", model_name=model.name)
-                effort_key = "high"
-            if model.name in {"gemini-3.7-flash", "gemini-3.8-flash"}:
+            if supports_xhigh:
+                # Hydrogen supports low, medium, high, and xhigh (no minimal).
+                level_map = {
+                    "none": "low",
+                    "minimal": "low",
+                    "low": "low",
+                    "medium": "medium",
+                    "high": "high",
+                    "xhigh": "xhigh",
+                }
+            elif model.name in {"gemini-3.7-flash", "gemini-3.8-flash"}:
                 # These models support low, medium, and high. Map the library's
                 # lower settings to the least expensive supported level.
                 level_map = {

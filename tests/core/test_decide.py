@@ -118,13 +118,27 @@ class FakeServer:
     async def handle(self, request: web.Request) -> web.Response:
         body = await request.json()
         self.requests.append(body)
-        self.auth_headers.append(request.headers.get("Authorization", ""))
+        self.auth_headers.append(
+            request.headers.get("Authorization")
+            or request.headers.get("x-goog-api-key", "")
+        )
         if self.script:
             status = self.script.pop(0)
             if status == -1:
                 return web.Response(status=200, text="not json")
             if status == -2:
                 return web.json_response({"answers": []})
+            if status == -3:
+                return web.json_response(
+                    {
+                        "answers": {},
+                        "usage": {"total_input_tokens": 500_000},
+                        "prompt_feedback": {
+                            "block_reason": "safety",
+                            "block_reason_message": "Unsafe input",
+                        },
+                    }
+                )
             if status != 200:
                 return web.Response(
                     status=status,
@@ -133,6 +147,18 @@ class FakeServer:
                 )
         if isinstance(body["questions"], list):
             answers = fake_openai_answers(body["questions"])
+        elif "input" in body:
+            # Gemini: same answer shapes, different usage names, no model field.
+            return web.json_response(
+                {
+                    "answers": fake_answers(body["questions"]),
+                    "usage": {
+                        "total_input_tokens": 2_000_000,
+                        "total_output_tokens": 0,
+                        "total_tokens": 2_000_000,
+                    },
+                }
+            )
         else:
             answers = fake_answers(body["questions"])
         return web.json_response(
@@ -237,6 +263,37 @@ def test_build_request():
     messages = [{"role": "user", "content": [{"type": "input_text", "text": "x"}]}]
     _, _, payload = _build_request("gpt-6-luna", messages, qs, {})
     assert payload["input"] == messages
+
+    os.environ["GEMINI_API_KEY"] = "g-key"
+    url, headers, payload = _build_request(
+        "gemini-decision-1", {"ticket": "hi"}, qs, {}
+    )
+    assert url == "https://generativelanguage.googleapis.com/v1beta/decisions"
+    assert headers == {"x-goog-api-key": "g-key"}
+    assert set(payload) == {"model", "input", "questions"}
+    assert payload["model"] == "gemini-decision-1"
+    assert payload["input"] == '{"ticket": "hi"}'
+    assert payload["questions"]["damaged"] == {
+        "type": "noul",
+        "instructions": "Is it damaged?",
+        "criteria": {"true_description": "Crack or dent"},
+    }
+    assert payload["questions"]["is_urgent"] == {
+        "type": "noul",
+        "instructions": "Does this convey urgency?",
+    }
+    assert payload["questions"]["department"]["criteria"]["billing"] == "Payments"
+    assert payload["questions"]["frustration"]["criteria"][2] == "Very angry"
+    # the serialized SystemOne questions aren't mutated
+    assert qs["damaged"]["criteria"] == {"true": "Crack or dent"}
+    blocks = [
+        {"type": "text", "text": "Is this damaged?"},
+        {"type": "image", "uri": "https://x/y.jpg", "mime_type": "image/jpeg"},
+    ]
+    _, _, payload = _build_request("gemini-decision-1", blocks, qs, {})
+    assert payload["input"] == blocks
+    _, _, payload = _build_request("gemini-decision-1", blocks[0], qs, {})
+    assert payload["input"] == blocks[0]
     print("PASSED: request building")
 
 
@@ -334,6 +391,41 @@ def test_openai_format_parsing():
     print("PASSED: OpenAI format parsing")
 
 
+def test_gemini_format_parsing():
+    async def run(server: FakeServer):
+        register_decision_provider(
+            "fake-gemini", server.base, "FAKE_DECISION_KEY", format="gemini"
+        )
+        register_decision_model("gd-fake", "fake-gemini", "gemini-decision-1", 0.10)
+        try:
+            resp = await decide("Charged twice", QUESTIONS, model="gd-fake")
+            blocked = await decide("bad", QUESTIONS, model="gd-fake")
+        finally:
+            REGISTRY.pop("gd-fake", None)
+            PROVIDERS.pop("fake-gemini", None)
+        assert not resp.is_error, resp.error_message
+        assert server.auth_headers[0] == "fake-key"
+        body = server.requests[0]
+        assert body["input"] == "Charged twice" and "state" not in body
+        urgent = resp.answers["is_urgent"]
+        assert isinstance(urgent, NoulAnswer) and urgent.noul == 0.96
+        dept = resp.answers["department"]
+        assert isinstance(dept, ChoiceAnswer) and dept.choice == "billing"
+        frus = resp.answers["frustration"]
+        assert isinstance(frus, ScoreAnswer) and frus.level == "Frustrated"
+        assert resp.input_tokens == 2_000_000 and resp.output_tokens == 0
+        assert resp.cost is not None and abs(resp.cost - 0.20) < 1e-9
+
+        assert blocked.is_error and blocked.status_code == 200
+        assert blocked.error_message == "Blocked (safety): Unsafe input"
+        assert blocked.answers == {}
+        assert blocked.cost is not None and abs(blocked.cost - 0.05) < 1e-9
+        assert len(server.requests) == 2  # blocked is not retried
+
+    asyncio.run(with_fake([200, -3], run))
+    print("PASSED: Gemini format parsing")
+
+
 def test_parallel_order_and_per_state_questions():
     async def run(server: FakeServer):
         states = [f"ticket {i}" for i in range(20)]
@@ -402,6 +494,7 @@ if __name__ == "__main__":
     test_missing_key_fails_fast()
     test_end_to_end_parsing()
     test_openai_format_parsing()
+    test_gemini_format_parsing()
     test_parallel_order_and_per_state_questions()
     test_retries()
     test_non_retryable_and_exhaustion()
