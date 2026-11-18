@@ -137,7 +137,9 @@ class RequestContext:
                         "enabled. Set use_responses_api=True or explicitly set "
                         "reasoning_effort='none'."
                     )
-            elif model.name.startswith(("gpt-5.4", "gpt-5.5", "gpt-5.6", "gpt-6.1")):
+            elif model.name.startswith(
+                ("gpt-5.4", "gpt-5.5", "gpt-5.6", "gpt-6.1", "gpt-6.2")
+            ):
                 raise ValueError(
                     f"Invalid config for model '{self.model_name}': OpenAI chat "
                     "completions does not support function tools together with "
