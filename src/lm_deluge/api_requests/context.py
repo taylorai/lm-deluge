@@ -8,10 +8,13 @@ import aiohttp
 from ..config import SamplingParams
 from ..prompt import CachePattern, Conversation
 from ..tracker import StatusTracker
+from ..warnings import maybe_warn
 from .streaming import TextDeltaCallback
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
+    from .message_threads import MessageThread
 
 ThinkingPrefixMismatchBehavior = Literal["error", "drop_block"]
 
@@ -60,6 +63,8 @@ class RequestContext:
     extra_body: dict[str, Any] | None = None
     thinking_prefix_mismatch: ThinkingPrefixMismatchBehavior = "error"
     force_local_mcp: bool = False
+    # Anthropic message thread (beta); shared across retries and agent rounds.
+    message_thread: "MessageThread | None" = None
 
     # Shared HTTP session (owned by the caller, not by this context)
     http_session: aiohttp.ClientSession | None = None
@@ -74,8 +79,12 @@ class RequestContext:
     def validate_request_config(self) -> None:
         """Reject provider/model option combinations that are known to 400."""
         from ..models import APIModel
+        from .message_threads import supports_message_threads
 
         model = APIModel.from_registry(self.model_name)
+
+        if self.message_thread is not None and not supports_message_threads(model):
+            maybe_warn("WARN_MESSAGE_THREADS_UNSUPPORTED", model_name=self.model_name)
 
         if self.stateless_responses is not None and not self.use_responses_api:
             raise ValueError(
@@ -173,6 +182,7 @@ class RequestContext:
             "extra_body": self.extra_body,
             "thinking_prefix_mismatch": self.thinking_prefix_mismatch,
             "force_local_mcp": self.force_local_mcp,
+            "message_thread": self.message_thread,
             "http_session": self.http_session,
         }
 

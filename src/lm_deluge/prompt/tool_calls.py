@@ -1,16 +1,17 @@
 import json
+import re
 from dataclasses import dataclass, field
 from typing import TypedDict
 
 import xxhash
-from .text import Text
-from .image import Image
 
+from .image import Image
 from .signatures import (
     ThoughtSignatureLike,
     normalize_signature,
     signature_for_provider,
 )
+from .text import Text
 
 
 class ContainerFile(TypedDict):
@@ -108,6 +109,12 @@ class ToolCall:
 ToolResultPart = Text | Image
 
 
+class ToolExecutionError(str):
+    """String-compatible execution failure carried by execute_tool_calls tuples."""
+
+    is_error = True
+
+
 @dataclass(slots=True)
 class ToolResult:
     tool_call_id: str  # references the ToolCall.id
@@ -120,22 +127,40 @@ class ToolResult:
     built_in_type: str | None = None
     # Files created by code execution / skills (Anthropic only)
     files: list[ContainerFile] | None = None
+    is_error: bool = False
+
+    def __post_init__(self) -> None:
+        # Preserve error metadata through the existing (call_id, result) helpers.
+        self.is_error = self.is_error or bool(getattr(self.result, "is_error", False))
+
+    def _error_text(self, text: str) -> str:
+        # OpenAI and Mistral have no tool-result error flag.
+        if self.is_error and not re.match(
+            r"\s*(?:error|exception|failed|failure)\b", text, re.IGNORECASE
+        ):
+            return f"Error: {text}"
+        return text
 
     @property
     def fingerprint(self) -> str:
         if isinstance(self.result, str):
             result_str = self.result
+        elif isinstance(self.result, dict):
+            result_str = json.dumps(self.result, sort_keys=True)
         elif isinstance(self.result, list):
             result_str = json.dumps([part.fingerprint for part in self.result])
         else:
             raise ValueError("unsupported self.result type")
-        return xxhash.xxh64(f"{self.tool_call_id}:{result_str}".encode()).hexdigest()
+        error_suffix = ":is_error" if self.is_error else ""
+        return xxhash.xxh64(
+            f"{self.tool_call_id}:{result_str}{error_suffix}".encode()
+        ).hexdigest()
 
     # ── provider-specific emission ────────────────────────────────────────────
     def get_images(self) -> list[Image]:
         # for openai, we can't include images in tool result, so we have to
         # include them in the next user message
-        if isinstance(self.result, str):
+        if isinstance(self.result, (str, dict)):
             return []
         elif isinstance(self.result, list):
             images = []
@@ -151,11 +176,15 @@ class ToolResult:
     ) -> dict:  # OpenAI Chat Completions - tool results are separate messages
         # print("serializing toolresult with oa_chat...")
         # print("typeof self.result:", type(self.result))
-        if isinstance(self.result, str):
+        if isinstance(self.result, (str, dict)):
             return {
                 "role": "tool",
                 "tool_call_id": self.tool_call_id,
-                "content": self.result,
+                "content": self._error_text(
+                    self.result
+                    if isinstance(self.result, str)
+                    else json.dumps(self.result)
+                ),
             }
         elif isinstance(self.result, list):
             # OpenAI only accepts strings! this is a painful limitation
@@ -173,7 +202,7 @@ class ToolResult:
             return {
                 "role": "tool",
                 "tool_call_id": self.tool_call_id,
-                "content": text_result,
+                "content": self._error_text(text_result),
             }
         else:
             raise ValueError("result type not supported")
@@ -190,6 +219,14 @@ class ToolResult:
             else:
                 # dict case
                 output = json.dumps(self.result)
+            if isinstance(output, str):
+                output = self._error_text(output)
+            elif self.is_error:
+                output = [block.copy() for block in output]
+                if output and output[0].get("type") == "input_text":
+                    output[0]["text"] = self._error_text(output[0]["text"])
+                else:
+                    output.insert(0, {"type": "input_text", "text": "Error: "})
             return {
                 "type": "function_call_output",
                 "call_id": self.tool_call_id,
@@ -222,21 +259,22 @@ class ToolResult:
             return result
 
     def anthropic(self) -> dict:  # Anthropic Messages
-        if isinstance(self.result, str):
-            return {
-                "type": "tool_result",
-                "tool_use_id": self.tool_call_id,
-                "content": self.result,
-            }
-        elif isinstance(self.result, list):
-            # handle list of content blocks
-            return {
-                "type": "tool_result",
-                "tool_use_id": self.tool_call_id,
-                "content": [part.anthropic() for part in self.result],
-            }
-        else:
-            raise ValueError("unsupported self.result type")
+        # Anthropic provides a native error flag, preserving content verbatim.
+        content = (
+            [part.anthropic() for part in self.result]
+            if isinstance(self.result, list)
+            else json.dumps(self.result)
+            if isinstance(self.result, dict)
+            else self.result
+        )
+        result = {
+            "type": "tool_result",
+            "tool_use_id": self.tool_call_id,
+            "content": content,
+        }
+        if self.is_error:
+            result["is_error"] = True
+        return result
 
     def gemini(self) -> dict:
         # Build the function response
@@ -300,13 +338,16 @@ class ToolResult:
         else:
             func_response["response"] = {"result": str(self.result)}
 
+        if self.is_error:
+            # Gemini documents an error key within the function response object.
+            func_response["response"] = {"error": func_response["response"]}
         return {"functionResponse": func_response}
 
     def mistral(self) -> dict:
         return {
             "type": "tool_result",
             "tool_call_id": self.tool_call_id,
-            "content": self.result,
+            "content": self.oa_chat()["content"],
         }
 
     def nova(self) -> dict:
@@ -329,6 +370,8 @@ class ToolResult:
             "toolResult": {
                 "toolUseId": self.tool_call_id,
                 "content": content,
-                "status": "success",
+                "status": "error"
+                if self.is_error
+                else "success",  # Bedrock native flag
             }
         }

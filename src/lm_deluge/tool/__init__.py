@@ -17,14 +17,12 @@ from typing import (
     get_type_hints,
 )
 
-from pydantic import BaseModel, Field, TypeAdapter, field_validator
+from pydantic import AliasChoices, BaseModel, Field, TypeAdapter, field_validator
 
 from lm_deluge.mcp import MCPClient, MCPTool
 from lm_deluge.mcp.types import ImageContent, TextContent
-
-from lm_deluge.prompt import Image
-from lm_deluge.prompt import Text, ToolResultPart
-from lm_deluge.prompt.tool_calls import ToolCall
+from lm_deluge.prompt import Image, Text, ToolResultPart
+from lm_deluge.prompt.tool_calls import ToolCall, ToolExecutionError
 from lm_deluge.util.schema import transform_schema_for_anthropic
 
 
@@ -402,6 +400,15 @@ async def _load_all_mcp_tools(client: MCPClient) -> list["Tool"]:
             async with client:
                 raw_result = await client.call_tool(name, kw)
 
+                if raw_result.isError:
+                    raise RuntimeError(
+                        "\n".join(
+                            block.text
+                            for block in raw_result.content
+                            if isinstance(block, TextContent)
+                        )
+                    )
+
                 # Convert content blocks to our internal types
                 results = []
                 for block in raw_result.content:
@@ -424,6 +431,7 @@ async def _load_all_mcp_tools(client: MCPClient) -> list["Tool"]:
         tools.append(
             Tool(
                 name=m["name"],
+                annotations=m.get("annotations"),
                 description=m.get("description"),
                 parameters=input_schema.get("properties", {}),
                 required=input_schema.get("required", []),
@@ -433,6 +441,24 @@ async def _load_all_mcp_tools(client: MCPClient) -> list["Tool"]:
             )
         )
     return tools
+
+
+class ToolAnnotations(BaseModel):
+    """Local policy hints, accepting both Python names and MCP annotation keys."""
+
+    title: str | None = None
+    read_only: bool | None = Field(
+        default=None, validation_alias=AliasChoices("read_only", "readOnlyHint")
+    )
+    destructive: bool | None = Field(
+        default=None, validation_alias=AliasChoices("destructive", "destructiveHint")
+    )
+    idempotent: bool | None = Field(
+        default=None, validation_alias=AliasChoices("idempotent", "idempotentHint")
+    )
+    open_world: bool | None = Field(
+        default=None, validation_alias=AliasChoices("open_world", "openWorldHint")
+    )
 
 
 class Tool(BaseModel):
@@ -472,6 +498,7 @@ class Tool(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
     name: str
+    annotations: ToolAnnotations | None = None
     description: str | None = None
     parameters: dict[str, Any] | None = None
     required: list[str] = Field(default_factory=list)
@@ -635,6 +662,7 @@ class Tool(BaseModel):
         *,
         name: str | None = None,
         include_output_schema_in_description: bool = False,
+        annotations: ToolAnnotations | None = None,
     ) -> "Tool":
         """
         Create a Tool from a function using introspection.
@@ -651,6 +679,7 @@ class Tool(BaseModel):
             func: The function to create a tool from.
             name: Optional name override for the tool. If not provided,
                 uses the function's __name__.
+            annotations: Local policy hints, omitted from provider tool schemas.
             include_output_schema_in_description: If True, append the return type
                 and any complex type definitions to the tool description. This can
                 help the model understand what the tool returns. Default is False.
@@ -734,6 +763,7 @@ class Tool(BaseModel):
 
         tool = cls(
             name=tool_name,
+            annotations=annotations,
             description=description,
             parameters=parameters,
             required=required,
@@ -852,6 +882,7 @@ class Tool(BaseModel):
         addl = meta["inputSchema"].get("additionalProperties")
         return Tool(
             name=meta["name"],
+            annotations=meta.get("annotations"),
             description=meta.get("description", ""),
             parameters=props,
             required=req,
@@ -1298,7 +1329,8 @@ async def execute_tool_calls(
     Returns:
         List of (call_id, result) tuples in the same order as tool_calls.
         Results are strings, dicts, or lists. If a tool is not found or
-        execution fails, the result will be an error string.
+        execution fails, the result is a string-compatible ToolExecutionError.
+        ToolResult automatically preserves its is_error flag when constructed.
 
     Example:
         tool_calls = response.content.tool_calls
@@ -1322,12 +1354,12 @@ async def execute_tool_calls(
         tool_obj = Tool.find(expanded_tools, name=call.name)
 
         if tool_obj is None or tool_obj.run is None:
-            result: Any = f"Error: Tool '{call.name}' not found"
+            result: Any = ToolExecutionError(f"Error: Tool '{call.name}' not found")
         else:
             try:
                 result = await tool_obj.acall(**call.arguments)
             except Exception as e:
-                result = f"Error: {e}"
+                result = ToolExecutionError(f"Error: {e}")
 
         if not isinstance(result, (str, dict, list)):
             result = str(result)

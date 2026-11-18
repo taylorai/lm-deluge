@@ -117,4 +117,8 @@ class MistralRequest(APIRequestBase):
             model_internal=self.context.model_name,
             sampling_params=self.context.sampling_params,
             usage=usage,
+            raw_response=data,
+            finish_reason=(data.get("choices") or [{}])[0].get("finish_reason")
+            if data
+            else None,
         )

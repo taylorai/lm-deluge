@@ -1,7 +1,7 @@
 """Type definitions for MCP client - replaces mcp.types."""
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 
 class MCPToolSchema(TypedDict, total=False):
@@ -19,6 +19,7 @@ class MCPTool(TypedDict):
     name: str
     description: str | None
     inputSchema: MCPToolSchema
+    annotations: NotRequired[dict[str, Any]]
 
 
 @dataclass

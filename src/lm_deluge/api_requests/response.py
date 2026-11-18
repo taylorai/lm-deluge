@@ -8,6 +8,7 @@ from lm_deluge.usage import Usage
 
 from ..config import SamplingParams
 from ..models import APIModel
+from .outcomes import ErrorKind, StopReason, classify_error, normalize_stop_reason
 
 
 @dataclass
@@ -54,6 +55,9 @@ class APIResponse:
     trajectory: Conversation | None = None
     loop_stop_reason: Literal["no_tool_calls", "max_rounds", "error"] | None = None
 
+    stop_reason: StopReason | None = None
+    error_kind: ErrorKind | None = None
+
     @property
     def completion(self) -> str | None:
         """Backward compatibility: extract text from content Message."""
@@ -82,6 +86,15 @@ class APIResponse:
         return self.usage.cache_write_tokens if self.usage else None
 
     def __post_init__(self):
+        if self.is_error:
+            if self.error_kind is None:
+                self.error_kind = classify_error(
+                    self.status_code, self.raw_response or self.error_message
+                )
+        elif self.stop_reason is None:
+            self.stop_reason = normalize_stop_reason(
+                self.finish_reason, self.content, self.raw_response
+            )
         # calculate cost & get external model name
         self.id = int(self.id)
         api_model = APIModel.from_registry(self.model_internal)
@@ -164,6 +177,8 @@ class APIResponse:
             "content": self.content.to_log() if self.content else None,
             "usage": self.usage.to_dict() if self.usage else None,
             "finish_reason": self.finish_reason,
+            "stop_reason": self.stop_reason,
+            "error_kind": self.error_kind,
             "input_transformations": self.input_transformations,
             "cost": self.cost,
         }
@@ -198,6 +213,8 @@ class APIResponse:
             region=data.get("region"),
             logprobs=data.get("logprobs"),
             finish_reason=data.get("finish_reason"),
+            stop_reason=data.get("stop_reason"),
+            error_kind=data.get("error_kind"),
             input_transformations=data.get("input_transformations"),
             cost=data.get("cost"),
             cache_hit=data.get("cache_hit", False),

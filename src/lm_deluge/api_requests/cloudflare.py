@@ -302,6 +302,7 @@ class CloudflareClefRequest(APIRequestBase):
             sampling_params=self.context.sampling_params,
             usage=usage,
             raw_response=data,
+            stop_reason="end" if not is_error else None,
             retry_with_different_model=status_code in [429, 500, 502, 503, 504],
             give_up_if_no_other_models=status_code in [401, 403, 404],
         )

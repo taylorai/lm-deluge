@@ -918,6 +918,7 @@ async def stream_chat(
                 raise RuntimeError("unexpected redirect from provider")
             r.raise_for_status()  # bail on 4xx/5xx
             content = ""
+            finish_reason = None
             buf = ""
             async for chunk in r.content.iter_any():  # raw bytes
                 buf += chunk.decode()
@@ -940,8 +941,14 @@ async def stream_chat(
                             sampling_params=sampling_params,
                             usage=None,
                             raw_response=None,
+                            finish_reason=finish_reason,
                         )
+                        continue
                     msg = json.loads(data)  # SSE payload
+                    if msg.get("choices"):
+                        finish_reason = (
+                            msg["choices"][0].get("finish_reason") or finish_reason
+                        )
                     delta = msg["choices"][0]["delta"].get("content")
                     if delta:
                         content += delta

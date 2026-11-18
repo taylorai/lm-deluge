@@ -42,6 +42,9 @@ Part = Text | Image | Video | File | ToolCall | ToolResult | Thinking
 class Conversation:
     messages: list[Message] = field(default_factory=list)
     model_used: str | None = None  # tracks which model was used for the last API call
+    # Anthropic code-execution/skills container to reuse on the next request.
+    # Persisted in to_log() so a resumed conversation keeps its container.
+    container_id: str | None = None
 
     # ── convenience shorthands ------------------------------------------------
     def system(self, text: str) -> "Conversation":
@@ -478,7 +481,11 @@ class Conversation:
                             "Anthropic tool_result block missing tool_use_id"
                         )
                     result = _anthropic_tool_result_content(block.get("content"))
-                    tool_result = ToolResult(tool_call_id=tool_use_id, result=result)
+                    tool_result = ToolResult(
+                        tool_call_id=tool_use_id,
+                        result=result,
+                        is_error=block.get("is_error", False),
+                    )
                     parts.append(tool_result)
                 else:
                     parts.append(Text(json.dumps(block)))
@@ -529,7 +536,13 @@ class Conversation:
                         conversation_messages.append(
                             Message(
                                 "tool",
-                                [ToolResult(tool_call_id=tool_use_id, result=result)],
+                                [
+                                    ToolResult(
+                                        tool_call_id=tool_use_id,
+                                        result=result,
+                                        is_error=block.get("is_error", False),
+                                    )
+                                ],
                             )
                         )
                     else:
@@ -663,6 +676,8 @@ class Conversation:
         if response.content is not None:
             self.messages.append(response.content)
         self.model_used = response.model_internal
+        if response.container_id:
+            self.container_id = response.container_id
         return self
 
     def with_tool_result(
@@ -1080,6 +1095,8 @@ class Conversation:
         }
         if self.model_used is not None:
             result["model_used"] = self.model_used
+        if self.container_id is not None:
+            result["container_id"] = self.container_id
         return result
 
     def print(self, max_text_length: int = 500, indent: int = 2) -> None:
@@ -1195,4 +1212,8 @@ class Conversation:
             for message in payload.get("messages", [])
             if isinstance(message, dict)
         ]
-        return cls(msgs, model_used=payload.get("model_used"))
+        return cls(
+            msgs,
+            model_used=payload.get("model_used"),
+            container_id=payload.get("container_id"),
+        )

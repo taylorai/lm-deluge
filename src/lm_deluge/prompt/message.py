@@ -120,6 +120,15 @@ class Message:
                     block["thought_signature"] = signature
                 return block
 
+            # URLs are references: keep them as-is in every mode. Fetching at
+            # log time would make serialization do network I/O (and fail offline).
+            if part._is_url():
+                return {
+                    "type": "image",
+                    "url": part.data,
+                    "media_type": part.media_type,
+                    "detail": part.detail,
+                }
             if lossless:
                 return {
                     "type": "image",
@@ -138,6 +147,36 @@ class Message:
         for p in self.parts:
             if isinstance(p, (Text, Image)):
                 content_blocks.append(serialize_media_part(p))
+            elif isinstance(p, Video):
+                if p._is_url():
+                    content_blocks.append(
+                        {"type": "video", "url": p.data, "media_type": p.media_type}
+                    )
+                elif lossless:
+                    content_blocks.append(
+                        {
+                            "type": "video",
+                            "data": base64.b64encode(p._bytes()).decode("ascii"),
+                            "media_type": p.media_type,
+                        }
+                    )
+                else:
+                    content_blocks.append(
+                        {"type": "video", "omitted": "media", "tag": "<Video>"}
+                    )
+            elif isinstance(p, File) and (p.is_remote or p._is_url()):
+                # Provider-hosted files (file_id) and URLs are references.
+                file_ref: dict = {
+                    "type": "file",
+                    "media_type": p.media_type,
+                    "filename": p.filename,
+                }
+                if p.is_remote:
+                    file_ref["file_id"] = p.file_id
+                    file_ref["remote_provider"] = p.remote_provider
+                else:
+                    file_ref["url"] = p.data
+                content_blocks.append(file_ref)
             elif isinstance(p, File):
                 if lossless:
                     content_blocks.append(
@@ -190,6 +229,7 @@ class Message:
                         "built_in": p.built_in,
                         "built_in_type": p.built_in_type,
                         "files": json_safe(p.files),
+                        **({"is_error": True} if p.is_error else {}),
                     }
                 )
             elif isinstance(p, Thinking):
@@ -205,6 +245,8 @@ class Message:
                 if signature is not None:
                     thinking_block["thought_signature"] = signature
                 content_blocks.append(thinking_block)
+            else:
+                raise TypeError(f"Cannot serialize part of type {type(p).__name__}")
 
         result: dict = {
             "log_version": 2,
@@ -230,9 +272,11 @@ class Message:
                     ),
                 )
             if part.get("type") == "image":
-                if "data" in part:
+                if "data" in part or "url" in part:
                     return Image(
-                        data=base64.b64decode(part["data"]),
+                        data=part["url"]
+                        if "url" in part
+                        else base64.b64decode(part["data"]),
                         media_type=part.get("media_type"),
                         detail=part.get("detail", "auto"),
                     )
@@ -250,11 +294,13 @@ class Message:
                     )
                 )
             elif p["type"] == "image":
-                if "data" in p:
-                    # Full image data was preserved
+                if "data" in p or "url" in p:
+                    # Full image data or a URL reference was preserved
                     parts.append(
                         Image(
-                            data=base64.b64decode(p["data"]),
+                            data=p["url"]
+                            if "url" in p
+                            else base64.b64decode(p["data"]),
                             media_type=p.get("media_type"),
                             detail=p.get("detail", "auto"),
                         )
@@ -262,6 +308,37 @@ class Message:
                 else:
                     # v1 placeholder or v2 typed omission marker.
                     parts.append(Text(p.get("tag", "<Image omitted>")))
+            elif p["type"] == "video":
+                if "data" in p or "url" in p:
+                    parts.append(
+                        Video(
+                            data=p["url"]
+                            if "url" in p
+                            else base64.b64decode(p["data"]),
+                            media_type=p.get("media_type"),
+                        )
+                    )
+                else:
+                    parts.append(Text(p.get("tag", "<Video omitted>")))
+            elif p["type"] == "file" and "file_id" in p:
+                parts.append(
+                    File(
+                        data=None,
+                        media_type=p.get("media_type"),
+                        filename=p.get("filename"),
+                        is_remote=True,
+                        remote_provider=p.get("remote_provider"),
+                        file_id=p["file_id"],
+                    )
+                )
+            elif p["type"] == "file" and "url" in p:
+                parts.append(
+                    File(
+                        data=p["url"],
+                        media_type=p.get("media_type"),
+                        filename=p.get("filename"),
+                    )
+                )
             elif p["type"] == "file":
                 if "data" in p:
                     # Full file data was preserved
@@ -306,6 +383,7 @@ class Message:
                         built_in=p.get("built_in", False),
                         built_in_type=p.get("built_in_type"),
                         files=p.get("files"),
+                        is_error=p.get("is_error", False),
                     )
                 )
             elif p["type"] == "thinking":

@@ -15,7 +15,7 @@ from typing import Any, Literal, Optional, Protocol
 
 from pydantic import BaseModel, Field
 
-from .. import Tool
+from .. import Tool, ToolAnnotations
 
 FS_DESCRIPTION = """Interact with an isolated virtual filesystem that belongs to this session.
 
@@ -458,6 +458,11 @@ class FilesystemManager:
 
         tool = Tool(
             name=self.tool_name,
+            annotations=(
+                ToolAnnotations(read_only=True, destructive=False, idempotent=True)
+                if allowed_set <= {"read_file", "list_dir", "grep"}
+                else None
+            ),
             description=FS_DESCRIPTION,
             parameters=schema.get("properties", {}),
             required=schema.get("required", []),
@@ -1670,6 +1675,11 @@ class S3FilesystemManager:
 
         tool = Tool(
             name=self.tool_name,
+            annotations=(
+                ToolAnnotations(read_only=True, destructive=False, idempotent=True)
+                if allowed_set <= {"read_file", "list_dir", "grep"}
+                else None
+            ),
             description=S3_FS_DESCRIPTION,
             parameters=schema.get("properties", {}),
             required=schema.get("required", []),

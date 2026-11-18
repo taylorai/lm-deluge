@@ -14,11 +14,22 @@ from lm_deluge.warnings import maybe_warn
 
 from ..config import named_reasoning_effort
 from ..models import APIModel
+from ..prompt import Conversation
 from .anthropic_utils import (
     is_anthropic_thinking_prefix_mismatch,
     parse_anthropic_response_content,
 )
 from .base import APIRequestBase, APIResponse, parse_retry_after
+from .message_threads import (
+    MESSAGE_THREADS_BETA,
+    REPLAY_ERROR_CODES,
+    UNSUPPORTED_ERROR_CODE,
+    ThreadPlan,
+    plan_thread_request,
+    record_thread_turn,
+    supports_message_threads,
+    thread_error_code,
+)
 from .streaming import apply_cache_ttl, read_anthropic_stream
 
 
@@ -750,6 +761,8 @@ class AnthropicRequest(APIRequestBase):
         super().__init__(context=context)
 
         self.model = APIModel.from_registry(self.context.model_name)
+        self._thread_plan: ThreadPlan | None = None
+        self._thread_recovery = False
 
         # Lock images as bytes if caching is enabled
         if self.context.cache is not None:
@@ -765,6 +778,53 @@ class AnthropicRequest(APIRequestBase):
         self.request_header = self.merge_headers(
             base_headers, exclude_patterns=["openai", "gemini", "mistral"]
         )
+        self._thread_plan = None
+        thread = self.context.message_thread
+        if (
+            thread is not None
+            and not thread.unthreaded
+            and supports_message_threads(self.model)
+        ):
+            _add_beta(self.request_header, MESSAGE_THREADS_BETA)
+            self._thread_plan = plan_thread_request(
+                thread,
+                self.model,
+                self.request_json,
+                self.request_header,
+                recovery=self._thread_recovery,
+            )
+
+    async def execute_once(self) -> APIResponse:
+        response = await super().execute_once()
+        thread = self.context.message_thread
+        plan = self._thread_plan
+        if thread is None or plan is None:
+            return response
+        if not response.is_error:
+            reply = None
+            if response.content is not None:
+                # Digest the reply as the next turn's Conversation will send it,
+                # so continuing can check the caller didn't edit it.
+                _, reply = Conversation([response.content]).to_anthropic()
+            record_thread_turn(thread, plan, self.model, response.raw_response, reply)
+            return response
+
+        # Thread errors are rejected before the model runs and cost no tokens,
+        # so recover here instead of spending a client-level retry (which
+        # would also treat a thread_not_found 404 as "model not found").
+        code = thread_error_code(response.raw_response)
+        if code == UNSUPPORTED_ERROR_CODE or (
+            code == "thread_not_found" and plan.mode == "continue" and thread.replayed
+        ):
+            # The API can't thread this conversation: send it without `thread`.
+            thread.unthreaded = True
+            thread.reset()
+            return await self.execute_once()
+        if code in REPLAY_ERROR_CODES and plan.mode == "continue":
+            thread.reset()
+            self._thread_recovery = True
+            return await self.execute_once()
+        return response
 
     async def handle_response(self, http_response: ClientResponse) -> APIResponse:
         data = None

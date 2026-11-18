@@ -407,6 +407,7 @@ class BedrockRequest(APIRequestBase):
                 status_code=None,
                 is_error=True,
                 error_message="Request timed out (terminated by client).",
+                error_kind="timeout",
                 content=None,
                 usage=None,
             )
@@ -425,6 +426,7 @@ class BedrockRequest(APIRequestBase):
                 status_code=None,
                 is_error=True,
                 error_message=f"Unexpected {type(e).__name__}: {str(e) or 'No message.'}",
+                error_kind="other",
                 content=None,
                 usage=None,
             )

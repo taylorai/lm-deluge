@@ -47,6 +47,7 @@ from lm_deluge.tool import MCPServer, Skill, Tool, execute_tool_calls
 
 from ..api_requests.base import APIResponse
 from ..api_requests.context import RequestContext, ThinkingPrefixMismatchBehavior
+from ..api_requests.message_threads import MessageThread
 from ..api_requests.streaming import TextDeltaCallback, TextDeltaEvent
 from ..config import ReasoningEffortValue, SamplingParams
 from ..models import APIModel, register_model, registry
@@ -114,6 +115,16 @@ def _format_tool_result(result: str | dict | list) -> str:
 
 
 # TODO: add optional max_input_tokens to client so we can reject long prompts to prevent abuse
+
+
+def _resolve_message_thread(
+    message_thread: bool | MessageThread,
+) -> MessageThread | None:
+    if isinstance(message_thread, MessageThread):
+        return message_thread
+    return MessageThread() if message_thread else None
+
+
 class _LLMClient(BaseModel):
     """
     Internal LLMClient implementation using Pydantic.
@@ -1364,6 +1375,7 @@ class _LLMClient(BaseModel):
                 for m in context.prompt.messages
             ],
             model_used=context.prompt.model_used,
+            container_id=context.prompt.container_id,
         )
         current_container_id = context.container_id
         last_response: APIResponse | None = None
@@ -1391,7 +1403,9 @@ class _LLMClient(BaseModel):
                         await on_message(warning)
                 else:
                     request_prompt = Conversation(
-                        list(working.messages), model_used=working.model_used
+                        list(working.messages),
+                        model_used=working.model_used,
+                        container_id=working.container_id,
                     ).with_message(warning)
             round_context = context.copy(
                 prompt=request_prompt,
@@ -1415,6 +1429,7 @@ class _LLMClient(BaseModel):
 
             if response.container_id:
                 current_container_id = response.container_id
+                working.container_id = current_container_id
 
             if response.is_error or response.content is None:
                 loop_stop_reason = "error"
@@ -1519,7 +1534,7 @@ class _LLMClient(BaseModel):
             cache_ttl=self.cache_ttl,
             tools=tools,
             skills=skills,
-            container_id=container_id,
+            container_id=container_id or prompt.container_id,
             output_schema=output_schema,
             cache=cache,
             use_responses_api=self.use_responses_api,
@@ -1723,6 +1738,7 @@ class _LLMClient(BaseModel):
         | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
+        message_thread: bool | MessageThread = False,
         http_session: aiohttp.ClientSession | None = None,
     ) -> AgentLoopResponse:
         """Run the shared provider-agnostic loop and wrap its result."""
@@ -1737,6 +1753,7 @@ class _LLMClient(BaseModel):
             cache_ttl=self.cache_ttl,
             tools=tools,
             skills=skills,
+            container_id=conversation.container_id,
             output_schema=output_schema,
             cache=cache,
             use_responses_api=self.use_responses_api,
@@ -1748,6 +1765,7 @@ class _LLMClient(BaseModel):
             thinking_prefix_mismatch=self.thinking_prefix_mismatch,
             force_local_mcp=self.force_local_mcp,
             http_session=http_session,
+            message_thread=_resolve_message_thread(message_thread),
         )
         context = self._initialize_fallback_chain(context)
         context.validate_request_config()
@@ -1785,6 +1803,7 @@ class _LLMClient(BaseModel):
         | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
+        message_thread: bool | MessageThread = False,
         http_session: aiohttp.ClientSession | None = None,
     ) -> int:
         """Start an agent loop without waiting for it to complete.
@@ -1817,6 +1836,7 @@ class _LLMClient(BaseModel):
                 service_tier=service_tier,
                 prefer_model=prefer_model,
                 verbose=verbose,
+                message_thread=message_thread,
                 http_session=http_session,
             )
         )
@@ -1862,6 +1882,7 @@ class _LLMClient(BaseModel):
         | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
+        message_thread: bool | MessageThread = False,
     ) -> tuple[Conversation, APIResponse]:
         """Run a simple agent loop until no more tool calls are returned.
 
@@ -1894,6 +1915,14 @@ class _LLMClient(BaseModel):
                 the conversation and callbacks. Warnings require max_rounds > 1.
             prefer_model: Model to prefer. Use "last" to use conversation.model_used.
             verbose: If True, print each tool call and result to stdout.
+            message_thread: Use Anthropic message threads (beta) so each round
+                after the first sends only the new messages, which lowers time
+                to first token in long loops. True starts a new thread; pass a
+                ``MessageThread`` to keep one across several calls on the same
+                conversation. Only the first-party Anthropic API supports
+                threads (not Bedrock); other models send full conversations.
+                Thread contents aren't eligible for zero data retention. Pair
+                with cache="automatic" to also cache each turn.
         """
         task_id = self.start_agent_loop_nowait(
             conversation,
@@ -1909,6 +1938,7 @@ class _LLMClient(BaseModel):
             service_tier=service_tier,
             prefer_model=prefer_model,
             verbose=verbose,
+            message_thread=message_thread,
         )
         return await self.wait_for_agent_loop(task_id)
 
@@ -1930,6 +1960,7 @@ class _LLMClient(BaseModel):
         | None = None,
         prefer_model: str | None = None,
         verbose: bool = False,
+        message_thread: bool | MessageThread = False,
     ) -> tuple[Conversation, APIResponse]:
         """Synchronous wrapper for :meth:`run_agent_loop`."""
         return asyncio.run(
@@ -1948,6 +1979,7 @@ class _LLMClient(BaseModel):
                 service_tier=service_tier,
                 prefer_model=prefer_model,
                 verbose=verbose,
+                message_thread=message_thread,
             )
         )
 
