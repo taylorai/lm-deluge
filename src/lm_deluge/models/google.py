@@ -102,6 +102,25 @@ GOOGLE_MODELS = {
             "gemini-3.8-flash",
         )
     },
+    # Gemini 4 Neon: flat pricing across the 1M context window; implicit
+    # caching only (explicit caching is not supported). Same thinking levels
+    # as Hydrogen (low, medium, high, xhigh; defaults to high).
+    "gemini-4-neon": {
+        "id": "gemini-4-neon",
+        "name": "gemini-4-neon",
+        "api_base": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env_var": "GEMINI_API_KEY",
+        "supports_json": True,
+        "supports_logprobs": False,
+        "api_spec": "gemini",
+        "input_cost": 3.0,
+        "cached_input_cost": 0.15,
+        "output_cost": 15.0,
+        "reasoning_model": True,
+        "supports_images": True,
+        "supports_xhigh": True,
+        "omit_default_sampling_params": True,
+    },
     # Gemini 4 Hydrogen: flat pricing across the 1M context window; implicit
     # caching only (explicit caching is not supported).
     "gemini-4-hydrogen": {
@@ -224,8 +243,8 @@ GOOGLE_MODELS = {
 # endpoint lacks gemini-2.5-*, gemini-3-flash-preview, and gemini-3.1-pro-preview.
 # gemini-4-argon answers on the "us" and "eu" endpoints but returns 404 on
 # "global" as of 2026-10-13, even though Google's docs list it there.
-# gemini-4-carbon behaves the same way as of 2026-11-10, and gemini-4-hydrogen
-# as of 2026-11-13.
+# gemini-4-carbon behaves the same way as of 2026-11-10, gemini-4-hydrogen
+# as of 2026-11-13, and gemini-4-neon as of 2026-11-18.
 VERTEX_GEMINI_MODELS = (
     "gemini-2.5-pro",
     "gemini-2.5-flash",
@@ -241,6 +260,7 @@ VERTEX_GEMINI_MODELS = (
     "gemini-4-argon",
     "gemini-4-carbon",
     "gemini-4-hydrogen",
+    "gemini-4-neon",
 )
 
 GOOGLE_MODELS.update(

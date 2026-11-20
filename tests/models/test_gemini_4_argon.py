@@ -25,18 +25,28 @@ def test_gemini_4_registry():
     for model_name in GEMINI_4_MODELS:
         _check_registry(model_name)
     _check_registry(HYDROGEN, pricing=_assert_hydrogen_pricing)
-    for name in (HYDROGEN, f"{HYDROGEN}-vertex"):
-        assert APIModel.from_registry(name).supports_xhigh, name
+    _check_registry(NEON, pricing=_assert_neon_pricing)
+    for model_name in XHIGH_MODELS:
+        for name in (model_name, f"{model_name}-vertex"):
+            assert APIModel.from_registry(name).supports_xhigh, name
     assert not APIModel.from_registry("gemini-4-argon").supports_xhigh
 
 
 HYDROGEN = "gemini-4-hydrogen"
+NEON = "gemini-4-neon"
+XHIGH_MODELS = (HYDROGEN, NEON)
 
 
 def _assert_hydrogen_pricing(model):
     assert model.input_cost == 1.5
     assert model.cached_input_cost == 0.075
     assert model.output_cost == 7.5
+
+
+def _assert_neon_pricing(model):
+    assert model.input_cost == 3.0
+    assert model.cached_input_cost == 0.15
+    assert model.output_cost == 15.0
 
 
 def _check_registry(model_name, pricing=_assert_launch_pricing):
@@ -82,8 +92,13 @@ def test_gemini_4_defaults_to_medium_without_sampling_params():
 
 
 def test_gemini_4_hydrogen_thinking_levels():
+    for model_name in XHIGH_MODELS:
+        _check_xhigh_thinking_levels(model_name)
+
+
+def _check_xhigh_thinking_levels(model_name):
     request = _native_request(
-        SamplingParams(temperature=0.2, top_p=0.8), model_name=HYDROGEN
+        SamplingParams(temperature=0.2, top_p=0.8), model_name=model_name
     )
     generation_config = request["generationConfig"]
     assert generation_config["thinkingConfig"] == {"thinkingLevel": "high"}
@@ -101,10 +116,10 @@ def test_gemini_4_hydrogen_thinking_levels():
     }
     for effort, level in expected.items():
         request = _native_request(
-            SamplingParams(reasoning_effort=effort), model_name=HYDROGEN
+            SamplingParams(reasoning_effort=effort), model_name=model_name
         )
         thinking_config = request["generationConfig"]["thinkingConfig"]
-        assert thinking_config == {"thinkingLevel": level}, effort
+        assert thinking_config == {"thinkingLevel": level}, (model_name, effort)
 
 
 def test_gemini_4_maps_unsupported_levels():
@@ -128,7 +143,7 @@ def test_gemini_4_maps_unsupported_levels():
 
 
 def test_gemini_4_gets_thought_signature_and_media_resolution():
-    for model_name in (*GEMINI_4_MODELS, HYDROGEN):
+    for model_name in (*GEMINI_4_MODELS, *XHIGH_MODELS):
         _check_thought_signature_and_media_resolution(model_name)
 
 
@@ -155,7 +170,7 @@ def _check_thought_signature_and_media_resolution(model_name):
 
 
 def test_gemini_4_vertex_url():
-    for model_name in (*GEMINI_4_MODELS, HYDROGEN):
+    for model_name in (*GEMINI_4_MODELS, *XHIGH_MODELS):
         _check_vertex_url(model_name)
 
 

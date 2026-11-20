@@ -78,7 +78,7 @@ async def _build_gemini_request(
                 "gemini-4-carbon",
             }:
                 effort = "medium"
-            elif model.name == "gemini-4-hydrogen":
+            elif model.name in {"gemini-4-hydrogen", "gemini-4-neon"}:
                 effort = "high"
             else:
                 maybe_warn("WARN_GEMINI3_NO_REASONING")

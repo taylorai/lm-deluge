@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.175 · 2026-11-19
+
+- **Gemini 4 Neon**: Added `gemini-4-neon` (Gemini API) and `gemini-4-neon-vertex` at $3 input / $0.15 cached / $15 output per million tokens, flat across the 1M context window (implicit caching only; not on the Gemini free tier). Neon's thinking levels work like Hydrogen's: it takes `low`, `medium`, `high` and `xhigh`, defaults to `high`, maps `none`/`minimal` to `low` and `max` to `xhigh`. Temperature and top-p are not sent. On Vertex it answers on the `us` and `eu` endpoints but returns 404 on `global`, the same as the other Gemini 4 models. Live runs passed at every effort plus a tool loop on both surfaces (`tests/one_off/test_gemini_4_neon_live.py`).
+
 ## 0.0.174 · 2026-11-17
 
 - **GPT-6.2 Sol and GPT-6.2 Astra**: Added native OpenAI `gpt-6.2-sol` (alias `gpt-6.2`) at $2 input / $0.10 cached / $2.50 cache write / $10 output per million tokens, and `gpt-6.2-astra` at $8 / $0.40 / $10 / $40. Both support vision, JSON, verbosity and reasoning efforts `low` through `max`; OpenAI rejects `none` on both, so lm-deluge doesn't send it. Chat Completions rejects function tools whenever reasoning is on, so tools on Chat Completions now fail fast with a `ValueError`; use `use_responses_api=True`. As with other GPT-6 models, `max` is sent as `xhigh` on Chat Completions. Live runs passed on Chat Completions and Responses at every effort plus a tool round-trip (`tests/one_off/test_gpt_62_live.py`).
