@@ -454,20 +454,25 @@ class GeminiRequest(APIRequestBase):
         )
 
 
+def vertex_generate_content_url(model_name: str) -> str:
+    """generateContent URL for a Vertex model, honoring VERTEX_LOCATION.
+
+    API-key requests omit the project (Vertex derives it from the key).
+    Live-verified for "global" and "us"; regional endpoints are untested.
+    """
+    location = os.getenv("VERTEX_LOCATION", "global").lower()
+    if location == "global":
+        base = "https://aiplatform.googleapis.com"
+    elif location in {"us", "eu"}:
+        base = f"https://aiplatform.{location}.rep.googleapis.com"
+    else:
+        base = f"https://{location}-aiplatform.googleapis.com"
+    return f"{base}/v1beta1/publishers/google/models/{model_name}:generateContent"
+
+
 class VertexGeminiRequest(GeminiRequest):
     async def build_request(self):
-        location = os.getenv("VERTEX_LOCATION", "global").lower()
-        if location == "global":
-            base = "https://aiplatform.googleapis.com"
-        elif location in {"us", "eu"}:
-            base = f"https://aiplatform.{location}.rep.googleapis.com"
-        else:
-            base = f"https://{location}-aiplatform.googleapis.com"
-        # API-key requests omit the project (Vertex derives it from the key).
-        # Live-verified for "global" and "us"; regional endpoints are untested.
-        self.url = (
-            f"{base}/v1beta1/publishers/google/models/{self.model.name}:generateContent"
-        )
+        self.url = vertex_generate_content_url(self.model.name)
         if self.context.on_text_delta is not None:
             self.url = (
                 self.url.removesuffix(":generateContent")

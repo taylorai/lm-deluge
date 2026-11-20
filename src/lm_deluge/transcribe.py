@@ -1,11 +1,15 @@
-"""Parallel audio transcription API for OpenAI, Mistral, Fireworks, and Deepgram."""
+"""Parallel audio transcription API for OpenAI, Mistral, Fireworks, Deepgram, and
+Gemini on Vertex AI (Gemini Enterprise Agent Platform)."""
 
 import asyncio
+import base64
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -15,6 +19,7 @@ import filetype
 from tqdm.auto import tqdm
 
 from .api_requests.base import parse_retry_after
+from .api_requests.gemini import vertex_generate_content_url
 from .tracker import StatusTracker
 
 # ---------------------------------------------------------------------------
@@ -30,6 +35,7 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "cost_per_minute": 0.006,
         "max_duration": None,  # no hard duration limit
         "max_file_size": 25 * 1024 * 1024,  # 25 MB
+        "word_timestamps": True,
     },
     "gpt-4o-transcribe": {
         "provider": "openai",
@@ -64,6 +70,7 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "cost_per_minute": 0.004,
         "max_duration": None,
         "max_file_size": 1024 * 1024 * 1024,  # 1 GB
+        "word_timestamps": True,
     },
     "whisper-v3-turbo": {
         "provider": "fireworks",
@@ -72,6 +79,7 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "cost_per_minute": 0.002,
         "max_duration": None,
         "max_file_size": 1024 * 1024 * 1024,
+        "word_timestamps": True,
     },
     # Deepgram
     "nova-3": {
@@ -81,6 +89,7 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "cost_per_minute": 0.0043,
         "max_duration": None,
         "max_file_size": 2 * 1024 * 1024 * 1024,  # 2 GB
+        "word_timestamps": True,
     },
     "nova-2": {
         "provider": "deepgram",
@@ -89,8 +98,33 @@ REGISTRY: dict[str, dict[str, Any]] = {
         "cost_per_minute": 0.0043,
         "max_duration": None,
         "max_file_size": 2 * 1024 * 1024 * 1024,
+        "word_timestamps": True,
+    },
+    # Gemini on Vertex AI. Uses generateContent with inline audio; the URL
+    # follows VERTEX_LOCATION (see vertex_generate_content_url), so api_base
+    # is informational only.
+    "gemini-3.5-transcribe-vertex": {
+        "provider": "vertex",
+        "model_id": "gemini-3.5-transcribe",
+        "api_base": "https://aiplatform.googleapis.com/v1beta1",
+        "api_key_env_var": "VERTEX_API_KEY",
+        # No published per-minute price; ~1,640 audio tokens/min at $2/M input
+        # plus transcript output tokens.
+        "cost_per_minute": 0.006,
+        # Google documents a 15-minute limit when word timestamps or
+        # diarization are enabled. Longer files are split with ffmpeg.
+        "max_duration": 900,
+        # Inline request bodies over ~20 MB are rejected; base64 adds 33%.
+        "max_file_size": 14 * 1024 * 1024,
+        "word_timestamps": True,
     },
 }
+
+# Models marked "word_timestamps" return per-word times when timestamps=True.
+# Long audio for those models is split into chunks that overlap by this much,
+# so a word at a cut isn't lost and diarization labels can be matched across
+# chunks (see _stitch_overlapping). Capped at a quarter of the chunk length.
+DEFAULT_CHUNK_OVERLAP_SECONDS = 60.0
 
 # Supported audio MIME types
 AUDIO_EXTENSIONS: dict[str, str] = {
@@ -245,22 +279,56 @@ def _get_audio_duration(path: str | Path) -> float | None:
             return float(result.stdout.strip())
     except (subprocess.TimeoutExpired, ValueError):
         pass
-    return None
+    return _decode_audio_duration(path)
+
+
+_FFMPEG_TIME_RE = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
+
+
+def _decode_audio_duration(path: str | Path) -> float | None:
+    """Measure duration by decoding the whole file.
+
+    Fallback for containers without a duration header, e.g. WebM written by
+    a browser MediaRecorder, where ffprobe reports "N/A".
+    """
+    if not _has_ffmpeg():
+        return None
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-nostdin", "-v", "quiet", "-stats", "-i", str(path)]
+            + ["-vn", "-f", "null", "-"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    matches = _FFMPEG_TIME_RE.findall(result.stderr)
+    if result.returncode != 0 or not matches:
+        return None
+    hours, minutes, seconds = matches[-1]
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds)
 
 
 def _split_audio(
     path: str | Path,
     max_chunk_seconds: float,
-) -> list[Path]:
+    overlap_seconds: float = 0.0,
+    duration: float | None = None,
+) -> list[tuple[Path, float]]:
     """Split an audio file into chunks using ffmpeg.
 
-    Each chunk is up to max_chunk_seconds long. Output format is mp3 for
-    good compression and universal support.
+    Each chunk is up to max_chunk_seconds long and starts overlap_seconds
+    before the previous chunk ends. Output is mono mp3 for small, universally
+    accepted chunks.
 
-    Returns list of temp file paths. Caller is responsible for cleanup.
+    Returns (temp file path, start offset in seconds) pairs. Caller is
+    responsible for cleanup.
     """
     path = Path(path)
-    duration = _get_audio_duration(path)
+    if duration is None:
+        duration = _get_audio_duration(path)
     if duration is None:
         raise RuntimeError(
             "Could not determine audio duration. Install ffmpeg/ffprobe to "
@@ -268,12 +336,15 @@ def _split_audio(
         )
 
     if duration <= max_chunk_seconds:
-        return [path]
+        return [(path, 0.0)]
+    if not 0 <= overlap_seconds < max_chunk_seconds / 2:
+        raise ValueError("overlap_seconds must be less than half the chunk length")
 
     tmp_dir = Path(tempfile.mkdtemp(prefix="lm_deluge_audio_"))
-    chunks: list[Path] = []
+    chunks: list[tuple[Path, float]] = []
     start = 0.0
     chunk_idx = 0
+    step = max_chunk_seconds - overlap_seconds
 
     while start < duration:
         chunk_path = tmp_dir / f"chunk_{chunk_idx:04d}.mp3"
@@ -288,10 +359,13 @@ def _split_audio(
             str(max_chunk_seconds),
             "-i",
             str(path),
+            "-vn",
+            "-ac",
+            "1",
             "-acodec",
             "libmp3lame",
-            "-q:a",
-            "2",
+            "-b:a",
+            "64k",
             str(chunk_path),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -301,9 +375,11 @@ def _split_audio(
             raise RuntimeError(
                 f"ffmpeg failed to split audio at {start}s: {result.stderr[:500]}"
             )
-        chunks.append(chunk_path)
+        chunks.append((chunk_path, start))
+        if start + max_chunk_seconds >= duration:
+            break
         chunk_idx += 1
-        start += max_chunk_seconds
+        start += step
 
     return chunks
 
@@ -314,12 +390,18 @@ def _stitch_responses(
     chunk_offsets: list[float],
     known_duration: float | None = None,
     known_language: str | None = None,
+    chunk_seconds: float | None = None,
+    overlap_seconds: float = 0.0,
 ) -> TranscriptionResponse:
     """Stitch chunk transcription responses back into a single response.
 
     Adjusts segment/word timestamps by adding chunk offsets and concatenates text.
     known_duration/known_language are used as fallbacks when the API doesn't
     return them (e.g. gpt-4o-transcribe models only return {"text": "..."}).
+
+    With overlap_seconds > 0 (chunks overlap and carry word timestamps), the
+    overlap is de-duplicated at its midpoint and diarization labels are
+    mapped onto one consistent set of speakers; see _stitch_overlapping.
     """
     errors = [r for r in chunk_responses if r.is_error]
     if errors:
@@ -331,6 +413,17 @@ def _stitch_responses(
             error_message=f"{len(errors)}/{len(chunk_responses)} chunks failed:\n"
             + "\n".join(error_msgs),
             text="",
+        )
+
+    if overlap_seconds > 0:
+        assert chunk_seconds is not None, "chunk_seconds is required with overlap"
+        return _stitch_overlapping(
+            chunk_responses,
+            original_id,
+            chunk_offsets,
+            chunk_seconds,
+            known_duration=known_duration,
+            known_language=known_language,
         )
 
     all_text_parts: list[str] = []
@@ -379,6 +472,294 @@ def _stitch_responses(
         duration=final_duration,
         segments=all_segments,
         words=all_words,
+    )
+
+
+# Words in two overlapping chunks count as the same utterance when their text
+# matches and their absolute start times are within this many seconds.
+_WORD_MATCH_TOLERANCE = 0.5
+# Minimum matched words before two chunks' speaker labels are linked.
+_MIN_SPEAKER_VOTES = 2
+
+
+def _normalize_word(word: str) -> str:
+    return re.sub(r"[^\w']", "", word.lower())
+
+
+def _shift_words(words: list[dict], offset: float) -> list[dict]:
+    shifted = []
+    for word in words:
+        adjusted = dict(word)
+        adjusted["start"] = adjusted.get("start", 0.0) + offset
+        adjusted["end"] = adjusted.get("end", 0.0) + offset
+        # Deepgram labels words with ints but segments with strings.
+        if adjusted.get("speaker") is not None:
+            adjusted["speaker"] = str(adjusted["speaker"])
+        shifted.append(adjusted)
+    return shifted
+
+
+def _match_words(
+    prev_words: list[dict],
+    cur_words: list[dict],
+    overlap_start: float,
+    overlap_end: float,
+) -> list[tuple[int, int]]:
+    """Find words transcribed in both of two overlapping chunks.
+
+    Returns (prev index, cur index) pairs: same normalized text, absolute
+    start times within _WORD_MATCH_TOLERANCE, nearest candidate wins.
+    """
+    lo = overlap_start - _WORD_MATCH_TOLERANCE
+    hi = overlap_end + _WORD_MATCH_TOLERANCE
+    prev_in = [
+        (j, _normalize_word(w.get("word", "")))
+        for j, w in enumerate(prev_words)
+        if lo <= w["start"] <= hi
+    ]
+    pairs: list[tuple[int, int]] = []
+    for k, cur in enumerate(cur_words):
+        if not lo <= cur["start"] <= hi:
+            continue
+        text = _normalize_word(cur.get("word", ""))
+        if not text:
+            continue
+        best: int | None = None
+        best_delta = _WORD_MATCH_TOLERANCE
+        for j, prev_text in prev_in:
+            if prev_text != text:
+                continue
+            delta = abs(prev_words[j]["start"] - cur["start"])
+            if delta <= best_delta:
+                best, best_delta = j, delta
+        if best is not None:
+            pairs.append((best, k))
+    return pairs
+
+
+def _cut_points(
+    prev_words: list[dict],
+    cur_words: list[dict],
+    pairs: list[tuple[int, int]],
+    midpoint: float,
+) -> tuple[float, float]:
+    """Choose where to switch from the previous chunk to the current one.
+
+    Cuts at a word found in both chunks, nearest the overlap midpoint,
+    preferring one whose following word also matches. The previous chunk
+    keeps words starting before that word's time in its own timeline; the
+    current chunk keeps the word and everything after. Per-chunk timestamps
+    of the same word differ slightly, so cutting both chunks at one fixed
+    time can keep a word twice or drop it.
+    """
+    pair_set = set(pairs)
+    anchors = [(j, k) for j, k in pairs if (j + 1, k + 1) in pair_set]
+    candidates = anchors or pairs
+    if not candidates:
+        return midpoint, midpoint
+    j, k = min(candidates, key=lambda p: abs(prev_words[p[0]]["start"] - midpoint))
+    return prev_words[j]["start"], cur_words[k]["start"]
+
+
+def _match_speakers(
+    prev_words: list[dict],
+    prev_mapping: dict[str, str],
+    cur_words: list[dict],
+    pairs: list[tuple[int, int]],
+) -> dict[str, str]:
+    """Map the current chunk's local speaker labels onto global labels.
+
+    Each word found in both chunks (see _match_words) is a vote that its
+    current label and the previous chunk's (already global) label are the
+    same person; labels are paired greedily by vote count, one-to-one. If
+    exactly one label is left unpaired on each side, they are paired by
+    elimination (the usual two-person case where only one person spoke
+    during the overlap).
+    """
+    votes: Counter[tuple[str, str]] = Counter()
+    for j, k in pairs:
+        prev_label = prev_words[j].get("speaker")
+        cur_label = cur_words[k].get("speaker")
+        if prev_label is not None and cur_label is not None:
+            votes[(cur_label, prev_mapping[prev_label])] += 1
+
+    mapping: dict[str, str] = {}
+    used: set[str] = set()
+    for (cur_label, global_label), count in votes.most_common():
+        if count < _MIN_SPEAKER_VOTES:
+            break
+        if cur_label in mapping or global_label in used:
+            continue
+        mapping[cur_label] = global_label
+        used.add(global_label)
+
+    cur_labels = {w["speaker"] for w in cur_words if w.get("speaker") is not None}
+    prev_globals = {
+        prev_mapping[w["speaker"]] for w in prev_words if w.get("speaker") is not None
+    }
+    unmatched_cur = cur_labels - mapping.keys()
+    unmatched_prev = prev_globals - used
+    if len(unmatched_cur) == 1 and len(unmatched_prev) == 1:
+        mapping[unmatched_cur.pop()] = unmatched_prev.pop()
+    return mapping
+
+
+def _segment_words(
+    seg: TranscriptionSegment, words: list[dict], assigned: set[int]
+) -> list[dict]:
+    """Words inside a segment's time span with its speaker, each used once."""
+    found = [
+        w
+        for w in words
+        if id(w) not in assigned
+        and seg.start <= w["start"] <= seg.end
+        and w.get("speaker") == (None if seg.speaker is None else str(seg.speaker))
+    ]
+    assigned.update(id(w) for w in found)
+    return found
+
+
+def _stitch_overlapping(
+    chunk_responses: list[TranscriptionResponse],
+    original_id: int,
+    chunk_offsets: list[float],
+    chunk_seconds: float,
+    known_duration: float | None = None,
+    known_language: str | None = None,
+) -> TranscriptionResponse:
+    """Stitch overlapping chunks that carry word timestamps.
+
+    Chunk i keeps the words between its cut points with chunk i-1 and chunk
+    i+1 (see _cut_points). Segments are trimmed to the kept
+    words, and a segment split by a cut is re-joined when the same speaker
+    continues across it. Speaker labels become "spk:0", "spk:1", ... in order
+    of first appearance.
+    """
+    for resp in chunk_responses:
+        if resp.text.strip() and not resp.words:
+            # Without word times the overlap can't be de-duplicated.
+            return TranscriptionResponse(
+                id=original_id,
+                status_code=None,
+                is_error=True,
+                error_message=(
+                    f"Chunk {resp.id} returned text without word timestamps; "
+                    "overlapping chunks can't be stitched"
+                ),
+                text="",
+            )
+
+    language = known_language
+    next_label = 0
+    prev_mapping: dict[str, str] = {}
+    segments: list[TranscriptionSegment] = []
+    words: list[dict] = []
+
+    shifted = [
+        _shift_words(resp.words, offset)
+        for resp, offset in zip(chunk_responses, chunk_offsets)
+    ]
+    # boundary_pairs[i] / cuts[i] describe the overlap between chunk i-1 and i.
+    boundary_pairs: list[list[tuple[int, int]]] = [[]]
+    cuts: list[tuple[float, float]] = [(float("-inf"), float("-inf"))]
+    for i in range(1, len(shifted)):
+        overlap_start = chunk_offsets[i]
+        overlap_end = chunk_offsets[i - 1] + chunk_seconds
+        pairs = _match_words(shifted[i - 1], shifted[i], overlap_start, overlap_end)
+        boundary_pairs.append(pairs)
+        cuts.append(
+            _cut_points(
+                shifted[i - 1],
+                shifted[i],
+                pairs,
+                (overlap_start + overlap_end) / 2,
+            )
+        )
+
+    for i, (resp, offset) in enumerate(zip(chunk_responses, chunk_offsets)):
+        if resp.language and not language:
+            language = resp.language
+        chunk_words = shifted[i]
+
+        mapping: dict[str, str] = {}
+        if i > 0:
+            mapping = _match_speakers(
+                shifted[i - 1], prev_mapping, chunk_words, boundary_pairs[i]
+            )
+        for w in chunk_words:
+            label = w.get("speaker")
+            if label is not None and label not in mapping:
+                mapping[label] = f"spk:{next_label}"
+                next_label += 1
+
+        lo = cuts[i][1]
+        hi = cuts[i + 1][0] if i + 1 < len(cuts) else float("inf")
+
+        assigned: set[int] = set()
+        for seg in resp.segments:
+            abs_seg = TranscriptionSegment(
+                text=seg.text,
+                start=seg.start + offset,
+                end=seg.end + offset,
+                speaker=seg.speaker,
+            )
+            seg_words = _segment_words(abs_seg, chunk_words, assigned)
+            kept = [w for w in seg_words if lo <= w["start"] < hi]
+            if not kept:
+                continue
+            speaker = mapping.get(str(seg.speaker)) if seg.speaker is not None else None
+            text = (
+                seg.text
+                if len(kept) == len(seg_words)
+                else " ".join(w.get("word", "") for w in kept)
+            )
+            if (
+                segments
+                and segments[-1].speaker == speaker
+                and len(kept) < len(seg_words)
+                and kept[0]["start"] - segments[-1].end < 1.0
+            ):
+                prev = segments[-1]
+                segments[-1] = TranscriptionSegment(
+                    text=f"{prev.text} {text}",
+                    start=prev.start,
+                    end=kept[-1]["end"],
+                    speaker=speaker,
+                )
+            else:
+                segments.append(
+                    TranscriptionSegment(
+                        text=text,
+                        start=kept[0]["start"],
+                        end=kept[-1]["end"],
+                        speaker=speaker,
+                    )
+                )
+
+        for w in chunk_words:
+            if lo <= w["start"] < hi:
+                kept_word = dict(w)
+                if w.get("speaker") is not None:
+                    kept_word["speaker"] = mapping[w["speaker"]]
+                words.append(kept_word)
+
+        prev_mapping = mapping
+
+    text = (
+        " ".join(seg.text for seg in segments)
+        if segments
+        else " ".join(w.get("word", "") for w in words)
+    )
+    return TranscriptionResponse(
+        id=original_id,
+        status_code=200,
+        is_error=False,
+        error_message=None,
+        text=text,
+        language=language,
+        duration=known_duration,
+        segments=segments,
+        words=words,
     )
 
 
@@ -478,6 +859,44 @@ def _build_fireworks_form(
     return form
 
 
+def _build_vertex_body(
+    audio_bytes: bytes,
+    mime_type: str,
+    language: str | None,
+    timestamps: bool,
+    extra_params: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a generateContent body for a Gemini transcription model.
+
+    extra_params are merged into audioTranscriptionConfig, using the REST
+    field names (e.g. diarization=True, customVocabulary=[...]).
+    """
+    config: dict[str, Any] = {}
+    if language:
+        config["languageCodes"] = [language]
+    if timestamps:
+        config["wordTimestamp"] = True
+    config.update(extra_params)
+    body: dict[str, Any] = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "inlineData": {
+                            "mimeType": mime_type,
+                            "data": base64.b64encode(audio_bytes).decode("ascii"),
+                        }
+                    }
+                ],
+            }
+        ]
+    }
+    if config:
+        body["generationConfig"] = {"audioTranscriptionConfig": config}
+    return body
+
+
 _FORM_BUILDERS = {
     "openai": _build_openai_form,
     "mistral": _build_mistral_form,
@@ -504,6 +923,71 @@ def _parse_segments(raw_segments: list[dict]) -> list[TranscriptionSegment]:
     return segments
 
 
+class _TranscriptionResponseError(Exception):
+    """A 200 response that is unusable and should not be retried."""
+
+
+def _parse_duration_string(value: Any) -> float:
+    """Parse a protobuf Duration as JSON ("1.600s") or a plain number."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        return float(value.removesuffix("s") or 0)
+    return 0.0
+
+
+def _parse_vertex_response(
+    result: dict,
+) -> tuple[str, str | None, float | None, list[TranscriptionSegment], list[dict]]:
+    """Parse a Gemini transcription generateContent response.
+
+    Each content part is one transcribed passage; with diarization, one part
+    per speaker turn, labeled by audioTranscription.speakerLabel ("spk:0").
+    """
+    candidates = result.get("candidates") or []
+    if not candidates:
+        feedback = result.get("promptFeedback")
+        raise _TranscriptionResponseError(f"No candidates in response: {feedback}")
+    candidate = candidates[0]
+    finish_reason = candidate.get("finishReason")
+    if finish_reason and finish_reason != "STOP":
+        raise _TranscriptionResponseError(
+            f"Transcription stopped early: finishReason={finish_reason}"
+        )
+
+    texts: list[str] = []
+    segments: list[TranscriptionSegment] = []
+    words: list[dict] = []
+    for part in (candidate.get("content") or {}).get("parts") or []:
+        transcription = part.get("audioTranscription") or {}
+        text = (transcription.get("text") or part.get("text") or "").strip()
+        if not text:
+            continue
+        texts.append(text)
+        speaker = transcription.get("speakerLabel")
+        part_words: list[dict] = []
+        for raw in transcription.get("words") or []:
+            word: dict[str, Any] = {
+                "word": raw.get("word", ""),
+                "start": _parse_duration_string(raw.get("startOffset")),
+                "end": _parse_duration_string(raw.get("endOffset")),
+            }
+            if speaker is not None:
+                word["speaker"] = speaker
+            part_words.append(word)
+        words.extend(part_words)
+        if part_words:
+            segments.append(
+                TranscriptionSegment(
+                    text=text,
+                    start=part_words[0]["start"],
+                    end=part_words[-1]["end"],
+                    speaker=speaker,
+                )
+            )
+    return " ".join(texts), None, None, segments, words
+
+
 def _parse_response(
     provider: str,
     result: dict,
@@ -514,6 +998,8 @@ def _parse_response(
     """
     if provider == "deepgram":
         return _parse_deepgram_response(result)
+    if provider == "vertex":
+        return _parse_vertex_response(result)
 
     text = result.get("text", "")
     language = result.get("language")
@@ -627,6 +1113,7 @@ async def _transcribe_chunk(
         )
 
     is_deepgram = provider == "deepgram"
+    is_vertex = provider == "vertex"
 
     query_params: dict[str, str] = {}
     if is_deepgram:
@@ -644,6 +1131,9 @@ async def _transcribe_chunk(
             "Authorization": f"Token {api_key}",
             "Content-Type": mime_type,
         }
+    elif is_vertex:
+        url = vertex_generate_content_url(model_info.get("model_id", model))
+        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     else:
         url = f"{api_base}/audio/transcriptions"
         headers = {"Authorization": f"Bearer {api_key}"}
@@ -665,6 +1155,13 @@ async def _transcribe_chunk(
                     "headers": headers,
                     "params": query_params,
                 }
+            elif is_vertex:
+                request_kwargs = {
+                    "json": _build_vertex_body(
+                        audio_bytes, mime_type, language, timestamps, extra_params
+                    ),
+                    "headers": headers,
+                }
             else:
                 assert build_form is not None
                 form = build_form(
@@ -684,9 +1181,20 @@ async def _transcribe_chunk(
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
-                        text, lang, duration, segments, words = _parse_response(
-                            provider, result
-                        )
+                        try:
+                            text, lang, duration, segments, words = _parse_response(
+                                provider, result
+                            )
+                        except _TranscriptionResponseError as e:
+                            status_tracker.num_tasks_in_progress -= 1
+                            status_tracker.num_tasks_failed += 1
+                            return TranscriptionResponse(
+                                id=task_id,
+                                status_code=200,
+                                is_error=True,
+                                error_message=str(e),
+                                text="",
+                            )
                         if duration:
                             await cost_tracker.record(duration)
                         status_tracker.task_succeeded(task_id)
@@ -786,8 +1294,13 @@ async def _transcribe_file(
     request_timeout: int,
     cost_tracker: _CostTracker,
     pbar: tqdm | None,
+    requested_chunk_seconds: float | None = None,
 ) -> TranscriptionResponse:
-    """Transcribe a single audio source, auto-splitting if needed."""
+    """Transcribe a single audio source, auto-splitting if needed.
+
+    Audio is split when it exceeds the model's limits or, if given,
+    requested_chunk_seconds (which must not exceed the model's max_duration).
+    """
     # Read audio
     try:
         audio_bytes, mime_type, filename = _read_audio(source)
@@ -802,6 +1315,38 @@ async def _transcribe_file(
 
     max_duration = model_info.get("max_duration")
     max_file_size = model_info.get("max_file_size")
+    may_split = bool(max_duration or max_file_size or requested_chunk_seconds)
+
+    # In-memory audio is written to a temp file when it may need splitting, so
+    # it can be probed and split like a path.
+    if (
+        not isinstance(source, (str, Path))
+        and may_split
+        and (_has_ffprobe() or _has_ffmpeg())
+    ):
+        input_dir = Path(tempfile.mkdtemp(prefix="lm_deluge_input_"))
+        input_path = input_dir / (Path(filename).name or "audio")
+        input_path.write_bytes(audio_bytes)
+        try:
+            return await _transcribe_file(
+                task_id=task_id,
+                source=input_path,
+                model=model,
+                model_info=model_info,
+                language=language,
+                timestamps=timestamps,
+                extra_params=extra_params,
+                status_tracker=status_tracker,
+                capacity_lock=capacity_lock,
+                max_requests_per_minute=max_requests_per_minute,
+                max_attempts=max_attempts,
+                request_timeout=request_timeout,
+                cost_tracker=cost_tracker,
+                pbar=pbar,
+                requested_chunk_seconds=requested_chunk_seconds,
+            )
+        finally:
+            shutil.rmtree(input_dir, ignore_errors=True)
 
     # Check if splitting is needed
     needs_split = False
@@ -815,10 +1360,11 @@ async def _transcribe_file(
         needs_split = True
 
     # Check duration limit (only if we can probe and there is a limit)
+    split_threshold = requested_chunk_seconds or max_duration
     audio_duration: float | None = None
-    if source_path and (max_duration or max_file_size):
+    if source_path and may_split:
         audio_duration = _get_audio_duration(source_path)
-        if audio_duration and max_duration and audio_duration > max_duration:
+        if audio_duration and split_threshold and audio_duration > split_threshold:
             needs_split = True
 
     if not needs_split:
@@ -880,18 +1426,30 @@ async def _transcribe_file(
             text="",
         )
 
-    # Determine chunk size: use 80% of max_duration to leave margin,
-    # or 20 minutes if only file size is the constraint
-    if max_duration:
+    # Determine chunk size: the caller's, else 80% of max_duration to leave
+    # margin, or 20 minutes if only file size is the constraint
+    if requested_chunk_seconds:
+        chunk_seconds = requested_chunk_seconds
+    elif max_duration:
         chunk_seconds = max_duration * 0.8
     else:
         chunk_seconds = 1200.0  # 20 minutes
 
+    # Overlap needs word timestamps to de-duplicate the overlapping audio.
+    overlap_seconds = (
+        min(DEFAULT_CHUNK_OVERLAP_SECONDS, chunk_seconds / 4)
+        if timestamps and model_info.get("word_timestamps")
+        else 0.0
+    )
+
     # Split and transcribe chunks
-    chunk_paths: list[Path] = []
+    chunks: list[tuple[Path, float]] = []
     tmp_dir: Path | None = None
     try:
-        chunk_paths = _split_audio(source_path, chunk_seconds)
+        chunks = _split_audio(
+            source_path, chunk_seconds, overlap_seconds, duration=audio_duration
+        )
+        chunk_paths = [chunk_path for chunk_path, _ in chunks]
         # If split returned the original file, no temp dir was created
         if len(chunk_paths) == 1 and chunk_paths[0] == source_path:
             # Shouldn't happen since we checked needs_split, but handle it
@@ -924,8 +1482,7 @@ async def _transcribe_file(
             pbar.total = (pbar.total or 0) - 1 + n_chunks
             pbar.refresh()
 
-        # Calculate time offsets for each chunk
-        chunk_offsets = [i * chunk_seconds for i in range(n_chunks)]
+        chunk_offsets = [offset for _, offset in chunks]
 
         # Transcribe all chunks (they share the same rate limiter)
         chunk_tasks = []
@@ -959,9 +1516,11 @@ async def _transcribe_file(
             chunk_offsets,
             known_duration=audio_duration,
             known_language=language,
+            chunk_seconds=chunk_seconds,
+            overlap_seconds=overlap_seconds,
         )
 
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         return TranscriptionResponse(
             id=task_id,
             status_code=None,
@@ -989,6 +1548,7 @@ async def transcribe_async(
     max_concurrent_requests: int = 10,
     request_timeout: int = 300,
     show_progress: bool = True,
+    chunk_seconds: float | None = None,
     **kwargs,
 ) -> list[TranscriptionResponse]:
     """Transcribe audio files in parallel.
@@ -1005,6 +1565,11 @@ async def transcribe_async(
         max_concurrent_requests: Max simultaneous API requests.
         request_timeout: Timeout per request in seconds.
         show_progress: Show a tqdm progress bar.
+        chunk_seconds: Split audio longer than this into chunks of this
+            length (requires ffmpeg). Defaults to 80% of the model's
+            max_duration. Must not exceed max_duration. With timestamps=True
+            on a model that returns word timestamps, chunks overlap by up to
+            DEFAULT_CHUNK_OVERLAP_SECONDS and are stitched at a shared word.
         **kwargs: Extra parameters passed to the transcription API
             (e.g. prompt, temperature).
 
@@ -1019,6 +1584,15 @@ async def transcribe_async(
         return []
 
     model_info = _get_model_info(model)
+    if chunk_seconds is not None:
+        if chunk_seconds <= 0:
+            raise ValueError("chunk_seconds must be positive")
+        max_duration = model_info.get("max_duration")
+        if max_duration and chunk_seconds > max_duration:
+            raise ValueError(
+                f"chunk_seconds={chunk_seconds} exceeds {model}'s "
+                f"max_duration of {max_duration}s"
+            )
     cost_tracker = _CostTracker(cost_per_minute=model_info["cost_per_minute"])
 
     status_tracker = StatusTracker(
@@ -1051,6 +1625,7 @@ async def transcribe_async(
             request_timeout=request_timeout,
             cost_tracker=cost_tracker,
             pbar=pbar,
+            requested_chunk_seconds=chunk_seconds,
         )
         for i, source in enumerate(audio_files)
     ]
