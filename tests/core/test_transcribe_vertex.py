@@ -1,6 +1,7 @@
 """Tests for Gemini-on-Vertex transcription and overlapping chunk stitching."""
 
 import asyncio
+import os
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from lm_deluge.transcribe import (
     _parse_response,
     _split_audio,
     _stitch_responses,
+    _token_cost,
     _TranscriptionResponseError,
     transcribe_async,
 )
@@ -90,6 +92,7 @@ VERTEX_DIARIZED_RESPONSE = {
             "finishReason": "STOP",
         }
     ],
+    "usageMetadata": {"promptTokenCount": 509, "candidatesTokenCount": 80},
     "modelVersion": "gemini-3.5-transcribe",
 }
 
@@ -639,7 +642,302 @@ def test_overlap_stitch_deepgram_int_speakers():
     )
     assert not result.is_error, result.error_message
     assert [s.speaker for s in result.segments] == ["spk:0", "spk:1"]
+    assert [w["speaker"] for w in result.words] == [
+        {"A": "spk:0", "B": "spk:1"}[s] for _, _, s in truth
+    ]
     assert result.text == " ".join(w for w, _, _ in truth)
+
+
+# ---------------------------------------------------------------------------
+# Regressions from review of the first version
+# ---------------------------------------------------------------------------
+
+
+def _resp(items, segments=()) -> TranscriptionResponse:
+    """A chunk response from (word, chunk-relative start[, speaker]) tuples."""
+    words = []
+    for word, start, *speaker in items:
+        w = {"word": word, "start": start, "end": start + 0.1}
+        if speaker:
+            w["speaker"] = speaker[0]
+        words.append(w)
+    return TranscriptionResponse(
+        id=0,
+        status_code=200,
+        is_error=False,
+        error_message=None,
+        text=" ".join(w["word"] for w in words),
+        words=words,
+        segments=list(segments),
+    )
+
+
+def _stitch_two(a: TranscriptionResponse, b: TranscriptionResponse):
+    # 100s chunks starting at 0 and 80: the overlap is 80-100s.
+    return _stitch_responses(
+        [a, b], 0, [0.0, 80.0], chunk_seconds=100, overlap_seconds=20
+    )
+
+
+def test_stitch_keeps_overlap_speech_heard_by_one_chunk():
+    # Chunk 0 heard words at 89s and 95s; chunk 1 returned nothing there.
+    # Both words must survive (the 95s word used to be cut at the midpoint).
+    result = _stitch_two(_resp([("kept", 89), ("also", 95)]), _resp([]))
+    assert [w["word"] for w in result.words] == ["kept", "also"]
+
+
+def test_stitch_repeated_words_at_cut():
+    # Both chunks heard exactly three "no"s around the 90s midpoint.
+    result = _stitch_two(
+        _resp([("no", 89.6), ("no", 89.9), ("no", 90.2)]),
+        _resp([("no", 9.8), ("no", 10.1), ("no", 10.4)]),
+    )
+    assert result.text == "no no no"
+
+
+def test_stitch_timestamp_inversion_at_cut():
+    # Both chunks heard "A B C"; chunk 1 times A after B by 0.1s.
+    result = _stitch_two(
+        _resp([("A", 89.9), ("B", 90.0), ("C", 90.1)]),
+        _resp([("A", 10.1), ("B", 10.0), ("C", 10.2)]),
+    )
+    assert result.text == "A B C"
+
+
+def test_stitch_shared_boundary_word_stays_in_text():
+    # "two" starts exactly where segment "one" ends; it belongs to segment
+    # "two", and the stitched text must contain every kept word.
+    first = _resp(
+        [("one", 0.0), ("two", 1.0)],
+        [TranscriptionSegment("one", 0.0, 1.0), TranscriptionSegment("two", 1.0, 1.1)],
+    )
+    result = _stitch_two(first, _resp([]))
+    assert result.text == "one two"
+    assert [s.text for s in result.segments] == ["one", "two"]
+
+
+def test_no_speaker_elimination_without_aligned_words():
+    # Alice speaks before a silent overlap, Bob after it. Nothing links the
+    # chunks, so they must not be merged into one speaker.
+    result = _stitch_two(_resp([("Alice", 10, "0")]), _resp([("Bob", 22, "0")]))
+    assert [w["speaker"] for w in result.words] == ["spk:0", "spk:1"]
+
+
+def test_stitch_keeps_deepgram_punctuation():
+    head = _resp([("yes", 89)])
+    head.words[0]["punctuated_word"] = "Yes!"
+    tail = _resp([("yes", 9), ("indeed", 22)])
+    tail.words[0]["punctuated_word"] = "Yes!"
+    tail.words[1]["punctuated_word"] = "Indeed."
+    assert _stitch_two(head, tail).text == "Yes! Indeed."
+
+
+def test_vertex_requires_stop_finish_reason():
+    try:
+        _parse_response("vertex", {"candidates": [{}]})
+    except _TranscriptionResponseError:
+        pass
+    else:
+        raise AssertionError("expected _TranscriptionResponseError")
+
+
+def test_vertex_token_cost():
+    # Gemini API list price for gemini-3.5-transcribe: $2.00 per 1M input
+    # tokens (audio), $12.00 per 1M output tokens (incl. thinking).
+    info = REGISTRY["gemini-3.5-transcribe-vertex"]
+    expected = (509 * 2.00 + 80 * 12.00) / 1_000_000
+    assert abs(_token_cost(VERTEX_DIARIZED_RESPONSE, info) - expected) < 1e-12
+    usage = {
+        "usageMetadata": {
+            "promptTokenCount": 1000,
+            "candidatesTokenCount": 10,
+            "thoughtsTokenCount": 5,
+        }
+    }
+    assert abs(_token_cost(usage, info) - (1000 * 2.00 + 15 * 12.00) / 1e6) < 1e-12
+    # Models priced per minute have no token cost.
+    assert _token_cost(VERTEX_DIARIZED_RESPONSE, REGISTRY["whisper-1"]) is None
+
+
+def test_stitched_cost_is_sum_of_chunks():
+    a, b = _resp([("x", 1)]), _resp([("y", 30)])
+    a.cost, b.cost = 0.25, 0.5
+    assert _stitch_two(a, b).cost == 0.75
+
+
+def _capture_chunk_calls(**kwargs):
+    """Run transcribe_async with the API stubbed; return the kwargs of each
+    chunk request and the results."""
+    calls: list[dict] = []
+    original = transcribe_module._transcribe_chunk
+
+    async def fake_chunk(**call):
+        calls.append(call)
+        return TranscriptionResponse(
+            id=call["task_id"],
+            status_code=200,
+            is_error=False,
+            error_message=None,
+            text="",
+            segments=[],
+            words=[],
+        )
+
+    transcribe_module._transcribe_chunk = fake_chunk
+    try:
+        results = asyncio.run(transcribe_async(show_progress=False, **kwargs))
+    finally:
+        transcribe_module._transcribe_chunk = original
+    return calls, results
+
+
+def test_diarization_implies_timestamps():
+    calls, _ = _capture_chunk_calls(
+        audio_files=[(b"x", "a.webm")],
+        model="gemini-3.5-transcribe-vertex",
+        diarization=True,
+    )
+    assert calls and all(call["timestamps"] for call in calls)
+    try:
+        _capture_chunk_calls(
+            audio_files=[(b"x", "a.webm")],
+            model="gemini-3.5-transcribe-vertex",
+            diarization=True,
+            timestamps=False,
+        )
+    except ValueError as e:
+        assert "timestamps" in str(e)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def _make_wav(path: Path, seconds: int, af: str | None = None) -> None:
+    subprocess.run(
+        ["ffmpeg", "-v", "quiet", "-y", "-f", "lavfi", "-i", f"sine=duration={seconds}"]
+        + (["-af", af] if af else [])
+        + ["-ar", "48000", str(path)],
+        check=True,
+    )
+
+
+def test_size_limit_forces_reencode_of_short_file():
+    # 150s of 48kHz stereo WAV is ~28.8MB: over Vertex's 14MB inline limit
+    # but under one chunk's duration. It must be re-encoded, not sent whole.
+    if not shutil.which("ffmpeg"):
+        print("skipping: no ffmpeg")
+        return
+    with tempfile.TemporaryDirectory() as d:
+        wav = Path(d) / "big.wav"
+        _make_wav(wav, 150, af="pan=stereo|c0=c0|c1=c0")
+        audio = wav.read_bytes()
+    limit = REGISTRY["gemini-3.5-transcribe-vertex"]["max_file_size"]
+    assert len(audio) > limit
+    calls, results = _capture_chunk_calls(
+        audio_files=[(audio, "big.wav")], model="gemini-3.5-transcribe-vertex"
+    )
+    assert not results[0].is_error, results[0].error_message
+    assert len(calls) == 1
+    assert calls[0]["mime_type"] == "audio/mpeg"
+    assert len(calls[0]["audio_bytes"]) <= limit
+
+
+def test_split_keeps_stereo_channels():
+    # Right channel is the left inverted: a mono downmix would cancel out.
+    if not shutil.which("ffmpeg"):
+        print("skipping: no ffmpeg")
+        return
+    with tempfile.TemporaryDirectory() as d:
+        wav = Path(d) / "inverted.wav"
+        _make_wav(wav, 8, af="pan=stereo|c0=c0|c1=-1*c0")
+        chunks = _split_audio(wav, 5, overlap_seconds=1)
+        try:
+            for chunk_path, _ in chunks:
+                probe = subprocess.run(
+                    [
+                        "ffprobe",
+                        "-v",
+                        "quiet",
+                        "-select_streams",
+                        "a:0",
+                        "-show_entries",
+                        "stream=channels",
+                        "-of",
+                        "csv=p=0",
+                        str(chunk_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                assert probe.stdout.strip() == "2"
+                volume = subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-i",
+                        str(chunk_path),
+                        "-af",
+                        "volumedetect",
+                        "-f",
+                        "null",
+                        "-",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                assert "max_volume: -inf" not in volume.stderr
+        finally:
+            shutil.rmtree(chunks[0][0].parent, ignore_errors=True)
+
+
+def test_long_filename_bytes_source_does_not_raise_or_leak():
+    original_tempdir = tempfile.tempdir
+    with tempfile.TemporaryDirectory() as d:
+        tempfile.tempdir = d
+        try:
+            _calls, results = _capture_chunk_calls(
+                audio_files=[(b"x", "a" * 260 + ".wav")],
+                model="gemini-3.5-transcribe-vertex",
+            )
+        finally:
+            tempfile.tempdir = original_tempdir
+        assert os.listdir(d) == []
+    assert len(results) == 1
+
+
+def test_chunk_seconds_enforced_without_ffprobe():
+    if not shutil.which("ffmpeg"):
+        print("skipping: no ffmpeg")
+        return
+    with tempfile.TemporaryDirectory() as d:
+        wav = Path(d) / "short.wav"
+        _make_wav(wav, 12)
+        audio = wav.read_bytes()
+    original = transcribe_module._has_ffprobe
+    transcribe_module._has_ffprobe = lambda: False
+    try:
+        calls, _ = _capture_chunk_calls(
+            audio_files=[(audio, "short.wav")], model="whisper-1", chunk_seconds=5
+        )
+    finally:
+        transcribe_module._has_ffprobe = original
+    assert len(calls) == 3  # chunks start at 0, 5, 10
+
+
+def test_chunk_seconds_must_be_finite():
+    try:
+        asyncio.run(
+            transcribe_async(
+                [(b"x", "a.webm")],
+                model="gpt-4o-transcribe",
+                chunk_seconds=float("nan"),
+                show_progress=False,
+            )
+        )
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("expected ValueError")
 
 
 if __name__ == "__main__":
@@ -665,4 +963,19 @@ if __name__ == "__main__":
     test_no_overlap_for_models_without_word_timestamps()
     test_overlap_stitch_rejects_chunks_without_words()
     test_overlap_stitch_deepgram_int_speakers()
+    test_stitch_keeps_overlap_speech_heard_by_one_chunk()
+    test_stitch_repeated_words_at_cut()
+    test_stitch_timestamp_inversion_at_cut()
+    test_stitch_shared_boundary_word_stays_in_text()
+    test_no_speaker_elimination_without_aligned_words()
+    test_stitch_keeps_deepgram_punctuation()
+    test_vertex_requires_stop_finish_reason()
+    test_vertex_token_cost()
+    test_stitched_cost_is_sum_of_chunks()
+    test_diarization_implies_timestamps()
+    test_size_limit_forces_reencode_of_short_file()
+    test_split_keeps_stereo_channels()
+    test_long_filename_bytes_source_does_not_raise_or_leak()
+    test_chunk_seconds_enforced_without_ffprobe()
+    test_chunk_seconds_must_be_finite()
     print("All tests passed!")

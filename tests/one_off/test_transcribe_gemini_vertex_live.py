@@ -14,6 +14,7 @@ import tempfile
 import time
 from pathlib import Path
 
+import lm_deluge.transcribe as transcribe_module
 from lm_deluge.transcribe import transcribe_async
 
 MODEL = "gemini-3.5-transcribe-vertex"
@@ -74,6 +75,7 @@ async def test_short_dialog_diarized() -> None:
     speakers = [seg.speaker for seg in r.segments]
     assert speakers[0] == speakers[2] and speakers[1] == speakers[3]
     assert speakers[0] != speakers[1]
+    assert r.words, "expected word timestamps"
     assert all(w["end"] >= w["start"] for w in r.words)
 
 
@@ -82,19 +84,33 @@ async def test_long_file_chunked() -> None:
     if not path:
         print("skipping test_long_file_chunked: set LONG_AUDIO_FILE")
         return
+    requests: list[int] = []
+    original = transcribe_module._transcribe_chunk
+
+    async def counting_chunk(**kwargs):
+        requests.append(kwargs["task_id"])
+        return await original(**kwargs)
+
+    transcribe_module._transcribe_chunk = counting_chunk
     started = time.time()
-    results = await transcribe_async(
-        [(Path(path).read_bytes(), Path(path).name)],
-        model=MODEL,
-        language="en",
-        timestamps=True,
-        diarization=True,
-        show_progress=False,
-    )
+    try:
+        results = await transcribe_async(
+            [(Path(path).read_bytes(), Path(path).name)],
+            model=MODEL,
+            language="en",
+            timestamps=True,
+            diarization=True,
+            chunk_seconds=900,
+            show_progress=False,
+        )
+    finally:
+        transcribe_module._transcribe_chunk = original
+    assert len(requests) >= 2, "LONG_AUDIO_FILE must be over 15 minutes"
     r = results[0]
     assert not r.is_error, r.error_message
     print(
         f"{time.time() - started:.0f}s, duration {r.duration}, "
+        f"{len(requests)} requests, ${r.cost:.4f}, "
         f"{len(r.words)} words, {len(r.segments)} segments, "
         f"speakers {sorted({s.speaker for s in r.segments if s.speaker})}"
     )
