@@ -13,6 +13,9 @@ from lm_deluge import LLMClient
 from lm_deluge.models import registry
 
 MODELS = [
+    "gpt-6.2-sol-azure",
+    "gpt-6.2-astra-azure",
+    "gpt-6.1-terra-azure",
     "gpt-6.1-sol-azure",
     "gpt-6-sol-azure",
     "gpt-6-luna-azure",
@@ -25,9 +28,11 @@ MODELS = [
     "grok-4.3-azure",
     "deepseek-v4-pro-azure",
     "deepseek-v4-flash-azure",
+    "deepseek-v4.1-flash-1017-azure",
     "kimi-k2.6-azure",
     "kimi-k2.7-code-azure",
-    "command-a-plus-azure",
+    "kimi-k3.1-pro-azure",
+    "mistral-large-4-azure",
     "mai-thinking-1-azure",
 ]
 

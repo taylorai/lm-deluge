@@ -12,9 +12,6 @@ AZURE_MODELS = [
     # GPT OSS / DeepSeek
     "gpt-oss-120b-azure",
     "deepseek-v3.2-azure",
-    # Grok
-    "grok-4-fast-reasoning-azure",
-    "grok-4-fast-non-reasoning-azure",
     # GPT-4o series
     "gpt-4o-azure",
     "gpt-4o-mini-azure",
@@ -49,8 +46,6 @@ def main():
         print(f"\nTesting {model}...")
         try:
             client_kwargs: dict[str, Any] = {"max_new_tokens": 50}
-            if model == "grok-4-fast-reasoning-azure":
-                client_kwargs["reasoning_effort"] = "low"
             client = LLMClient(model, **client_kwargs)
             responses = client.process_prompts_sync(["Say hello in one word."])
             response = responses[0]

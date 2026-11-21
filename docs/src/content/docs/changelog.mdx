@@ -5,6 +5,11 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.178 · 2026-11-20
+
+- **New Azure AI Foundry models**: Added `gpt-6.2-sol-azure`, `gpt-6.2-astra-azure` and `gpt-6.1-terra-azure` (priced the same as OpenAI direct), plus `kimi-k3.1-pro-azure` ($2.30 / $0.23 cached / $11.50 per million tokens), `deepseek-v4.1-flash-1017-azure` ($0.30 / $0.007 / $1.20) and `mistral-large-4-azure` (deployment `mistral-large-4-latest`; $0.70 / $0.07 / $2.10), at Azure's global prices. All pass the live check in `tests/one_off/test_azure_foundry_models.py`.
+- **Removed retired Azure entries**: `grok-4-fast-reasoning-azure`, `grok-4-fast-non-reasoning-azure` and `command-a-plus-azure` (Azure retired Cohere Command A Plus 05-2026 in October).
+
 ## 0.0.177 · 2026-11-20
 
 - **Inkling 2 Mini via Tinker**: Added `inkling-2-mini` (`thinkingmachines/Inkling-2-Mini`) on Tinker's OpenAI-compatible API (`TINKER_API_KEY`), with the same capabilities as Inkling 2 Small: vision, tool calls, logprobs, reasoning efforts `none` through `xhigh` and numeric effort. Priced at Tinker's sampling rates of $0.15 / $0.015 cached / $0.50 per million tokens. A live run passed for reasoning, images and a tool loop (`tests/one_off/test_tinker_inkling_live.py`), which now covers both Inkling 2 models by default.
