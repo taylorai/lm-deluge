@@ -5,6 +5,10 @@ description: Highlights from recent lm-deluge releases.
 
 LM Deluge iterates quickly. This page calls out the highlights from the most recent releases. For a blow-by-blow history you can always inspect `git log`, but the sections below should help you catch up quickly starting with v0.0.62.
 
+## 0.0.177 · 2026-11-20
+
+- **Inkling 2 Mini via Tinker**: Added `inkling-2-mini` (`thinkingmachines/Inkling-2-Mini`) on Tinker's OpenAI-compatible API (`TINKER_API_KEY`), with the same capabilities as Inkling 2 Small: vision, tool calls, logprobs, reasoning efforts `none` through `xhigh` and numeric effort. Priced at Tinker's sampling rates of $0.15 / $0.015 cached / $0.50 per million tokens. A live run passed for reasoning, images and a tool loop (`tests/one_off/test_tinker_inkling_live.py`), which now covers both Inkling 2 models by default.
+
 ## 0.0.176 · 2026-11-20
 
 - **Gemini transcription on Vertex**: `transcribe_async(..., model="gemini-3.5-transcribe-vertex")` uses `gemini-3.5-transcribe` through Vertex `generateContent` with `VERTEX_API_KEY`, following `VERTEX_LOCATION` like the other Vertex models. `timestamps=True` turns on word timestamps; extra keyword arguments go into `audioTranscriptionConfig` (e.g. `diarization=True`, `customVocabulary=[...]`). With diarization, each segment is one speaker turn labeled `spk:N`. Any `finishReason` other than `STOP` (including a missing one) is returned as an error and not retried. Cost comes from the response's token usage at the Gemini API list price ($2 per million input tokens, $12 per million output tokens) and is reported on the new `TranscriptionResponse.cost` field (summed across chunks).

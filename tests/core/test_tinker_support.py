@@ -59,6 +59,17 @@ def test_tinker_base_models_registered() -> None:
     assert model.reasoning_model and model.supports_images
     assert model.supports_float_reasoning_effort
 
+    mini = APIModel.from_registry("inkling-2-mini")
+    assert mini.name == "thinkingmachines/Inkling-2-Mini"
+    assert mini.provider == "tinker"
+    assert mini.api_base == TINKER_API_BASE
+    assert mini.supports_float_reasoning_effort
+    assert (mini.input_cost, mini.cached_input_cost, mini.output_cost) == (
+        0.15,
+        0.015,
+        0.50,
+    )
+
 
 async def test_content_parts_sent_as_list() -> None:
     # Tinker base models and checkpoints both accept content-part lists

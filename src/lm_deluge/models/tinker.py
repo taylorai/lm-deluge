@@ -7,6 +7,24 @@ TINKER_API_BASE = "https://tinker.thinkingmachines.dev/services/tinker-prod/oai/
 TINKER_API_KEY_ENV_VAR = "TINKER_API_KEY"
 
 TINKER_MODELS = {
+    "inkling-2-mini": {
+        "id": "inkling-2-mini",
+        "name": "thinkingmachines/Inkling-2-Mini",
+        "api_base": TINKER_API_BASE,
+        "api_key_env_var": TINKER_API_KEY_ENV_VAR,
+        "api_spec": "openai",
+        "supports_json": False,
+        "supports_images": True,
+        "supports_logprobs": True,
+        "reasoning_model": True,
+        "supports_reasoning_none": True,
+        "supports_minimal_reasoning": True,
+        "supports_xhigh": True,
+        "supports_float_reasoning_effort": True,
+        "input_cost": 0.15,
+        "cached_input_cost": 0.015,
+        "output_cost": 0.50,
+    },
     "inkling-2-small": {
         "id": "inkling-2-small",
         "name": "thinkingmachines/Inkling-2-Small",

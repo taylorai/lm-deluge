@@ -15,7 +15,7 @@ from PIL import Image as PILImage
 from lm_deluge import Conversation, LLMClient, Message, Tool
 from lm_deluge.prompt import Thinking
 
-DEFAULT_MODELS = ["inkling-2-small"]
+DEFAULT_MODELS = ["inkling-2-mini", "inkling-2-small"]
 
 
 def _red_png() -> bytes:
